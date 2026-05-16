@@ -713,19 +713,15 @@ pfUI:RegisterModule("chat", "vanilla:tbc", function ()
   local r,g,b = strsplit(",", C.chat.text.unknowncolor)
   local unknowncolorhex = rgbhex(r,g,b)
 
-  local nothing = function() return end
-  local original = FriendsFrame_OnEvent
-
-  local who_query = CreateFrame("Frame")
-  who_query:RegisterEvent("WHO_LIST_UPDATE")
-  who_query:SetScript("OnEvent", function()
-    if this.pending then
-      -- restore everything once a query is received
-      _G.FriendsFrame_OnEvent = original
-      this.pending = nil
-      SetWhoToUI(0)
-    end
-  end)
+  -- Suppress FriendsFrame's WHO_LIST_UPDATE handling for our DLL-issued
+  -- name lookups so they don't pop the friends panel. User-issued /who
+  -- still works because IsWhoQueryPending only reports true for queries
+  -- issued via C_FriendList.SendWhoQueryByName.
+  local original_FriendsFrame_OnEvent = FriendsFrame_OnEvent
+  _G.FriendsFrame_OnEvent = function()
+    if _G.event == "WHO_LIST_UPDATE" and C_FriendList.IsWhoQueryPending() then return end
+    return original_FriendsFrame_OnEvent()
+  end
 
   local function GetPlayerLevel(name)
     if not pfUI_playerDB then return nil end
@@ -733,23 +729,12 @@ pfUI:RegisterModule("chat", "vanilla:tbc", function ()
     return pfUI_playerDB[name].level
   end
 
-  local function ScanWhoName(name)
-    -- abort if another query is ongoing
-    if who_query.pending then return end
-    who_query.pending = true
-
-    -- prepare and send the who query
-    _G.FriendsFrame_OnEvent = nothing
-    SetWhoToUI(1)
-    SendWho("n-"..name)
-  end
-
-  local function AddMessage(frame, text, a1, a2, a3, a4, a5)
+  local function AddMessage(frame, text, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17)
     if not text then return end
 
     -- skip chat parsing on combat log
     if frame.pfCombatLog then
-      return frame:HookAddMessage(text, a1, a2, a3, a4, a5)
+      return frame:HookAddMessage(text, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17)
     end
 
     -- Remove prat CLINKs
@@ -773,15 +758,24 @@ pfUI:RegisterModule("chat", "vanilla:tbc", function ()
         local real, _ = strsplit(":", name)
         local color = unknowncolorhex
         local match = false
-        local class = GetUnitData(real)
-
+        local class
+        local guid = GetCurrentChatGUID()
+        if guid then
+          _, class = GetPlayerInfoByGUID(guid)
+        end
+        if not class then
+          _, class = C_PlayerCache.GetPlayerInfoByName(real)
+        end
+        if not class then
+          class = GetUnitData(real)
+        end
         if class then
           if class ~= UNKNOWN then
             color = rgbhex(RAID_CLASS_COLORS[class])
             match = true
           end
         elseif C.chat.text.whosearchunknown == "1" then
-          ScanWhoName(name)
+          C_FriendList.SendWhoQueryByName(name) -- cooldown + state managed by DLL
         end
 
         if C.chat.text.tintunknown == "1" or match then
@@ -839,7 +833,7 @@ pfUI:RegisterModule("chat", "vanilla:tbc", function ()
       end
     end
 
-    frame:HookAddMessage(text, a1, a2, a3, a4, a5)
+    frame:HookAddMessage(text, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17)
   end
 
   for i=1,NUM_CHAT_WINDOWS do

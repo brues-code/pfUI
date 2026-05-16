@@ -12,27 +12,24 @@ pfUI:RegisterModule("autovendor", "vanilla:tbc", function ()
   end
 
   local function HasGreyItems()
-    for bag = 0, 4, 1 do
-      for slot = 1, GetContainerNumSlots(bag), 1 do
-        local name = GetContainerItemLink(bag,slot)
-        if name and string.find(name,"ff9d9d9d") then return true end
+    for bag = 0, 4 do
+      for slot = 1, GetContainerNumSlots(bag) do
+        local quality = C_Item.GetItemQuality(ItemLocation:CreateFromBagAndSlot(bag,slot))
+        if quality and quality == LE_ITEM_QUALITY_POOR then return true end
       end
     end
-    return nil
   end
 
   local function GetNextGreyItem()
-    for bag = 0, 4, 1 do
-      for slot = 1, GetContainerNumSlots(bag), 1 do
-        local name = GetContainerItemLink(bag,slot)
-        if name and string.find(name,"ff9d9d9d") and not processed[bag.."x"..slot] then
+    for bag = 0, 4 do
+      for slot = 1, GetContainerNumSlots(bag) do
+        local quality = C_Item.GetItemQuality(ItemLocation:CreateFromBagAndSlot(bag,slot))
+        if quality and quality == LE_ITEM_QUALITY_POOR and not processed[bag.."x"..slot] then
           processed[bag.."x"..slot] = true
           return bag, slot
         end
       end
     end
-
-    return nil, nil
   end
 
   local autovendor = CreateFrame("Frame", "pfMoneyUpdate", nil)
@@ -56,16 +53,15 @@ pfUI:RegisterModule("autovendor", "vanilla:tbc", function ()
     end
 
     -- double check to only sell grey
-    local name = GetContainerItemLink(bag,slot)
-    if not name or not string.find(name,"ff9d9d9d") then
+    local quality = C_Item.GetItemQuality(ItemLocation:CreateFromBagAndSlot(bag,slot))
+    if quality ~= LE_ITEM_QUALITY_POOR then
       return
     end
 
     -- get value
-    local _, icount = GetContainerItemInfo(bag, slot)
-    local _, _, id = string.find(GetContainerItemLink(bag, slot), "item:(%d+):%d+:%d+:%d+")
-    if pfSellData[tonumber(id)] then
-      local _, _, sell, buy = strfind(pfSellData[tonumber(id)], "(.*),(.*)")
+    local id = C_Container.GetContainerItemID(bag, slot)
+    if pfSellData[id] then
+      local _, _, sell, buy = strfind(pfSellData[id], "(.*),(.*)")
       this.count = this.count + 1
     end
 
@@ -103,7 +99,11 @@ pfUI:RegisterModule("autovendor", "vanilla:tbc", function ()
       end
 
       if C["global"]["autosell"] == "1" then
-        autovendor:Show()
+        if C_MerchantFrame.GetNumJunkItems() > 0 then
+          C_MerchantFrame.SellAllJunkItems()
+        else
+          autovendor:Show()
+        end
         autovendor.button:Hide()
       else
         autovendor.button:Show()

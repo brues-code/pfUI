@@ -265,6 +265,13 @@ function pfUI.api.modf(f)
   return math.ceil(f), mod(f,1)
 end
 
+-- [ GetServerEpoch ]
+-- Returns a Unix epoch (seconds) representing the current server wall
+-- clock, packed in the player's local timezone so that date(fmt, epoch)
+-- prints server-time strings regardless of where the player sits.
+-- Returns nil before login; date(fmt, nil) silently falls back to local time.
+pfUI.api.GetServerEpoch = C_DateAndTime.GetServerTimeLocal
+
 -- [ GetSlashCommands ]
 -- Lists all registeres slash commands
 -- 'text'       [string]        optional, a specific command to find
@@ -415,17 +422,12 @@ end
 function pfUI.api.FindItem(item)
   for bag = 4, 0, -1 do
     for slot = 1, GetContainerNumSlots(bag) do
-      local itemLink = GetContainerItemLink(bag,slot)
-      if itemLink then
-        local _, _, parse = strfind(itemLink, "(%d+):")
-        local query = GetItemInfo(parse)
-        if query and query ~= "" and string.lower(query) == string.lower(item) then
-          return bag, slot
-        end
+      local query = C_Item.GetItemName(ItemLocation:CreateFromBagAndSlot(bag, slot))
+      if query and query ~= "" and string.lower(query) == string.lower(item) then
+        return bag, slot
       end
     end
   end
-
   return nil
 end
 
@@ -439,7 +441,7 @@ function pfUI.api.GetBagFamily(bag)
   if bag == 0 then return "BAG" end -- backpack
   if bag == -1 then return "BAG" end -- bank
 
-  local _, _, id = strfind(GetInventoryItemLink("player", ContainerIDToInventoryID(bag)) or "", "item:(%d+)")
+  local id = GetInventoryItemID("player", ContainerIDToInventoryID(bag))
   if id then
     local _, _, _, _, _, itemType, subType = GetItemInfo(id)
     local bagsubtype = L["bagtypes"][subType]

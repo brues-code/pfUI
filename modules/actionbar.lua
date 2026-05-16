@@ -1714,9 +1714,9 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
     local reagentcounter = CreateFrame("Frame", "pfReagentCounter", UIParent)
     reagentcounter:RegisterEvent("PLAYER_ENTERING_WORLD")
     reagentcounter:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
-    reagentcounter:RegisterEvent("BAG_UPDATE")
+    reagentcounter:RegisterEvent("BAG_UPDATE_DELAYED")
     reagentcounter:SetScript("OnEvent", function()
-      if event == "BAG_UPDATE" then
+      if event == "BAG_UPDATE_DELAYED" then
         this.event = true
       else
         this.scan = 1

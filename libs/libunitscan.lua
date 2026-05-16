@@ -32,6 +32,18 @@ if pfUI.api.libunitscan then return end
 local units = { players = {}, mobs = {} }
 local queue = { }
 
+-- Feed (guid, name, classToken) into ClassicAPI's persistent name
+-- cache when the unit's GUID is resolvable. Roster-style packets
+-- (party / raid / inspect on glance) carry class inline, so the
+-- engine often doesn't issue a separate name query and the DLL's
+-- NameCache hook never fires for them — this is where we close that gap.
+local function RememberByUnit(unit, name, class)
+  if not (name and class) then return end
+  local guid = UnitGUID(unit)
+  if not guid then return end
+  C_PlayerCache.RememberPlayer(guid, name, class, UnitRace(unit), UnitSex(unit))
+end
+
 function GetUnitData(name, active)
   if units["players"][name] then
     local ret = units["players"][name]
@@ -78,6 +90,7 @@ libunitscan:SetScript("OnEvent", function()
     local level = UnitLevel("player")
     local guild = GetGuildInfo("player")
     AddData("players", name, class, level, nil, guild)
+    RememberByUnit("player", name, class)
 
   elseif event == "FRIENDLIST_UPDATE" then
     local name, class, level
@@ -99,11 +112,13 @@ libunitscan:SetScript("OnEvent", function()
     end
 
   elseif event == "RAID_ROSTER_UPDATE" then
-    local name, class, SubGroup, level, _
+    local name, class, SubGroup, level, unit, _
     for i = 1, GetNumRaidMembers() do
+      unit = "raid" .. i
       name, _, SubGroup, level, class = GetRaidRosterInfo(i)
       class = L["class"][class] or nil
       AddData("players", name, class, level)
+      RememberByUnit(unit, name, class)
     end
 
   elseif event == "PARTY_MEMBERS_CHANGED" then
@@ -115,10 +130,11 @@ libunitscan:SetScript("OnEvent", function()
       level = UnitLevel(unit)
       guild = GetGuildInfo(unit)
       AddData("players", name, class, level, nil, guild)
+      RememberByUnit(unit, name, class)
     end
 
   elseif event == "WHO_LIST_UPDATE" or event == "CHAT_MSG_SYSTEM" then
-    local name, class, level, _
+    local name, class, level, guild, _
     for i = 1, GetNumWhoResults() do
       name, guild, level, _, class, _ = GetWhoInfo(i)
       class = L["class"][class] or nil
@@ -127,7 +143,7 @@ libunitscan:SetScript("OnEvent", function()
 
   elseif event == "UPDATE_MOUSEOVER_UNIT" or event == "PLAYER_TARGET_CHANGED" then
     local scan = event == "PLAYER_TARGET_CHANGED" and "target" or "mouseover"
-    local name, class, level, elite, _
+    local name, class, level, elite, guild, _
     if UnitIsPlayer(scan) then
       _, class = UnitClass(scan)
       level = UnitLevel(scan)
@@ -136,6 +152,7 @@ libunitscan:SetScript("OnEvent", function()
       name = UnitName(scan)
       guild = GetGuildInfo(scan)
       AddData("players", name, class, level, nil, guild)
+      RememberByUnit(scan, name, class)
     else
       _, class = UnitClass(scan)
       elite = UnitClassification(scan)

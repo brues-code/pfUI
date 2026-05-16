@@ -494,10 +494,10 @@ pfUI:RegisterModule("bags", "vanilla:tbc", function ()
     -- add shaguscore if we have it
     if ShaguScore and pfUI.bags[bag].slots[slot].frame.scoreText then
       if quality and quality > 0 then
-        local link = GetContainerItemLink(bag, slot)
-        local r,g,b = GetItemQualityColor(quality)
-        local _, _, itemID = string.find(link, "item:(%d+):%d+:%d+:%d+")
-        local itemLevel = ShaguScore.Database[tonumber(itemID)] or 0
+        local item = Item:CreateFromBagAndSlot(bag, slot)
+        local r,g,b = item:GetItemQualityColorRGB()
+        local itemID = item:GetItemID()
+        local itemLevel = ShaguScore.Database[itemID] or 0
         local score = ShaguScore:Calculate(vslot, quality, itemLevel)
         if score and score > 0 and count and count == 1 then
           pfUI.bags[bag].slots[slot].frame.scoreText:SetText(score)

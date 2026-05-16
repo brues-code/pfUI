@@ -94,31 +94,13 @@ pfUI:RegisterModule("afkcam", "vanilla:tbc", function ()
   clock.time:SetJustifyH("CENTER")
   clock.time:SetPoint("TOP", 0, -10)
   clock:SetScript("OnUpdate", function()
-    local h, m = GetGameTime()
-    local noon = "AM"
-    local time = ""
+    local fmt
     if C.global.twentyfour == "0" then
-      if C.global.servertime == "1" then
-        if h == 0 then
-          h = 12
-        elseif h == 12 then
-          noon = "PM"
-        elseif h > 12 then
-          h = h - 12
-          noon = "PM"
-        end
-        time = string.format("%.2d|cff33ffcc:|r%.2d %s", h, m, noon)
-      else
-        time = date("%I|cff33ffcc:|r%M %p")
-      end
-      clock.time:SetText(time)
+      fmt = "%I|cff33ffcc:|r%M %p"
     else
-      if C.global.servertime == "1" then
-        time = string.format("%.2d|cff33ffcc:|r%.2d", h, m)
-      else
-        time = date("%H|cff33ffcc:|r%M")
-      end
+      fmt = "%H|cff33ffcc:|r%M"
     end
+    local time = C.global.servertime == "1" and date(fmt, GetServerEpoch()) or date(fmt)
     clock.time:SetText(time)
   end)
 

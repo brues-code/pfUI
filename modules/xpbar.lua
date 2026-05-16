@@ -6,6 +6,7 @@ pfUI:RegisterModule("xpbar", "vanilla:tbc", function ()
   data:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
   data:RegisterEvent("PLAYER_ENTERING_WORLD")
   data:RegisterEvent("PLAYER_LEVEL_UP")
+  data:RegisterEvent("UPDATE_FACTION")
   data:SetScript("OnEvent", function()
     if event == "PLAYER_ENTERING_WORLD" then
       this.starttime = GetTime()
@@ -16,6 +17,14 @@ pfUI:RegisterModule("xpbar", "vanilla:tbc", function ()
     elseif event == "CHAT_MSG_COMBAT_FACTION_CHANGE" then
       local _,_, faction, amount = string.find(arg1, parse_faction)
       this.faction = faction or this.faction
+    elseif event == "UPDATE_FACTION" then
+      -- drop the auto-tracked faction when the user changes the watched one
+      local watched = C_Reputation.GetWatchedFactionData()
+      local watchedName = watched and watched.name or nil
+      if watchedName ~= this.watched then
+        this.watched = watchedName
+        this.faction = nil
+      end
     end
   end)
 

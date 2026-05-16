@@ -12,25 +12,9 @@ pfUI:RegisterModule("panel", "vanilla:tbc", function()
       widget.Tooltip = function()
         GameTooltip:ClearLines()
         GameTooltip_SetDefaultAnchor(GameTooltip, this)
-        local h, m = GetGameTime()
-        local noon = " AM"
-        local servertime
-        local time
-        if C.global.twentyfour == "0" then
-          if h == 0 then
-            h = 12
-          elseif h == 12 then
-            noon = " PM"
-          elseif h > 12 then
-            h = h - 12
-            noon = " PM"
-          end
-          time = date("%I:%M %p")
-          servertime = string.format("%.2d:%.2d %s", h, m, noon)
-        else
-          time = date("%H:%M")
-          servertime = string.format("%.2d:%.2d", h, m)
-        end
+        local fmt = C.global.twentyfour == "0" and "%I:%M %p" or "%H:%M"
+        local time = date(fmt)
+        local servertime = date(fmt, GetServerEpoch())
         GameTooltip:AddLine("|cff555555" .. T["Time"])
         GameTooltip:AddDoubleLine(T["Localtime"],  "|cffffffff" .. time)
         GameTooltip:AddDoubleLine(T["Servertime"], "|cffffffff".. servertime)
@@ -65,39 +49,14 @@ pfUI:RegisterModule("panel", "vanilla:tbc", function()
       widget:SetScript("OnUpdate",function()
         if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + 1 end
 
-        local h, m = GetGameTime()
-        local noon = "AM"
-        local time = ""
         local secondsenabled = C.panel.seconds == "1"
+        local fmt
         if C.global.twentyfour == "0" then
-          if C.global.servertime == "1" then
-            if h == 0 then
-              h = 12
-            elseif h == 12 then
-              noon = "PM"
-            elseif h > 12 then
-              h = h - 12
-              noon = "PM"
-            end
-            time = string.format("%.2d:%.2d %s", h, m, noon)
-          else
-            if secondsenabled then
-              time = date("%I:%M:%S %p")
-            else
-              time = date("%I:%M %p")
-            end
-          end
+          fmt = secondsenabled and "%I:%M:%S %p" or "%I:%M %p"
         else
-          if C.global.servertime == "1" then
-            time = string.format("%.2d:%.2d", h, m)
-          else
-            if secondsenabled then
-              time = date("%H:%M:%S")
-            else
-              time = date("%H:%M")
-            end
-          end
+          fmt = secondsenabled and "%H:%M:%S" or "%H:%M"
         end
+        local time = C.global.servertime == "1" and date(fmt, GetServerEpoch()) or date(fmt)
         pfUI.panel:OutputPanel("time", time, widget.Tooltip, widget.Click)
       end)
 
@@ -249,7 +208,7 @@ pfUI:RegisterModule("panel", "vanilla:tbc", function()
     do -- Bagspace
       local widget = CreateFrame("Frame", "pfPanelWidgetBag", UIParent)
       widget:RegisterEvent("PLAYER_ENTERING_WORLD")
-      widget:RegisterEvent("BAG_UPDATE")
+      widget:RegisterEvent("BAG_UPDATE_DELAYED")
       widget:SetScript("OnEvent", function()
         local maxslots = 0
         local usedslots = 0
@@ -259,8 +218,8 @@ pfUI:RegisterModule("panel", "vanilla:tbc", function()
             local bagsize = GetContainerNumSlots(bag)
             maxslots = maxslots + bagsize
             for j = 1,bagsize do
-              local link = GetContainerItemLink(bag,j)
-              if link then
+              local itemID = C_Container.GetContainerItemID(bag,j)
+              if itemID then
                 usedslots = usedslots + 1
               end
             end
@@ -471,8 +430,7 @@ pfUI:RegisterModule("panel", "vanilla:tbc", function()
       widget.itemLines = {}
       widget.durability_slots = { 1, 3, 5, 6, 7, 8, 9, 10, 16, 17, 18 }
       widget.totalRep = 0
-      widget.scantip = libtipscan:GetScanner("panel")
-      widget.duracapture = string.gsub(DURABILITY_TEMPLATE, "%%[^%s]+", "(.+)")
+
       widget.Click = function() ToggleCharacter("PaperDollFrame") end
       widget.Tooltip = function()
         if widget.totalRep > 0 then
@@ -489,27 +447,24 @@ pfUI:RegisterModule("panel", "vanilla:tbc", function()
       widget:SetScript("OnEvent", function()
         if event == "UNIT_INVENTORY_CHANGED" and arg1 ~= "player" then return end
 
-        local repPercent = 100
         local lowestPercent = 100
         widget.totalRep = 0
         wipe(widget.itemLines)
         for _, id in pairs(widget.durability_slots) do
-          local hasItem, _, repCost = widget.scantip:SetInventoryItem("player", id)
-          if (hasItem) then
-            widget.totalRep = widget.totalRep + repCost
-            local line, lval, rval = widget.scantip:Find(widget.duracapture)
-            if (lval and rval) then
-              repPercent = math.floor(lval / rval * 100)
-              if repPercent < 100 then
-                local link = GetInventoryItemLink("player",id)
-                local r,g,b,hex = GetColorGradient(repPercent/100)
-                local cPercent = string.format("%s%s%%|r",hex,repPercent)
-                widget.itemLines[table.getn(widget.itemLines)+1]={link, cPercent}
-              end
+          local cur, max = GetInventoryItemDurability(id)
+          if cur and max then
+            widget.totalRep = widget.totalRep + (GetInventoryItemRepairCost(id) or 0)
+            local repPercent = math.floor(cur / max * 100)
+            if repPercent < 100 then
+              local _, _, _, hex = GetColorGradient(repPercent/100)
+              widget.itemLines[table.getn(widget.itemLines)+1] = {
+                GetInventoryItemLink("player", id),
+                string.format("%s%s%%|r", hex, repPercent)
+              }
             end
-          end
-          if repPercent < lowestPercent then
-            lowestPercent = repPercent
+            if repPercent < lowestPercent then
+              lowestPercent = repPercent
+            end
           end
         end
 
@@ -553,7 +508,7 @@ pfUI:RegisterModule("panel", "vanilla:tbc", function()
       local widget = CreateFrame("Frame", "pfPanelWidgetAmmo", UIParent)
       widget:RegisterEvent("PLAYER_ENTERING_WORLD")
       widget:RegisterEvent("UNIT_INVENTORY_CHANGED")
-      widget:RegisterEvent("BAG_UPDATE")
+      widget:RegisterEvent("BAG_UPDATE_DELAYED")
       widget.Tooltip = function()
         if GetInventoryItemQuality("player", 0) then
           local ammo = GetInventoryItemCount("player", 0)
@@ -573,65 +528,73 @@ pfUI:RegisterModule("panel", "vanilla:tbc", function()
       end)
     end
 
-    do -- Soulshards
-      local widget = CreateFrame("Frame", "pfPanelWidgetSoulshard", UIParent)
-      widget:RegisterEvent("PLAYER_ENTERING_WORLD")
-      widget:RegisterEvent("BAG_UPDATE")
-      widget:SetScript("OnEvent", function()
-        local _, class = UnitClass("player")
-        if class == "WARLOCK" then
-          local count = pfUI.api.GetItemCount(T["Soul Shard"])
-          pfUI.panel:OutputPanel("soulshard", T["Soulshards"] .. ": " .. count)
-        end
-      end)
-    end
-
-    do -- Hearthstone bind location
-      local widget = CreateFrame("Frame", "pfPanelBindLocation", UIParent)
-      widget:RegisterEvent("PLAYER_ENTERING_WORLD")
-      widget:RegisterEvent("CHAT_MSG_SYSTEM")
-      widget:SetScript("OnEvent", function()
+  
+    do
+      -- Hearthstone bind location
+      local hearth = CreateFrame("Frame", "pfPanelBindLocation", UIParent)
+      hearth:RegisterEvent("PLAYER_ENTERING_WORLD")
+      hearth:RegisterEvent("CHAT_MSG_SYSTEM")
+      hearth:SetScript("OnEvent", function()
         pfUI.panel:OutputPanel("bindlocation", T["Hearthstone"] .. ": " .. (GetBindLocation() or T["Not Set"]))
       end)
-    end
 
-    do -- Flash Powder
-      local widget = CreateFrame("Frame", "pfPanelFlashPowder", UIParent)
-      widget:RegisterEvent("PLAYER_ENTERING_WORLD")
-      widget:RegisterEvent("BAG_UPDATE")
-      widget:SetScript("OnEvent", function()
-        local _, class = UnitClass("player")
-        if class == "ROGUE" then
-          local count = pfUI.api.GetItemCount(T["Flash Powder"])
-          pfUI.panel:OutputPanel("flashpowder", T["Flash Powder"] .. ": " .. count)
-        end
-      end)
-    end
+      local itemIDs = {
+        soulshard = 6265,
+        flashpowder = 5140,
+        thistletea = 7676,
+        blindpowder = 5530
+      }
 
-    do -- Thistle Tea
-      local widget = CreateFrame("Frame", "pfPanelThistleTea", UIParent)
-      widget:RegisterEvent("PLAYER_ENTERING_WORLD")
-      widget:RegisterEvent("BAG_UPDATE")
-      widget:SetScript("OnEvent", function()
-        local _, class = UnitClass("player")
-        if class == "ROGUE" then
-          local count = pfUI.api.GetItemCount(T["Thistle Tea"])
-          pfUI.panel:OutputPanel("thistletea", T["Thistle Tea"] .. ": " .. count)
-        end
-      end)
-    end
+      local function AddItemToPanel(panelType)
+        local itemID = itemIDs[panelType]
+          if C_Item.IsItemDataCachedByID(itemID) then
+            local itemName, count = C_Item.GetItemNameByID(itemID), C_Item.GetItemCount(itemID)
+            pfUI.panel:OutputPanel(panelType, itemName .. ": " .. count)
+          else
+            local item = Item:CreateFromItemID(itemID)
+            item:ContinueOnItemLoad(function()
+              local itemName, count = item:GetItemName(), C_Item.GetItemCount(item:GetItemID())
+              pfUI.panel:OutputPanel(panelType, itemName .. ": " .. count)
+            end)
+          end
+      end
+    
+      local class = UnitClassBase('player')
+      if class == "WARLOCK" then
+        -- Soulshards
+        local widget = CreateFrame("Frame", "pfPanelWidgetSoulshard", UIParent)
+        widget:RegisterEvent("PLAYER_ENTERING_WORLD")
+        widget:RegisterEvent("BAG_UPDATE_DELAYED")
+        widget:SetScript("OnEvent", function()
+            AddItemToPanel("soulshard")
+        end)
+      end
 
-    do -- Blinding Powder
-      local widget = CreateFrame("Frame", "pfPanelBlindingPowder", UIParent)
-      widget:RegisterEvent("PLAYER_ENTERING_WORLD")
-      widget:RegisterEvent("BAG_UPDATE")
-      widget:SetScript("OnEvent", function()
-        local _, class = UnitClass("player")
-        if class == "ROGUE" then
-          local count = pfUI.api.GetItemCount(T["Blinding Powder"])
-          pfUI.panel:OutputPanel("blindpowder", T["Blinding Powder"] .. ": " .. count)
-        end
-      end)
+      if class == "ROGUE" then
+        -- Flash Powder
+        local widget = CreateFrame("Frame", "pfPanelFlashPowder", UIParent)
+        widget:RegisterEvent("PLAYER_ENTERING_WORLD")
+        widget:RegisterEvent("BAG_UPDATE_DELAYED")
+        widget:SetScript("OnEvent", function()
+            AddItemToPanel("flashpowder")
+        end)
+
+        -- Thistle Tea
+        local widget = CreateFrame("Frame", "pfPanelThistleTea", UIParent)
+        widget:RegisterEvent("PLAYER_ENTERING_WORLD")
+        widget:RegisterEvent("BAG_UPDATE_DELAYED")
+        widget:SetScript("OnEvent", function()
+            AddItemToPanel("thistletea")
+        end)
+
+        -- Blinding Powder
+        local widget = CreateFrame("Frame", "pfPanelBlindingPowder", UIParent)
+        widget:RegisterEvent("PLAYER_ENTERING_WORLD")
+        widget:RegisterEvent("BAG_UPDATE_DELAYED")
+        widget:SetScript("OnEvent", function()
+            AddItemToPanel("blindpowder")
+        end)
+      end
     end
   end
 

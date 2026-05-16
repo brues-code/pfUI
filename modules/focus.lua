@@ -29,6 +29,8 @@ local function SetFocusByGUID(guid)
     pfUI.uf.focustarget.label = guid .. "target"
     pfUI.uf.focustarget.id = ""
   end
+
+  C_Minimap.SetFocusByGUID(guid)
 end
 
 -- Helper: set focus frame by name (fallback, no Nampower)
@@ -42,6 +44,8 @@ local function SetFocusByName(name)
     pfUI.uf.focustarget.label = nil
     pfUI.uf.focustarget.id = nil
   end
+
+  C_Minimap.SetFocusByName(name)
 end
 
 SLASH_PFFOCUS1, SLASH_PFFOCUS2 = '/focus', '/pffocus'
@@ -122,6 +126,8 @@ function SlashCmdList.PFCLEARFOCUS(msg)
     pfUI.uf.focustarget.label = nil
     pfUI.uf.focustarget.id = nil
   end
+
+  C_Minimap.ClearFocus()
 end
 
 SLASH_PFCASTFOCUS1, SLASH_PFCASTFOCUS2 = '/castfocus', '/pfcastfocus'
