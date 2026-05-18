@@ -382,11 +382,9 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
     if not self.scanmacro then return end
     if pfUI.bars.skip_macro then return end
 
-    local macro = GetActionText(self.id)
-    self.spellslot = nil
-    self.booktype = nil
-    if macro then
-      local slot = GetMacroIndexByName(macro)
+    local kind, slot = GetActionInfo(self.id)
+    self.spellslot, self.booktype = nil, nil
+    if kind == 'macro' then
       local name, _, body = GetMacroInfo(slot)
 
       if name and body then
@@ -394,14 +392,6 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
 
         for line in gfind(body, "[^%\n]+") do
           _, _, match = string.find(line, '^#showtooltip (.+)')
-
-          -- skip any further manual macro scanning on
-          -- gameclients with native macro spell detection
-          if pfUI.client > 11200 and match then
-            self.spellslot = nil
-            self.booktype = nil
-            return
-          end
 
           -- allow the user to disable the scan
           if match and strfind(match, "disable") then
