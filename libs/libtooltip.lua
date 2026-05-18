@@ -19,12 +19,19 @@ setfenv(1, pfUI:GetEnvironment())
 -- return instantly when another libtooltip is already active
 if pfUI.api.libtooltip then return end
 
-local _
 local libtooltip = CreateFrame("Frame" , "pfLibTooltip", GameTooltip)
+
+libtooltip:SetScript("OnShow", function()
+  if this:GetParent():HasItem() then
+    libtooltip.itemName, libtooltip.itemLink, libtooltip.itemID = this:GetParent():GetItem()
+  end
+end)
+
 libtooltip:SetScript("OnHide", function()
   this.itemID = nil
   this.itemLink = nil
   this.itemCount = nil
+  this.itemName = nil
 end)
 
 -- core functions
@@ -61,123 +68,6 @@ function GameTooltip.SetHyperlink(self, arg1)
   return pfHookSetHyperlink(self, arg1)
 end
 
-local pfHookSetBagItem = GameTooltip.SetBagItem
-function GameTooltip.SetBagItem(self, container, slot)
-  -- skip special/invalid calls to the function
-  if not container or not slot then
-    return pfHookSetBagItem(self, container, slot)
-  end
-
-  libtooltip.itemLink = GetContainerItemLink(container, slot)
-  libtooltip.itemID = C_Container.GetContainerItemID(container, slot)
+hooksecurefunc(GameTooltip, "SetBagItem", function(self, container, slot)
   _, libtooltip.itemCount = GetContainerItemInfo(container, slot)
-  return pfHookSetBagItem(self, container, slot)
-end
-
-local pfHookSetQuestLogItem = GameTooltip.SetQuestLogItem
-function GameTooltip.SetQuestLogItem(self, itemType, index)
-  libtooltip.itemID = GetQuestLogItemID(itemType, index)
-  libtooltip.itemLink = GetQuestLogItemLink(itemType, index)
-  if not libtooltip.itemLink then return end
-  return pfHookSetQuestLogItem(self, itemType, index)
-end
-
-local pfHookSetQuestItem = GameTooltip.SetQuestItem
-function GameTooltip.SetQuestItem(self, itemType, index)
-  libtooltip.itemID = GetQuestItemID(itemType, index)
-  libtooltip.itemLink = GetQuestItemLink(itemType, index)
-  return pfHookSetQuestItem(self, itemType, index)
-end
-
-local pfHookSetLootItem = GameTooltip.SetLootItem
-function GameTooltip.SetLootItem(self, slot)
-  libtooltip.itemID = GetLootSlotItemID(slot)
-  libtooltip.itemLink = GetLootSlotLink(slot)
-  pfHookSetLootItem(self, slot)
-end
-
-local pfHookSetInboxItem = GameTooltip.SetInboxItem
-function GameTooltip.SetInboxItem(self, mailID, attachmentIndex)
-  local itemName, itemTexture, inboxItemCount, inboxItemQuality = GetInboxItem(mailID)
-  libtooltip.itemID = GetInboxItemID(mailID)
-  libtooltip.itemLink = GetItemLinkByName(itemName)
-  return pfHookSetInboxItem(self, mailID, attachmentIndex)
-end
-
-local pfHookSetInventoryItem = GameTooltip.SetInventoryItem
-function GameTooltip.SetInventoryItem(self, unit, slot)
-  libtooltip.itemID = GetInventoryItemID(unit, slot)
-  libtooltip.itemLink = GetInventoryItemLink(unit, slot)
-  return pfHookSetInventoryItem(self, unit, slot)
-end
-
-local pfHookSetLootRollItem = GameTooltip.SetLootRollItem
-function GameTooltip.SetLootRollItem(self, id)
-  libtooltip.itemID = GetLootRollItemID(id)
-  libtooltip.itemLink = GetLootRollItemLink(id)
-  return pfHookSetLootRollItem(self, id)
-end
-
-local pfHookSetMerchantItem = GameTooltip.SetMerchantItem
-function GameTooltip.SetMerchantItem(self, merchantIndex)
-  libtooltip.itemID = GetMerchantItemID(merchantIndex)
-  libtooltip.itemLink = GetMerchantItemLink(merchantIndex)
-  return pfHookSetMerchantItem(self, merchantIndex)
-end
-
-local pfHookSetCraftItem = GameTooltip.SetCraftItem
-function GameTooltip.SetCraftItem(self, skill, slot)
-  libtooltip.itemID = GetCraftReagentItemID(skill, slot)
-  libtooltip.itemLink = GetCraftReagentItemLink(skill, slot)
-  return pfHookSetCraftItem(self, skill, slot)
-end
-
-local pfHookSetCraftSpell = GameTooltip.SetCraftSpell
-function GameTooltip.SetCraftSpell(self, slot)
-  libtooltip.itemID = GetCraftSpellID(slot)
-  libtooltip.itemLink = GetCraftItemLink(slot)
-  return pfHookSetCraftSpell(self, slot)
-end
-
-local pfHookSetTradeSkillItem = GameTooltip.SetTradeSkillItem
-function GameTooltip.SetTradeSkillItem(self, skillIndex, reagentIndex)
-  if reagentIndex then
-    libtooltip.itemID = GetTradeSkillReagentItemID(skillIndex, reagentIndex)
-    libtooltip.itemLink = GetTradeSkillReagentItemLink(skillIndex, reagentIndex)
-  else
-    libtooltip.itemID = GetTradeSkillItemID(skillIndex)
-    libtooltip.itemLink = GetTradeSkillItemLink(skillIndex)
-  end
-  return pfHookSetTradeSkillItem(self, skillIndex, reagentIndex)
-end
-
-local pfHookSetAuctionItem = GameTooltip.SetAuctionItem
-function GameTooltip.SetAuctionItem(self, atype, index)
-  _, _, libtooltip.itemCount = GetAuctionItemInfo(atype, index)
-  libtooltip.itemID = GetAuctionItemID(atype, index)
-  libtooltip.itemLink = GetAuctionItemLink(atype, index)
-  return pfHookSetAuctionItem(self, atype, index)
-end
-
-local pfHookSetAuctionSellItem = GameTooltip.SetAuctionSellItem
-function GameTooltip.SetAuctionSellItem(self)
-  local itemName, _, itemCount = GetAuctionSellItemInfo()
-  libtooltip.itemID = GetAuctionSellItemID()
-  libtooltip.itemCount = itemCount
-  libtooltip.itemLink = GetItemLinkByName(itemName)
-  return pfHookSetAuctionSellItem(self)
-end
-
-local pfHookSetTradePlayerItem = GameTooltip.SetTradePlayerItem
-function GameTooltip.SetTradePlayerItem(self, index)
-  libtooltip.itemID = GetTradePlayerItemID(index)
-  libtooltip.itemLink = GetTradePlayerItemLink(index)
-  return pfHookSetTradePlayerItem(self, index)
-end
-
-local pfHookSetTradeTargetItem = GameTooltip.SetTradeTargetItem
-function GameTooltip.SetTradeTargetItem(self, index)
-  libtooltip.itemID = GetTradeTargetItemID(index)
-  libtooltip.itemLink = GetTradeTargetItemLink(index)
-  return pfHookSetTradeTargetItem(self, index)
-end
+end)
