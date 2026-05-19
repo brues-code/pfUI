@@ -99,45 +99,13 @@ local function BuffOnEnter()
   local parent = this:GetParent()
   if not parent.label then return end
 
+  local unit = parent.label .. parent.id
   GameTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT")
-  if parent.label == "player" then
-    GameTooltip:SetPlayerBuff(GetPlayerBuff(PLAYER_BUFF_START_ID+this.id,"HELPFUL"))
-  else
-    GameTooltip:SetUnitBuff(parent.label .. parent.id, this.id)
-  end
+  GameTooltip:SetUnitAura(unit, this.id, "HELPFUL")
 
   if IsShiftKeyDown() then
-    local texture = parent.label == "player" and GetPlayerBuffTexture(GetPlayerBuff(PLAYER_BUFF_START_ID+this.id,"HELPFUL")) or UnitBuff(parent.label .. parent.id, this.id)
-
-    -- slot is empty, nothing to compare against
-    if not texture then return end
-
-    local playerlist = ""
-    local first = true
-
-    if UnitInRaid("player") then
-      for i=1,40 do
-        local unitstr = "raid" .. i
-        if not UnitHasBuff(unitstr, texture) and UnitName(unitstr) then
-          playerlist = playerlist .. ( not first and ", " or "") .. GetUnitColor(unitstr) .. UnitName(unitstr) .. "|r"
-          first = nil
-        end
-      end
-    else
-      if not UnitHasBuff("player", texture) then
-        playerlist = playerlist .. ( not first and ", " or "") .. GetUnitColor("player") .. UnitName("player") .. "|r"
-        first = nil
-      end
-
-      for i=1,4 do
-        local unitstr = "party" .. i
-        if not UnitHasBuff(unitstr, texture) and UnitName(unitstr) then
-          playerlist = playerlist .. ( not first and ", " or "") .. GetUnitColor(unitstr) .. UnitName(unitstr) .. "|r"
-          first = nil
-        end
-      end
-    end
-
+    local aura = C_UnitAuras.GetAuraDataByIndex(unit, this.id, "HELPFUL")
+    local playerlist = aura and GetUnbuffedRoster(aura.name) or ""
     if strlen(playerlist) > 0 then
       GameTooltip:AddLine(" ")
       GameTooltip:AddLine(T["Unbuffed"] .. ":", .3, 1, .8)

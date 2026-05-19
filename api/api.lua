@@ -181,20 +181,37 @@ function pfUI.api.RunOOC(func)
 end
 
 -- [ UnitHasBuff ]
--- Returns whether a unit has the given buff or not.
+-- Returns whether a unit has the named buff or not.
 -- unit         [string]        A unit to query (string, unitID)
--- buff         [string]        The texture of the buff.
+-- name         [string]        The localized name of the buff.
 -- return:      [bool]          true if unit has buff otherwise "nil"
-function pfUI.api.UnitHasBuff(unit, buff)
-  local hasbuff = nil
-  for i=1,32 do
-    if UnitBuff(unit, i) == buff then
-      hasbuff = true
-      break
+function pfUI.api.UnitHasBuff(unit, name)
+  for _, aura in ipairs(C_UnitAuras.GetUnitAuras(unit, "HELPFUL")) do
+    if aura.name == name then return true end
+  end
+  return nil
+end
+
+-- [ GetUnbuffedRoster ]
+-- Returns a comma-joined, colored list of group members missing the named aura.
+-- name         [string]        the localized aura name to check for
+-- return:      [string]        comma-joined list, empty string if everyone has it
+function pfUI.api.GetUnbuffedRoster(name)
+  local missing = {}
+  local function check(unit)
+    if UnitName(unit) and not pfUI.api.UnitHasBuff(unit, name) then
+      table.insert(missing, GetUnitColor(unit) .. UnitName(unit) .. "|r")
     end
   end
 
-  return hasbuff
+  if UnitInRaid("player") then
+    for i=1,40 do check("raid"..i) end
+  else
+    check("player")
+    for i=1,4 do check("party"..i) end
+  end
+
+  return table.concat(missing, ", ")
 end
 
 -- [[ GetUnitColor ]]

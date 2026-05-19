@@ -17,12 +17,13 @@ pfUI:RegisterModule("buff", "vanilla:tbc", function ()
     else
       buff.id = buff.gid
     end
-    buff.bid = GetPlayerBuff(PLAYER_BUFF_START_ID+buff.id, buff.btype)
 
     if not buff.backdrop then
       CreateBackdrop(buff)
       CreateBackdropShadow(buff)
     end
+
+    local aura = C_UnitAuras.GetAuraDataByIndex("player", buff.id, buff.btype)
 
     --detect weapon buffs
     if buff.btype == "HELPFUL" and ((C.buffs.separateweapons == "0" and buff.gid <= pfUI.buff.wepbuffs.count) or (pfUI.buff.wepbuffs.count > 0 and buff.weapon ~= nil)) then
@@ -54,13 +55,15 @@ pfUI:RegisterModule("buff", "vanilla:tbc", function ()
         buff.texture:SetTexture(GetInventoryItemTexture("player", 17))
         buff.backdrop:SetBackdropBorderColor(GetItemQualityColor(GetInventoryItemQuality("player", 17) or 1))
       end
-    elseif GetPlayerBuffTexture(buff.bid) and (( buff.btype == "HARMFUL" and C.buffs.debuffs == "1" ) or ( buff.btype == "HELPFUL" and C.buffs.buffs == "1" )) then
+    elseif aura and (( buff.btype == "HARMFUL" and C.buffs.debuffs == "1" ) or ( buff.btype == "HELPFUL" and C.buffs.buffs == "1" )) then
       -- Set Buff Texture and Border
       buff.mode = buff.btype
-      buff.texture:SetTexture(GetPlayerBuffTexture(buff.bid))
+      buff.expirationTime = aura.expirationTime
+      buff.stackCount = aura.applications
+      buff.texture:SetTexture(aura.icon)
 
       if buff.btype == "HARMFUL" then
-        local dtype = GetPlayerBuffDispelType(buff.bid)
+        local dtype = aura.dispelName
         if dtype == "Magic" then
           buff.backdrop:SetBackdropBorderColor(0,1,1,1)
         elseif dtype == "Poison" then
@@ -128,34 +131,8 @@ pfUI:RegisterModule("buff", "vanilla:tbc", function ()
         GameTooltip:SetUnitAura("player", this.id, this.btype)
 
         if IsShiftKeyDown() then
-          local texture = GetPlayerBuffTexture(this.bid)
-
-          local playerlist = ""
-          local first = true
-
-          if UnitInRaid("player") then
-            for i=1,40 do
-              local unitstr = "raid" .. i
-              if not UnitHasBuff(unitstr, texture) and UnitName(unitstr) then
-                playerlist = playerlist .. ( not first and ", " or "") .. GetUnitColor(unitstr) .. UnitName(unitstr) .. "|r"
-                first = nil
-              end
-            end
-          else
-            if not UnitHasBuff("player", texture) then
-              playerlist = playerlist .. ( not first and ", " or "") .. GetUnitColor("player") .. UnitName("player") .. "|r"
-              first = nil
-            end
-
-            for i=1,4 do
-              local unitstr = "party" .. i
-              if not UnitHasBuff(unitstr, texture) and UnitName(unitstr) then
-                playerlist = playerlist .. ( not first and ", " or "") .. GetUnitColor(unitstr) .. UnitName(unitstr) .. "|r"
-                first = nil
-              end
-            end
-          end
-
+          local aura = C_UnitAuras.GetAuraDataByIndex("player", this.id, this.btype)
+          local playerlist = aura and GetUnbuffedRoster(aura.name) or ""
           if strlen(playerlist) > 0 then
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine(T["Unbuffed"] .. ":", .3, 1, .8)
@@ -180,26 +157,14 @@ pfUI:RegisterModule("buff", "vanilla:tbc", function ()
       elseif CancelItemTempEnchantment and this.mode and this.mode == "OFFHAND" then
         CancelItemTempEnchantment(2)
       else
-        CancelPlayerBuff(this.bid)
+        local bid = GetPlayerBuff(PLAYER_BUFF_START_ID + this.id, this.btype)
+        if bid >= 0 then CancelPlayerBuff(bid) end
       end
     end)
 
     RefreshBuffButton(buff)
 
     return buff
-  end
-
-  local function GetNumBuffs()
-    local mh, mhtime, mhcharge, oh, ohtime, ohcharge = GetWeaponEnchantInfo()
-    local offset = (mh and 1 or 0) + (oh and 1 or 0)
-
-    for i=1,32 do
-      local bid, untilCancelled = GetPlayerBuff(PLAYER_BUFF_START_ID+i, "HELPFUL")
-      if bid < 0 then
-        return i - 1 + offset
-      end
-    end
-    return 0 + offset
   end
 
   pfUI.buff = CreateFrame("Frame", "pfGlobalBuffFrame", UIParent)
@@ -247,8 +212,8 @@ pfUI:RegisterModule("buff", "vanilla:tbc", function ()
       if buff:IsShown() then
         local timeleft, stacks = 0, 0
         if buff.mode == buff.btype then
-          timeleft = GetPlayerBuffTimeLeft(buff.bid, buff.btype)
-          stacks = GetPlayerBuffApplications(buff.bid, buff.btype)
+          timeleft = buff.expirationTime > 0 and (buff.expirationTime - now) or 0
+          stacks = buff.stackCount or 0
         elseif buff.mode == "MAINHAND" then
           timeleft = mhtime and mhtime / 1000 or 0
           stacks = mhcharge or 0
@@ -266,8 +231,8 @@ pfUI:RegisterModule("buff", "vanilla:tbc", function ()
     for i = 1, 16 do
       local buff = buttons[i]
       if buff:IsShown() then
-        local timeleft = GetPlayerBuffTimeLeft(buff.bid, buff.btype)
-        local stacks = GetPlayerBuffApplications(buff.bid, buff.btype)
+        local timeleft = buff.expirationTime > 0 and (buff.expirationTime - now) or 0
+        local stacks = buff.stackCount or 0
         buff.timer:SetText(timeleft > 0 and GetColoredTimeString(timeleft) or "")
         buff.stacks:SetText(stacks > 1 and stacks or "")
       end
