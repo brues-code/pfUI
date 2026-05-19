@@ -76,55 +76,8 @@ pfUI:RegisterModule("buff", "vanilla:tbc", function ()
         buff.backdrop:SetBackdropBorderColor(br,bg,bb,ba)
       end
     else
-      -- Fallback: try UnitBuff/UnitDebuff API which may be more reliable in some cases
-      local fallbackTexture, fallbackStacks, fallbackDispelType, fallbackSpellId
-      local maxSlots = buff.btype == "HELPFUL" and 32 or 16
-
-      if buff.id >= 1 and buff.id <= maxSlots then
-        if buff.btype == "HELPFUL" and C.buffs.buffs == "1" then
-          for i = 1, maxSlots do
-            local tex, stacks, dtype, spellId = UnitBuff("player", i)
-            if tex and i == buff.id then
-              fallbackTexture, fallbackStacks, fallbackDispelType, fallbackSpellId = tex, stacks, dtype, spellId
-              break
-            end
-            if not tex then break end
-          end
-        elseif buff.btype == "HARMFUL" and C.buffs.debuffs == "1" then
-          for i = 1, maxSlots do
-            local tex, stacks, dtype, spellId = UnitDebuff("player", i)
-            if tex and i == buff.id then
-              fallbackTexture, fallbackStacks, fallbackDispelType, fallbackSpellId = tex, stacks, dtype, spellId
-              break
-            end
-            if not tex then break end
-          end
-        end
-      end
-
-      if fallbackTexture then
-        buff.mode = buff.btype
-        buff.fallbackSpellId = fallbackSpellId
-        buff.texture:SetTexture(fallbackTexture)
-        if buff.btype == "HARMFUL" then
-          if fallbackDispelType == "Magic" then
-            buff.backdrop:SetBackdropBorderColor(0,1,1,1)
-          elseif fallbackDispelType == "Poison" then
-            buff.backdrop:SetBackdropBorderColor(0,1,0,1)
-          elseif fallbackDispelType == "Curse" then
-            buff.backdrop:SetBackdropBorderColor(1,0,1,1)
-          elseif fallbackDispelType == "Disease" then
-            buff.backdrop:SetBackdropBorderColor(1,1,0,1)
-          else
-            buff.backdrop:SetBackdropBorderColor(1,0,0,1)
-          end
-        else
-          buff.backdrop:SetBackdropBorderColor(br,bg,bb,ba)
-        end
-      else
-        buff:Hide()
-        return
-      end
+      buff:Hide()
+      return
     end
 
     buff:Show()
@@ -172,7 +125,7 @@ pfUI:RegisterModule("buff", "vanilla:tbc", function ()
     buff:SetScript("OnEnter", function()
       GameTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT")
       if this.mode == this.btype then
-        GameTooltip:SetPlayerBuff(this.bid)
+        GameTooltip:SetUnitAura("player", this.id, this.btype)
 
         if IsShiftKeyDown() then
           local texture = GetPlayerBuffTexture(this.bid)
