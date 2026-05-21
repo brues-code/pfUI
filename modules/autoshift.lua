@@ -24,30 +24,24 @@ pfUI:RegisterModule("autoshift", "vanilla", function ()
     "根据您的骑行技能提高速度。", "根据骑术技能提高速度。", "又慢又稳......",
   }
 
+  -- Form ID -> icon-path fragment of that form's buff. GetShapeshiftFormID
+  -- tells us the active form directly; we still need to locate the buff in
+  -- the player's array to find the bid for CancelPlayerBuff.
+  --
+  -- Replaces the old texture-list scan plus moonkin_scan frame: the agility
+  -- buff that shares moonkin's icon no longer causes false positives because
+  -- form ID 31 is only reported when the player is genuinely in Moonkin Form,
+  -- regardless of what other buffs happen to be active.
   pfUI.autoshift.shapeshifts = {
-    "ability_racial_bearform", "ability_druid_catform", "ability_druid_travelform",
-    "ability_druid_aquaticform", "spell_shadow_shadowform", "spell_nature_spiritwolf",
+    [1]  = "ability_druid_catform",       -- Cat Form
+    [3]  = "ability_druid_travelform",    -- Travel Form
+    [4]  = "ability_druid_aquaticform",   -- Aquatic Form
+    [5]  = "ability_racial_bearform",     -- Bear Form
+    [8]  = "ability_racial_bearform",     -- Dire Bear (shares texture with Bear)
+    [16] = "spell_nature_spiritwolf",     -- Shaman Ghost Wolf
+    [28] = "spell_shadow_shadowform",     -- Priest Shadowform
+    [31] = "spell_nature_forceofnature",  -- Druid Moonkin
   }
-
-  -- an agility buff exists which has the same icon as the moonkin form
-  -- therefore only add the moonkin icon to the removable buffs if
-  -- moonkin is skilled and player is druid. Frame is required as talentpoints
-  -- are only accessible after certain events.
-  local moonkin_scan = CreateFrame("Frame")
-  moonkin_scan:RegisterEvent("PLAYER_ENTERING_WORLD")
-  moonkin_scan:RegisterEvent("UNIT_NAME_UPDATE")
-  moonkin_scan:SetScript("OnEvent", function()
-    local _, class = UnitClass("player")
-    if class == "DRUID" then
-      local _,_,_,_,moonkin = GetTalentInfo(1,16)
-      if moonkin == 1 then
-        table.insert(pfUI.autoshift.shapeshifts, "spell_nature_forceofnature")
-        moonkin_scan:UnregisterAllEvents()
-      end
-    else
-      moonkin_scan:UnregisterAllEvents()
-    end
-  end)
 
   pfUI.autoshift.errors = { SPELL_FAILED_NOT_MOUNTED, ERR_ATTACK_MOUNTED, ERR_TAXIPLAYERALREADYMOUNTED,
     SPELL_FAILED_NOT_SHAPESHIFT, SPELL_FAILED_NO_ITEMS_WHILE_SHAPESHIFTED, SPELL_NOT_SHAPESHIFTED,
@@ -71,19 +65,17 @@ pfUI:RegisterModule("autoshift", "vanilla", function ()
       return
     end
 
-    -- delay shapeshift cancel
-    local CancelLater = nil
-
     -- scan through buffs and cancel shapeshift/mount
     for id, errorstring in pairs(pfUI.autoshift.errors) do
       if arg1 == errorstring then
-        -- dont's cancel form when clicking on npcs while in combat
+        -- don't cancel form when clicking on npcs while in combat
         if arg1 == ERR_CANT_INTERACT_SHAPESHIFTED and UnitAffectingCombat("player") then
           return
         end
 
-        for i=0,31,1 do
-          -- detect mounts based on tooltip text
+        -- Phase 1: mounts take priority (mount/shapeshift can't coexist in
+        -- vanilla, but the original error list also covers mount-only states).
+        for i = 0, 31 do
           pfUI.autoshift.scanner:SetPlayerBuff(i)
           for _, str in pairs(pfUI.autoshift.mounts) do
             if pfUI.autoshift.scanner:Find(str) then
@@ -91,27 +83,19 @@ pfUI:RegisterModule("autoshift", "vanilla", function ()
               return
             end
           end
-
-          -- detect shapeshift based on texture
-          local buff = GetPlayerBuffTexture(i)
-          if buff then
-            for id, bufftype in pairs(pfUI.autoshift.shapeshifts) do
-              if string.find(string.lower(buff), bufftype, 1) then
-                if string.find(string.lower(buff), "spell_shadow_shadowform", 1) then
-                  -- only cancel shadow form if no other buff was hindering casting
-                  CancelLater = i
-                else
-                  CancelPlayerBuff(i)
-                  return
-                end
-              end
-            end
-          end
         end
 
-        -- if nothing else was found, cancel shadowform
-        if CancelLater then
-          CancelPlayerBuff(CancelLater)
+        -- Phase 2: cancel the active shapeshift if any. GetShapeshiftFormID
+        -- gives us the form directly; we iterate to find its buff bid.
+        local formTexture = pfUI.autoshift.shapeshifts[GetShapeshiftFormID()]
+        if formTexture then
+          for i = 0, 31 do
+            local buff = GetPlayerBuffTexture(i)
+            if buff and string.find(string.lower(buff), formTexture, 1) then
+              CancelPlayerBuff(i)
+              return
+            end
+          end
         end
       end
     end

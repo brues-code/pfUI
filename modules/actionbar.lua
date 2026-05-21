@@ -949,11 +949,11 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
     -- setup page switch frame
     local prowling = nil
     local pageswitch = CreateFrame("Frame", "pfActionBarPageSwitch", UIParent)
-    pageswitch:RegisterEvent("PLAYER_AURAS_CHANGED")
     pageswitch:RegisterEvent("PLAYER_ENTERING_WORLD")
+    pageswitch:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
+    pageswitch:RegisterEvent("PLAYER_AURAS_CHANGED")
     pageswitch:RegisterEvent("PLAYER_LOGOUT")
     pageswitch:SetScript("OnEvent", function()
-      -- Handle shutdown to prevent crash 132
       if event == "PLAYER_LOGOUT" then
         this:UnregisterAllEvents()
         this:SetScript("OnEvent", nil)
@@ -963,34 +963,38 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
 
       if class ~= "DRUID" then return end
 
-      -- On login/reload: full scan
       if event == "PLAYER_ENTERING_WORLD" then
         prowling = FullScan()
         return
       end
 
-      -- PLAYER_AURAS_CHANGED: smart scanning
-      if event == "PLAYER_AURAS_CHANGED" then
-        if prowlActive then
-          if IsStealthed() then
-            prowling = true
-          else
-            -- Prowl ended; recheck cat form (we might have shifted out entirely)
-            prowlActive = nil
-            prowling = nil
-            inCatForm = HasCatForm()
-          end
-        elseif not inCatForm then
-          -- Not in cat form, do a full scan (might have just shifted)
-          prowling = FullScan()
+      if event == "UPDATE_SHAPESHIFT_FORM" then
+        -- Authoritative form-change signal — recompute and short-circuit.
+        inCatForm = HasCatForm()
+        if not inCatForm then
+          prowlActive = nil
+          prowling = nil
         end
-        -- If inCatForm but not prowlActive, no scan needed (wait for SPELL_GO_SELF hook)
+        return
+      end
+
+      -- PLAYER_AURAS_CHANGED: form changes already went through
+      -- UPDATE_SHAPESHIFT_FORM above; this handler only watches prowl on/off.
+      if inCatForm then
+        if IsStealthed() then
+          prowlActive = true
+          prowling = true
+        else
+          prowlActive = nil
+          prowling = nil
+        end
       end
     end)
 
-    -- Prowl/CatForm detection via Nampower SPELL_GO_SELF hook (replaces UNIT_CASTEVENT)
-    -- Prowl Spell IDs: 5215 (Rank 1), 6783 (Rank 2), 9913 (Rank 3)
-    -- Cat Form Spell ID: 768
+    -- Eager prowl detection via Nampower SPELL_GO_SELF — zero-latency vs.
+    -- PLAYER_AURAS_CHANGED, which can land a frame or two behind the cast.
+    -- Form changes are no longer hooked here; UPDATE_SHAPESHIFT_FORM covers
+    -- those without needing a per-spellID watchlist.
     local PROWL_IDS = { [5215] = true, [6783] = true, [9913] = true }
     pfUI.libdebuff_spell_go_hooks = pfUI.libdebuff_spell_go_hooks or {}
     pfUI.libdebuff_spell_go_hooks["actionbar_prowl"] = function(spellId)
@@ -999,8 +1003,6 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
         inCatForm = true
         prowlActive = true
         prowling = true
-      elseif spellId == 768 then
-        inCatForm = true
       end
     end
     pageswitch:SetScript("OnUpdate", function()
