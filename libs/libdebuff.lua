@@ -27,7 +27,6 @@ if GetLocale() == "ruRU" then
 end
 
 local libdebuff = CreateFrame("Frame", "pfdebuffsScanner", UIParent)
-local scanner = libtipscan:GetScanner("libdebuff")
 local _, class = UnitClass("player")
 local lastspell
 
@@ -829,12 +828,11 @@ function libdebuff:UnitDebuff(unit, displaySlot)
     local guid = GetUnitGUID(unit)
     if not guid then
       -- Safety fallback: no GUID available (should not happen with Nampower)
-      local bTexture, bStacks, bDtype = UnitDebuff(unit, displaySlot)
-      if bTexture then
-        scanner:SetUnitDebuff(unit, displaySlot)
-        effect = scanner:Line(1) or ""
+      local aura = C_UnitAuras.GetDebuffDataByIndex(unit, displaySlot)
+      if aura then
+        return aura.name, rank, aura.icon, aura.applications, aura.dispelName, duration, timeleft, caster
       end
-      return effect, rank, bTexture, bStacks, bDtype, duration, timeleft, caster
+      return effect, rank, texture, stacks, dtype, duration, timeleft, caster
     end
     
     -- Get current slot map from GetUnitField (cached 50ms)
@@ -907,17 +905,16 @@ function libdebuff:UnitDebuff(unit, displaySlot)
   -- ============================================================================
   -- FALLBACK: Legacy (non-Nampower) system
   -- ============================================================================
-  
-  local bTexture, bStacks, bDtype = UnitDebuff(unit, displaySlot)
-  texture = bTexture
-  stacks = bStacks
-  dtype = bDtype
-  
-  if texture then
-    scanner:SetUnitDebuff(unit, displaySlot)
-    effect = scanner:Line(1) or ""
+
+  local aura = C_UnitAuras.GetDebuffDataByIndex(unit, displaySlot)
+  if aura then
+    texture = aura.icon
+    stacks = aura.applications
+    dtype = aura.dispelName
+    effect = aura.name
   end
-  
+
+
   if effect and libdebuff.objects[unitname] then
     for level, effects in pairs(libdebuff.objects[unitname]) do
       if effects[effect] and effects[effect].duration then
