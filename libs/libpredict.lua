@@ -1074,12 +1074,16 @@ hooksecurefunc("CastSpellByName", function(effect, target)
   end
 end)
 
-local scanner = libtipscan:GetScanner("prediction")
 hooksecurefunc("UseAction", function(slot, target, selfcast)
   if not libpredict.sender.enabled then return end
-  if GetActionText(slot) or not IsCurrentAction(slot) then return end
-  scanner:SetAction(slot)
-  local effect, rank = scanner:Line(1)
+  if not IsCurrentAction(slot) then return end
+  local kind, id = GetActionInfo(slot)
+  local effect, rank
+  if kind == "spell" then
+    effect, rank = GetSpellInfo(id)
+  elseif kind == "macro" then
+    effect, rank = GetMacroSpell(id)
+  end
   if not effect then return end
   spell_queue[1] = effect
   spell_queue[2] = effect.. ( rank or "" )

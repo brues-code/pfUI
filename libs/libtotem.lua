@@ -259,13 +259,19 @@ hooksecurefunc("CastSpell", function(id, bookType)
   libtotem:CheckAddQueue(name, rank, icon, spellId)
 end)
 
--- Hook UseAction (no spellId available, icon-based fallback)
-local scanner = libtipscan:GetScanner("prediction")
+-- Hook UseAction. GetActionInfo + GetMacroSpell give us the spellID
+-- directly for both spell-action and macro-action slots, so the
+-- tooltip-scan fallback (and the "no spellId available" caveat) goes away.
 hooksecurefunc("UseAction", function(slot, target, selfcast)
-  if GetActionText(slot) or not IsCurrentAction(slot) then return end
-  scanner:SetAction(slot)
-  local name, rank = scanner:Line(1)
-  local icon = GetActionTexture(slot)
+  if not IsCurrentAction(slot) then return end
+  local kind, id = GetActionInfo(slot)
+  local name, rank, spellID
+  if kind == "spell" then
+    spellID = id
+    name, rank = GetSpellInfo(id)
+  elseif kind == "macro" then
+    name, rank, spellID = GetMacroSpell(id)
+  end
   if not name then return end
-  libtotem:CheckAddQueue(name, rank, icon, nil)
+  libtotem:CheckAddQueue(name, rank, GetActionTexture(slot), spellID)
 end)

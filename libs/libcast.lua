@@ -48,7 +48,6 @@ if pfUI.client > 11200 then return end
 if pfUI.api.libcast then return end
 
 local lastcasttex, lastrank, _
-local scanner = libtipscan:GetScanner("libcast")
 
 local libcast = CreateFrame("Frame", "pfEnemyCast")
 local player = UnitName("player")
@@ -550,13 +549,26 @@ hooksecurefunc("CastSpellByName", function(spellCasted, target)
 end)
 
 hooksecurefunc("UseAction", function(slot, target, button)
-  if GetActionText(slot) or not IsCurrentAction(slot) then return end
+  if not IsCurrentAction(slot) then return end
 
-  scanner:SetAction(slot)
-  local rawSpellName, rank = scanner:Line(1)
-  if not rawSpellName then return end -- ignore if the spell is not found
+  -- Resolve action slot → spellID (handles both spell and macro actions),
+  -- then resolve to spellbook slot for libspell. GetMacroSpell returns the
+  -- highest rank the player actually knows, so FindSpellBookSlotByID's
+  -- "spell must be in spellbook" requirement is satisfied.
+  local kind, id = GetActionInfo(slot)
+  local spellID
+  if kind == "spell" then
+    spellID = id
+  elseif kind == "macro" then
+    local _, _, sid = GetMacroSpell(id)
+    spellID = sid
+  end
+  if not spellID then return end
 
-  local cachedRawSpellName, cachedRank, cachedTexture, cachedCastingTime, _, _, cachedSpellId, cachedBookType = libspell.GetSpellInfo(rawSpellName .. (rank and ("(" .. rank .. ")") or ""))
+  local sbSlot = FindSpellBookSlotByID(spellID)
+  if not sbSlot then return end
+
+  local cachedRawSpellName, cachedRank, cachedTexture, cachedCastingTime, _, _, cachedSpellId, cachedBookType = libspell.GetSpellInfo(sbSlot, BOOKTYPE_SPELL)
 
   CastCustom(cachedSpellId, cachedBookType, cachedRawSpellName, cachedRank, cachedTexture, cachedCastingTime)
 end)
