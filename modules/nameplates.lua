@@ -105,7 +105,7 @@ pfUI:RegisterModule("nameplates", "vanilla", function ()
   local wipe = wipe or function(t) for k in pairs(t) do t[k] = nil end end
 
   -- Player GUID for filtering
-  local PlayerGUID = GetUnitGUID("player")
+  local PlayerGUID = UnitGUID("player")
 
   -- ============================================================================
   -- OPTIMIZATION: Config caching
@@ -184,14 +184,14 @@ pfUI:RegisterModule("nameplates", "vanilla", function ()
   local function RebuildRaidGuidCache()
     for k in pairs(raidGuidCache) do raidGuidCache[k] = nil end
     for i = 1, GetNumRaidMembers() do
-      local g = GetUnitGUID("raid"..i)
+      local g = UnitGUID("raid"..i)
       if g then raidGuidCache[g] = UnitName("raid"..i) end
     end
     for i = 1, GetNumPartyMembers() do
-      local g = GetUnitGUID("party"..i)
+      local g = UnitGUID("party"..i)
       if g then raidGuidCache[g] = UnitName("party"..i) end
     end
-    local pg = GetUnitGUID("player")
+    local pg = UnitGUID("player")
     if pg then raidGuidCache[pg] = UnitName("player") end
   end
 
@@ -409,7 +409,7 @@ pfUI:RegisterModule("nameplates", "vanilla", function ()
     end
 
     -- Use IterDebuffs if Nampower available, else fall back to slot loop
-    if unitstr and libdebuff.IterDebuffs and GetUnitGUID then
+    if unitstr and libdebuff.IterDebuffs and UnitGUID then
       local id = 0
       libdebuff:IterDebuffs(unitstr, function(auraSlot, spellId, effect, texture, stacks, dtype, duration, timeleft)
         if not effect or not texture then return end
@@ -661,7 +661,7 @@ end
 
     elseif event == "PLAYER_TARGET_CHANGED" then
       -- Flag target plate for update via GUID registry
-      local targetGuid = GetUnitGUID("target")
+      local targetGuid = UnitGUID("target")
       if targetGuid then
         local plate = guidRegistry[targetGuid]
         if plate and plate.nameplate then
@@ -673,7 +673,7 @@ end
 
     elseif event == "PLAYER_COMBO_POINTS" or event == "UNIT_COMBO_POINTS" then
       -- Only flag the target plate for combo point update
-      local targetGuid = GetUnitGUID("target")
+      local targetGuid = UnitGUID("target")
       if targetGuid then
         local plate = guidRegistry[targetGuid]
         if plate and plate.nameplate then
@@ -1328,7 +1328,7 @@ end
       -- debuffDisplayBuf is a module-level reusable buffer (no GC churn)
       local debuffCount = 0
       for i = 1, 16 do debuffDisplayBuf[i].effect = nil end  -- clear previous
-      if unitstr and libdebuff and libdebuff.IterDebuffs and GetUnitGUID then
+      if unitstr and libdebuff and libdebuff.IterDebuffs and UnitGUID then
 
         _iterDebuffCount = 0
         libdebuff:IterDebuffs(unitstr, iterDebuffCallback)
@@ -1845,7 +1845,7 @@ end
     if (this.tick or 0) > now then return end
     this.tick = now + throttle
 
-    local targetGuid = UnitExists("target") and GetUnitGUID("target")
+    local targetGuid = UnitExists("target") and UnitGUID("target")
     if not targetGuid then return end
 
     local frame = guidRegistry[targetGuid]

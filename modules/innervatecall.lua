@@ -16,15 +16,15 @@ pfUI:RegisterModule("innervatecall", "vanilla", function ()
   -- Cache player GUID
   local playerGuid = nil
   local function GetPlayerGuid()
-    if not playerGuid and GetUnitGUID then
-      playerGuid = GetUnitGUID("player")
+    if not playerGuid and UnitGUID then
+      playerGuid = UnitGUID("player")
     end
     return playerGuid
   end
 
   -- GUID → name resolution for the target
   local function ResolveTargetName(targetGuid)
-    if not targetGuid or not GetUnitGUID then return nil end
+    if not targetGuid or not UnitGUID then return nil end
 
     -- Check player self-cast
     if GetPlayerGuid() == targetGuid then
@@ -32,7 +32,7 @@ pfUI:RegisterModule("innervatecall", "vanilla", function ()
     end
 
     -- Check current target (most common case for other-cast)
-    local curGuid = GetUnitGUID("target")
+    local curGuid = UnitGUID("target")
     if curGuid == targetGuid then
       return UnitName("target")
     end
@@ -40,13 +40,13 @@ pfUI:RegisterModule("innervatecall", "vanilla", function ()
     -- Scan raid/party for GUID match
     for i = 1, GetNumRaidMembers() do
       local unit = "raid" .. i
-      if GetUnitGUID(unit) == targetGuid then
+      if UnitGUID(unit) == targetGuid then
         return UnitName(unit)
       end
     end
     for i = 1, GetNumPartyMembers() do
       local unit = "party" .. i
-      if GetUnitGUID(unit) == targetGuid then
+      if UnitGUID(unit) == targetGuid then
         return UnitName(unit)
       end
     end

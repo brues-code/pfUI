@@ -977,6 +977,7 @@ function pfUI.api.SkinDropDown(frame, cr, cg, cb, useSmall)
 end
 
 function pfUI.api.SkinTab(frame, fixed)
+  if not frame then return end
   frame:SetHeight(20)
   StripTextures(frame)
   CreateBackdrop(frame)

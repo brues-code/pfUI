@@ -107,10 +107,10 @@ pfUI:RegisterModule("castbar", "vanilla", function ()
       local focusGuid = nil
       if this.unitstr and string.find(this.unitstr, "^0x") then
         focusGuid = this.unitstr
-      elseif this.unitstr and this.unitstr == "player" and GetUnitGUID then
-        focusGuid = GetUnitGUID("player")
+      elseif this.unitstr and this.unitstr == "player" and UnitGUID then
+        focusGuid = UnitGUID("player")
       elseif this.unitstr and this.unitstr ~= "player" then
-        local guid = GetUnitGUID(this.unitstr)
+        local guid = UnitGUID(this.unitstr)
         if guid then focusGuid = guid end
       end
       this.focusGuid = focusGuid
@@ -188,7 +188,7 @@ pfUI:RegisterModule("castbar", "vanilla", function ()
             if pfUI.libdebuff_casts or pfUI.libdebuff_item_icons then
               local castGuid = nil
               if this.unitstr and UnitExists then
-                local guid = GetUnitGUID(this.unitstr)
+                local guid = UnitGUID(this.unitstr)
                 castGuid = guid
               end
               if castGuid then

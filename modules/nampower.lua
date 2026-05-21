@@ -594,7 +594,7 @@ pfUI:RegisterModule("nampower", "vanilla", function ()
 
       -- Get base mana using Nampower's GetUnitField
       local baseMana, baseMaxMana
-      local guid = GetUnitGUID(unit)
+      local guid = UnitGUID(unit)
 
       if guid then
         baseMana = GetUnitField(guid, "power1")

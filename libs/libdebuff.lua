@@ -37,7 +37,7 @@ local hasNampower = false
 if GetNampowerVersion then
   local major, minor, patch = GetNampowerVersion()
   patch = patch or 0
-  -- Minimum required version: 3.0.0 (GetUnitGUID support)
+  -- Minimum required version: 3.0.0 (UnitGUID support)
   if major > 3 or (major == 3 and minor > 0) or (major == 3 and minor == 0 and patch >= 0) then
     hasNampower = true
   end
@@ -319,8 +319,8 @@ end
 -- Player GUID Cache
 local playerGUID = nil
 local function GetPlayerGUID()
-  if not playerGUID and GetUnitGUID then
-    local guid = GetUnitGUID("player")
+  if not playerGUID and UnitGUID then
+    local guid = UnitGUID("player")
     playerGUID = guid
   end
   return playerGUID
@@ -348,8 +348,8 @@ end
 
 local function IsCurrentTarget(guid)
   if debugStats.trackAllUnits then return true end
-  if not guid or not GetUnitGUID then return false end
-  local targetGuid = GetUnitGUID("target")
+  if not guid or not UnitGUID then return false end
+  local targetGuid = UnitGUID("target")
   return targetGuid == guid
 end
 
@@ -824,8 +824,8 @@ function libdebuff:UnitDebuff(unit, displaySlot)
   local dtype = nil
 
   -- Nampower: Use GetUnitField for ALL debuff data (no Blizzard UnitDebuff needed)
-  if hasNampower and GetUnitGUID then
-    local guid = GetUnitGUID(unit)
+  if hasNampower and UnitGUID then
+    local guid = UnitGUID(unit)
     if not guid then
       -- Safety fallback: no GUID available (should not happen with Nampower)
       local aura = C_UnitAuras.GetDebuffDataByIndex(unit, displaySlot)
@@ -945,8 +945,8 @@ local _ownDebuffSortFunc = function(a, b)
 end
 
 function libdebuff:UnitOwnDebuff(unit, id)
-  if hasNampower and GetUnitGUID then
-    local guid = GetUnitGUID(unit)
+  if hasNampower and UnitGUID then
+    local guid = UnitGUID(unit)
     if guid and ownDebuffs[guid] then
       -- Build sorted list of our active debuffs
       local sortedDebuffs = {}
@@ -1157,8 +1157,8 @@ if hasNampower then
       end
       
       -- Trigger UI updates
-      if pfTarget and GetUnitGUID("target") then
-        local currentTargetGuid = GetUnitGUID("target")
+      if pfTarget and UnitGUID("target") then
+        local currentTargetGuid = UnitGUID("target")
         if currentTargetGuid == guid then
           pfTarget.update_aura = true
         end
@@ -1206,7 +1206,7 @@ if hasNampower then
       local castData = myGuid and pfUI.libdebuff_casts[myGuid]
       if castData and castData.event == "CHANNEL" and castData.spellName then
         local spellName = castData.spellName
-        local targetGuid = GetUnitGUID and GetUnitGUID("target")
+        local targetGuid = UnitGUID and UnitGUID("target")
         if targetGuid and ownDebuffs[targetGuid] and ownDebuffs[targetGuid][spellName] then
           local data = ownDebuffs[targetGuid][spellName]
           -- Only clear if the timer is still active (not already expired naturally)
@@ -1685,17 +1685,17 @@ if hasNampower then
         
         -- Notify unitframes of debuff updates (UNIT_AURA doesn't fire on refreshes!)
         -- Check player
-        if GetUnitGUID("player") then
-          local playerGuid = GetUnitGUID("player")
+        if UnitGUID("player") then
+          local playerGuid = UnitGUID("player")
           if playerGuid == targetGuid and pfPlayer then
             pfPlayer.update_aura = true
           end
         end
         
         -- Check target
-        if GetUnitGUID("target") then
-          local targetUnitGuid = GetUnitGUID("target")
-          if targetUnitGuid == targetGuid and pfTarget then
+        if UnitGUID("target") then
+          local tarUnitGUID = UnitGUID("target")
+          if tarUnitGUID == targetGuid and pfTarget then
             pfTarget.update_aura = true
           end
         end
@@ -2005,8 +2005,8 @@ if hasNampower then
       end
 
     elseif event == "PLAYER_TARGET_CHANGED" then
-      if not GetUnitGUID then return end
-      local targetGuid = GetUnitGUID("target")
+      if not UnitGUID then return end
+      local targetGuid = UnitGUID("target")
       
       if targetGuid and targetGuid ~= "" then
         -- Invalidate slot map cache on retarget
@@ -2068,12 +2068,12 @@ _G.SlashCmdList["LIBDEBUGSTATS"] = function(msg)
     DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00No manual slot shifting needed!|r")
     
   elseif msg == "target" then
-    if not GetUnitGUID("target") then
+    if not UnitGUID("target") then
       DEFAULT_CHAT_FRAME:AddMessage("|cffff0000[libdebuff]|r No target!")
       return
     end
     
-    local guid = GetUnitGUID("target")
+    local guid = UnitGUID("target")
     DEFAULT_CHAT_FRAME:AddMessage("|cff00ffff=== TARGET DEBUFF STATE ===|r")
     DEFAULT_CHAT_FRAME:AddMessage(string.format("GUID: %s", tostring(guid)))
     

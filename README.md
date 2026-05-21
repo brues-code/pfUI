@@ -97,7 +97,7 @@ Fixed import failures for configs containing double quotes (e.g. clickcast macro
   * `UnitCastingInfo`/`UnitChannelInfo` SuperWoW fallbacks removed from libcast
   * `SpellInfo()` (SuperWoW) replaced with `GetSpellRecField()` (Nampower) throughout
   * `SPELL_HEAL_BY_SELF` CVar (`NP_EnableSpellHealEvents`) now auto-enabled by libdebuff
-* **`GetUnitGUID()` migration** — replaced all `local _, guid = UnitExists(unit)` with `GetUnitGUID(unit)` across 11 files (Nampower 3.0.0 API)
+* **`UnitGUID()` migration** — replaced all `local _, guid = UnitExists(unit)` with `UnitGUID(unit)` across 11 files (Nampower 3.0.0 API)
 * **Player castbar icon fix** — icons for custom Turtle WoW spells (e.g. Swift Travel Form) now correctly resolved via `GetSpellRecField`/`GetSpellIconTexture` instead of falling back to the previous spell's icon
 * **Castbar timer rounding** — 1-decimal mode now rounds correctly to match the Blizzard spellbook display (e.g. 2798ms → 2.8s instead of 2.7s)
 * **Nampower warning popup** — updated to be more prominent (`!!!WARNING!!!` in red, non-dismissable via Escape, uses pfUI URL copy frame for download link)

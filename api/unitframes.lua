@@ -215,7 +215,7 @@ end)
 -- GetUnitStats - Nampower Integration for Health + Power
 -- Returns: hp, maxHp, power, maxPower, powerType
 -- IMPORTANT: Uses _G.UnitExists directly to avoid conflicts with Nampower's
---            use GetUnitGUID(unit) for GUID lookup (Nampower 3.0.0+)
+--            use UnitGUID(unit) for GUID lookup (Nampower 3.0.0+)
 -- ============================================================================
 
 -- Cache für Stats-Tracking (nur Änderungen zählen)
@@ -924,9 +924,7 @@ function pfUI.uf:UpdateConfig()
 
       CreateBackdrop(f.buffs[i], default_border)
 
-      if f:GetName() == "pfPlayer" then
-        f.buffs[i]:SetScript("OnUpdate", BuffOnUpdate)
-      elseif f:GetName() == "pfTarget" and pfUI.expansion == "tbc" then
+      if f:GetName() == "pfTarget" and pfUI.expansion == "tbc" then
         f.buffs[i]:SetScript("OnUpdate", TargetBuffOnUpdate)
       end
 
@@ -1034,6 +1032,32 @@ function pfUI.uf.OnShow()
   pfUI.uf:RefreshUnit(this, "base")
 end
 
+-- GUID-keyed aura start-time tracker, fed by Nampower's BUFF_ADDED_OTHER /
+-- BUFF_REMOVED_OTHER. Non-player units have aura.expirationTime == 0 (server
+-- doesn't broadcast time), so we reconstruct the swirl from "when we saw it
+-- applied" + aura.duration (Spell.dbc base). Only auras we actually witnessed
+-- being cast get tracked — pre-existing auras (already on a unit when you
+-- target them) intentionally show no timer rather than a fabricated one.
+pfUI.uf.aura_starts = {}  -- {[guid] = {[spellId] = startTime}}
+
+local auraTracker = CreateFrame("Frame", "pfUF_AuraTracker", UIParent)
+auraTracker:RegisterEvent("BUFF_ADDED_OTHER")
+auraTracker:RegisterEvent("BUFF_REMOVED_OTHER")
+auraTracker:SetScript("OnEvent", function()
+  -- Nampower arg layout: arg1=guid, arg3=spellId. State code 0=added, 1=removed,
+  -- 2=modified; we treat any added/modified as "reset start = now" and let the
+  -- REMOVED event clear the entry.
+  if not arg1 or not arg3 or arg3 == 0 then return end
+  if event == "BUFF_REMOVED_OTHER" then
+    if pfUI.uf.aura_starts[arg1] then
+      pfUI.uf.aura_starts[arg1][arg3] = nil
+    end
+  else
+    pfUI.uf.aura_starts[arg1] = pfUI.uf.aura_starts[arg1] or {}
+    pfUI.uf.aura_starts[arg1][arg3] = GetTime()
+  end
+end)
+
 function pfUI.uf.OnEvent()
   -- Handle shutdown to prevent crash 132
   if event == "PLAYER_LOGOUT" then
@@ -1078,7 +1102,7 @@ function pfUI.uf.OnEvent()
     -- Smart update: check if THIS frame's unit actually changed
     if pfUI.uf.guidTracker and this.id then
       local unit = this.label == "player" and "player" or (this.label .. this.id)
-      local newGuid = GetUnitGUID(unit)
+      local newGuid = UnitGUID(unit)
       local oldGuid = pfUI.uf.guidTracker.frameToGuid[this]
       if newGuid ~= oldGuid then
         pfUI.uf.guidTracker.frameToGuid[this] = newGuid
@@ -1107,7 +1131,7 @@ function pfUI.uf.OnEvent()
   elseif this.label == "pet" and event == "UNIT_HAPPINESS" then
     this.update_full = true
   -- UNIT_XXX Events
-  elseif arg1 and (arg1 == this.label .. this.id or (GetUnitGUID and arg1 == GetUnitGUID(this.label .. this.id))) then
+  elseif arg1 and (arg1 == this.label .. this.id or (UnitGUID and arg1 == UnitGUID(this.label .. this.id))) then
     this.lastEventUpdate = GetTime()
     
     if event == "UNIT_PORTRAIT_UPDATE" or event == "UNIT_MODEL_CHANGED" then
@@ -1365,7 +1389,7 @@ function pfUI.uf.OnUpdate()
         -- O(1) Nampower lookup via GUID (same pattern as nameplates.lua)
         local health, maxHealth
         if GetUnitField then
-          local guid = GetUnitGUID(unit)
+          local guid = UnitGUID(unit)
           if guid then
             health = GetUnitField(guid, "health")
             maxHealth = GetUnitField(guid, "maxHealth")
@@ -2037,8 +2061,28 @@ function pfUI.uf:RefreshUnit(unit, component)
           unit.buffs[i].stacks:SetText("")
         end
 
-        if aura.expirationTime > 0 and aura.duration > 0 then
-          CooldownFrame_SetTimer(unit.buffs[i].cd, aura.expirationTime - aura.duration, aura.duration, 1)
+        if aura.expirationTime > 0 then
+          -- pfUI's cooldown text falls into a 2^32 wraparound branch when start > GetTime(),
+          -- which happens for talent-extended buffs where the real duration exceeds aura.duration
+          -- (the Spell.dbc base). Anchor start to now in that case to keep the remaining math sane.
+          local now = GetTime()
+          local start = aura.expirationTime - aura.duration
+          local duration = aura.duration
+          if start > now or duration <= 0 then
+            start, duration = now, aura.expirationTime - now
+          end
+          if duration > 0 then
+            CooldownFrame_SetTimer(unit.buffs[i].cd, start, duration, 1)
+          end
+        elseif aura.duration > 0 then
+          local guid = UnitGUID(unitstr)
+          local guidStarts = guid and pfUI.uf.aura_starts[guid]
+          local start = guidStarts and guidStarts[aura.spellId]
+          if start then
+            CooldownFrame_SetTimer(unit.buffs[i].cd, start, aura.duration, 1)
+          else
+            CooldownFrame_SetTimer(unit.buffs[i].cd, 0, 0, 0)
+          end
         end
       else
         unit.buffs[i]:Hide()
@@ -3197,7 +3241,7 @@ function pfUI.uf.GetColor(self, preset)
     -- O(1) Nampower lookup for health gradient color
     local hp, hpmax
     if GetUnitField then
-      local guid = GetUnitGUID(unitstr)
+      local guid = UnitGUID(unitstr)
       if guid then
         hp = GetUnitField(guid, "health")
         hpmax = GetUnitField(guid, "maxHealth")

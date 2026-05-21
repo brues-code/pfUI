@@ -141,7 +141,7 @@ libpredict:SetScript("OnEvent", function()
   end
 end)
 
--- GUID->Name cache for dead players (UnitExists/GetUnitGUID return nil for corpses)
+-- GUID->Name cache for dead players (UnitExists/UnitGUID return nil for corpses)
 local guidNameCache = {}  -- [guid] = name
 
 local function resolveNameFromGuid(guid)
@@ -156,18 +156,18 @@ local function cacheRaidNames()
   -- Cache all raid/party members while they are still reachable
   for i = 1, GetNumRaidMembers() do
     local unit = "raid" .. i
-    local guid = GetUnitGUID(unit)
+    local guid = UnitGUID(unit)
     local name = UnitName(unit)
     if guid and name then guidNameCache[guid] = name end
   end
   for i = 1, GetNumPartyMembers() do
     local unit = "party" .. i
-    local guid = GetUnitGUID(unit)
+    local guid = UnitGUID(unit)
     local name = UnitName(unit)
     if guid and name then guidNameCache[guid] = name end
   end
   -- player self
-  local pguid = GetUnitGUID("player")
+  local pguid = UnitGUID("player")
   if pguid then guidNameCache[pguid] = UnitName("player") end
 end
 
@@ -302,7 +302,7 @@ pfUI.libdebuff_spell_start_self_hooks["libpredict"] = function(spellId, casterGu
     -- Use resolvedTargetGuid (prefers pendingTargetGuid from mouseover/click-to-cast) so we
     -- don't wrongly fall back to player when healing a friend via mouseover with a foe in target.
     local healTarget = target
-    local unitTargetGuid = GetUnitGUID and GetUnitGUID("target")
+    local unitTargetGuid = UnitGUID and UnitGUID("target")
     local healTargetIsHostile = resolvedTargetGuid and unitTargetGuid
       and resolvedTargetGuid == unitTargetGuid
       and UnitExists("target")
@@ -618,7 +618,7 @@ function libpredict:ParseChatMessage(sender, msg, comm)
       for i = 1, GetNumRaidMembers() do
         local unit = "raid" .. i
         if UnitName(unit) == sender then
-          senderGuid = GetUnitGUID(unit)
+          senderGuid = UnitGUID(unit)
           break
         end
       end
@@ -626,7 +626,7 @@ function libpredict:ParseChatMessage(sender, msg, comm)
         for i = 1, GetNumPartyMembers() do
           local unit = "party" .. i
           if UnitName(unit) == sender then
-            senderGuid = GetUnitGUID(unit)
+            senderGuid = UnitGUID(unit)
             break
           end
         end
@@ -1283,7 +1283,7 @@ function libpredict:GetHotDuration(unit, spell)
   
   -- NEW: Try libdebuff first (Nampower AURA_CAST events)
   if pfUI.api.libdebuff and pfUI.api.libdebuff.GetBestAuraCast then
-    local guid = GetUnitGUID(unit)
+    local guid = UnitGUID(unit)
     if guid then
       -- Get the best (highest rank) aura cast for this spell
       local spellName = spell

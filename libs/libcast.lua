@@ -65,7 +65,7 @@ pfGetChannelInfo = function(unit)
     guid = unit  -- unit IS the GUID
   elseif pfValidUnits[unit] and UnitExists then
     -- unit is a token like "target" - get GUID from it
-    local unitGuid = GetUnitGUID(unit)
+    local unitGuid = UnitGUID(unit)
     guid = unitGuid
   end
   
@@ -158,7 +158,7 @@ pfGetCastInfo = function(unit)
     guid = unit  -- unit IS the GUID
   elseif pfValidUnits[unit] and UnitExists then
     -- unit is a token like "target" - get GUID from it
-    local unitGuid = GetUnitGUID(unit)
+    local unitGuid = UnitGUID(unit)
     guid = unitGuid
   end
   

@@ -33,13 +33,17 @@ pfUI:RegisterSkin("Turtle LFT", "vanilla", function ()
   end
 
   -- tabs
-  SkinTab(LFTFrameTab1)
-  LFTFrameTab1:ClearAllPoints()
-  LFTFrameTab1:SetPoint("TOPLEFT", LFTFrame.backdrop, "BOTTOMLEFT", bpad, -(border + (border == 1 and 1 or 2)))
+  if LFTFrameTab1 then
+    SkinTab(LFTFrameTab1)
+    LFTFrameTab1:ClearAllPoints()
+    LFTFrameTab1:SetPoint("TOPLEFT", LFTFrame.backdrop, "BOTTOMLEFT", bpad, -(border + (border == 1 and 1 or 2)))
+  end
 
-  SkinTab(LFTFrameTab2)
-  LFTFrameTab2:ClearAllPoints()
-  LFTFrameTab2:SetPoint("LEFT", LFTFrameTab1, "RIGHT", border * 2 + 1, 0)
+  if LFTFrameTab2 then
+    SkinTab(LFTFrameTab2)
+    LFTFrameTab2:ClearAllPoints()
+    LFTFrameTab2:SetPoint("LEFT", LFTFrameTab1, "RIGHT", border * 2 + 1, 0)
+  end
 
   -- scrollframe
   StripTextures(LFTFrameScrollFrame)

@@ -135,7 +135,7 @@ pfUI:RegisterModule("raid", "vanilla:tbc", function ()
         local frame = pfUI.uf.raid[i]
         if frame and frame.id and frame.id > 0 then
           local unit = "raid" .. frame.id
-          local newGuid = GetUnitGUID(unit)
+          local newGuid = UnitGUID(unit)
           local oldGuid = tracker.frameToGuid[frame]
           
           if newGuid ~= oldGuid then

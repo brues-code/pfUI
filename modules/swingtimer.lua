@@ -870,7 +870,7 @@ pfUI:RegisterModule("swingtimer", "vanilla:tbc", function ()
       local _, class = UnitClass("player")
       S.isWarrior  = (class == "WARRIOR")
       S.isDruid    = (class == "DRUID")
-      S.playerGUID = GetUnitGUID("player")
+      S.playerGUID = UnitGUID("player")
       UpdateWeaponSpeeds()
       RebuildQueueSlotCache()
 
