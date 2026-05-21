@@ -408,28 +408,28 @@ pfUI:RegisterModule("swingtimer", "vanilla:tbc", function ()
     pfUI.swingtimer:Hide()
   end
 
-  -- HS/Cleave helpers
+  -- HS/Cleave helpers. Canonical rank-1 spellIDs resolve to the localized
+  -- spell name once, so the per-slot comparison is locale-independent without
+  -- per-rank hardcoding (every rank of Heroic Strike returns the same name).
+  local HS_NAME = C_Spell.GetSpellName(78)       -- Heroic Strike (Rank 1)
+  local CLEAVE_NAME = C_Spell.GetSpellName(845)  -- Cleave (Rank 1)
+
   local function RebuildQueueSlotCache()
     if not S.isWarrior or not sw_hsqueue or S.useSpellQueueEvent then return end
     S.cachedHSSlots     = {}
     S.cachedCleaveSlots = {}
     for slot = 1, 120 do
-      local tex  = GetActionTexture(slot)
-      local name = GetActionText(slot)
-      if tex then
-        if string.find(tex, "Ability_Rogue_Ambush") then
-          table.insert(S.cachedHSSlots, slot)
-        elseif string.find(tex, "Ability_Warrior_Cleave") then
-          table.insert(S.cachedCleaveSlots, slot)
-        end
+      local kind, id = GetActionInfo(slot)
+      local name
+      if kind == "spell" then
+        name = GetSpellInfo(id)
+      elseif kind == "macro" then
+        name = GetMacroSpell(id)
       end
-      if name then
-        local lower = string.lower(name)
-        if lower == "heroic strike" or lower == "heroicstrike" or lower == "hs" then
-          table.insert(S.cachedHSSlots, slot)
-        elseif lower == "cleave" then
-          table.insert(S.cachedCleaveSlots, slot)
-        end
+      if name == HS_NAME then
+        table.insert(S.cachedHSSlots, slot)
+      elseif name == CLEAVE_NAME then
+        table.insert(S.cachedCleaveSlots, slot)
       end
     end
   end
