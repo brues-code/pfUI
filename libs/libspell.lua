@@ -4,7 +4,6 @@ setfenv(1, pfUI:GetEnvironment())
 -- return instantly when another libspell is already active
 if pfUI.api.libspell then return end
 
-local scanner = libtipscan:GetScanner("libspell")
 local libspell = {}
 
 -- [ GetSpellMaxRank ]
@@ -91,55 +90,28 @@ function libspell.GetSpellInfo(index, bookType)
   local cache = spellinfo[index]
   if cache then return cache[1], cache[2], cache[3], cache[4], cache[5], cache[6], cache[7], cache[8] end
 
-  local name, rank, id
-  local icon = ""
-  local castingTime = 0
-  local minRange = 0
-  local maxRange = 0
-
+  local slot
   if type(index) == "string" then
     local _, _, sname, srank = string.find(index, '(.+)%((.+)%)')
-    name = sname or index
-    rank = srank or libspell.GetSpellMaxRank(name)
-    id, bookType = libspell.GetSpellIndex(name, rank)
-
-    -- correct name in case of wrong upper/lower cases
-    if id and bookType then
-      name = GetSpellName(id, bookType)
-    end
+    local name = sname or index
+    local rank = srank or libspell.GetSpellMaxRank(name)
+    slot, bookType = libspell.GetSpellIndex(name, rank)
   else
     if not bookType or (bookType ~= BOOKTYPE_SPELL and bookType ~= BOOKTYPE_PET) then
       return nil
     end
-    name, rank = GetSpellName(index, bookType)
-    id, bookType = libspell.GetSpellIndex(name, rank)
+    slot = index
   end
 
-  if name and id then
-    icon = GetSpellTexture(id, bookType)
-  end
+  if not slot or not bookType then return nil end
 
-  if id then
-    scanner:SetSpell(id, bookType)
-    local _, sec = scanner:Find(gsub(SPELL_CAST_TIME_SEC, "%%.3g", "%(.+%)"), false)
-    local _, min = scanner:Find(gsub(SPELL_CAST_TIME_MIN, "%%.3g", "%(.+%)"), false)
-    local _, range = scanner:Find(gsub(SPELL_RANGE, "%%s", "%(.+%)"), false)
+  -- ClassicAPI's GetSpellInfo returns: name, rank, icon, cost, isFunnel, powerType,
+  -- castTime(ms), minRange, maxRange, spellID. Keep libspell's historical positional
+  -- shape (castingTime at 4, ranges at 5/6, slot+bookType at 7/8).
+  local name, rank, icon, _, _, _, castingTime, minRange, maxRange = GetSpellInfo(slot, bookType)
 
-    castingTime = (tonumber(sec) or tonumber(min) or 0) * 1000
-    if range then
-      local _, _, min, max = string.find(range, "(.+)-(.+)")
-      if min and max then
-        minRange = tonumber(min)
-        maxRange = tonumber(max)
-      else
-        minRange = 0
-        maxRange = tonumber(range)
-      end
-    end
-  end
-
-  spellinfo[index] = { name, rank, icon, castingTime, minRange, maxRange, id, bookType }
-  return name, rank, icon, castingTime, minRange, maxRange, id, bookType
+  spellinfo[index] = { name, rank, icon, castingTime, minRange, maxRange, slot, bookType }
+  return name, rank, icon, castingTime, minRange, maxRange, slot, bookType
 end
 
 -- Reset all spell caches whenever new spells are learned/unlearned
