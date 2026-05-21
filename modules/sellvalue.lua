@@ -28,21 +28,22 @@ pfUI:RegisterModule("sellvalue", "vanilla:tbc", function ()
     end
   end
 
-  pfUI.sellvalue = CreateFrame( "Frame" , "pfGameTooltip", GameTooltip )
+  pfUI.sellvalue = CreateFrame("Frame", "pfGameTooltip", GameTooltip)
   pfUI.sellvalue:SetScript("OnShow", function()
-    if libtooltip:GetItemLink() then
-      local id = libtooltip:GetItemID()
-      local count = tonumber(libtooltip:GetItemCount()) or 1
-      AddVendorPrices(GameTooltip, id, math.max(count, 1))
+    if GameTooltip:HasItem() then
+      local _, _, id = GameTooltip:GetItem()
+      if id then
+        local count = tonumber(libtooltip:GetItemCount()) or 1
+        AddVendorPrices(GameTooltip, id, math.max(count, 1))
+      end
     end
   end)
 
-  local HookSetItemRef = SetItemRef
-  _G.SetItemRef = function(link, text, button)
-    local item, _, id = string.find(link, "item:(%d+):.*")
-    HookSetItemRef(link, text, button)
-    if not IsAltKeyDown() and not IsShiftKeyDown() and not IsControlKeyDown() and item then
-      AddVendorPrices(ItemRefTooltip, tonumber(id), 1)
+  hooksecurefunc("SetItemRef", function()
+    if IsAltKeyDown() or IsShiftKeyDown() or IsControlKeyDown() then return end
+    if ItemRefTooltip:HasItem() then
+      local _, _, id = ItemRefTooltip:GetItem()
+      if id then AddVendorPrices(ItemRefTooltip, id, 1) end
     end
-  end
+  end)
 end)
