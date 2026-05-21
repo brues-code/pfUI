@@ -406,31 +406,6 @@ function pfUI.api.GetItemLinkByName(name)
   end
 end
 
--- [ GetItemCount ]
--- Returns information about how many of a given item the player has.
--- 'itemName'   [string]         name of the item
--- returns:     [int]            the number of the given item
-function pfUI.api.GetItemCount(itemName)
-  local count = 0
-  for bag = 4, 0, -1 do
-    for slot = 1, GetContainerNumSlots(bag) do
-      local _, itemCount = GetContainerItemInfo(bag, slot)
-      if itemCount then
-        local itemLink = GetContainerItemLink(bag,slot)
-        local _, _, itemParse = strfind(itemLink, "(%d+):")
-        local queryName = GetItemInfo(itemParse)
-        if queryName and queryName ~= "" then
-          if queryName == itemName then
-            count = count + itemCount
-          end
-        end
-      end
-    end
-  end
-
-  return count
-end
-
 -- [ FindItem ]
 -- Returns the bag and slot position of an item based on the name.
 -- 'item'       [string]         name of the item

@@ -1639,34 +1639,31 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
 
   -- reagent counter
   if C.bars.reagents == "1" then
-    local reagent_slots = { }
-    local reagent_counts = { }
-    local reagent_capture = SPELL_REAGENTS.."(.+)"
-    local scanner = libtipscan:GetScanner("actionbar")
+    local reagent_slots = { }   -- action slot -> first reagent itemID
+    local reagent_counts = { }  -- itemID -> count in player's inventory
 
+    -- For a given action slot, resolve the spell's first reagent itemID
+    -- via GetActionInfo + C_Spell.GetSpellReagents. Macro actions and
+    -- bag-item actions are skipped (their reagent resolution would need a
+    -- macro-body parse / item-effect lookup that we don't bother with).
     local UpdateSlot = function(slot)
-      local texture = GetActionTexture(slot)
-
-      -- update buttons that previously had an reagent
-      if reagent_slots[slot] and not HasAction(slot) then
-        reagent_slots[slot] = nil
-        updatecache[slot] = true
+      local newID = nil
+      if HasAction(slot) then
+        local kind, spellID = GetActionInfo(slot)
+        if kind == "spell" and spellID then
+          local reagents = C_Spell.GetSpellReagents(spellID)
+          if reagents and reagents[1] then
+            newID = reagents[1].itemID
+          end
+        end
       end
 
-      -- search for reagent requirements
-      if HasAction(slot) then
-        scanner:SetAction(slot)
-        local _, reagents = scanner:Find(reagent_capture)
-
-        -- remove reagent counts if existing
-        reagents = reagents and string.gsub(reagents, " %((.+)%)", "")
-
-        -- update on reagent requirement changes
-        if reagents and reagent_slots[slot] ~= reagents then
-          reagent_counts[reagents] = reagent_counts[reagents] or 0
-          reagent_slots[slot] = reagents
-          updatecache[slot] = true
+      if reagent_slots[slot] ~= newID then
+        reagent_slots[slot] = newID
+        if newID then
+          reagent_counts[newID] = reagent_counts[newID] or 0
         end
+        updatecache[slot] = true
       end
     end
 
@@ -1705,8 +1702,8 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
       if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + 1 end
 
       -- scan for all reagent item counts
-      for item in pairs(reagent_counts) do
-        reagent_counts[item] = GetItemCount(item)
+      for itemID in pairs(reagent_counts) do
+        reagent_counts[itemID] = C_Item.GetItemCount(itemID)
       end
 
       -- update all actionbar buttons

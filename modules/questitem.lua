@@ -2,7 +2,7 @@ pfUI:RegisterModule("questitem", function ()
   local questlog = {}
   local itemcache = {}
 
-  local function AddTooltip(frame, item)
+  local function AddTooltip(frame, item, itemID)
     -- abort when no item was given
     if not item then return end
 
@@ -54,7 +54,8 @@ pfUI:RegisterModule("questitem", function ()
     if C.tooltip.questitem.showcount == "1" and itemcache[item] and itemcache[item] ~= false then
       local _, _, required = strfind(string.lower(questlog[itemcache[item]]), "_"..string.lower(item).."_(.-)_")
       if required then
-        quest = string.format("%s |cffaaaaaa[%s/%s]", quest, (GetItemCount(item) or 0), required)
+        local have = itemID and C_Item.GetItemCount(itemID) or 0
+        quest = string.format("%s |cffaaaaaa[%s/%s]", quest, have, required)
       end
     end
 
@@ -134,25 +135,25 @@ pfUI:RegisterModule("questitem", function ()
     pfUI.questitem.run = GetTime() + .5
   end
 
-  -- add to regular tooltips
-  pfUI.questitem.tooltip = CreateFrame("Frame", "pfQuestItems", GameTooltip )
+  -- regular tooltip: catch every Show via a child frame's OnShow, then ask
+  -- the tooltip directly for the item it's displaying. Replaces a libtooltip
+  -- indirection that did the same query with extra caching layers.
+  pfUI.questitem.tooltip = CreateFrame("Frame", "pfQuestItems", GameTooltip)
   pfUI.questitem.tooltip:SetScript("OnShow", function()
-    if libtooltip:GetItemLink() then
-      local id = libtooltip:GetItemID()
-      if not id then return end
-      local name = GetItemInfo(id)
-      AddTooltip(GameTooltip, name)
+    if GameTooltip:HasItem() then
+      local name, _, id = GameTooltip:GetItem()
+      if name and id then AddTooltip(GameTooltip, name, id) end
     end
   end)
 
-  -- add to itemref tooltips
-  local HookSetItemRef = SetItemRef
-  _G.SetItemRef = function(link, text, button)
-    HookSetItemRef(link, text, button)
-    local item, _, id = string.find(link, "item:(%d+):.*")
-    if not IsAltKeyDown() and not IsShiftKeyDown() and not IsControlKeyDown() and item then
-      local name = GetItemInfo(id)
-      AddTooltip(ItemRefTooltip, name)
+  -- itemref tooltip (chat link clicks): hooksecurefunc runs after SetItemRef
+  -- populates ItemRefTooltip, so we just read the item back out of the tooltip
+  -- instead of re-parsing the "item:NNN" out of the link string.
+  hooksecurefunc("SetItemRef", function()
+    if IsAltKeyDown() or IsShiftKeyDown() or IsControlKeyDown() then return end
+    if ItemRefTooltip:HasItem() then
+      local name, _, id = ItemRefTooltip:GetItem()
+      if name and id then AddTooltip(ItemRefTooltip, name, id) end
     end
-  end
+  end)
 end)
