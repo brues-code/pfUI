@@ -49,43 +49,6 @@ local function DoNothing()
   return
 end
 
-local maxdurations = {}
-local function BuffOnUpdate()
-  if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + .2 end
-  local bid = GetPlayerBuff(PLAYER_BUFF_START_ID+this.id,"HELPFUL")
-  local timeleft = GetPlayerBuffTimeLeft(bid)
-  local texture = GetPlayerBuffTexture(bid)
-  local start = 0
-
-  -- slot is empty (buff expired or doesn't exist), clear timer and bail
-  if not texture then
-    CooldownFrame_SetTimer(this.cd, 0, 0, 0)
-    return
-  end
-
-  -- Get buff name for unique key (two buffs could share same texture)
-  local name = ""
-  if libtipscan then
-    scanner = scanner or libtipscan:GetScanner("unitframes")
-    if scanner then
-      scanner:SetPlayerBuff(bid)
-      name = scanner:Line(1) or ""
-    end
-  end
-  local key = texture .. name
-
-  if timeleft > 0 then
-    if not maxdurations[key] then
-      maxdurations[key] = timeleft
-    elseif maxdurations[key] and maxdurations[key] < timeleft then
-      maxdurations[key] = timeleft
-    end
-    start = GetTime() + timeleft - maxdurations[key]
-  end
-
-  CooldownFrame_SetTimer(this.cd, start, maxdurations[key], timeleft > 0 and 1 or 0)
-end
-
 local function TargetBuffOnUpdate()
   local name, rank, icon, count, duration, timeleft = _G.UnitBuff("target", this.id)
   if duration and timeleft then
@@ -123,42 +86,6 @@ local function BuffOnClick()
   if this:GetParent().label == "player" then
     CancelPlayerBuff(GetPlayerBuff(PLAYER_BUFF_START_ID+this.id,"HELPFUL"))
   end
-end
-
-local function DebuffOnUpdate()
-  if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + .2 end
-  local bid = GetPlayerBuff(PLAYER_BUFF_START_ID+this.id,"HARMFUL")
-  local timeleft = GetPlayerBuffTimeLeft(bid)
-  local texture = GetPlayerBuffTexture(bid)
-  local start = 0
-
-  -- slot is empty (debuff expired or doesn't exist), clear timer and bail
-  if not texture then
-    CooldownFrame_SetTimer(this.cd, 0, 0, 0)
-    return
-  end
-
-  -- Get debuff name for unique key (two debuffs could share same texture)
-  local name = ""
-  if libtipscan then
-    scanner = scanner or libtipscan:GetScanner("unitframes")
-    if scanner then
-      scanner:SetPlayerBuff(bid)
-      name = scanner:Line(1) or ""
-    end
-  end
-  local key = texture .. name
-
-  if timeleft > 0 then
-    if not maxdurations[key] then
-      maxdurations[key] = timeleft
-    elseif maxdurations[key] and maxdurations[key] < timeleft then
-      maxdurations[key] = timeleft
-    end
-    start = GetTime() + timeleft - maxdurations[key]
-  end
-
-  CooldownFrame_SetTimer(this.cd, start, maxdurations[key], timeleft > 0 and 1 or 0)
 end
 
 local function DebuffOnEnter()
@@ -1005,10 +932,6 @@ function pfUI.uf:UpdateConfig()
       f.debuffs[i]:Hide()
 
       CreateBackdrop(f.debuffs[i], default_border)
-
-      if f:GetName() == "pfPlayer" then
-        f.debuffs[i]:SetScript("OnUpdate", DebuffOnUpdate)
-      end
 
       f.debuffs[i]:SetScript("OnEnter", DebuffOnEnter)
       f.debuffs[i]:SetScript("OnLeave", DebuffOnLeave)
@@ -2145,10 +2068,14 @@ function pfUI.uf:RefreshUnit(unit, component)
         invert_h * ((row+buffrow)*(multiply*default_border + unit.config.debuffsize + 1) + (multiply*default_border + 1)))
       end
 
+      local aura
       if unit.label == "player" then
-        texture = GetPlayerBuffTexture(GetPlayerBuff(PLAYER_BUFF_START_ID+i, "HARMFUL"))
-        stacks = GetPlayerBuffApplications(GetPlayerBuff(PLAYER_BUFF_START_ID+i, "HARMFUL"))
-        dtype = GetPlayerBuffDispelType(GetPlayerBuff(PLAYER_BUFF_START_ID+i, "HARMFUL"))
+        aura = C_UnitAuras.GetDebuffDataByIndex("player", i)
+        if aura then
+          texture, stacks, dtype = aura.icon, aura.applications, aura.dispelName
+        else
+          texture, stacks, dtype = nil, 0, nil
+        end
       elseif selfdebuff == "1" then
         _, _, texture, stacks, dtype = libdebuff:UnitOwnDebuff(unitstr, i)
       else
@@ -2166,16 +2093,25 @@ function pfUI.uf:RefreshUnit(unit, component)
       if texture then
         unit.debuffs[i]:Show()
 
-        if unit:GetName() == "pfPlayer" then
-          local timeleft = GetPlayerBuffTimeLeft(GetPlayerBuff(PLAYER_BUFF_START_ID+unit.debuffs[i].id, "HARMFUL"),"HARMFUL")
-          CooldownFrame_SetTimer(unit.debuffs[i].cd, GetTime(), timeleft, 1)
+        if aura and aura.expirationTime > 0 then
+          -- Player path: real engine expirationTime. Cap start to now to keep pfUI's
+          -- cooldown text out of the 2^32-wraparound branch for talent-extended debuffs.
+          local now = GetTime()
+          local start = aura.expirationTime - aura.duration
+          local duration = aura.duration
+          if start > now or duration <= 0 then
+            start, duration = now, aura.expirationTime - now
+          end
+          if duration > 0 then
+            CooldownFrame_SetTimer(unit.debuffs[i].cd, start, duration, 1)
+          end
         elseif libdebuff and selfdebuff == "1" then
-          local name, rank, texture, stacks, dtype, duration, timeleft, caster = libdebuff:UnitOwnDebuff(unitstr, i)
+          local _, _, _, _, _, duration, timeleft = libdebuff:UnitOwnDebuff(unitstr, i)
           if duration and timeleft then
             CooldownFrame_SetTimer(unit.debuffs[i].cd, GetTime() + timeleft - duration, duration, 1)
           end
         elseif libdebuff then
-          local name, rank, texture, stacks, dtype, duration, timeleft, caster = libdebuff:UnitDebuff(unitstr, i)
+          local _, _, _, _, _, duration, timeleft = libdebuff:UnitDebuff(unitstr, i)
           if duration and timeleft then
             CooldownFrame_SetTimer(unit.debuffs[i].cd, GetTime() + timeleft - duration, duration, 1)
           end
@@ -2275,7 +2211,8 @@ function pfUI.uf:RefreshUnit(unit, component)
         indicator[debuff].visible = nil
 
         for i=1,16 do
-          local _, _, dtype = UnitDebuff(unitstr, i)
+          local a = C_UnitAuras.GetDebuffDataByIndex(unitstr, i)
+          local dtype = a and a.dispelName
           if dtype == debuff then
             indicator[debuff].visible = true
           end
