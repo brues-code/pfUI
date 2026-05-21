@@ -1,31 +1,36 @@
 pfUI:RegisterModule("sellvalue", "vanilla:tbc", function ()
   local function AddVendorPrices(frame, id, count)
-    if pfSellData[id] then
-      local _, _, sell, buy = strfind(pfSellData[id], "(.*),(.*)")
-      sell = tonumber(sell)
-      buy = tonumber(buy)
+    if not id then return end
+    -- Sell price comes from the engine (item DBC); buy price from pfSellData
+    -- (curated vendor data, since vendor purchase prices aren't a static field).
+    local sell = C_Item.GetItemSellPriceByID(id) or 0
+    local buy = pfSellData[id]
+    if sell == 0 and not buy then return end
 
-      if not MerchantFrame:IsShown() then
-        if sell > 0 then SetTooltipMoney(frame, sell * count) end
-      end
+    if not MerchantFrame:IsShown() and sell > 0 then
+      SetTooltipMoney(frame, sell * count)
+    end
 
-      if IsShiftKeyDown() or C.tooltip.vendor.showalways == "1" then
-        frame:AddLine(" ")
+    if IsShiftKeyDown() or C.tooltip.vendor.showalways == "1" then
+      frame:AddLine(" ")
 
+      if sell > 0 then
         if count > 1 then
           frame:AddDoubleLine(T["Sell"] .. ":", CreateGoldString(sell) .. "|cff555555  //  " .. CreateGoldString(sell*count), 1, 1, 1)
         else
-          frame:AddDoubleLine(T["Sell"] .. ":", CreateGoldString(sell * count), 1, 1, 1)
+          frame:AddDoubleLine(T["Sell"] .. ":", CreateGoldString(sell), 1, 1, 1)
         end
+      end
 
+      if buy then
         if count > 1 then
           frame:AddDoubleLine(T["Buy"] .. ":", CreateGoldString(buy) .. "|cff555555  //  " .. CreateGoldString(buy*count), 1, 1, 1)
         else
           frame:AddDoubleLine(T["Buy"] .. ":", CreateGoldString(buy), 1, 1, 1)
         end
       end
-      frame:Show()
     end
+    frame:Show()
   end
 
   pfUI.sellvalue = CreateFrame("Frame", "pfGameTooltip", GameTooltip)

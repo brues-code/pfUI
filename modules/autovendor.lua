@@ -58,10 +58,9 @@ pfUI:RegisterModule("autovendor", "vanilla:tbc", function ()
       return
     end
 
-    -- get value
+    -- only proceed for items the engine reports as vendor-sellable
     local id = C_Container.GetContainerItemID(bag, slot)
-    if pfSellData[id] then
-      local _, _, sell, buy = strfind(pfSellData[id], "(.*),(.*)")
+    if (id and C_Item.GetItemSellPriceByID(id) or 0) > 0 then
       this.count = this.count + 1
     end
 
