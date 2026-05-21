@@ -1107,7 +1107,7 @@ function pfUI.uf.OnEvent()
   elseif this.label == "pet" and event == "UNIT_HAPPINESS" then
     this.update_full = true
   -- UNIT_XXX Events
-  elseif arg1 and arg1 == this.label .. this.id then
+  elseif arg1 and (arg1 == this.label .. this.id or (GetUnitGUID and arg1 == GetUnitGUID(this.label .. this.id))) then
     this.lastEventUpdate = GetTime()
     
     if event == "UNIT_PORTRAIT_UPDATE" or event == "UNIT_MODEL_CHANGED" then
