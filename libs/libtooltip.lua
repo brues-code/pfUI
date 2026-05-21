@@ -38,8 +38,7 @@ end)
 libtooltip.GetItemID = function(self)
   if not libtooltip.itemLink then return end
   if not libtooltip.itemID then
-    local _, _, itemID = string.find(libtooltip.itemLink, "item:(%d+):%d+:%d+:%d+")
-    libtooltip.itemID = tonumber(itemID)
+    libtooltip.itemID = C_Item.GetItemInfoInstant(libtooltip.itemLink)
   end
 
   return libtooltip.itemID
