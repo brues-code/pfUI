@@ -22,36 +22,14 @@ pfUI:RegisterModule("innervatecall", "vanilla", function ()
     return playerGuid
   end
 
-  -- GUID → name resolution for the target
+  -- GUID → name resolution for the target. UnitTokenFromGUID walks the
+  -- engine's known unit tokens (player, party, raid, target, ...) and
+  -- returns the first one currently bound to the GUID, so we don't have
+  -- to manually iterate party/raid here.
   local function ResolveTargetName(targetGuid)
-    if not targetGuid or not UnitGUID then return nil end
-
-    -- Check player self-cast
-    if GetPlayerGuid() == targetGuid then
-      return UnitName("player")
-    end
-
-    -- Check current target (most common case for other-cast)
-    local curGuid = UnitGUID("target")
-    if curGuid == targetGuid then
-      return UnitName("target")
-    end
-
-    -- Scan raid/party for GUID match
-    for i = 1, GetNumRaidMembers() do
-      local unit = "raid" .. i
-      if UnitGUID(unit) == targetGuid then
-        return UnitName(unit)
-      end
-    end
-    for i = 1, GetNumPartyMembers() do
-      local unit = "party" .. i
-      if UnitGUID(unit) == targetGuid then
-        return UnitName(unit)
-      end
-    end
-
-    return nil
+    if not targetGuid then return nil end
+    local token = UnitTokenFromGUID(targetGuid)
+    return token and UnitName(token) or nil
   end
 
   -- Determine chat channel based on group context
