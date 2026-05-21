@@ -1,6 +1,5 @@
 pfUI:RegisterModule("buffwatch", "vanilla:tbc", function ()
   local rawborder, border = GetBorderSize("panels")
-  local scanner = libtipscan:GetScanner("buffwatch")
 
   local fcache = {}
   local function BuffIsVisible(config, name)
@@ -76,23 +75,15 @@ pfUI:RegisterModule("buffwatch", "vanilla:tbc", function ()
 
   local function GetBuffData(unit, id, type, selfdebuff)
     if unit == "player" then
-      local bid = GetPlayerBuff(PLAYER_BUFF_START_ID+id, type)
-      local stacks = GetPlayerBuffApplications(bid)
-      local remaining = GetPlayerBuffTimeLeft(bid)
-      local texture = GetPlayerBuffTexture(bid)
-      local name
-
-      if texture then
-        scanner:SetPlayerBuff(bid)
-        name = scanner:Line(1)
-      end
-
-      return remaining, texture, name, stacks
+      local aura = C_UnitAuras.GetAuraDataByIndex("player", id, type)
+      if not aura then return end
+      local remaining = aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or 0
+      return remaining, aura.icon, aura.name, aura.applications
     elseif libdebuff and selfdebuff then
-      local name, rank, texture, stacks, dtype, duration, timeleft = libdebuff:UnitOwnDebuff(unit, id)
+      local name, _, texture, stacks, _, _, timeleft = libdebuff:UnitOwnDebuff(unit, id)
       return timeleft, texture, name, stacks
     elseif libdebuff then
-      local name, rank, texture, stacks, dtype, duration, timeleft = libdebuff:UnitDebuff(unit, id)
+      local name, _, texture, stacks, _, _, timeleft = libdebuff:UnitDebuff(unit, id)
       return timeleft, texture, name, stacks
     end
   end
@@ -115,7 +106,8 @@ pfUI:RegisterModule("buffwatch", "vanilla:tbc", function ()
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ffcc" .. skill .. "|r" .. T["is now blacklisted."])
       end
     elseif this.parent.unit == "player" then
-      CancelPlayerBuff(GetPlayerBuff(PLAYER_BUFF_START_ID+this.id,this.type))
+      local bid = GetPlayerBuff(PLAYER_BUFF_START_ID + this.id, this.type)
+      if bid >= 0 then CancelPlayerBuff(bid) end
     end
   end
 
@@ -123,7 +115,7 @@ pfUI:RegisterModule("buffwatch", "vanilla:tbc", function ()
     GameTooltip:SetOwner(this, "NONE")
 
     if this.unit == "player" then
-      GameTooltip:SetPlayerBuff(GetPlayerBuff(PLAYER_BUFF_START_ID+this.id,this.type))
+      GameTooltip:SetUnitAura("player", this.id, this.type)
     elseif this.type == "HARMFUL" then
       -- For "only own debuffs" mode: find the REAL slot by matching spell name AND caster
       local config = this.parent and this.parent.config
@@ -134,16 +126,16 @@ pfUI:RegisterModule("buffwatch", "vanilla:tbc", function ()
           for gameSlot = 1, 16 do
             local gameName, _, _, _, _, _, _, gameCaster = libdebuff:UnitDebuff(this.unit, gameSlot)
             if gameName == ownDebuffName and gameCaster == "player" then
-              GameTooltip:SetUnitDebuff(this.unit, gameSlot)
+              GameTooltip:SetUnitAura(this.unit, gameSlot, "HARMFUL")
               break
             end
           end
         end
       else
-        GameTooltip:SetUnitDebuff(this.unit, this.id)
+        GameTooltip:SetUnitAura(this.unit, this.id, "HARMFUL")
       end
     elseif this.type == "HELPFUL" then
-      GameTooltip:SetUnitBuff(this.unit, this.id)
+      GameTooltip:SetUnitAura(this.unit, this.id, "HELPFUL")
     end
 
     if IsShiftKeyDown() then
@@ -309,7 +301,8 @@ pfUI:RegisterModule("buffwatch", "vanilla:tbc", function ()
           local r, g, b
           if frame.type == "HARMFUL" then
             r, g, b = 1, .2, .2
-            local _, _, dtype = UnitDebuff(frame.unit, data[2])
+            local a = C_UnitAuras.GetDebuffDataByIndex(frame.unit, data[2])
+            local dtype = a and a.dispelName
             if dtype and DebuffTypeColor[dtype] then
               r,g,b = DebuffTypeColor[dtype].r,DebuffTypeColor[dtype].g,DebuffTypeColor[dtype].b
             end
