@@ -913,14 +913,10 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
   local inCatForm = nil
   local prowlActive = nil
 
-  -- Cat Form's icon path is stable across locales and ranks, so we match on
-  -- the texture rather than spellID (which differs between cast spellID and
-  -- the resulting buff's spellID in the descriptor).
+  -- Cat Form ID per vanilla 1.12 SpellShapeshiftForm.dbc.
+  local CAT_FORM = 1
   local function HasCatForm()
-    for _, a in ipairs(C_UnitAuras.GetUnitAuras("player", "HELPFUL")) do
-      if strfind(a.icon, "Ability_Druid_CatForm") then return true end
-    end
-    return nil
+    return GetShapeshiftFormID() == CAT_FORM and true or nil
   end
 
   local function FullScan()
