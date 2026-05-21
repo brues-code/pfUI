@@ -135,10 +135,24 @@ end
 function librange:GetRangeSlot()
   if not spells[class] then return nil end
   for i=1,120 do
-    local texture = GetActionTexture(i)
-    if texture and not GetActionText(i) then
-      for _, check in pairs(spells[class]) do
-        if check == texture then return i end
+    -- Resolve the slot to a spellID for both spell and macro actions; the old
+    -- `not GetActionText` macro-filter missed macros that cast a 40y heal but
+    -- displayed a non-spell icon. C_Spell.GetSpellTexture(spellID) gives the
+    -- spell's *intrinsic* icon, which is what we match against.
+    local kind, id = GetActionInfo(i)
+    local spellID
+    if kind == "spell" then
+      spellID = id
+    elseif kind == "macro" then
+      local _, _, sid = GetMacroSpell(id)
+      spellID = sid
+    end
+    if spellID then
+      local texture = C_Spell.GetSpellTexture(spellID)
+      if texture then
+        for _, check in pairs(spells[class]) do
+          if check == texture then return i end
+        end
       end
     end
   end
