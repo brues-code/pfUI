@@ -24,25 +24,6 @@ pfUI:RegisterModule("autoshift", "vanilla", function ()
     "根据您的骑行技能提高速度。", "根据骑术技能提高速度。", "又慢又稳......",
   }
 
-  -- Form ID -> icon-path fragment of that form's buff. GetShapeshiftFormID
-  -- tells us the active form directly; we still need to locate the buff in
-  -- the player's array to find the bid for CancelPlayerBuff.
-  --
-  -- Replaces the old texture-list scan plus moonkin_scan frame: the agility
-  -- buff that shares moonkin's icon no longer causes false positives because
-  -- form ID 31 is only reported when the player is genuinely in Moonkin Form,
-  -- regardless of what other buffs happen to be active.
-  pfUI.autoshift.shapeshifts = {
-    [1]  = "ability_druid_catform",       -- Cat Form
-    [3]  = "ability_druid_travelform",    -- Travel Form
-    [4]  = "ability_druid_aquaticform",   -- Aquatic Form
-    [5]  = "ability_racial_bearform",     -- Bear Form
-    [8]  = "ability_racial_bearform",     -- Dire Bear (shares texture with Bear)
-    [16] = "spell_nature_spiritwolf",     -- Shaman Ghost Wolf
-    [28] = "spell_shadow_shadowform",     -- Priest Shadowform
-    [31] = "spell_nature_forceofnature",  -- Druid Moonkin
-  }
-
   pfUI.autoshift.errors = { SPELL_FAILED_NOT_MOUNTED, ERR_ATTACK_MOUNTED, ERR_TAXIPLAYERALREADYMOUNTED,
     SPELL_FAILED_NOT_SHAPESHIFT, SPELL_FAILED_NO_ITEMS_WHILE_SHAPESHIFTED, SPELL_NOT_SHAPESHIFTED,
     SPELL_NOT_SHAPESHIFTED_NOSPACE, ERR_CANT_INTERACT_SHAPESHIFTED, ERR_NOT_WHILE_SHAPESHIFTED,
@@ -85,17 +66,11 @@ pfUI:RegisterModule("autoshift", "vanilla", function ()
           end
         end
 
-        -- Phase 2: cancel the active shapeshift if any. GetShapeshiftFormID
-        -- gives us the form directly; we iterate to find its buff bid.
-        local formTexture = pfUI.autoshift.shapeshifts[GetShapeshiftFormID()]
-        if formTexture then
-          for i = 0, 31 do
-            local buff = GetPlayerBuffTexture(i)
-            if buff and string.find(string.lower(buff), formTexture, 1) then
-              CancelPlayerBuff(i)
-              return
-            end
-          end
+        -- Phase 2: cancel the active shapeshift. CancelShapeshiftForm finds
+        -- the form buff via the engine's Spell.dbc effect-array scan and
+        -- sends the cancel packet directly — no bid lookup needed.
+        if GetShapeshiftFormID() ~= 0 then
+          CancelShapeshiftForm()
         end
       end
     end
