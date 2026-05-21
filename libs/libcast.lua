@@ -438,26 +438,35 @@ end)
 local aimedshot = L["customcast"]["AIMEDSHOT"]
 local multishot = L["customcast"]["MULTISHOT"]
 
+-- Shot-timer haste lookup. Keyed by icon path because some of these buffs have
+-- spell-ID variants across server flavors but stable icons. Berserking is the
+-- variable Troll-racial calculation (more haste at lower HP); other entries are
+-- flat duration multipliers.
+local SHOT_HASTE = {
+  ["Interface\\Icons\\Racial_Troll_Berserk"]       = "berserking",
+  ["Interface\\Icons\\Ability_Hunter_RunningShot"] = 1.4,
+  ["Interface\\Icons\\Ability_Warrior_InnerRage"]  = 1.3,
+  ["Interface\\Icons\\Inv_Trinket_Naxxramas04"]    = 1.2,
+}
+
+function libcast.ApplyShotHaste(duration)
+  for _, a in ipairs(C_UnitAuras.GetUnitAuras("player", "HELPFUL")) do
+    local mult = SHOT_HASTE[a.icon]
+    if mult == "berserking" then
+      local hp = UnitHealth("player") / UnitHealthMax("player")
+      local berserk = hp >= 0.40 and (1.30 - hp) / 3 or 0.3
+      duration = duration / (1 + berserk)
+    elseif mult then
+      duration = duration / mult
+    end
+  end
+  return duration
+end
+
 libcast.customcast = {}
 libcast.customcast[strlower(aimedshot)] = function(begin, duration)
   if begin then
-    local duration = duration or 3000
-
-    for i=1,32 do
-      if UnitBuff("player", i) == "Interface\\Icons\\Racial_Troll_Berserk" then
-        local berserk = 0.3
-        if((UnitHealth("player")/UnitHealthMax("player")) >= 0.40) then
-          berserk = (1.30 - (UnitHealth("player") / UnitHealthMax("player"))) / 3
-        end
-        duration = duration / (1 + berserk)
-      elseif UnitBuff("player", i) == "Interface\\Icons\\Ability_Hunter_RunningShot" then
-        duration = duration / 1.4
-      elseif UnitBuff("player", i) == "Interface\\Icons\\Ability_Warrior_InnerRage" then
-        duration = duration / 1.3
-      elseif UnitBuff("player", i) == "Interface\\Icons\\Inv_Trinket_Naxxramas04" then
-        duration = duration / 1.2
-      end
-    end
+    local duration = libcast.ApplyShotHaste(duration or 3000)
 
     local _,_, lag = GetNetStats()
     local start = GetTime() + lag/1000
@@ -482,23 +491,7 @@ end
 
 libcast.customcast[strlower(multishot)] = function(begin, duration)
   if begin then
-    local duration = duration or 500
-
-    for i=1,32 do
-      if UnitBuff("player", i) == "Interface\\Icons\\Racial_Troll_Berserk" then
-        local berserk = 0.3
-        if((UnitHealth("player")/UnitHealthMax("player")) >= 0.40) then
-          berserk = (1.30 - (UnitHealth("player") / UnitHealthMax("player"))) / 3
-        end
-        duration = duration / (1 + berserk)
-      elseif UnitBuff("player", i) == "Interface\\Icons\\Ability_Hunter_RunningShot" then
-        duration = duration / 1.4
-      elseif UnitBuff("player", i) == "Interface\\Icons\\Ability_Warrior_InnerRage" then
-        duration = duration / 1.3
-      elseif UnitBuff("player", i) == "Interface\\Icons\\Inv_Trinket_Naxxramas04" then
-        duration = duration / 1.2
-      end
-    end
+    local duration = libcast.ApplyShotHaste(duration or 500)
 
     local _,_, lag = GetNetStats()
     local start = GetTime() + lag/1000
