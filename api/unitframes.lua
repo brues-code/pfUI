@@ -84,41 +84,36 @@ end
 
 local function BuffOnClick()
   if this:GetParent().label == "player" then
-    CancelPlayerBuff(GetPlayerBuff(PLAYER_BUFF_START_ID+this.id,"HELPFUL"))
+    local bid = GetPlayerBuff(PLAYER_BUFF_START_ID + this.id, "HELPFUL")
+    if bid >= 0 then CancelPlayerBuff(bid) end
   end
 end
 
 local function DebuffOnEnter()
   if not this:GetParent().label then return end
 
+  local unitstr = this:GetParent().label .. this:GetParent().id
   GameTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT")
-  if this:GetParent().label == "player" then
-    GameTooltip:SetPlayerBuff(GetPlayerBuff(PLAYER_BUFF_START_ID+this.id,"HARMFUL"))
-  else
-    local unitstr = this:GetParent().label .. this:GetParent().id
+
+  if this:GetParent().label ~= "player" then
     local parent = this:GetParent()
-    
+
     -- For "only own debuffs" mode: find the REAL slot by matching spell name AND caster
     if parent.config and parent.config.selfdebuff == "1" and libdebuff then
-      -- Get the spell name from our filtered list
       local ownDebuffName = libdebuff:UnitOwnDebuff(unitstr, this.id)
-      
       if ownDebuffName then
-        -- Search through all game slots to find OUR debuff with matching name
         for gameSlot = 1, 16 do
           local gameName, _, _, _, _, _, _, gameCaster = libdebuff:UnitDebuff(unitstr, gameSlot)
-          -- Match both name AND caster (must be ours)
           if gameName == ownDebuffName and gameCaster == "player" then
-            GameTooltip:SetUnitDebuff(unitstr, gameSlot)
+            GameTooltip:SetUnitAura(unitstr, gameSlot, "HARMFUL")
             return
           end
         end
       end
     end
-    
-    -- Normal mode: use visual id directly
-    GameTooltip:SetUnitDebuff(unitstr, this.id)
   end
+
+  GameTooltip:SetUnitAura(unitstr, this.id, "HARMFUL")
 end
 
 local function DebuffOnLeave()
@@ -127,7 +122,8 @@ end
 
 local function DebuffOnClick()
   if this:GetParent().label == "player" then
-    CancelPlayerBuff(GetPlayerBuff(PLAYER_BUFF_START_ID+this.id,"HARMFUL"))
+    local bid = GetPlayerBuff(PLAYER_BUFF_START_ID + this.id, "HARMFUL")
+    if bid >= 0 then CancelPlayerBuff(bid) end
   end
 end
 
