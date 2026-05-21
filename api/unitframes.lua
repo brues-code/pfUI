@@ -38,9 +38,9 @@ end
 -- reused by other spells. Maps icon (lowercased) → expected aura name +
 -- libpredict key for the prediction integration.
 local HOT_INDICATORS = {
-  ["interface\\icons\\spell_nature_rejuvenation"] = { name = "rejuvenation", predict = "Reju" },
-  ["interface\\icons\\spell_holy_renew"]          = { name = "renew",        predict = "Renew" },
-  ["interface\\icons\\spell_nature_resistnature"] = { name = "regrowth",     predict = "Regr" },
+  [strlower(C_Spell.GetSpellTexture(774))]  = { name = strlower(C_Spell.GetSpellName(774)),  predict = "Reju" },
+  [strlower(C_Spell.GetSpellTexture(139))]  = { name = strlower(C_Spell.GetSpellName(139)),  predict = "Renew" },
+  [strlower(C_Spell.GetSpellTexture(8936))] = { name = strlower(C_Spell.GetSpellName(8936)), predict = "Regr" },
 }
 
 local glow = {
