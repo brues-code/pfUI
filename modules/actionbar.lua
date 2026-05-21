@@ -910,43 +910,24 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
   end
 
   local cat, stealth
-  local inCatForm = nil  -- cached from buff scan
-  local prowlActive = nil  -- tracks if prowl is active
-  
-  -- Full scan for cat form and prowl (only on login/reload)
-  local function FullScan()
-    if class ~= "DRUID" then return nil end
-    
-    local foundCat, foundStealth = nil, nil
-    
-    for i = 0, 31 do
-      local texture = GetPlayerBuffTexture(i)
-      if not texture then break end
+  local inCatForm = nil
+  local prowlActive = nil
 
-      if strfind(texture, "Ability_Druid_CatForm") then
-        foundCat = true
-      end
-
-      if strfind(texture, "Ability_Ambush") then
-        foundStealth = true
-      end
-    end
-    
-    inCatForm = foundCat
-    prowlActive = foundCat and foundStealth
-    return prowlActive
-  end
-  
-  -- Quick scan only for prowl (when we know we're in cat form)
-  local function HasProwlBuff()
-    for i = 0, 31 do
-      local texture = GetPlayerBuffTexture(i)
-      if not texture then break end
-      if strfind(texture, "Ability_Ambush") then
-        return true
-      end
+  -- Cat Form's icon path is stable across locales and ranks, so we match on
+  -- the texture rather than spellID (which differs between cast spellID and
+  -- the resulting buff's spellID in the descriptor).
+  local function HasCatForm()
+    for _, a in ipairs(C_UnitAuras.GetUnitAuras("player", "HELPFUL")) do
+      if strfind(a.icon, "Ability_Druid_CatForm") then return true end
     end
     return nil
+  end
+
+  local function FullScan()
+    if class ~= "DRUID" then return nil end
+    inCatForm = HasCatForm()
+    prowlActive = inCatForm and IsStealthed() or nil
+    return prowlActive
   end
 
   -- pagemaster / meta page switch
@@ -995,23 +976,13 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
       -- PLAYER_AURAS_CHANGED: smart scanning
       if event == "PLAYER_AURAS_CHANGED" then
         if prowlActive then
-          -- We were prowling, check if still prowling
-          if HasProwlBuff() then
+          if IsStealthed() then
             prowling = true
           else
-            -- Prowl ended
+            -- Prowl ended; recheck cat form (we might have shifted out entirely)
             prowlActive = nil
             prowling = nil
-            -- Also check if still in cat form
-            inCatForm = nil
-            for i = 0, 31 do
-              local texture = GetPlayerBuffTexture(i)
-              if not texture then break end
-              if strfind(texture, "Ability_Druid_CatForm") then
-                inCatForm = true
-                break
-              end
-            end
+            inCatForm = HasCatForm()
           end
         elseif not inCatForm then
           -- Not in cat form, do a full scan (might have just shifted)
