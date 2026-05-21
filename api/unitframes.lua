@@ -373,98 +373,6 @@ function pfUI.uf.glow.UpdateGlowAnimation()
   this:SetAlpha(val)
 end
 
-local detect_icon, detect_name
-local buff_icons_seeded = false
-function pfUI.uf:DetectBuff(name, id)
-  if not name or not id then return end
-
-  -- skip here if disabled
-  if pfUI_config.unitframes.buffdetect == "0" then
-    return UnitBuff(name, id)
-  end
-
-  -- clear previously assigned
-  detect_icon, detect_name = nil, nil
-
-  -- register tooltip scanner
-  scanner = scanner or libtipscan:GetScanner("unitframes")
-
-  -- make sure the icon cache exists
-  pfUI_cache.buff_icons = pfUI_cache.buff_icons or {}
-
-  -- seed cache from static locale data once per login
-  -- reverses L["icons"] (name→icon) into buff_icons (icon→name)
-  -- so that pfUI_cache.buff_icons[detect_icon] hits for all known buffs immediately
-  if not buff_icons_seeded then
-    for name, icon in pairs(L["icons"]) do
-      local path = "Interface\\Icons\\" .. icon
-      pfUI_cache.buff_icons[path] = pfUI_cache.buff_icons[path] or name
-    end
-    buff_icons_seeded = true
-  end
-
-  -- check the regular way
-  detect_icon = UnitBuff(name, id)
-  if detect_icon then
-    if not pfUI_cache.buff_icons[detect_icon] then
-      -- read buff name and cache it
-      scanner:SetUnitBuff(name, id)
-      detect_name = scanner:Line(1)
-
-      if detect_name then
-        pfUI_cache.buff_icons[detect_icon] = detect_name
-      end
-    end
-
-    -- return the regular function
-    return UnitBuff(name, id)
-  end
-
-  -- try to guess the buff based on tooltips and icon caches
-  scanner:SetUnitBuff(name, id)
-  detect_name = scanner:Line(1)
-
-  if detect_name then
-    -- try to find the spell icon in locales
-    if L["icons"][detect_name] then
-      return "Interface\\Icons\\" .. L["icons"][detect_name], 1
-    end
-
-    -- try to find the spell icon in caches
-    for icon, name in pairs(pfUI_cache.buff_icons) do
-      if name == detect_name then return icon, 1 end
-    end
-
-    -- try GetUnitField spellId -> libdebuff icon (Nampower, for custom spells)
-    if GetUnitField and GetUnitGUID and pfUI.libdebuff_GetSpellIcon then
-      local guid = GetUnitGUID(name)
-      if guid then
-        local auras = GetUnitField(guid, "aura")
-        if auras then
-          for _, spellId in pairs(auras) do
-            if type(spellId) == "number" and spellId > 0 then
-              local sname = GetSpellRecField and GetSpellRecField(spellId, "name")
-              if sname == detect_name then
-                local tex = pfUI.libdebuff_GetSpellIcon(spellId)
-                if tex and not string.find(tex, "QuestionMark") then
-                  pfUI_cache.buff_icons[tex] = detect_name
-                  return tex, 1
-                end
-              end
-            end
-          end
-        end
-      end
-    end
-
-    -- return fallback image
-    return "interface\\icons\\inv_misc_questionmark", 1
-  end
-
-  -- nothing found
-  return nil
-end
-
 function pfUI.uf:UpdateVisibility()
   local self = self or this
 
@@ -2114,27 +2022,23 @@ function pfUI.uf:RefreshUnit(unit, component)
 
   -- buffs
   if unit.buffs and ( component == "all" or component == "aura" ) then
-    local texture, stacks
-
     for i=1, unit.config.bufflimit do
       if not unit.buffs[i] then break end
 
-      if unit.label == "player" then
-        stacks = GetPlayerBuffApplications(GetPlayerBuff(PLAYER_BUFF_START_ID+i,"HELPFUL"))
-        texture = GetPlayerBuffTexture(GetPlayerBuff(PLAYER_BUFF_START_ID+i,"HELPFUL"))
-      else
-        texture, stacks = pfUI.uf:DetectBuff(unitstr, i)
-      end
+      local aura = C_UnitAuras.GetBuffDataByIndex(unitstr, i)
 
-      unit.buffs[i].texture:SetTexture(texture)
-
-      if texture then
+      if aura then
+        unit.buffs[i].texture:SetTexture(aura.icon)
         unit.buffs[i]:Show()
 
-        if stacks > 1 then
-          unit.buffs[i].stacks:SetText(stacks)
+        if aura.applications > 1 then
+          unit.buffs[i].stacks:SetText(aura.applications)
         else
           unit.buffs[i].stacks:SetText("")
+        end
+
+        if aura.expirationTime > 0 and aura.duration > 0 then
+          CooldownFrame_SetTimer(unit.buffs[i].cd, aura.expirationTime - aura.duration, aura.duration, 1)
         end
       else
         unit.buffs[i]:Hide()
