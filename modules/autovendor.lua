@@ -1,7 +1,6 @@
 pfUI:RegisterModule("autovendor", "vanilla:tbc", function ()
   local rawborder, border = GetBorderSize()
   local bpad = rawborder > 1 and border - GetPerfectPixel() or GetPerfectPixel()
-  local processed = {}
 
   local function RepairItems()
     local cost, possible = GetRepairAllCost()
@@ -11,98 +10,39 @@ pfUI:RegisterModule("autovendor", "vanilla:tbc", function ()
     end
   end
 
-  local function HasGreyItems()
-    for bag = 0, 4 do
-      for slot = 1, GetContainerNumSlots(bag) do
-        local quality = C_Item.GetItemQuality(ItemLocation:CreateFromBagAndSlot(bag,slot))
-        if quality and quality == LE_ITEM_QUALITY_POOR then return true end
-      end
-    end
-  end
+  -- Trigger the engine's sell-all-junk path and report the gold income to
+  -- chat. C_MerchantFrame.SellAllJunkItems handles its own one-per-frame
+  -- pacing to avoid CMSG_SELL_ITEM flooding, so we just wait a beat before
+  -- sampling the final gold delta.
+  local function SellJunkAndReport()
+    if C_MerchantFrame.GetNumJunkItems() <= 0 then return end
+    local startGold = GetMoney()
+    C_MerchantFrame.SellAllJunkItems()
 
-  local function GetNextGreyItem()
-    for bag = 0, 4 do
-      for slot = 1, GetContainerNumSlots(bag) do
-        local quality = C_Item.GetItemQuality(ItemLocation:CreateFromBagAndSlot(bag,slot))
-        if quality and quality == LE_ITEM_QUALITY_POOR and not processed[bag.."x"..slot] then
-          processed[bag.."x"..slot] = true
-          return bag, slot
-        end
+    local reporter = CreateFrame("Frame")
+    reporter.deadline = GetTime() + 0.3
+    reporter:SetScript("OnUpdate", function()
+      if GetTime() < this.deadline then return end
+      this:SetScript("OnUpdate", nil)
+      this:Hide()
+      local income = GetMoney() - startGold
+      if income > 0 then
+        DEFAULT_CHAT_FRAME:AddMessage(T["Your vendor trash has been sold and you earned"] .. " " .. CreateGoldString(income))
       end
-    end
+    end)
   end
 
   local autovendor = CreateFrame("Frame", "pfMoneyUpdate", nil)
-  autovendor:Hide()
-
-  autovendor:SetScript("OnShow", function()
-    processed = {}
-    this.count = 0
-    this.gold = GetMoney()
-  end)
-
-  autovendor:SetScript("OnUpdate", function()
-    -- throttle to to one item per .1 second
-    if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + .1 end
-
-    -- scan for the next grey item
-    local bag, slot = GetNextGreyItem()
-    if not bag or not slot then
-      this:Hide()
-      return
-    end
-
-    -- double check to only sell grey
-    local quality = C_Item.GetItemQuality(ItemLocation:CreateFromBagAndSlot(bag,slot))
-    if quality ~= LE_ITEM_QUALITY_POOR then
-      return
-    end
-
-    -- only proceed for items the engine reports as vendor-sellable
-    local id = C_Container.GetContainerItemID(bag, slot)
-    if (id and C_Item.GetItemSellPriceByID(id) or 0) > 0 then
-      this.count = this.count + 1
-    end
-
-    -- abort if the merchant window disappeared
-    if not this.merchant then return end
-
-    -- clear cursor and sell the item
-    ClearCursor()
-    UseContainerItem(bag, slot)
-  end)
-
-  autovendor:SetScript("OnHide", function()
-    if this.count > 0 then
-      local gold = this.gold
-      QueueFunction(function()
-        local income = GetMoney() - gold
-        DEFAULT_CHAT_FRAME:AddMessage(T["Your vendor trash has been sold and you earned"] .. " " .. CreateGoldString(income))
-      end)
-    end
-  end)
-
   autovendor:RegisterEvent("MERCHANT_SHOW")
-  autovendor:RegisterEvent("MERCHANT_CLOSED")
   autovendor:RegisterEvent("MERCHANT_UPDATE")
   autovendor:SetScript("OnEvent", function()
     autovendor.button:Update()
 
-    if event == "MERCHANT_CLOSED" then
-      autovendor.merchant = nil
-      autovendor:Hide()
-    elseif event == "MERCHANT_SHOW" then
-      autovendor.merchant = true
-      if C["global"]["autorepair"] == "1" then
-        RepairItems()
-      end
+    if event == "MERCHANT_SHOW" then
+      if C["global"]["autorepair"] == "1" then RepairItems() end
 
       if C["global"]["autosell"] == "1" then
-        if C_MerchantFrame.GetNumJunkItems() > 0 then
-          C_MerchantFrame.SellAllJunkItems()
-        else
-          autovendor:Show()
-        end
+        SellJunkAndReport()
         autovendor.button:Hide()
       else
         autovendor.button:Show()
@@ -136,19 +76,12 @@ pfUI:RegisterModule("autovendor", "vanilla:tbc", function ()
   end)
   SkinButton(autovendor.button, nil, nil, nil, autovendor.button.icon)
 
-  autovendor.button:SetScript("OnClick", function()
-    autovendor:Show()
-  end)
+  autovendor.button:SetScript("OnClick", SellJunkAndReport)
 
   autovendor.button.Update = function()
-    if not autovendor:IsVisible() then
-      if HasGreyItems() then
-        autovendor.button:Enable()
-        autovendor.button.icon:SetDesaturated(false)
-      else
-        autovendor.button:Disable()
-        autovendor.button.icon:SetDesaturated(true)
-      end
+    if C_MerchantFrame.GetNumJunkItems() > 0 then
+      autovendor.button:Enable()
+      autovendor.button.icon:SetDesaturated(false)
     else
       autovendor.button:Disable()
       autovendor.button.icon:SetDesaturated(true)
