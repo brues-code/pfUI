@@ -200,14 +200,7 @@ pfUI:RegisterModule("tracking", "vanilla", function ()
   end
 
   function pfUI.tracking:PlayerIsDruidInCatForm(playerClass)
-    if playerClass == "DRUID" then
-      local b = GetUnitField("player", "bytes1")
-      if b then
-        local form = math.floor(b / 65536) - math.floor(b / 16777216) * 256
-        return form == 1  -- 1 = Cat Form
-      end
-    end
-    return false
+    return playerClass == "DRUID" and GetShapeshiftFormID() == 1
   end
 
   function pfUI.tracking:InitMenu()
