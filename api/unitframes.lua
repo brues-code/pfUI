@@ -34,7 +34,15 @@ _G.SlashCmdList.PFTEST = function()
   pfUI.uf.showall = not pfUI.uf.showall
 end
 
-local scanner
+-- HoT buff indicators that need name verification because their icons are
+-- reused by other spells. Maps icon (lowercased) → expected aura name +
+-- libpredict key for the prediction integration.
+local HOT_INDICATORS = {
+  ["interface\\icons\\spell_nature_rejuvenation"] = { name = "rejuvenation", predict = "Reju" },
+  ["interface\\icons\\spell_holy_renew"]          = { name = "renew",        predict = "Renew" },
+  ["interface\\icons\\spell_nature_resistnature"] = { name = "regrowth",     predict = "Regr" },
+}
+
 local glow = {
   edgeFile = pfUI.media["img:glow"], edgeSize = 8,
   insets = {left = 0, right = 0, top = 0, bottom = 0},
@@ -2065,17 +2073,15 @@ function pfUI.uf:RefreshUnit(unit, component)
       end
 
       local aura
-      if unit.label == "player" then
-        aura = C_UnitAuras.GetDebuffDataByIndex("player", i)
+      if unit.label ~= "player" and selfdebuff == "1" then
+        _, _, texture, stacks, dtype = libdebuff:UnitOwnDebuff(unitstr, i)
+      else
+        aura = C_UnitAuras.GetDebuffDataByIndex(unitstr, i)
         if aura then
           texture, stacks, dtype = aura.icon, aura.applications, aura.dispelName
         else
           texture, stacks, dtype = nil, 0, nil
         end
-      elseif selfdebuff == "1" then
-        _, _, texture, stacks, dtype = libdebuff:UnitOwnDebuff(unitstr, i)
-      else
-        texture, stacks, dtype = UnitDebuff(unitstr, i)
       end
 
       unit.debuffs[i].texture:SetTexture(texture)
@@ -2259,103 +2265,62 @@ function pfUI.uf:RefreshUnit(unit, component)
 
     local pos = 1
     if table.getn(unit.indicators) > 0 then
-      for i=1,32 do
-        local texture, count = UnitBuff(unitstr, i)
-        local timeleft, buffName, _
-        if pfUI.client > 11200 then
-          buffName, _, texture, _, _, timeleft = _G.UnitBuff(unitstr, i)
-        end
+      for _, aura in ipairs(C_UnitAuras.GetUnitAuras(unitstr, "HELPFUL")) do
+        local texLower = string.lower(aura.icon)
+        local timeleft = aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or nil
 
-        if texture then
-          -- match filter
-          for _, filter in pairs(unit.indicators) do
-            if filter == string.lower(texture) then
-              if string.lower(texture) == "interface\\icons\\spell_nature_rejuvenation" then
-                -- Also verify spell name to avoid false matches from spells sharing this icon
-                if not buffName then
-                  scanner = scanner or libtipscan:GetScanner("unitframes")
-                  scanner:SetUnitBuff(unitstr, i)
-                  buffName = scanner:Line(1) or ""
-                end
-                if string.lower(buffName) ~= "rejuvenation" then break end
-                local start, duration, prediction = libpredict:GetHotDuration(unitstr, "Reju")
-                pfUI.uf:AddIcon(unit, pos, texture, timeleft or prediction, count, tonumber(start), tonumber(duration))
-                pos = pos + 1
-                break
-              elseif string.lower(texture) == "interface\\icons\\spell_holy_renew" then
-                local start, duration, prediction = libpredict:GetHotDuration(unitstr, "Renew")
-                pfUI.uf:AddIcon(unit, pos, texture, timeleft or prediction, count, tonumber(start), tonumber(duration))
-                pos = pos + 1
-                break
-              elseif string.lower(texture) == "interface\\icons\\spell_nature_resistnature" then
-                -- Also verify spell name to avoid false matches from spells sharing this icon
-                if not buffName then
-                  scanner = scanner or libtipscan:GetScanner("unitframes")
-                  scanner:SetUnitBuff(unitstr, i)
-                  buffName = scanner:Line(1) or ""
-                end
-                if string.lower(buffName) ~= "regrowth" then break end
-                local start, duration, prediction = libpredict:GetHotDuration(unitstr, "Regr")
-                pfUI.uf:AddIcon(unit, pos, texture, timeleft or prediction, count, tonumber(start), tonumber(duration))
-                pos = pos + 1
-                break
-              else
-                pfUI.uf:AddIcon(unit, pos, texture, timeleft, count)
-                pos = pos + 1
-                break
-              end
+        for _, filter in pairs(unit.indicators) do
+          if filter == texLower then
+            local hot = HOT_INDICATORS[texLower]
+            if hot and string.lower(aura.name) ~= hot.name then
+              break  -- texture matches but name disambiguates (e.g. shared icon)
             end
+            if hot then
+              local start, duration, prediction = libpredict:GetHotDuration(unitstr, hot.predict)
+              pfUI.uf:AddIcon(unit, pos, aura.icon, timeleft or prediction, aura.applications, tonumber(start), tonumber(duration))
+            else
+              pfUI.uf:AddIcon(unit, pos, aura.icon, timeleft, aura.applications)
+            end
+            pos = pos + 1
+            break
           end
         end
       end
     end
 
     if table.getn(unit.indicator_custom) > 0 then
-      scanner = scanner or libtipscan:GetScanner("unitframes")
-
-      for i=1,32 do -- scan for custom buffs
-        local texture, count = UnitBuff(unitstr, i)
-        if texture then
-          local timeleft, name, _
-          if pfUI.client > 11200 then
-            name, _, texture, _, _, timeleft = _G.UnitBuff(unitstr, i)
-          else
-            scanner:SetUnitBuff(unitstr, i)
-            name = scanner:Line(1) or ""
-          end
-
-          -- match filter
-          for _, filter in pairs(unit.indicator_custom) do
-            if filter == string.lower(name) then
-              pfUI.uf:AddIcon(unit, pos, texture, timeleft, count)
-              pos = pos + 1
-              break
-            end
+      for _, aura in ipairs(C_UnitAuras.GetUnitAuras(unitstr, "HELPFUL")) do
+        local timeleft = aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or nil
+        local lowerName = string.lower(aura.name)
+        for _, filter in pairs(unit.indicator_custom) do
+          if filter == lowerName then
+            pfUI.uf:AddIcon(unit, pos, aura.icon, timeleft, aura.applications)
+            pos = pos + 1
+            break
           end
         end
       end
 
-      for i=1,32 do -- scan for custom debuffs
-        local texture, count = UnitDebuff(unitstr, i)
-        if texture then
-          local timeleft, name, _
+      for i=1,16 do -- scan for custom debuffs
+        local aura = C_UnitAuras.GetDebuffDataByIndex(unitstr, i)
+        if aura then
+          local name = aura.name
+          local texture = aura.icon
+          local timeleft = aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or nil
+
+          -- libdebuff provides caster correlation + reconstructed timer for non-player units
           if libdebuff then
-            -- Use UnitOwnDebuff if "show only own debuffs" is enabled
             if unit.config.selfdebuff == "1" then
               name, _, texture, _, _, _, timeleft = libdebuff:UnitOwnDebuff(unitstr, i)
             else
               name, _, texture, _, _, _, timeleft = libdebuff:UnitDebuff(unitstr, i)
             end
-          else
-            scanner:SetUnitDebuff(unitstr, i)
-            name = scanner:Line(1) or ""
           end
 
-          -- match filter
           if name then
             for _, filter in pairs(unit.indicator_custom) do
               if filter == string.lower(name) then
-                pfUI.uf:AddIcon(unit, pos, texture, timeleft, count)
+                pfUI.uf:AddIcon(unit, pos, texture, timeleft, aura.applications)
                 pos = pos + 1
                 break
               end
