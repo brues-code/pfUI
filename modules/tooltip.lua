@@ -58,31 +58,12 @@ pfUI:RegisterModule("tooltip", "vanilla", function ()
     end
   end
 
-  local units = { "mouseover", "player", "pet", "target", "party", "partypet", "raid", "raidpet" }
   function pfUI.tooltip:GetUnit()
     pfUI.tooltip.unit = "none"
-
-    for i, unit in pairs(units) do
-      if unit == "party" or unit == "partypet" then
-        for i=1,4 do
-          if UnitExists(unit .. i) and ( UnitName(unit .. i) == GameTooltipTextLeft1:GetText() or UnitPVPName(unit .. i) == GameTooltipTextLeft1:GetText() ) then
-            pfUI.tooltip.unit = unit .. i
-            return pfUI.tooltip.unit
-          end
-        end
-      elseif unit == "raid" or unit == "raidpet" then
-        for i=1,40 do
-          if UnitExists(unit .. i) and ( UnitName(unit .. i) == GameTooltipTextLeft1:GetText() or UnitPVPName(unit .. i) == GameTooltipTextLeft1:GetText() ) then
-            pfUI.tooltip.unit = unit .. i
-            return pfUI.tooltip.unit
-          end
-        end
-      else
-        if UnitExists(unit) and ( UnitName(unit) == GameTooltipTextLeft1:GetText() or UnitPVPName(unit) == GameTooltipTextLeft1:GetText() ) then
-          pfUI.tooltip.unit = unit
-          return pfUI.tooltip.unit
-        end
-      end
+    if GameTooltip:HasUnit() then
+      local _, guid = GameTooltip:GetUnitGUID()
+      local token = guid and UnitTokenFromGUID(guid)
+      if token then pfUI.tooltip.unit = token end
     end
     return pfUI.tooltip.unit
   end
