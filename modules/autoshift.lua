@@ -3,34 +3,12 @@ pfUI:RegisterModule("autoshift", "vanilla", function ()
   pfUI.autoshift:RegisterEvent("UI_ERROR_MESSAGE")
 
   pfUI.autoshift.scanString = string.gsub(SPELL_FAILED_ONLY_SHAPESHIFT, "%%s", "(.+)")
-  pfUI.autoshift.mounts = {
-    -- deDE
-    "^Erhöht Tempo um (.+)%%",
-    -- enUS
-    "^Increases speed by (.+)%%",
-    -- esES
-    "^Aumenta la velocidad en un (.+)%%",
-    -- frFR
-    "^Augmente la vitesse de (.+)%%",
-    -- ruRU
-    "^Скорость увеличена на (.+)%%",
-    -- koKR
-    "^이동 속도 (.+)%%만큼 증가",
-    -- zhCN
-    "^速度提高(.+)%%",
-    -- turtle-wow
-    "speed based on", "Slow and steady...", "Riding",
-    "Lento y constante...", "Aumenta la velocidad según tu habilidad de Montar.",
-    "根据您的骑行技能提高速度。", "根据骑术技能提高速度。", "又慢又稳......",
-  }
 
   pfUI.autoshift.errors = { SPELL_FAILED_NOT_MOUNTED, ERR_ATTACK_MOUNTED, ERR_TAXIPLAYERALREADYMOUNTED,
     SPELL_FAILED_NOT_SHAPESHIFT, SPELL_FAILED_NO_ITEMS_WHILE_SHAPESHIFTED, SPELL_NOT_SHAPESHIFTED,
     SPELL_NOT_SHAPESHIFTED_NOSPACE, ERR_CANT_INTERACT_SHAPESHIFTED, ERR_NOT_WHILE_SHAPESHIFTED,
     ERR_NO_ITEMS_WHILE_SHAPESHIFTED, ERR_TAXIPLAYERSHAPESHIFTED,ERR_MOUNT_SHAPESHIFTED,
     ERR_EMBLEMERROR_NOTABARDGEOSET }
-
-  pfUI.autoshift.scanner = libtipscan:GetScanner("dismount")
 
   pfUI.autoshift:SetScript("OnEvent", function()
     -- switch stance if required
@@ -54,22 +32,13 @@ pfUI:RegisterModule("autoshift", "vanilla", function ()
           return
         end
 
-        -- Phase 1: mounts take priority (mount/shapeshift can't coexist in
-        -- vanilla, but the original error list also covers mount-only states).
-        for i = 0, 31 do
-          pfUI.autoshift.scanner:SetPlayerBuff(i)
-          for _, str in pairs(pfUI.autoshift.mounts) do
-            if pfUI.autoshift.scanner:Find(str) then
-              CancelPlayerBuff(i)
-              return
-            end
-          end
-        end
-
-        -- Phase 2: cancel the active shapeshift. CancelShapeshiftForm finds
-        -- the form buff via the engine's Spell.dbc effect-array scan and
-        -- sends the cancel packet directly — no bid lookup needed.
-        if GetShapeshiftFormID() ~= 0 then
+        -- Mounts take priority over shapeshifts (the two can't coexist in
+        -- vanilla, but the error list covers mount-only states too). Both
+        -- helpers do their own engine-side aura scan and send the cancel
+        -- packet directly, so no buff iteration or bid lookup is needed.
+        if IsMounted() then
+          Dismount()
+        elseif GetShapeshiftFormID() ~= 0 then
           CancelShapeshiftForm()
         end
       end
