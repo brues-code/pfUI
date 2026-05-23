@@ -95,7 +95,7 @@ local function OnEnter(self)
       -- UPDATE_EXHAUSTION events span a meaningful interval (e.g., resting
       -- under a Turtle WoW tent generates a fast continuous stream).
       local samples = data.rest_samples
-      local n = table.getn(samples)/ca
+      local n = table.getn(samples)
       if n >= 2 then
         local first, last = samples[1], samples[n]
         local span = last[1] - first[1]
