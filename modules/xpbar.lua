@@ -86,24 +86,24 @@ local function OnEnter(self)
     end
     if GetXPExhaustion() then
       table.insert(lines, { T["Rested"], "|cff5555ff+" .. exh .. " (" .. exh_perc .. "%)" })
-      if exh_perc >= 112 then
-        table.insert(lines, { "|cffff8800" .. exh_perc .. "% is the current max cap." })
-        table.insert(lines, { "|cffff8800Report to TWoW if you want a proper display." })
-      end
+      -- if exh_perc >= 112 then
+      --   table.insert(lines, { "|cffff8800" .. exh_perc .. "% is the current max cap." })
+      --   table.insert(lines, { "|cffff8800Report to TWoW if you want a proper display." })
+      -- end
 
       -- Rested gain rate + time to UnitXPMax * REST_CAP_MUL, when sampled
       -- UPDATE_EXHAUSTION events span a meaningful interval (e.g., resting
       -- under a Turtle WoW tent generates a fast continuous stream).
       local samples = data.rest_samples
-      local n = table.getn(samples)
+      local n = table.getn(samples)/ca
       if n >= 2 then
         local first, last = samples[1], samples[n]
         local span = last[1] - first[1]
         local gain = last[2] - first[2]
         if span > 0 and gain > 0 then
           local rate_per_sec = gain / span
-          local rate_per_hour = floor(rate_per_sec * 3600)
-          table.insert(lines, { T["Rested Gain"], "|cff5555ff+" .. rate_per_hour .. " / h" })
+          local rate_per_min = floor(rate_per_sec * 60)
+          table.insert(lines, { T["Rested Gain"], "|cff5555ff+" .. rate_per_min .. " / min" })
 
           local cap = xpmax * REST_CAP_MUL
           if exh < cap then
