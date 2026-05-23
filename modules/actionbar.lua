@@ -1,7 +1,6 @@
 pfUI:RegisterModule("actionbar", "vanilla", function ()
   local _, class = UnitClass("player")
-  local color = RAID_CLASS_COLORS[class]
-  local cr, cg, cb = color.r , color.g, color.b
+  local _, cr, cg, cb = GetUnitColor('player')
   local er, eg, eb, ea = GetStringColor(pfUI_config.appearance.border.color)
 
   local backdrop_highlight = { edgeFile = pfUI.media["img:glow"], edgeSize = 8 }

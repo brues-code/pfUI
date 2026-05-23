@@ -1269,10 +1269,12 @@ end
 
     local r, g, b, a = unpack(unitcolors[unittype])
 
-    if unittype == "ENEMY_PLAYER" and C.nameplates["enemyclassc"] == "1" and class and RAID_CLASS_COLORS[class] then
-      r, g, b, a = RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b, 1
-    elseif unittype == "FRIENDLY_PLAYER" and C.nameplates["friendclassc"] == "1" and class and RAID_CLASS_COLORS[class] then
-      r, g, b, a = RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b, 1
+    if class then
+      if unittype == "ENEMY_PLAYER" and C.nameplates["enemyclassc"] == "1" then
+        r, g, b, a = RAID_CLASS_COLORS[class]:GetRGBA()
+      elseif unittype == "FRIENDLY_PLAYER" and C.nameplates["friendclassc"] == "1" then
+        r, g, b, a = RAID_CLASS_COLORS[class]:GetRGBA()
+      end
     end
 
     if unitstr and UnitIsTapped(unitstr) and not UnitIsTappedByPlayer(unitstr) then

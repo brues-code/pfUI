@@ -533,7 +533,7 @@ pfUI:RegisterModule("thirdparty-vanilla", "vanilla", function()
     hooksecurefunc("WIM_InitClassProps", function()
       for class in pairs(RAID_CLASS_COLORS) do
         local wimclass = _G[format("WIM_LOCALIZED_%s",class)]
-        local colorstr = rgbhex(RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b, RAID_CLASS_COLORS[class].a)
+        local colorstr = "|c" .. RAID_CLASS_COLORS[class].colorStr
         _G.WIM_ClassColors[wimclass] = gsub(colorstr, "^|cff", "")
       end
     end)

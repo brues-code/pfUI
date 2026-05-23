@@ -1938,13 +1938,6 @@ function pfUI.uf:RefreshIndicators(unit)
   end
 end
 
-local pfDebuffColors = {
-  ["Magic"]   = { 0.1, 0.7, 0.8, 1 },
-  ["Poison"]  = { 0.2, 0.7, 0.3, 1 },
-  ["Curse"]   = { 0.6, 0.2, 0.6, 1 },
-  ["Disease"] = { 0.9, 0.7, 0.2, 1 }
-}
-
 function pfUI.uf:RefreshUnit(unit, component)
   -- break early on misconfigured UF's
   if not unit.label then return end
@@ -2086,11 +2079,8 @@ function pfUI.uf:RefreshUnit(unit, component)
 
       unit.debuffs[i].texture:SetTexture(texture)
 
-      local r,g,b = DebuffTypeColor.none.r,DebuffTypeColor.none.g,DebuffTypeColor.none.b
-      if dtype and DebuffTypeColor[dtype] then
-        r,g,b = DebuffTypeColor[dtype].r,DebuffTypeColor[dtype].g,DebuffTypeColor[dtype].b
-      end
-      unit.debuffs[i].backdrop:SetBackdropBorderColor(r,g,b,1)
+      local dispelColor = C_UnitAuras.GetAuraDispelTypeColor(dtype or "")
+      unit.debuffs[i].backdrop:SetBackdropBorderColor(dispelColor:GetRGBA())
 
       if texture then
         unit.debuffs[i]:Show()
@@ -2177,16 +2167,17 @@ function pfUI.uf:RefreshUnit(unit, component)
         indicator[debuff].tex:SetAllPoints(indicator[debuff])
 
         if indicator.size ~= indicator[debuff].size or disptype ~= indicator[debuff].disp then
+          local dispelColor = C_UnitAuras.GetAuraDispelTypeColor(debuff)
           if disptype == "4" then
             indicator[debuff].tex:SetTexture(pfUI.media["img:"..debuff])
-            indicator[debuff].tex:SetVertexColor(unpack(pfDebuffColors[debuff]))
+            indicator[debuff].tex:SetVertexColor(dispelColor:GetRGBA())
             indicator[debuff].tex:Show()
             indicator[debuff]:ClearAllPoints()
             indicator[debuff]:SetHeight(size)
             indicator[debuff]:SetWidth(size)
             indicator[debuff]:SetBackdrop(nil)
           elseif disptype == "3" then
-            indicator[debuff].tex:SetTexture(unpack(pfDebuffColors[debuff]))
+            indicator[debuff].tex:SetTexture(dispelColor:GetRGBA())
             indicator[debuff].tex:SetVertexColor(1,1,1,1)
             indicator[debuff].tex:Show()
             indicator[debuff]:ClearAllPoints()
@@ -2197,9 +2188,9 @@ function pfUI.uf:RefreshUnit(unit, component)
             indicator[debuff].tex:Hide()
             indicator[debuff]:SetAllPoints(unit.hp.bar)
             indicator[debuff]:SetBackdrop(glow)
-            indicator[debuff]:SetBackdropBorderColor(unpack(pfDebuffColors[debuff]))
+            indicator[debuff]:SetBackdropBorderColor(dispelColor:GetRGBA())
           elseif disptype == "1" then
-            indicator[debuff].tex:SetTexture(unpack(pfDebuffColors[debuff]))
+            indicator[debuff].tex:SetTexture(dispelColor:GetRGBA())
             indicator[debuff].tex:SetVertexColor(1,1,1,1)
             indicator[debuff].tex:Show()
             indicator[debuff]:SetAllPoints(unit.hp.bar)
@@ -2415,9 +2406,7 @@ function pfUI.uf:RefreshUnit(unit, component)
       custom_active = true
     elseif custom == "0" then
       if UnitIsPlayer(unitstr) then
-        local _, class = UnitClass(unitstr)
-        local color = RAID_CLASS_COLORS[class]
-        if color then r, g, b = color.r, color.g, color.b end
+        _, r, g, b = GetUnitColor(unitstr)
       elseif unit.label == "pet" then
         local happiness = GetPetHappiness()
         if happiness == 1 then
@@ -3106,10 +3095,7 @@ function pfUI.uf.GetColor(self, preset)
 
   if preset == "unit" and config["classcolor"] == "1" then
     if UnitIsPlayer(unitstr) then
-      local _, class = UnitClass(unitstr)
-      if RAID_CLASS_COLORS[class] then
-        r, g, b = RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b
-      end
+      _, r, g, b = GetUnitColor(unitstr)
     elseif self.label == "pet" then
       local happiness = GetPetHappiness()
       if happiness == 1 then
@@ -3125,15 +3111,11 @@ function pfUI.uf.GetColor(self, preset)
     end
 
   elseif preset == "class" and config["classcolor"] == "1" then
-    local _, class = UnitClass(unitstr)
-    if RAID_CLASS_COLORS[class] then
-      r, g, b = RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b
-    end
+    _, r, g, b = GetUnitColor(unitstr)
 
   elseif preset == "reaction" and config["classcolor"] == "1" then
-    r = UnitReactionColor[UnitReaction(unitstr, "player")].r
-    g = UnitReactionColor[UnitReaction(unitstr, "player")].g
-    b = UnitReactionColor[UnitReaction(unitstr, "player")].b
+    local color = UnitReactionColor[UnitReaction(unitstr, "player")]
+    r, g, b = color.r, color.g, color.b
 
   elseif preset == "health" and config["healthcolor"] == "1" then
     -- O(1) Nampower lookup for health gradient color
@@ -3156,13 +3138,11 @@ function pfUI.uf.GetColor(self, preset)
     end
 
   elseif preset == "power" and config["powercolor"] == "1" then
-    r = ManaBarColor[UnitPowerType(unitstr)].r
-    g = ManaBarColor[UnitPowerType(unitstr)].g
-    b = ManaBarColor[UnitPowerType(unitstr)].b
+    local color = ManaBarColor[UnitPowerType(unitstr)]
+    r, g, b = color.r, color.g, color.b
   elseif preset == "level" and config["levelcolor"] == "1" then
-    r = GetDifficultyColor(UnitLevel(unitstr)).r
-    g = GetDifficultyColor(UnitLevel(unitstr)).g
-    b = GetDifficultyColor(UnitLevel(unitstr)).b
+    local color = GetDifficultyColor(UnitLevel(unitstr))
+    r, g, b = color.r, color.g, color.b
   end
 
   if C.unitframes.pastel == "1" then

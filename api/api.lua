@@ -220,13 +220,8 @@ end
 -- return:      [table]         string, r, g, b
 function pfUI.api.GetUnitColor(unitstr)
   local _, class = UnitClass(unitstr)
-
-  local r, g, b = .8, .8, .8
-  if RAID_CLASS_COLORS[class] then
-    r, g, b = RAID_CLASS_COLORS[class].r, RAID_CLASS_COLORS[class].g, RAID_CLASS_COLORS[class].b
-  end
-
-  return pfUI.api.rgbhex(r,g,b), r, g, b
+  local classColor = RAID_CLASS_COLORS[class]
+  return classColor:GenerateHexColorMarkup(), classColor:GetRGB()
 end
 
 -- [ strvertical ]
@@ -1011,12 +1006,7 @@ function pfUI.api.rgbhex(r, g, b, a)
   end
 
   if _r and _g and _b and _a then
-    -- limit values to 0-1
-    _r = _r + 0 > 1 and 1 or _r + 0
-    _g = _g + 0 > 1 and 1 or _g + 0
-    _b = _b + 0 > 1 and 1 or _b + 0
-    _a = _a + 0 > 1 and 1 or _a + 0
-    return string.format("|c%02x%02x%02x%02x", _a*255, _r*255, _g*255, _b*255)
+    return CreateColor(_r, _g, _b, _a):GenerateHexColorMarkup()
   end
 
   return ""

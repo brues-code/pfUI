@@ -608,8 +608,7 @@ function pfUI.api.SetHighlight(frame, cr, cg, cb)
   if not frame then return end
   if not cr or not cg or not cb then
     local _, class = UnitClass("player")
-    local color = RAID_CLASS_COLORS[class]
-    cr, cg, cb = color.r , color.g, color.b
+    cr, cg, cb = GetClassColor(class)
   end
 
   frame.cr, frame.cg, frame.cb = cr, cg, cb, ca
@@ -656,8 +655,7 @@ function pfUI.api.SkinButton(button, cr, cg, cb, icon, disableHighlight)
   if not b then return end
   if not cr or not cg or not cb then
     local _, class = UnitClass("player")
-    local color = RAID_CLASS_COLORS[class]
-    cr, cg, cb = color.r , color.g, color.b
+    cr, cg, cb = GetClassColor(class)
   end
   pfUI.api.CreateBackdrop(b, nil, true)
   b:SetNormalTexture("")

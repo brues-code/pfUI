@@ -63,18 +63,8 @@ pfUI:RegisterModule("buff", "vanilla:tbc", function ()
       buff.texture:SetTexture(aura.icon)
 
       if buff.btype == "HARMFUL" then
-        local dtype = aura.dispelName
-        if dtype == "Magic" then
-          buff.backdrop:SetBackdropBorderColor(0,1,1,1)
-        elseif dtype == "Poison" then
-          buff.backdrop:SetBackdropBorderColor(0,1,0,1)
-        elseif dtype == "Curse" then
-          buff.backdrop:SetBackdropBorderColor(1,0,1,1)
-        elseif dtype == "Disease" then
-          buff.backdrop:SetBackdropBorderColor(1,1,0,1)
-        else
-          buff.backdrop:SetBackdropBorderColor(1,0,0,1)
-        end
+        local dispelColor = C_UnitAuras.GetAuraDispelTypeColor(aura.dispelName)
+        buff.backdrop:SetBackdropBorderColor(dispelColor:GetRGBA())
       else
         buff.backdrop:SetBackdropBorderColor(br,bg,bb,ba)
       end

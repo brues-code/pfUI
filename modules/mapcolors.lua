@@ -34,9 +34,8 @@ pfUI:RegisterModule("mapcolors", function ()
 
   local function GetTextureColor(frame)
     if UnitExists(frame.unit) then
-      local _, class = UnitClass(frame.unit)
-      local color = RAID_CLASS_COLORS[class]
-      return color.r, color.g, color.b
+      local _, r, g, b = GetUnitColor(frame.unit)
+      return r, g, b
     else
       return .5, 1, .5
     end

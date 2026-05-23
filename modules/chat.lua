@@ -758,20 +758,17 @@ pfUI:RegisterModule("chat", "vanilla:tbc", function ()
         local real, _ = strsplit(":", name)
         local color = unknowncolorhex
         local match = false
-        local class
-        local guid = GetCurrentChatGUID()
-        if guid then
-          _, class = GetPlayerInfoByGUID(guid)
-        end
-        if not class then
-          _, class = C_PlayerCache.GetPlayerInfoByName(real)
-        end
+        local _, class = C_PlayerCache.GetPlayerInfoByName(real)
+        -- local guid = GetCurrentChatGUID()
+        -- if guid then
+        --   _, class = GetPlayerInfoByGUID(guid)
+        -- end
         if not class then
           class = GetUnitData(real)
         end
         if class then
           if class ~= UNKNOWN then
-            color = rgbhex(RAID_CLASS_COLORS[class])
+            color = "|c" .. RAID_CLASS_COLORS[class].colorStr
             match = true
           end
         elseif C.chat.text.whosearchunknown == "1" then
