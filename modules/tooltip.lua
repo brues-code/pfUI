@@ -190,9 +190,7 @@ pfUI:RegisterModule("tooltip", "vanilla", function ()
 
       local pvpname = UnitPVPName(unit)
       local name = UnitName(unit)
-      local target = UnitName(unit .. "target")
-      local _, targetClass = UnitClass(unit .. "target")
-      local targetReaction = UnitReaction("player",unit .. "target")
+      local validTarget, target = pcall(UnitName, unit .. 'target')
       local _, class = UnitClass(unit)
       local guild, rankstr, rankid = GetGuildInfo(unit)
       local reaction = UnitReaction(unit, "player")
@@ -203,13 +201,9 @@ pfUI:RegisterModule("tooltip", "vanilla", function ()
       if name then
         if UnitIsPlayer(unit) and class then
           local color = RAID_CLASS_COLORS[class]
-          GameTooltipStatusBar:SetStatusBarColor_orig(color.r, color.g, color.b)
-          GameTooltip:SetBackdropBorderColor(color.r, color.g, color.b)
-          if color and color.r then
-            GameTooltipTextLeft1:SetText(rgbhex(color.r, color.g, color.b, color.a) .. name)
-          else
-            GameTooltipTextLeft1:SetText("|cff999999" .. name)
-          end
+          GameTooltipStatusBar:SetStatusBarColor_orig(color:GetRGB())
+          GameTooltip:SetBackdropBorderColor(color:GetRGB())
+          GameTooltipTextLeft1:SetText("|c" .. color.colorStr .. name)
         elseif reaction then
           local color = UnitReactionColor[reaction]
           GameTooltipStatusBar:SetStatusBarColor_orig(color.r, color.g, color.b)
@@ -231,7 +225,9 @@ pfUI:RegisterModule("tooltip", "vanilla", function ()
         GameTooltip:AddLine("<" .. guild .. ">" .. lead .. rank, 0.3, 1, 0.5)
       end
 
-      if target then
+      if validTarget and target then
+        local _, targetClass = UnitClass(unit .. "target")
+        local targetReaction = UnitReaction("player",unit .. "target")
         if UnitIsPlayer(unit .. "target") and targetClass then
           local color = RAID_CLASS_COLORS[targetClass]
           GameTooltip:AddLine(target, color.r, color.g, color.b)
