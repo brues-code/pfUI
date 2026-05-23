@@ -2,18 +2,35 @@ pfUI:RegisterModule("xpbar", "vanilla:tbc", function ()
   local rawborder, default_border = GetBorderSize()
   local parse_faction = SanitizePattern(FACTION_STANDING_INCREASED)
 
+  -- Rested-XP gain tracking constants
+  local REST_WINDOW = 300    -- seconds of sliding-window samples for rate calc
+  local REST_CAP_MUL = 1.5   -- target rested cap = UnitXPMax * 1.5
+
   local data = CreateFrame("Frame", "pfExperienceBarData", UIParent)
+  data.rest_samples = {}
   data:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
   data:RegisterEvent("PLAYER_ENTERING_WORLD")
   data:RegisterEvent("PLAYER_LEVEL_UP")
+  data:RegisterEvent("UPDATE_EXHAUSTION")
   data:RegisterEvent("UPDATE_FACTION")
   data:SetScript("OnEvent", function()
     if event == "PLAYER_ENTERING_WORLD" then
       this.starttime = GetTime()
       this.startxp = UnitXP("player") or 0
+      -- zone change can change resting location / rate; start fresh
+      this.rest_samples = {}
     elseif event == "PLAYER_LEVEL_UP" then
       -- add previously gained experience to the session
       this.startxp = this.startxp - UnitXPMax("player")
+      -- level-up rescales exhaustion proportionally; old samples no longer
+      -- describe the same gain trajectory
+      this.rest_samples = {}
+    elseif event == "UPDATE_EXHAUSTION" then
+      local now, exh = GetTime(), GetXPExhaustion() or 0
+      table.insert(this.rest_samples, { now, exh })
+      while this.rest_samples[1] and (now - this.rest_samples[1][1]) > REST_WINDOW do
+        table.remove(this.rest_samples, 1)
+      end
     elseif event == "CHAT_MSG_COMBAT_FACTION_CHANGE" then
       local _,_, faction, amount = string.find(arg1, parse_faction)
       this.faction = faction or this.faction
@@ -72,6 +89,28 @@ local function OnEnter(self)
       if exh_perc >= 112 then
         table.insert(lines, { "|cffff8800" .. exh_perc .. "% is the current max cap." })
         table.insert(lines, { "|cffff8800Report to TWoW if you want a proper display." })
+      end
+
+      -- Rested gain rate + time to UnitXPMax * REST_CAP_MUL, when sampled
+      -- UPDATE_EXHAUSTION events span a meaningful interval (e.g., resting
+      -- under a Turtle WoW tent generates a fast continuous stream).
+      local samples = data.rest_samples
+      local n = table.getn(samples)
+      if n >= 2 then
+        local first, last = samples[1], samples[n]
+        local span = last[1] - first[1]
+        local gain = last[2] - first[2]
+        if span > 0 and gain > 0 then
+          local rate_per_sec = gain / span
+          local rate_per_hour = floor(rate_per_sec * 3600)
+          table.insert(lines, { T["Rested Gain"], "|cff5555ff+" .. rate_per_hour .. " / h" })
+
+          local cap = xpmax * REST_CAP_MUL
+          if exh < cap then
+            local sec = (cap - exh) / rate_per_sec
+            table.insert(lines, { T["Time to Rested Cap"], "|cffffffff" .. SecondsToTime(sec) })
+          end
+        end
       end
     end
     table.insert(lines, { "" })
