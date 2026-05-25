@@ -68,7 +68,6 @@
   <Include file="..\modules\afkcam.lua"/>
   <Include file="..\modules\screenshot.lua"/>
   <Include file="..\modules\addoncompat.lua"/>
-  <Include file="..\modules\combatlogfix.lua"/>
   <Include file="..\modules\energytick.lua"/>
   <Include file="..\modules\totems.lua"/>
   <Include file="..\modules\macrotweak.lua"/>

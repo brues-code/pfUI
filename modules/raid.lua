@@ -105,8 +105,8 @@ pfUI:RegisterModule("raid", "vanilla:tbc", function ()
     this.tick = GetTime() + 1.0
     this.pendingUpdate = nil
 
-    -- don't proceed without raid or during combat
-    if not UnitInRaid("player") or (InCombatLockdown and InCombatLockdown()) then return end
+    -- don't proceed without raid
+    if not UnitInRaid("player") then return end
 
     -- clear all existing frames
     for i=1, maxraid do SetRaidIndex(pfUI.uf.raid[i], 0) end

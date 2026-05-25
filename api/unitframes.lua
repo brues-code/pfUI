@@ -2,17 +2,7 @@
 setfenv(1, pfUI:GetEnvironment())
 
 pfUI.uf = CreateFrame("Frame", nil, UIParent)
-pfUI.uf:SetScript("OnUpdate", function()
-  if InCombatLockdown and not InCombatLockdown() then
-    for frame in pairs(pfUI.uf.delayed) do
-      frame:UpdateVisibility()
-      pfUI.uf.delayed[frame] = nil
-    end
-  end
-end)
-
 pfUI.uf.frames = {}
-pfUI.uf.delayed = {}
 
 -- ============================================================================
 -- GUID-based Roster Tracking for Smart Updates
@@ -306,12 +296,6 @@ end
 
 function pfUI.uf:UpdateVisibility()
   local self = self or this
-
-  -- we're infight, delay the update
-  if InCombatLockdown and InCombatLockdown() then
-    pfUI.uf.delayed[self] = true
-    return
-  end
 
   -- cache result of strsub to avoid repeating calls
   if not self.cache_raid then

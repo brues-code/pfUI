@@ -169,7 +169,6 @@ function pfUI.api.RunOOC(func)
   if not frame then
     frame = CreateFrame("Frame")
     frame:SetScript("OnUpdate", function()
-      if InCombatLockdown and InCombatLockdown() then return end
       for key, func in pairs(queue) do func(); queue[key] = nil end
     end)
   end
@@ -1115,7 +1114,7 @@ function pfUI.api.CreateBackdrop(f, inset, legacy, transp, backdropSetting)
     f:SetBackdropBorderColor(er, eg, eb , ea)
   else
     -- increase clickable area if available
-    if f.SetHitRectInsets and ( not InCombatLockdown or not InCombatLockdown()) then
+    if f.SetHitRectInsets then
       f:SetHitRectInsets(-border,-border,-border,-border)
     end
 

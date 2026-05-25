@@ -21,9 +21,6 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
   local drag_await
   local drag_active
   local function AssumeButtonDrag()
-    -- skip during combat
-    if InCombatLockdown and InCombatLockdown() then return end
-
     -- skip if keydown press is not enabled
     if C.bars.keydown ~= "1" then return end
 
@@ -285,9 +282,6 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
   end
 
   local function ButtonDrag(self)
-    -- skip during combat
-    if InCombatLockdown and InCombatLockdown() then return end
-
     local self = self or this
 
     if _G.LOCK_ACTIONBAR == "1" and not (pfUI_config.bars.shiftdrag == "1" and IsShiftKeyDown()) then return end
@@ -300,9 +294,6 @@ pfUI:RegisterModule("actionbar", "vanilla", function ()
   end
 
   local function ButtonDragStop(self)
-    -- skip during combat
-    if InCombatLockdown and InCombatLockdown() then return end
-
     local self = self or this
 
     if MacroFrame_SaveMacro then
