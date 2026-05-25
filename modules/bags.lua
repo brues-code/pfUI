@@ -1,4 +1,4 @@
-pfUI:RegisterModule("bags", "vanilla:tbc", function ()
+pfUI:RegisterModule("bags", function ()
   local rawborder, default_border = GetBorderSize("bags")
 
   local knownInventorySpellTextures = {

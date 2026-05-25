@@ -81,10 +81,7 @@ end})
 
 -- cache client version
 local _, _, _, client = GetBuildInfo()
-client = client or 11200
-
-pfUI.expansion = "vanilla"
-pfUI.client = client
+pfUI.client = client or 11200
 
 -- setup pfUI namespace
 setmetatable(pfUI.env, {__index = getfenv(0)})
@@ -299,14 +296,8 @@ function pfUI:CheckNewModules()
   end
 end
 
-function pfUI:RegisterModule(name, a2, a3)
+function pfUI:RegisterModule(name, func)
   if pfUI.module[name] then return end
-  local hasv = type(a2) == "string"
-  local func, version = hasv and a3 or a2, hasv and a2 or "vanilla:tbc:wotlk"
-
-  -- check for client compatibility
-  if not strfind(version, pfUI.expansion) then return end
-
   pfUI.module[name] = func
   table.insert(pfUI.modules, name)
   if not pfUI.bootup then
@@ -314,14 +305,8 @@ function pfUI:RegisterModule(name, a2, a3)
   end
 end
 
-function pfUI:RegisterSkin(name, a2, a3)
+function pfUI:RegisterSkin(name, func)
   if pfUI.skin[name] then return end
-  local hasv = type(a2) == "string"
-  local func, version = hasv and a3 or a2, hasv and a2 or "vanilla:tbc:wotlk"
-
-  -- check for client compatibility
-  if not strfind(version, pfUI.expansion) then return end
-
   pfUI.skin[name] = func
   table.insert(pfUI.skins, name)
   if not pfUI.bootup then

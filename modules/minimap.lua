@@ -1,4 +1,4 @@
-pfUI:RegisterModule("minimap", "vanilla:tbc", function ()
+pfUI:RegisterModule("minimap", function ()
   local rawborder, border = GetBorderSize()
   local size = tonumber(C.appearance.minimap.size) or 140
 

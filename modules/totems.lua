@@ -1,4 +1,4 @@
-pfUI:RegisterModule("totems", "vanilla:tbc", function ()
+pfUI:RegisterModule("totems", function ()
   local _, class = UnitClass("player")
 
   local slots = {

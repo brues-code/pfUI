@@ -1,4 +1,4 @@
-pfUI:RegisterModule("sellvalue", "vanilla:tbc", function ()
+pfUI:RegisterModule("sellvalue", function ()
   local function AddVendorPrices(frame, id, count)
     if not id then return end
     -- Sell price comes from the engine (item DBC); buy price from pfSellData

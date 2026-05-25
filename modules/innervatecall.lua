@@ -3,7 +3,7 @@
 -- Registers AURA_CAST events directly - zero polling, pure event-driven
 
 pfUI:RegisterNewModule("innervatecall", "Innervate Callout", "DRUID")
-pfUI:RegisterModule("innervatecall", "vanilla", function ()
+pfUI:RegisterModule("innervatecall", function ()
   -- Requires Nampower for AURA_CAST events
   if not GetNampowerVersion then return end
 
