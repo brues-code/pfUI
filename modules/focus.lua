@@ -15,9 +15,6 @@ pfUI:RegisterModule("focus", "vanilla:tbc", function ()
   pfUI.uf.focustarget:Hide()
 end)
 
--- register focus emulation commands for vanilla
-if pfUI.client > 11200 then return end
-
 -- Helper: set focus frame to a GUID
 local function SetFocusByGUID(guid)
   pfUI.uf.focus.unitname = nil

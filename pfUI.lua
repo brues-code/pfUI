@@ -83,40 +83,29 @@ end})
 local _, _, _, client = GetBuildInfo()
 client = client or 11200
 
--- detect client expansion
-if client >= 20000 and client <= 20400 then
-  pfUI.expansion = "tbc"
-  pfUI.client = client
-elseif client >= 30000 and client <= 30300 then
-  pfUI.expansion = "wotlk"
-  pfUI.client = client
-else
-  pfUI.expansion = "vanilla"
-  pfUI.client = client
-end
+pfUI.expansion = "vanilla"
+pfUI.client = client
 
 -- setup pfUI namespace
 setmetatable(pfUI.env, {__index = getfenv(0)})
 
 function pfUI:UpdateColors()
-  if pfUI.expansion == "vanilla" then
-    -- update table to get unknown colors and blue shamans for vanilla
-    RAID_CLASS_COLORS = {
-      ["WARRIOR"] = { r = 0.78, g = 0.61, b = 0.43, colorStr = "ffc79c6e" },
-      ["MAGE"]    = { r = 0.41, g = 0.8,  b = 0.94, colorStr = "ff69ccf0" },
-      ["ROGUE"]   = { r = 1,    g = 0.96, b = 0.41, colorStr = "fffff569" },
-      ["DRUID"]   = { r = 1,    g = 0.49, b = 0.04, colorStr = "ffff7d0a" },
-      ["HUNTER"]  = { r = 0.67, g = 0.83, b = 0.45, colorStr = "ffabd473" },
-      ["SHAMAN"]  = { r = 0.14, g = 0.35, b = 1.0,  colorStr = "ff0070de" },
-      ["PRIEST"]  = { r = 1,    g = 1,    b = 1,    colorStr = "ffffffff" },
-      ["WARLOCK"] = { r = 0.58, g = 0.51, b = 0.79, colorStr = "ff9482c9" },
-      ["PALADIN"] = { r = 0.96, g = 0.55, b = 0.73, colorStr = "fff58cba" },
-    }
+  -- update table to get unknown colors and blue shamans for vanilla
+  RAID_CLASS_COLORS = {
+    ["WARRIOR"] = { r = 0.78, g = 0.61, b = 0.43, colorStr = "ffc79c6e" },
+    ["MAGE"]    = { r = 0.41, g = 0.8,  b = 0.94, colorStr = "ff69ccf0" },
+    ["ROGUE"]   = { r = 1,    g = 0.96, b = 0.41, colorStr = "fffff569" },
+    ["DRUID"]   = { r = 1,    g = 0.49, b = 0.04, colorStr = "ffff7d0a" },
+    ["HUNTER"]  = { r = 0.67, g = 0.83, b = 0.45, colorStr = "ffabd473" },
+    ["SHAMAN"]  = { r = 0.14, g = 0.35, b = 1.0,  colorStr = "ff0070de" },
+    ["PRIEST"]  = { r = 1,    g = 1,    b = 1,    colorStr = "ffffffff" },
+    ["WARLOCK"] = { r = 0.58, g = 0.51, b = 0.79, colorStr = "ff9482c9" },
+    ["PALADIN"] = { r = 0.96, g = 0.55, b = 0.73, colorStr = "fff58cba" },
+  }
 
-    RAID_CLASS_COLORS = setmetatable(RAID_CLASS_COLORS, { __index = function(tab,key)
-      return { r = 0.6,  g = 0.6,  b = 0.6,  colorStr = "ff999999" }
-    end})
-  end
+  RAID_CLASS_COLORS = setmetatable(RAID_CLASS_COLORS, { __index = function(tab,key)
+    return { r = 0.6,  g = 0.6,  b = 0.6,  colorStr = "ff999999" }
+  end})
 end
 
 function pfUI:UpdateFonts()
@@ -125,34 +114,20 @@ function pfUI:UpdateFonts()
 
   -- load font configuration
   local default, tooltip, unit, unit_name, combat
-  if pfUI_config.global.force_region == "1" and GetLocale() == "zhCN" and pfUI.expansion == "vanilla" then
+  if pfUI_config.global.force_region == "1" and GetLocale() == "zhCN" then
     -- force locale compatible fonts (zhCN 1.12)
     default = "Fonts\\FZXHLJW.TTF"
     tooltip = "Fonts\\FZXHLJW.TTF"
     combat = "Fonts\\FZXHLJW.TTF"
     unit = "Fonts\\FZXHLJW.TTF"
     unit_name = "Fonts\\FZXHLJW.TTF"
-  elseif pfUI_config.global.force_region == "1" and GetLocale() == "zhCN" and pfUI.expansion == "tbc" then
-    -- force locale compatible fonts (zhCN 2.4.3)
-    default = "Fonts\\ZYHei.ttf"
-    tooltip = "Fonts\\ZYHei.ttf"
-    combat = "Fonts\\ZYKai_C.ttf"
-    unit = "Fonts\\ZYKai_T.ttf"
-    unit_name = "Fonts\\ZYHei.ttf"
-  elseif pfUI_config.global.force_region == "1" and GetLocale() == "zhTW" and pfUI.expansion == "vanilla" then
+  elseif pfUI_config.global.force_region == "1" and GetLocale() == "zhTW" then
     -- force locale compatible fonts (zhTW 1.12)
     default = "Fonts\\FZXHLJW.ttf"
     tooltip = "Fonts\\FZXHLJW.ttf"
     combat = "Fonts\\FZXHLJW.ttf"
     unit = "Fonts\\FZXHLJW.ttf"
     unit_name = "Fonts\\FZXHLJW.ttf"
-  elseif pfUI_config.global.force_region == "1" and GetLocale() == "zhTW" and pfUI.expansion == "tbc" then
-    -- force locale compatible fonts (zhTW 2.4.3)
-    default = "Fonts\\bHEI01B.ttf"
-    tooltip = "Fonts\\bHEI01B.ttf"
-    combat = "Fonts\\bHEI01B.ttf"
-    unit = "Fonts\\bHEI01B.ttf"
-    unit_name = "Fonts\\bHEI01B.ttf"
   elseif pfUI_config.global.force_region == "1" and GetLocale() == "koKR" then
     -- force locale compatible fonts (koKR)
     default = "Fonts\\2002.TTF"

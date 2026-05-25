@@ -480,7 +480,7 @@ pfUI:RegisterModule("nameplates", "vanilla", function ()
 
     -- PERF: Use lightweight fake cooldown frame when animation disabled
     -- The Model-based CooldownFrameTemplate causes major lag with many nameplates
-    if pfUI.client <= 11200 and cfg.debuffanim ~= 1 then
+    if cfg.debuffanim ~= 1 then
       plate.debuffs[index].cd = CreateFrame("Frame", plate.platename.."Debuff"..index.."Cooldown", plate.debuffs[index])
       plate.debuffs[index].cd:SetAllPoints(plate.debuffs[index])
       plate.debuffs[index].cd:SetFrameLevel(6)
@@ -489,7 +489,7 @@ pfUI:RegisterModule("nameplates", "vanilla", function ()
       plate.debuffs[index].cd.SetSequence = DoNothing
       plate.debuffs[index].cd.SetSequenceTime = DoNothing
     else
-      -- Use CooldownFrameTemplate for animation or TBC+
+      -- Use CooldownFrameTemplate for animation
       plate.debuffs[index].cd = CreateFrame(COOLDOWN_FRAME_TYPE, plate.platename.."Debuff"..index.."Cooldown", plate.debuffs[index], "CooldownFrameTemplate")
       plate.debuffs[index].cd:SetAllPoints(plate.debuffs[index])
       plate.debuffs[index].cd:SetFrameLevel(6)
@@ -540,12 +540,6 @@ pfUI:RegisterModule("nameplates", "vanilla", function ()
       nameplate.debuffs[i].cd.pfCooldownStyleText = cooldown_text
       nameplate.debuffs[i].cd.pfCooldownStyleAnimation = cooldown_anim
       
-      -- Update scale for TBC+
-      if pfUI.client > 11200 then
-        local debuffsize = tonumber(C.nameplates.debuffsize)
-        local cdScale = debuffsize / 32
-        nameplate.debuffs[i].cd:SetScale(cdScale)
-      end
     end
   end
 
@@ -1519,40 +1513,38 @@ end
     end
 
     -- =========================================================================
-    -- VANILLA OVERLAP/CLICKTHROUGH HANDLING
+    -- OVERLAP/CLICKTHROUGH HANDLING
     -- =========================================================================
-    if pfUI.client <= 11200 then
-      local useOverlap = C.nameplates["overlap"] == "1" or C.nameplates["vertical_offset"] ~= "0"
-      local clickable = C.nameplates["clickthrough"] ~= "1"
+    local useOverlap = C.nameplates["overlap"] == "1" or C.nameplates["vertical_offset"] ~= "0"
+    local clickable = C.nameplates["clickthrough"] ~= "1"
 
-      if not clickable then
-        frame:EnableMouse(false)
-        nameplate:EnableMouse(false)
-      else
-        local plate = useOverlap and nameplate or frame
-        plate:EnableMouse(clickable)
+    if not clickable then
+      frame:EnableMouse(false)
+      nameplate:EnableMouse(false)
+    else
+      local plate = useOverlap and nameplate or frame
+      plate:EnableMouse(clickable)
+    end
+
+    if C.nameplates["overlap"] == "1" then
+      if frame:GetWidth() > 1 then
+        frame:SetWidth(1)
+        frame:SetHeight(1)
+      end
+    else
+      if not nameplate.dwidth then
+        nameplate.dwidth = floor(nameplate:GetWidth() * UIParent:GetScale())
       end
 
-      if C.nameplates["overlap"] == "1" then
-        if frame:GetWidth() > 1 then
-          frame:SetWidth(1)
-          frame:SetHeight(1)
-        end
-      else
-        if not nameplate.dwidth then
-          nameplate.dwidth = floor(nameplate:GetWidth() * UIParent:GetScale())
-        end
-
-        if floor(frame:GetWidth()) ~= nameplate.dwidth then
-          frame:SetWidth(nameplate:GetWidth() * UIParent:GetScale())
-          frame:SetHeight(nameplate:GetHeight() * UIParent:GetScale())
-        end
+      if floor(frame:GetWidth()) ~= nameplate.dwidth then
+        frame:SetWidth(nameplate:GetWidth() * UIParent:GetScale())
+        frame:SetHeight(nameplate:GetHeight() * UIParent:GetScale())
       end
+    end
 
-      local mouseEnabled = nameplate:IsMouseEnabled()
-      if C.nameplates["clickthrough"] == "0" and C.nameplates["overlap"] == "1" and SpellIsTargeting() == mouseEnabled then
-        nameplate:EnableMouse(not mouseEnabled)
-      end
+    local mouseEnabled = nameplate:IsMouseEnabled()
+    if C.nameplates["clickthrough"] == "0" and C.nameplates["overlap"] == "1" and SpellIsTargeting() == mouseEnabled then
+      nameplate:EnableMouse(not mouseEnabled)
     end
 
     -- Cache strata changes
@@ -1951,85 +1943,82 @@ end
     end
   end
 
-  if pfUI.client <= 11200 then
-    -- handle vanilla only settings
-    local hookOnConfigChange = nameplates.OnConfigChange
-    nameplates.OnConfigChange = function(self)
-      hookOnConfigChange(self)
+  local hookOnConfigChange = nameplates.OnConfigChange
+  nameplates.OnConfigChange = function(self)
+    hookOnConfigChange(self)
 
-      local parent = self
-      local nameplate = self.nameplate
-      local plate = (C.nameplates["overlap"] == "1" or C.nameplates["vertical_offset"] ~= "0") and nameplate or parent
+    local parent = self
+    local nameplate = self.nameplate
+    local plate = (C.nameplates["overlap"] == "1" or C.nameplates["vertical_offset"] ~= "0") and nameplate or parent
 
-      -- disable all clicks for now
-      parent:EnableMouse(false)
-      nameplate:EnableMouse(false)
+    -- disable all clicks for now
+    parent:EnableMouse(false)
+    nameplate:EnableMouse(false)
 
-      -- adjust vertical offset
-      if C.nameplates["vertical_offset"] ~= "0" then
-        nameplate:SetPoint("TOP", parent, "TOP", 0, tonumber(C.nameplates["vertical_offset"]))
-      end
-
-      -- replace clickhandler
-      if C.nameplates["overlap"] == "1" or C.nameplates["vertical_offset"] ~= "0" then
-        plate:SetScript("OnClick", function() parent:Click() end)
-      end
-
-      -- enable mouselook on rightbutton down
-      if C.nameplates["rightclick"] == "1" then
-        plate:SetScript("OnMouseDown", nameplates.mouselook.OnMouseDown)
-      else
-        plate:SetScript("OnMouseDown", nil)
-      end
+    -- adjust vertical offset
+    if C.nameplates["vertical_offset"] ~= "0" then
+      nameplate:SetPoint("TOP", parent, "TOP", 0, tonumber(C.nameplates["vertical_offset"]))
     end
 
-    local hookOnDataChanged = nameplates.OnDataChanged
-    nameplates.OnDataChanged = function(self, nameplate)
-      hookOnDataChanged(self, nameplate)
-
-      -- make sure to keep mouse events disabled on parent nameplate
-      if (C.nameplates["overlap"] == "1" or C.nameplates["vertical_offset"] ~= "0") then
-        nameplate.parent:EnableMouse(false)
-      end
+    -- replace clickhandler
+    if C.nameplates["overlap"] == "1" or C.nameplates["vertical_offset"] ~= "0" then
+      plate:SetScript("OnClick", function() parent:Click() end)
     end
 
     -- enable mouselook on rightbutton down
-    nameplates.mouselook = CreateFrame("Frame", nil, UIParent)
-    nameplates.mouselook.time = nil
-    nameplates.mouselook.frame = nil
-    nameplates.mouselook.OnMouseDown = function()
-      if arg1 and arg1 == "RightButton" then
-        MouselookStart()
+    if C.nameplates["rightclick"] == "1" then
+      plate:SetScript("OnMouseDown", nameplates.mouselook.OnMouseDown)
+    else
+      plate:SetScript("OnMouseDown", nil)
+    end
+  end
 
-        -- start detection of the rightclick emulation
-        nameplates.mouselook.time = GetTime()
-        nameplates.mouselook.frame = this
-        nameplates.mouselook:Show()
-      end
+  local hookOnDataChanged = nameplates.OnDataChanged
+  nameplates.OnDataChanged = function(self, nameplate)
+    hookOnDataChanged(self, nameplate)
+
+    -- make sure to keep mouse events disabled on parent nameplate
+    if (C.nameplates["overlap"] == "1" or C.nameplates["vertical_offset"] ~= "0") then
+      nameplate.parent:EnableMouse(false)
+    end
+  end
+
+  -- enable mouselook on rightbutton down
+  nameplates.mouselook = CreateFrame("Frame", nil, UIParent)
+  nameplates.mouselook.time = nil
+  nameplates.mouselook.frame = nil
+  nameplates.mouselook.OnMouseDown = function()
+    if arg1 and arg1 == "RightButton" then
+      MouselookStart()
+
+      -- start detection of the rightclick emulation
+      nameplates.mouselook.time = GetTime()
+      nameplates.mouselook.frame = this
+      nameplates.mouselook:Show()
+    end
+  end
+
+  nameplates.mouselook:SetScript("OnUpdate", function()
+    -- break here if nothing to do
+    if not this.time or not this.frame then
+      this:Hide()
+      return
     end
 
-    nameplates.mouselook:SetScript("OnUpdate", function()
-      -- break here if nothing to do
-      if not this.time or not this.frame then
-        this:Hide()
-        return
-      end
+    -- if threshold is reached (0.5 second) no click action will follow
+    if not IsMouselooking() and this.time + tonumber(C.nameplates["clickthreshold"]) < GetTime() then
+      this:Hide()
+      return
+    end
 
-      -- if threshold is reached (0.5 second) no click action will follow
-      if not IsMouselooking() and this.time + tonumber(C.nameplates["clickthreshold"]) < GetTime() then
-        this:Hide()
-        return
-      end
-
-      -- run a usual nameplate rightclick action
-      if not IsMouselooking() then
-        this.frame:Click("LeftButton")
-        if UnitCanAttack("player", "target") and not nameplates.combat.inCombat then AttackTarget() end
-        this:Hide()
-        return
-      end
-    end)
-  end
+    -- run a usual nameplate rightclick action
+    if not IsMouselooking() then
+      this.frame:Click("LeftButton")
+      if UnitCanAttack("player", "target") and not nameplates.combat.inCombat then AttackTarget() end
+      this:Hide()
+      return
+    end
+  end)
 
   pfUI.nameplates = nameplates
 end)

@@ -306,8 +306,8 @@ pfUI:RegisterModule("castbar", "vanilla", function ()
         end
 
       elseif event == CASTBAR_EVENT_CAST_START or event == CASTBAR_EVENT_CHANNEL_START then
-        playerarg = pfUI.client <= 11200 or arg1 == "player" and true or nil
-        if playerarg then this.delay = 0 end
+        playerarg = true
+        this.delay = 0
       end
     end)
 
@@ -391,9 +391,7 @@ pfUI:RegisterModule("castbar", "vanilla", function ()
     pfUI.castbar.focus.spacing = default_border * 2 + tonumber(C.unitframes.focus.pspace) * GetPerfectPixel()
 
     -- reset unitstr for vanilla focus frame emulation
-    if pfUI.client <= 11200 then
-      pfUI.castbar.focus.unitstr = nil
-    end
+    pfUI.castbar.focus.unitstr = nil
 
     local anchor = pfUI.uf.focus.portrait:GetHeight() > pfUI.uf.focus:GetHeight() and pfUI.uf.focus.power or pfUI.uf.focus
     local width = C.castbar.focus.width ~= "-1" and C.castbar.focus.width or anchor:GetWidth()
