@@ -634,25 +634,27 @@ end
       end
 
     elseif event == "NAME_PLATE_UNIT_ADDED" then
-      -- arg1 = unit GUID being bound to a nameplate
-      local plate = C_NamePlate.GetNamePlateForGUID(arg1)
+      -- arg1 = "nameplateN" unit token; resolve to GUID for cache keys
+      local plate = C_NamePlate.GetNamePlateForUnit(arg1)
       if plate and plate.nameplate then
-        plate.nameplate.cachedGuid = arg1
+        plate.nameplate.cachedGuid = UnitGUID(arg1)
         nameplates.OnShow(plate)
       end
 
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
-      -- arg1 = unit GUID being unbound; clean per-unit caches
-      if arg1 then
-        if debuffCache[arg1] then debuffCache[arg1] = nil end
-        if threatMemory[arg1] then threatMemory[arg1] = nil end
-        if combatColorCache[arg1] then combatColorCache[arg1] = nil end
-        local castInfo = GetCastInfo(arg1)
+      -- arg1 = "nameplateN" unit token; UnitGUID still resolves inside the
+      -- handler (the slot is freed after dispatch returns)
+      local guid = UnitGUID(arg1)
+      if guid then
+        if debuffCache[guid] then debuffCache[guid] = nil end
+        if threatMemory[guid] then threatMemory[guid] = nil end
+        if combatColorCache[guid] then combatColorCache[guid] = nil end
+        local castInfo = GetCastInfo(guid)
         if castInfo and castInfo.endTime and castInfo.endTime < GetTime() then
-          if pfUI.libdebuff_casts then pfUI.libdebuff_casts[arg1] = nil end
+          if pfUI.libdebuff_casts then pfUI.libdebuff_casts[guid] = nil end
         end
-        local plate = C_NamePlate.GetNamePlateForGUID(arg1)
-        if plate and plate.nameplate and plate.nameplate.cachedGuid == arg1 then
+        local plate = C_NamePlate.GetNamePlateForUnit(arg1)
+        if plate and plate.nameplate and plate.nameplate.cachedGuid == guid then
           plate.nameplate.cachedGuid = nil
         end
       end
