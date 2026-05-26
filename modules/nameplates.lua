@@ -56,23 +56,13 @@ pfUI:RegisterModule("nameplates", function ()
     ["boss"] = "B"
   }
 
-  -- catch all nameplates
-  local childs = {}  -- PERF: Reuse table instead of creating new one each scan
-  local regions, plate
-  local initialized = 0
-  
   -- Friendly zone nameplate disable state
   local savedHostileState = nil
   local savedFriendlyState = nil
   local inFriendlyZone = false
-  local parentcount = 0
   local platecount = 0
   local registry = {}
 
-  -- ============================================================================
-  -- OPTIMIZATION: GUID-based registries for O(1) lookups
-  -- ============================================================================
-  local guidRegistry = {}   -- guid -> plate (for direct event routing)
   local raidGuidCache = {}  -- guid -> name (rebuilt on RAID_ROSTER_UPDATE/PARTY_MEMBERS_CHANGED)
   
   -- Helper function to safely access libdebuff cast data
@@ -264,18 +254,6 @@ pfUI:RegisterModule("nameplates", function ()
     for k in pairs(table) do
       table[k] = nil
     end
-  end
-
-  local function IsNamePlate(frame)
-    if frame:GetObjectType() ~= NAMEPLATE_FRAMETYPE then return nil end
-    regions = plate:GetRegions()
-
-    if not regions then return nil end
-    if not regions.GetObjectType then return nil end
-    if not regions.GetTexture then return nil end
-
-    if regions:GetObjectType() ~= "Texture" then return nil end
-    return regions:GetTexture() == "Interface\\Tooltips\\Nameplate-Border" or nil
   end
 
   local function DisableObject(object)
@@ -553,6 +531,9 @@ nameplates:RegisterEvent("PLAYER_COMBO_POINTS")
 nameplates:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 nameplates:RegisterEvent("RAID_ROSTER_UPDATE")
 nameplates:RegisterEvent("PARTY_MEMBERS_CHANGED")
+nameplates:RegisterEvent("NAME_PLATE_CREATED")
+nameplates:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+nameplates:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 if GetUnitField then
   nameplates:RegisterEvent("UNIT_FLAGS_GUID")
 end
@@ -565,7 +546,7 @@ end
     if not guid then return end
     
     -- GUID is actual GUID (0xF13000...) from Nampower events
-    local plate = guidRegistry[guid]
+    local plate = C_NamePlate.GetNamePlateForGUID(guid)
     if plate and plate.nameplate then
       -- Mark nameplate for aura update in next OnUpdate cycle
       plate.nameplate.auraUpdate = true
@@ -575,7 +556,7 @@ end
   -- Hook into libdebuff timer signal (fires when slotTimers written or cleared)
   pfUI.libdebuff_on_unit_updated = pfUI.libdebuff_on_unit_updated or {}
   table.insert(pfUI.libdebuff_on_unit_updated, function(guid)
-    local plate = guidRegistry[guid]
+    local plate = C_NamePlate.GetNamePlateForGUID(guid)
     if plate and plate.nameplate then
       plate.nameplate.auraUpdate = true
     end
@@ -645,10 +626,41 @@ end
     elseif event == "RAID_ROSTER_UPDATE" or event == "PARTY_MEMBERS_CHANGED" then
       RebuildRaidGuidCache()
 
+    elseif event == "NAME_PLATE_CREATED" then
+      -- arg1 = the nameplate Frame; build the pfUI overlay once per pool slot
+      if arg1 and not registry[arg1] then
+        nameplates.OnCreate(arg1)
+        registry[arg1] = arg1
+      end
+
+    elseif event == "NAME_PLATE_UNIT_ADDED" then
+      -- arg1 = unit GUID being bound to a nameplate
+      local plate = C_NamePlate.GetNamePlateForGUID(arg1)
+      if plate and plate.nameplate then
+        plate.nameplate.cachedGuid = arg1
+        nameplates.OnShow(plate)
+      end
+
+    elseif event == "NAME_PLATE_UNIT_REMOVED" then
+      -- arg1 = unit GUID being unbound; clean per-unit caches
+      if arg1 then
+        if debuffCache[arg1] then debuffCache[arg1] = nil end
+        if threatMemory[arg1] then threatMemory[arg1] = nil end
+        if combatColorCache[arg1] then combatColorCache[arg1] = nil end
+        local castInfo = GetCastInfo(arg1)
+        if castInfo and castInfo.endTime and castInfo.endTime < GetTime() then
+          if pfUI.libdebuff_casts then pfUI.libdebuff_casts[arg1] = nil end
+        end
+        local plate = C_NamePlate.GetNamePlateForGUID(arg1)
+        if plate and plate.nameplate and plate.nameplate.cachedGuid == arg1 then
+          plate.nameplate.cachedGuid = nil
+        end
+      end
+
     elseif event == "UNIT_FLAGS_GUID" then
       -- Nampower: fires instantly when any unit's flags change (e.g. stun, combat enter/leave)
       -- arg1 = guid — directly flag that nameplate for immediate update, bypassing throttle
-      local plate = guidRegistry[arg1]
+      local plate = C_NamePlate.GetNamePlateForGUID(arg1)
       if plate and plate.nameplate then
         plate.nameplate.eventcache = true
       end
@@ -657,7 +669,7 @@ end
       -- Flag target plate for update via GUID registry
       local targetGuid = UnitGUID("target")
       if targetGuid then
-        local plate = guidRegistry[targetGuid]
+        local plate = C_NamePlate.GetNamePlateForGUID(targetGuid)
         if plate and plate.nameplate then
           plate.nameplate.targetUpdate = true
         end
@@ -669,7 +681,7 @@ end
       -- Only flag the target plate for combo point update
       local targetGuid = UnitGUID("target")
       if targetGuid then
-        local plate = guidRegistry[targetGuid]
+        local plate = C_NamePlate.GetNamePlateForGUID(targetGuid)
         if plate and plate.nameplate then
           plate.nameplate.comboUpdate = true
         end
@@ -702,77 +714,13 @@ end
     -- PERF: Update visible plate count periodically for adaptive throttling
     if frameState.now - lastVisibleCheck > 0.5 then
       lastVisibleCheck = frameState.now
-      local count = 0
-      for plate in pairs(registry) do
-        if plate:IsVisible() then count = count + 1 end
-      end
-      visiblePlateCount = count
-    end
-
-    -- Throttle ONLY the nameplate scanner
-    local scanThrottle = nameplates.combat and nameplates.combat.inCombat and 0.1 or 0.05
-    local shouldScan = (this.tick or 0) <= frameState.now
-    if shouldScan then
-      this.tick = frameState.now + scanThrottle
-
-      -- detect new nameplates
-      parentcount = WorldFrame:GetNumChildren()
-      if initialized < parentcount then
-        -- PERF: Reuse childs table instead of creating new one
-        local newchilds = { WorldFrame:GetChildren() }
-        for i = 1, parentcount do
-          childs[i] = newchilds[i]
-        end
-
-        for i = initialized + 1, parentcount do
-          plate = childs[i]
-          if IsNamePlate(plate) and not registry[plate] then
-            nameplates.OnCreate(plate)
-            registry[plate] = plate
-          end
-        end
-
-        initialized = parentcount
-      end
+      visiblePlateCount = table.getn(C_NamePlate.GetNamePlates())
     end
 
     -- Central OnUpdate for all visible plates
     for plate in pairs(registry) do
       if plate:IsVisible() then
         nameplates.OnUpdate(plate, frameState)
-      else
-        -- PERF: Clean up ALL caches for hidden plates to prevent memory leak
-        local guid = plate.nameplate and plate.nameplate.cachedGuid
-        if guid then
-          -- Remove from guidRegistry
-          if guidRegistry[guid] == plate then
-            guidRegistry[guid] = nil
-          end
-          
-          -- Clean cast cache ONLY if cast has expired
-          -- (Don't delete active casts just because plate was hidden briefly)
-          local castInfo = GetCastInfo(guid)
-          if castInfo and castInfo.endTime and castInfo.endTime < frameState.now then
-            if pfUI.libdebuff_casts then
-              pfUI.libdebuff_casts[guid] = nil
-            end
-          end
-          
-          -- Clean debuffCache
-          if debuffCache[guid] then
-            debuffCache[guid] = nil
-          end
-          
-          -- Clean threatMemory
-          if threatMemory[guid] then
-            threatMemory[guid] = nil
-          end
-
-          -- Clean combatColorCache
-          if combatColorCache[guid] then
-            combatColorCache[guid] = nil
-          end
-        end
       end
     end
   end)
@@ -939,12 +887,12 @@ end
     nameplate.tick = GetTime() + mathmod(platecount, 10) * 0.05
 
     parent.nameplate = nameplate
-    HookScript(parent, "OnShow", nameplates.OnShow)
     -- NOTE: OnUpdate is now handled centrally, not per-plate/
     parent:SetScript("OnUpdate", nil)  -- Disable Blizzard's OnUpdate
 
     nameplates.OnConfigChange(parent)
-    nameplates.OnShow(parent)
+    -- NOTE: OnShow is driven by NAME_PLATE_UNIT_ADDED, not called here.
+    -- At NAME_PLATE_CREATED time the unit hasn't been bound yet.
   end
 
   nameplates.OnConfigChange = function(frame)
@@ -1413,17 +1361,13 @@ end
     local frame = frame or this
     local nameplate = frame.nameplate
 
-    -- Register GUID when plate becomes visible
-    local guid = frame:GetName(1)
-    if guid then
-      nameplate.cachedGuid = guid
-      guidRegistry[guid] = frame
+    -- cachedGuid is set by NAME_PLATE_UNIT_ADDED before this fires
+    local guid = nameplate.cachedGuid
+    if guid and pfUI.api.libunitscan and pfUI.api.libunitscan.ScanGuid then
       -- notify libunitscan so it can cache unit data without mouseover
-      if pfUI.api.libunitscan and pfUI.api.libunitscan.ScanGuid then
-        local name = frame.nameplate.original.name:GetText()
-        local npcFlags = GetUnitField(guid, "npcFlags") or 0
-        pfUI.api.libunitscan.ScanGuid(guid, name, npcFlags == 0)
-      end
+      local name = nameplate.original.name:GetText()
+      local npcFlags = GetUnitField(guid, "npcFlags") or 0
+      pfUI.api.libunitscan.ScanGuid(guid, name, npcFlags == 0)
     end
 
     nameplates:OnDataChanged(nameplate)
@@ -1432,17 +1376,9 @@ end
   nameplates.OnUpdate = function(frame, state)
     local nameplate = frame.nameplate
     local now = state and state.now or GetTime()
-    
-    -- Update GUID registry (lightweight, needed for event routing)
-    local guid = frame:GetName(1)
-    if guid and guid ~= nameplate.cachedGuid then
-      if nameplate.cachedGuid and guidRegistry[nameplate.cachedGuid] == frame then
-        guidRegistry[nameplate.cachedGuid] = nil
-      end
-      nameplate.cachedGuid = guid
-      guidRegistry[guid] = frame
-    end
-    
+
+    -- cachedGuid is maintained by NAME_PLATE_UNIT_ADDED / _REMOVED events.
+
     -- PERF: Intelligent throttling based on target/castbar status and plate count
     -- Use GUID comparison as primary target detection: instant, immune to alpha transitions,
     -- and immediately correct on de-target (unlike istarget which updates one tick later)
@@ -1842,7 +1778,7 @@ end
     local targetGuid = UnitExists("target") and UnitGUID("target")
     if not targetGuid then return end
 
-    local frame = guidRegistry[targetGuid]
+    local frame = C_NamePlate.GetNamePlateForGUID(targetGuid)
     if not frame or not frame.nameplate then return end
 
     nameplates.UpdateCastbar(frame.nameplate, now)
