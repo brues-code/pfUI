@@ -73,12 +73,6 @@ pfUI:RegisterModule("bags", function ()
     return
   end
 
-  local function LinkToStr(link)
-    if not link then return "" end
-    local _, _, linkstr = string.find(link, "(item:%d+:%d+:%d+:%d+)")
-    return linkstr or ""
-  end
-
   -- hide blizzard's bankframe
   BankFrame:SetScale(0.001)
   BankFrame:SetPoint("TOPLEFT", 0,0)
@@ -449,8 +443,7 @@ pfUI:RegisterModule("bags", function ()
         count = itemInfo.spellChargesRemaining
       end
     end
-    local linkstr = LinkToStr(GetContainerItemLink(bag, slot))
-    local _, _, q, _, _, _, itype = GetItemInfo(linkstr)
+    local _, _, q, _, _, _, itype = GetItemInfo(C_Container.GetContainerItemID(bag, slot))
 
     -- running advanced item color scan
     if C.appearance.bags.borderonlygear == "0" and texture and quality and quality < 1 then
