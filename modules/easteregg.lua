@@ -1,6 +1,7 @@
 pfUI:RegisterModule("easteregg", function ()
+  local today = date("%m%d")
   -- merry x-mas!
-  if date("%m%d") == "1224" or date("%m%d") == "1225" then
+  if today == "1224" or today == "1225" then
     local title = (UnitFactionGroup("player") == "Horde") and PVP_RANK_18_0 or PVP_RANK_18_1
     local oldflag = _G.CHAT_FLAG_AFK
 
@@ -29,7 +30,7 @@ pfUI:RegisterModule("easteregg", function ()
   end
 
   -- happy new year
-  if date("%m%d") == "1231" or date("%m%d") == "0101" then
+  if today == "1231" or today == "0101" then
     local fireworks = CreateFrame("Button", "pfFireworks", WorldFrame)
     fireworks:SetFrameStrata("DIALOG")
     fireworks:SetAllPoints()
