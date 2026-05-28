@@ -228,6 +228,9 @@ end
       self.bar.text:SetText(string.format(text, T["Experience"], xpperc, experc, T["Rested"]))
 
       self.tick = GetTime() + self.timeout
+      if event == "UPDATE_EXHAUSTION" and GameTooltip:IsOwned(self) then
+        OnEnter(self)
+      end
       return
     elseif mode == "PETXP" then
       self.restedbar:Hide()
