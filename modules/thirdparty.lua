@@ -108,86 +108,33 @@ pfUI:RegisterModule("thirdparty", function()
 
   do -- bag sort addon
     pfUI.thirdparty.bagsort = nil
+    -- Third-party sort addons (SortBags, MrPlow, etc.) override pfUI's built-
+    -- in sorter by rebinding the existing pfUI.bag.{right,left}.sort buttons
+    -- created in modules/bags.lua. First-come-first-served — if multiple
+    -- third-party sorters are installed, the first to register wins.
     function pfUI.thirdparty.RegisterBagSort(name, bag, bagtooltip, bank, banktooltip)
-      -- skip on certain conditions
       if pfUI.thirdparty.bagsort then return end
-      if not pfUI.bag or not pfUI.bag.right then return end
+      if not pfUI.bag or not pfUI.bag.right or not pfUI.bag.right.sort then return end
 
       pfUI.thirdparty.bagsort = name
 
-      local rawborder, default_border = GetBorderSize("bags")
+      -- Rebind bag (right) button
+      local rb = pfUI.bag.right.sort
+      rb:SetScript("OnClick", bag)
+      rb:SetScript("OnEnter", function()
+        rb.backdrop:SetBackdropBorderColor(1,1,.25,1)
+        rb.texture:SetVertexColor(1,1,.25,1)
+        if bagtooltip then bagtooltip() end
+      end)
 
-      -- draw the button
-      if not pfUI.bag.right.sort then
-        pfUI.bag.right.sort = CreateFrame("Button", "pfBagSlotSort", UIParent)
-        pfUI.bag.right.sort:SetParent(pfUI.bag.right)
-        pfUI.bag.right.sort:SetPoint("TOPRIGHT", pfUI.bag.right.keys, "TOPLEFT", -default_border*3, 0)
-
-        CreateBackdrop(pfUI.bag.right.sort, default_border)
-        pfUI.bag.right.sort:SetHeight(12)
-        pfUI.bag.right.sort:SetWidth(12)
-        pfUI.bag.right.sort:SetTextColor(1,1,.25,1)
-        pfUI.bag.right.sort:SetFont(pfUI.font_default, C.global.font_size, "OUTLINE")
-        pfUI.bag.right.sort.texture = pfUI.bag.right.sort:CreateTexture("pfBagArrowUp")
-        pfUI.bag.right.sort.texture:SetTexture(pfUI.media["img:sort"])
-        pfUI.bag.right.sort.texture:ClearAllPoints()
-        pfUI.bag.right.sort.texture:SetPoint("TOPLEFT", pfUI.bag.right.sort, "TOPLEFT", 2, -2)
-        pfUI.bag.right.sort.texture:SetPoint("BOTTOMRIGHT", pfUI.bag.right.sort, "BOTTOMRIGHT", -2, 2)
-        pfUI.bag.right.sort.texture:SetVertexColor(.25,.25,.25,1)
-
-        pfUI.bag.right.sort:SetScript("OnClick", bag)
-
-        pfUI.bag.right.sort:SetScript("OnEnter", function ()
-          pfUI.bag.right.sort.backdrop:SetBackdropBorderColor(1,1,.25,1)
-          pfUI.bag.right.sort.texture:SetVertexColor(1,1,.25,1)
-          if bagtooltip then bagtooltip() end
-        end)
-
-        pfUI.bag.right.sort:SetScript("OnLeave", function ()
-          CreateBackdrop(pfUI.bag.right.sort)
-          pfUI.bag.right.sort.texture:SetVertexColor(.25,.25,.25,1)
-          if GameTooltip:IsOwned(this) then
-            GameTooltip:Hide()
-          end
-        end)
-
-        pfUI.bag.right.search:ClearAllPoints()
-        pfUI.bag.right.search:SetPoint("TOPLEFT", pfUI.bag.right, "TOPLEFT", default_border, -default_border)
-        pfUI.bag.right.search:SetPoint("TOPRIGHT", pfUI.bag.right.sort, "TOPLEFT", -default_border*3, -default_border)
-      end
-
-      -- draw the button
-      if not pfUI.bag.left.sort then
-        pfUI.bag.left.sort = CreateFrame("Button", "pfBankSlotSort", UIParent)
-        pfUI.bag.left.sort:SetParent(pfUI.bag.left)
-        pfUI.bag.left.sort:SetPoint("TOPRIGHT", pfUI.bag.left.bags, "TOPLEFT", -default_border*3, 0)
-
-        CreateBackdrop(pfUI.bag.left.sort, default_border)
-        pfUI.bag.left.sort:SetHeight(12)
-        pfUI.bag.left.sort:SetWidth(12)
-        pfUI.bag.left.sort:SetTextColor(1,1,.25,1)
-        pfUI.bag.left.sort:SetFont(pfUI.font_default, C.global.font_size, "OUTLINE")
-        pfUI.bag.left.sort.texture = pfUI.bag.left.sort:CreateTexture("pfBagArrowUp")
-        pfUI.bag.left.sort.texture:SetTexture(pfUI.media["img:sort"])
-        pfUI.bag.left.sort.texture:ClearAllPoints()
-        pfUI.bag.left.sort.texture:SetPoint("TOPLEFT", pfUI.bag.left.sort, "TOPLEFT", 2, -2)
-        pfUI.bag.left.sort.texture:SetPoint("BOTTOMRIGHT", pfUI.bag.left.sort, "BOTTOMRIGHT", -2, 2)
-        pfUI.bag.left.sort.texture:SetVertexColor(.25,.25,.25,1)
-
-        pfUI.bag.left.sort:SetScript("OnClick", bank)
-
-        pfUI.bag.left.sort:SetScript("OnEnter", function ()
-          pfUI.bag.left.sort.backdrop:SetBackdropBorderColor(1,1,.25,1)
-          pfUI.bag.left.sort.texture:SetVertexColor(1,1,.25,1)
+      -- Rebind bank (left) button
+      if pfUI.bag.left and pfUI.bag.left.sort then
+        local lb = pfUI.bag.left.sort
+        lb:SetScript("OnClick", bank)
+        lb:SetScript("OnEnter", function()
+          lb.backdrop:SetBackdropBorderColor(1,1,.25,1)
+          lb.texture:SetVertexColor(1,1,.25,1)
           if banktooltip then banktooltip() end
-        end)
-
-        pfUI.bag.left.sort:SetScript("OnLeave", function ()
-          CreateBackdrop(pfUI.bag.left.sort)
-          pfUI.bag.left.sort.texture:SetVertexColor(.25,.25,.25,1)
-          if GameTooltip:IsOwned(this) then
-            GameTooltip:Hide()
-          end
         end)
       end
     end
