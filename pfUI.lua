@@ -23,6 +23,49 @@ pfUI:RegisterEvent("ADDON_LOADED")
 -- setup bootvar
 pfUI.bootup = true
 
+-- ClassicAPI dependency check.
+-- pfUI relies pervasively on the modern C_* / SuperWoW / nameplate / focus
+-- API surface that ClassicAPI polyfills, so presence is required (not
+-- optional). Without it, users would otherwise see a flood of "attempt to
+-- index a nil value" errors as each module tries to call C_Container /
+-- C_Item / C_UnitAuras / C_NamePlate / FocusUnit / etc.
+local PFUI_CLASSIC_API_MIN = 10200  -- v1.2.0 (X*10000 + Y*100 + Z)
+if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
+  pfUI.disabled = true
+
+  local alertFrame = CreateFrame("Frame")
+  alertFrame:RegisterEvent("PLAYER_LOGIN")
+  alertFrame:SetScript("OnEvent", function()
+    StaticPopupDialogs["PFUI_CLASSICAPI_REQUIRED"] = {
+      text = "This fork of |cff33ffccpf|cffffffffUI|r requires ClassicAPI\n v1.2.0 or newer.\n\n"
+          .. "All |cff33ffccpf|cffffffffUI|r modules have been disabled.\nInstall ClassicAPI from:",
+      button1 = OKAY,
+      hasEditBox = 1,
+      editBoxWidth = 280,
+      timeout = 0,
+      whileDead = 1,
+      hideOnEscape = 1,
+      preferredIndex = 3,
+      OnShow = function()
+        local editBox = _G[this:GetName().."EditBox"]
+        if editBox then
+          editBox:SetText("https://github.com/brues-code/ClassicAPI")
+          editBox:HighlightText()
+          editBox:SetFocus()
+        end
+      end,
+    }
+    StaticPopup_Show("PFUI_CLASSICAPI_REQUIRED")
+    if DEFAULT_CHAT_FRAME then
+      DEFAULT_CHAT_FRAME:AddMessage(
+        "This fork of pfUI requires ClassicAPI v1.2.0+. Get it at "
+          .. "https://github.com/brues-code/ClassicAPI",
+        1, 0.3, 0.3
+      )
+    end
+  end)
+end
+
 -- initialize saved variables
 pfUI_playerDB = {}
 pfUI_config = {}
@@ -304,6 +347,7 @@ local function BackwardsCompatRegister(func, arg3)
 end
 
 function pfUI:RegisterModule(name, func, arg3)
+  if pfUI.disabled then return end
   if pfUI.module[name] then return end
   func = BackwardsCompatRegister(func, arg3)
   pfUI.module[name] = func
@@ -314,6 +358,7 @@ function pfUI:RegisterModule(name, func, arg3)
 end
 
 function pfUI:RegisterSkin(name, func, arg3)
+  if pfUI.disabled then return end
   if pfUI.skin[name] then return end
   func = BackwardsCompatRegister(func, arg3)
   pfUI.skin[name] = func
@@ -334,6 +379,8 @@ function pfUI:LoadSkin(s)
 end
 
 pfUI:SetScript("OnEvent", function()
+  if pfUI.disabled then return end
+
   -- enforce color updates on each event
   pfUI:UpdateColors()
 
