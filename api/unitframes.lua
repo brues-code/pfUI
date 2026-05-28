@@ -356,7 +356,7 @@ function pfUI.uf:UpdateVisibility()
   end
 
   -- vanilla visibility
-  if self.unitname and self.unitname ~= "focus" and self.unitname ~= "focustarget" then
+  if self.unitname then
     self:Show()
   elseif visibility == "hide" then
     self:Hide()
@@ -1462,52 +1462,7 @@ function pfUI.uf.OnUpdate()
     end
   end
 
-  -- handle pseudo focus frames
-  if this.unitname and this == pfFocus then
-    local unitname = ( this.label and UnitName(this.label) ) or ""
-
-    if pfFocusTarget then -- update focus target
-      pfFocusTarget.label = this.label and this.label .. "target" or nil
-      local focustargetname = pfFocusTarget.label and UnitName(pfFocusTarget.label) or nil
-
-      if pfFocusTarget.lastUnit ~= focustargetname then
-        pfFocusTarget.lastUnit = focustargetname
-        pfFocusTarget.instantRefresh = true
-        pfUI.uf:RefreshUnit(pfFocusTarget, "all")
-      end
-    end
-
-    -- break here on unset focus frames
-    if not this.unitname or this.unitname == "focus" then return end
-
-    -- focus unit detection
-    if this.unitname ~= strlower(unitname) then
-      -- invalid focus frame
-      for unit, bool in pairs(pfValidUnits) do
-        local scan = UnitName(unit) or ""
-        if this.unitname == strlower(scan) then
-          this.label = unit
-          if this.portrait then this.portrait.model.lastUnit = nil end
-          this.instantRefresh = true
-          pfUI.uf:RefreshUnit(this, "all")
-          return
-        end
-        this.label = nil
-        this.instantRefresh = true
-        this.hp.bar:SetStatusBarColor(.2,.2,.2)
-      end
-    end
-  end
-
-  -- handle pseudo focus target visibility
-  if this.unitname and this == pfFocusTarget then
-    if pfFocus and not pfFocus.label or pfFocus.label == "" then
-      this.label = nil
-      return
-    end
-  end
-
-  if not this.label then return end
+  if not this.label or this.label == "" then return end
 
   -- update portrait on first visible frame
   if this.portrait and this.portrait.model and this.portrait.model.update then

@@ -52,20 +52,28 @@ pfValidUnits["player"] = true
 pfValidUnits["target"] = true
 pfValidUnits["mouseover"] = true
 
+pfValidUnits["focus"] = true
+pfValidUnits["focustarget"] = true
+
 pfValidUnits["pettarget"] = true
 pfValidUnits["playertarget"] = true
 pfValidUnits["targettarget"] = true
 pfValidUnits["mouseovertarget"] = true
 pfValidUnits["targettargettarget"] = true
-for i=1,4 do pfValidUnits["party" .. i] = true end
-for i=1,4 do pfValidUnits["partypet" .. i] = true end
-for i=1,40 do pfValidUnits["raid" .. i] = true end
-for i=1,40 do pfValidUnits["raidpet" .. i] = true end
 
-for i=1,4 do pfValidUnits["party" .. i .. "target"] = true end
-for i=1,4 do pfValidUnits["partypet" .. i .. "target"] = true end
-for i=1,40 do pfValidUnits["raid" .. i .. "target"] = true end
-for i=1,40 do pfValidUnits["raidpet" .. i .. "target"] = true end
+for i=1,4 do
+  pfValidUnits["party" .. i] = true
+  pfValidUnits["party" .. i .. "target"] = true
+  pfValidUnits["partypet" .. i] = true
+  pfValidUnits["partypet" .. i .. "target"] = true
+end
+
+for i=1,40 do
+  pfValidUnits["raid" .. i] = true
+  pfValidUnits["raid" .. i .. "target"] = true
+  pfValidUnits["raidpet" .. i] = true
+  pfValidUnits["raidpet" .. i .. "target"] = true
+end
 
 -- itemid = buyPrice (copper). Sell price comes from C_Item.GetItemSellPriceByID;
 -- this table only carries the curated vendor-buy price (which isn't a static
