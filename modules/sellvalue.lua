@@ -7,11 +7,7 @@ pfUI:RegisterModule("sellvalue", function ()
     local buy = pfSellData[id]
     if sell == 0 and not buy then return end
 
-    if not MerchantFrame:IsShown() and sell > 0 then
-      SetTooltipMoney(frame, sell * count)
-    end
-
-    if IsShiftKeyDown() or C.tooltip.vendor.showalways == "1" then
+    if C.tooltip.vendor.showalways == "1" or IsShiftKeyDown()  then
       frame:AddLine(" ")
 
       if sell > 0 then
