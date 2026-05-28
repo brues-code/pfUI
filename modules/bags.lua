@@ -698,19 +698,20 @@ pfUI:RegisterModule("bags", function ()
       end
     end
 
+    local itemID = C_Container.GetContainerItemID(bag, slot)
+
     local texture, count, locked, quality = GetContainerItemInfo(bag, slot)
 
-    -- Nampower 4.1.4+: spellChargesRemaining gives accurate charge count for
-    -- charged items (e.g. Brilliant Mana Oil).
-    -- Only use it when stackCount == 1 and spellChargesRemaining > 1,
-    -- otherwise we'd override normal stack counts.
-    if GetBagItem then
-      local ok, itemInfo = pcall(GetBagItem, bag, slot)
-      if ok and itemInfo and itemInfo.stackCount == 1 and itemInfo.spellChargesRemaining and itemInfo.spellChargesRemaining > 1 then
-        count = itemInfo.spellChargesRemaining
+    
+    if count == 1 then
+      local charges = C_Container.GetContainerItemCharges(bag, slot)
+      if charges > 1 then
+        count = charges
       end
     end
-    local _, _, q, _, _, _, itype = GetItemInfo(C_Container.GetContainerItemID(bag, slot))
+
+
+    local _, _, q, _, _, _, itype = GetItemInfo(itemID)
 
     -- running advanced item color scan
     if C.appearance.bags.borderonlygear == "0" and texture and quality and quality < 1 then
