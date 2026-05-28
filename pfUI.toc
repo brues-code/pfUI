@@ -1,11 +1,12 @@
 ## Interface: 11200
 ## Title: |cff33ffccpf|cffffffffUI
-## Author: Shagu - modfied by me0wg4ming
+## Author: Shagu - modfied by me0wg4ming & brues
 ## Notes: A complete user interface replacement.
 ## Notes-ruRU: Полная замена пользовательского интерфейса.
 ## Version: 8.3.0
 ## SavedVariables: pfUI_profiles, pfUI_addon_profiles, pfUI_cache, pfUI_throttle
 ## SavedVariablesPerCharacter: pfUI_config, pfUI_init, pfUI_playerDB
+## Dependencies: !!!ClassicAPI
 
 pfUI.lua
 
