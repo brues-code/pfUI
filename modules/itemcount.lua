@@ -13,7 +13,7 @@ pfUI:RegisterModule("itemcount", function ()
   end
 
   local function AddCounts(frame, id)
-    if not id then return end
+    if not id or id == HEARTHSTONE_ITEM_ID or C_Item.GetItemUniquenessByID(id) == 1 then return end
 
     local total = C_Item.GetItemCount(id, true)  -- bags + bank + equipped
     if total < 1 then return end
@@ -33,8 +33,6 @@ pfUI:RegisterModule("itemcount", function ()
     frame:Show()
   end
 
-  -- GameTooltip: piggyback on its OnShow lifecycle. Each tooltip refresh
-  -- hides/shows the parent which propagates Show() to this child frame.
   pfUI.itemcount = CreateFrame("Frame", "pfItemCountTooltip", GameTooltip)
   pfUI.itemcount:SetScript("OnShow", function()
     if GameTooltip:HasItem() then
@@ -43,7 +41,6 @@ pfUI:RegisterModule("itemcount", function ()
     end
   end)
 
-  -- ItemRefTooltip: persistent tooltip from chat link clicks.
   hooksecurefunc("SetItemRef", function()
     if ItemRefTooltip:HasItem() then
       local _, _, id = ItemRefTooltip:GetItem()
