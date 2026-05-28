@@ -54,6 +54,7 @@ pfValidUnits["mouseover"] = true
 
 pfValidUnits["focus"] = true
 pfValidUnits["focustarget"] = true
+pfValidUnits["focustargettarget"] = true
 
 pfValidUnits["pettarget"] = true
 pfValidUnits["playertarget"] = true
@@ -71,8 +72,12 @@ end
 for i=1,40 do
   pfValidUnits["raid" .. i] = true
   pfValidUnits["raid" .. i .. "target"] = true
+
   pfValidUnits["raidpet" .. i] = true
   pfValidUnits["raidpet" .. i .. "target"] = true
+
+  pfValidUnits["nameplate" .. i] = true
+  pfValidUnits["nameplate" .. i .. "target"] = true
 end
 
 -- itemid = buyPrice (copper). Sell price comes from C_Item.GetItemSellPriceByID;
