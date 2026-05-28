@@ -390,9 +390,6 @@ pfUI:RegisterModule("castbar", function ()
     pfUI.castbar.focus.showrank = C.castbar.focus.showrank == "1" and true or nil
     pfUI.castbar.focus.spacing = default_border * 2 + tonumber(C.unitframes.focus.pspace) * GetPerfectPixel()
 
-    -- reset unitstr for vanilla focus frame emulation
-    pfUI.castbar.focus.unitstr = nil
-
     local anchor = pfUI.uf.focus.portrait:GetHeight() > pfUI.uf.focus:GetHeight() and pfUI.uf.focus.power or pfUI.uf.focus
     local width = C.castbar.focus.width ~= "-1" and C.castbar.focus.width or anchor:GetWidth()
     pfUI.castbar.focus:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -pfUI.castbar.focus.spacing)
@@ -402,31 +399,8 @@ pfUI:RegisterModule("castbar", function ()
       pfUI.castbar.focus:SetHeight(C.castbar.focus.height)
     end
 
-    -- keep unit values in sync with focus unitframe
-    HookScript(pfUI.castbar.focus, "OnUpdate", function()
-      -- clear on empty focus frames
-      if pfUI.uf.focus.unitname == nil and pfUI.uf.focus.label == nil then
-        pfUI.castbar.focus.unitstr = nil
-        pfUI.castbar.focus.unitname = nil
-        return
-      end
-
-      -- skip on initial values
-      if pfUI.uf.focus.unitname == "focus" then return end
-      if pfUI.uf.focus.unitname == "" then return end
-
-      -- try to obtain a unitstr
-      pfUI.castbar.focus.unitstr = string.format("%s%s", (pfUI.uf.focus.label or ""), (pfUI.uf.focus.id or ""))
-      pfUI.castbar.focus.unitstr = pfUI.castbar.focus.unitstr == "" and nil or pfUI.castbar.focus.unitstr
-
-      if pfUI.castbar.focus.unitstr then
-        -- read non-lowercase unitname when possible
-        pfUI.castbar.focus.unitname = UnitName(pfUI.castbar.focus.unitstr) or pfUI.castbar.focus.unitname
-      elseif strlower(pfUI.castbar.focus.unitname) ~= strlower(pfUI.uf.focus.unitname) then
-        -- sync unitname with focus frame's lowercase value
-        pfUI.castbar.focus.unitname = pfUI.uf.focus.unitname
-      end
-    end)
+    -- bind castbar to the "focus" unit token; the GUID resolves at read time
+    pfUI.castbar.focus.unitstr = "focus"
 
     UpdateMovable(pfUI.castbar.focus)
   end
