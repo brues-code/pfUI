@@ -25,11 +25,8 @@ pfUI.bootup = true
 
 -- ClassicAPI dependency check.
 -- pfUI relies pervasively on the modern C_* / SuperWoW / nameplate / focus
--- API surface that ClassicAPI polyfills, so presence is required (not
--- optional). Without it, users would otherwise see a flood of "attempt to
--- index a nil value" errors as each module tries to call C_Container /
--- C_Item / C_UnitAuras / C_NamePlate / FocusUnit / etc.
-local PFUI_CLASSIC_API_MIN = 10200  -- v1.2.0 (X*10000 + Y*100 + Z)
+-- API surface that ClassicAPI polyfills, so presence is required.
+local PFUI_CLASSIC_API_MIN = 10201  -- v1.2.0 (X*10000 + Y*100 + Z)
 if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
   pfUI.disabled = true
 

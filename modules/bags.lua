@@ -285,15 +285,11 @@ pfUI:RegisterModule("bags", function ()
       local bagsize = GetContainerNumSlots(bag)
       if bag == -2 and pfUI.bag.showKeyring == true then bagsize = GetKeyRingSize() end
       for slot=1, bagsize do
-        if GetContainerItemInfo(bag, slot) then
-          scanner:SetBagItem(bag, slot)
-
-          if scanner:Find(_G.ITEM_OPENABLE, true) then
-            openable.bag = bag
-            openable.slot = slot
-            openable.icon = GetContainerItemInfo(bag, slot)
-            return openable.bag, openable.slot
-          end
+        if C_Container.IsContainerItemOpenable(bag, slot) then
+          openable.bag = bag
+          openable.slot = slot
+          openable.icon = GetContainerItemInfo(bag, slot)
+          return openable.bag, openable.slot
         end
       end
     end
