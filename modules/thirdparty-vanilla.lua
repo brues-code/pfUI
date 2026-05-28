@@ -531,9 +531,9 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
 
     -- replace wim class colors with pfUI ones
     hooksecurefunc("WIM_InitClassProps", function()
-      for class in pairs(RAID_CLASS_COLORS) do
+      for class in pairs(PFUI_CLASS_COLORS) do
         local wimclass = _G[format("WIM_LOCALIZED_%s",class)]
-        local colorstr = "|c" .. RAID_CLASS_COLORS[class].colorStr
+        local colorstr = "|c" .. PFUI_CLASS_COLORS[class].colorStr
         _G.WIM_ClassColors[wimclass] = gsub(colorstr, "^|cff", "")
       end
     end)

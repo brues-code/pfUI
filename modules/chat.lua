@@ -430,7 +430,8 @@ pfUI:RegisterModule("chat", function ()
       end
 
       local _, class = UnitClass("player")
-      _G["ChatFrame" .. i .. "TabText"]:SetTextColor((RAID_CLASS_COLORS[class].r + .3) * .5, (RAID_CLASS_COLORS[class].g + .3) * .5, (RAID_CLASS_COLORS[class].b + .3) * .5, 1)
+      local classColor = PFUI_CLASS_COLORS[class]
+      _G["ChatFrame" .. i .. "TabText"]:SetTextColor((classColor.r + .3) * .5, (classColor.g + .3) * .5, (classColor.b + .3) * .5, 1)
       _G["ChatFrame" .. i .. "TabText"]:SetFont(panelfont,panelfont_size, "OUTLINE")
 
       if _G["ChatFrame" .. i].isDocked or _G["ChatFrame" .. i]:IsVisible() then
@@ -766,7 +767,7 @@ pfUI:RegisterModule("chat", function ()
         end
         if class then
           if class ~= UNKNOWN then
-            color = "|c" .. RAID_CLASS_COLORS[class].colorStr
+            color = "|c" .. PFUI_CLASS_COLORS[class].colorStr
             match = true
           end
         elseif C.chat.text.whosearchunknown == "1" then

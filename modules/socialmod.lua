@@ -19,7 +19,7 @@ pfUI:RegisterModule("socialmod", function ()
 
         if name then
           if class then
-            local color = RAID_CLASS_COLORS[class]
+            local color = PFUI_CLASS_COLORS[class]
             local classicon = _G["GuildFrameButton"..i].classicon
             local coords = CLASS_ICON_TCOORDS[class]
 
@@ -86,7 +86,7 @@ pfUI:RegisterModule("socialmod", function ()
 
         if connected then
           if not class or class == _G.UNKNOWN then break end
-          local ccolor = RAID_CLASS_COLORS[L["class"][class]] or { 1, 1, 1 }
+          local ccolor = PFUI_CLASS_COLORS[L["class"][class]] or { 1, 1, 1 }
           local lcolor = GetDifficultyColor(tonumber(level)) or { 1, 1, 1 }
 
           zone = ( zone == playerzone and "|cffffffff" or "|cffcccccc" ) .. zone .. "|r"
@@ -172,7 +172,7 @@ pfUI:RegisterModule("socialmod", function ()
         if class then
           local classicon = _G["WhoFrameButton"..i].classicon
           local coords = CLASS_ICON_TCOORDS[class]
-          local color = RAID_CLASS_COLORS[class]
+          local color = PFUI_CLASS_COLORS[class]
 
           -- do we have classicons? (skin enabled?)
           if classicon then

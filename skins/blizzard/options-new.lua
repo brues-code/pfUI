@@ -106,7 +106,7 @@ pfUI:RegisterSkin("Options - New", function ()
         btn:SetBackdropColor(br, bg, bb, 0.75)
         btn:SetBackdropBorderColor(er, eg, eb, 1)
         local _, class = UnitClass("player")
-        local color = RAID_CLASS_COLORS[class]
+        local color = PFUI_CLASS_COLORS[class]
         SetHighlight(btn, color.r, color.g, color.b)
         btn:SetFont(pfUI.font_default, pfUI_config.global.font_size, "OUTLINE")
         HookScript(btn, "OnMouseDown", function()

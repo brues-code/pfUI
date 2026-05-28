@@ -227,7 +227,7 @@ end
 -- return:      [table]         string, r, g, b
 function pfUI.api.GetUnitColor(unitstr)
   local _, class = UnitClass(unitstr)
-  local classColor = RAID_CLASS_COLORS[class]
+  local classColor = PFUI_CLASS_COLORS[class]
   return classColor:GenerateHexColorMarkup(), classColor:GetRGB()
 end
 

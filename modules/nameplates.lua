@@ -1215,9 +1215,9 @@ end
 
     if class then
       if unittype == "ENEMY_PLAYER" and C.nameplates["enemyclassc"] == "1" then
-        r, g, b, a = RAID_CLASS_COLORS[class]:GetRGBA()
+        r, g, b, a = PFUI_CLASS_COLORS[class]:GetRGBA()
       elseif unittype == "FRIENDLY_PLAYER" and C.nameplates["friendclassc"] == "1" then
-        r, g, b, a = RAID_CLASS_COLORS[class]:GetRGBA()
+        r, g, b, a = PFUI_CLASS_COLORS[class]:GetRGBA()
       end
     end
 
@@ -1239,7 +1239,7 @@ end
       plate.cache.r, plate.cache.g, plate.cache.b = r, g, b
     end
 
-    if r + g + b ~= plate.cache.namecolor and unittype == "FRIENDLY_PLAYER" and C.nameplates["friendclassnamec"] == "1" and class and RAID_CLASS_COLORS[class] then
+    if r + g + b ~= plate.cache.namecolor and unittype == "FRIENDLY_PLAYER" and C.nameplates["friendclassnamec"] == "1" and class and PFUI_CLASS_COLORS[class] then
       plate.name:SetTextColor(r, g, b, a)
       plate.cache.namecolor = r + g + b
     end

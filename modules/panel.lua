@@ -315,7 +315,7 @@ pfUI:RegisterModule("panel", function()
               GameTooltip:AddLine("|cff555555" .. T["Friends Online"])
               init = true
             end
-            local ccolor = RAID_CLASS_COLORS[L["class"][friend_class]] or { 1, 1, 1 }
+            local ccolor = PFUI_CLASS_COLORS[L["class"][friend_class]] or { 1, 1, 1 }
             local lcolor = GetDifficultyColor(tonumber(friend_level)) or { 1, 1, 1 }
             local zcolor = friend_area == playerzone and "|cff33ffcc" or "|cffcccccc"
             GameTooltip:AddDoubleLine(rgbhex(ccolor) .. friend_name .. rgbhex(lcolor) .. " [" .. friend_level .. "]", zcolor .. friend_area)
@@ -375,7 +375,7 @@ pfUI:RegisterModule("panel", function()
               init = true
             end
 
-            local ccolor = RAID_CLASS_COLORS[L["class"][class]] or { 1, 1, 1 }
+            local ccolor = PFUI_CLASS_COLORS[L["class"][class]] or { 1, 1, 1 }
             local lcolor = GetDifficultyColor(tonumber(level)) or { 1, 1, 1 }
             local level = "|cff555555" .. "[" .. rgbhex(lcolor) .. level .. "|cff555555]"
             local raid = raidparty[name] and "|cff555555[|cff33ffccG|cff555555]|r" or ""

@@ -267,10 +267,8 @@ pfUI:RegisterModule("loot", function ()
           info = wipe(info)
           info.text = lclass
           info.textR, info.textG, info.textB = .7,.7,.7
-          if class and RAID_CLASS_COLORS[class] then
-            info.textR = RAID_CLASS_COLORS[class].r
-            info.textG = RAID_CLASS_COLORS[class].g
-            info.textB = RAID_CLASS_COLORS[class].b
+          if class and PFUI_CLASS_COLORS[class] then
+            info.textR, info.textG, info.textB = PFUI_CLASS_COLORS[class]:GetRGB()
           end
           info.textHeight = 12
           info.hasArrow = 1
@@ -290,10 +288,8 @@ pfUI:RegisterModule("loot", function ()
           info = wipe(info)
           info.text = candidate
           info.textR, info.textG, info.textB = .7,.7,.7
-          if UIDROPDOWNMENU_MENU_VALUE and RAID_CLASS_COLORS[UIDROPDOWNMENU_MENU_VALUE] then
-            info.textR = RAID_CLASS_COLORS[UIDROPDOWNMENU_MENU_VALUE].r
-            info.textG = RAID_CLASS_COLORS[UIDROPDOWNMENU_MENU_VALUE].g
-            info.textB = RAID_CLASS_COLORS[UIDROPDOWNMENU_MENU_VALUE].b
+          if UIDROPDOWNMENU_MENU_VALUE and PFUI_CLASS_COLORS[UIDROPDOWNMENU_MENU_VALUE] then
+            info.textR, info.textG, info.textB = PFUI_CLASS_COLORS[UIDROPDOWNMENU_MENU_VALUE]:GetRGB()
           end
           info.textHeight = 12
           info.value = name_to_index[candidate]
@@ -314,10 +310,8 @@ pfUI:RegisterModule("loot", function ()
           local unit = GroupInfoByName(candidate,"party")
           info.text = candidate
           info.textR, info.textG, info.textB = .7,.7,.7
-          if unit.class and RAID_CLASS_COLORS[unit.class] then
-            info.textR = RAID_CLASS_COLORS[unit.class].r
-            info.textG = RAID_CLASS_COLORS[unit.class].g
-            info.textB = RAID_CLASS_COLORS[unit.class].b
+          if unit.class and PFUI_CLASS_COLORS[unit.class] then
+            info.textR, info.textG, info.textB = PFUI_CLASS_COLORS[unit.class]:GetRGB()
           end
           info.textHeight = 12
           info.value = i

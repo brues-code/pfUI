@@ -200,7 +200,7 @@ pfUI:RegisterModule("tooltip", function ()
 
       if name then
         if UnitIsPlayer(unit) and class then
-          local color = RAID_CLASS_COLORS[class]
+          local color = PFUI_CLASS_COLORS[class]
           GameTooltipStatusBar:SetStatusBarColor_orig(color:GetRGB())
           GameTooltip:SetBackdropBorderColor(color:GetRGB())
           GameTooltipTextLeft1:SetText("|c" .. color.colorStr .. name)
@@ -229,7 +229,7 @@ pfUI:RegisterModule("tooltip", function ()
         local _, targetClass = UnitClass(unit .. "target")
         local targetReaction = UnitReaction("player",unit .. "target")
         if UnitIsPlayer(unit .. "target") and targetClass then
-          local color = RAID_CLASS_COLORS[targetClass]
+          local color = PFUI_CLASS_COLORS[targetClass]
           GameTooltip:AddLine(target, color.r, color.g, color.b)
         elseif targetReaction then
           local color = UnitReactionColor[targetReaction]

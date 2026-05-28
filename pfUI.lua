@@ -37,8 +37,7 @@ if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
   alertFrame:RegisterEvent("PLAYER_LOGIN")
   alertFrame:SetScript("OnEvent", function()
     StaticPopupDialogs["PFUI_CLASSICAPI_REQUIRED"] = {
-      text = "This fork of |cff33ffccpf|cffffffffUI|r requires ClassicAPI\n v1.2.0 or newer.\n\n"
-          .. "All |cff33ffccpf|cffffffffUI|r modules have been disabled.\nInstall ClassicAPI from:",
+      text = "This fork of |cff33ffccpf|cffffffffUI|r requires ClassicAPI\n v1.2.0 or newer.\n\nAll |cff33ffccpf|cffffffffUI|r modules have been disabled.\nInstall ClassicAPI from:",
       button1 = OKAY,
       hasEditBox = 1,
       editBoxWidth = 280,
@@ -58,8 +57,7 @@ if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
     StaticPopup_Show("PFUI_CLASSICAPI_REQUIRED")
     if DEFAULT_CHAT_FRAME then
       DEFAULT_CHAT_FRAME:AddMessage(
-        "This fork of pfUI requires ClassicAPI v1.2.0+. Get it at "
-          .. "https://github.com/brues-code/ClassicAPI",
+        "This fork of pfUI requires ClassicAPI v1.2.0+. Get it at https://github.com/brues-code/ClassicAPI",
         1, 0.3, 0.3
       )
     end
@@ -129,23 +127,26 @@ pfUI.client = client or 11200
 -- setup pfUI namespace
 setmetatable(pfUI.env, {__index = getfenv(0)})
 
-function pfUI:UpdateColors()
-  -- update table to get unknown colors and blue shamans for vanilla
-  RAID_CLASS_COLORS = {
-    ["WARRIOR"] = { r = 0.78, g = 0.61, b = 0.43, colorStr = "ffc79c6e" },
-    ["MAGE"]    = { r = 0.41, g = 0.8,  b = 0.94, colorStr = "ff69ccf0" },
-    ["ROGUE"]   = { r = 1,    g = 0.96, b = 0.41, colorStr = "fffff569" },
-    ["DRUID"]   = { r = 1,    g = 0.49, b = 0.04, colorStr = "ffff7d0a" },
-    ["HUNTER"]  = { r = 0.67, g = 0.83, b = 0.45, colorStr = "ffabd473" },
-    ["SHAMAN"]  = { r = 0.14, g = 0.35, b = 1.0,  colorStr = "ff0070de" },
-    ["PRIEST"]  = { r = 1,    g = 1,    b = 1,    colorStr = "ffffffff" },
-    ["WARLOCK"] = { r = 0.58, g = 0.51, b = 0.79, colorStr = "ff9482c9" },
-    ["PALADIN"] = { r = 0.96, g = 0.55, b = 0.73, colorStr = "fff58cba" },
-  }
+PFUI_CLASS_COLORS = setmetatable({
+  WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
+  MAGE    = { r = 0.25, g = 0.78, b = 0.92 },
+  ROGUE   = { r = 1,    g = 0.96, b = 0.41 },
+  DRUID   = { r = 1,    g = 0.49, b = 0.04 },
+  HUNTER  = { r = 0.67, g = 0.83, b = 0.45 },
+  SHAMAN  = { r = 0,    g = 0.44, b = 0.87 },
+  PRIEST  = { r = 1,    g = 1,    b = 1    },
+  WARLOCK = { r = 0.53, g = 0.53, b = 0.93 },
+  PALADIN = { r = 0.96, g = 0.55, b = 0.73 },
+}, { __index = function(t,k)
+  local unknownColor = CreateColor(0.6, 0.6, 0.6, 1)
+  unknownColor.colorStr = unknownColor:GenerateHexColor()
+  return unknownColor
+end})
 
-  RAID_CLASS_COLORS = setmetatable(RAID_CLASS_COLORS, { __index = function(tab,key)
-    return { r = 0.6,  g = 0.6,  b = 0.6,  colorStr = "ff999999" }
-  end})
+for _, classColor in pairs(PFUI_CLASS_COLORS) do
+  Mixin(classColor, ColorMixin)
+  classColor.a = 1
+  classColor.colorStr = classColor:GenerateHexColor()
 end
 
 function pfUI:UpdateFonts()
@@ -380,9 +381,6 @@ end
 
 pfUI:SetScript("OnEvent", function()
   if pfUI.disabled then return end
-
-  -- enforce color updates on each event
-  pfUI:UpdateColors()
 
   -- make sure to initialize and set our fonts
   -- each time an addon got loaded but only

@@ -139,7 +139,7 @@ end
 
 do -- dropdown
   local _, class = UnitClass("player")
-  local color = RAID_CLASS_COLORS[class]
+  local color = PFUI_CLASS_COLORS[class]
 
   local function ListEntryOnShow()
     if this.parent.id == this.id then
@@ -734,7 +734,7 @@ function pfUI.api.SkinRotateButton(button)
   pfUI.api.CreateBackdrop(button)
 
   local _, class = UnitClass("player")
-  local color = RAID_CLASS_COLORS[class]
+  local color = PFUI_CLASS_COLORS[class]
   local cr, cg, cb = color.r , color.g, color.b
 
   button:SetWidth(button:GetWidth() - 18)
@@ -939,7 +939,7 @@ function pfUI.api.SkinDropDown(frame, cr, cg, cb, useSmall)
 
   if not cr or not cg or not cb then
     local _, class = UnitClass("player")
-    local color = RAID_CLASS_COLORS[class]
+    local color = PFUI_CLASS_COLORS[class]
     cr, cg, cb = color.r , color.g, color.b
   end
 
