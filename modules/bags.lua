@@ -132,7 +132,10 @@ pfUI:RegisterModule("bags", function ()
         for slot = 1, numSlots do
           local itemId = C_Container.GetContainerItemID(bag, slot)
           if itemId then
-            local name, _, quality, _, itype, subtype = GetItemInfo(itemId)
+            -- pfUI's compat layer shims GetItemInfo to the modern 10-field
+            -- signature (inserts nil for itemLevel between quality and
+            -- minlevel) — so itype/subtype sit at positions 6/7, not 5/6.
+            local name, _, quality, _, _, itype, subtype = GetItemInfo(itemId)
             local _, count = GetContainerItemInfo(bag, slot)
             local item = {
               key     = SortKey(itemId, name, itype, subtype, quality, count),
