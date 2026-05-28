@@ -702,14 +702,12 @@ pfUI:RegisterModule("bags", function ()
 
     local texture, count, locked, quality = GetContainerItemInfo(bag, slot)
 
-    
     if count == 1 then
       local charges = C_Container.GetContainerItemCharges(bag, slot)
       if charges > 1 then
         count = charges
       end
     end
-
 
     local _, _, q, _, _, _, itype = GetItemInfo(itemID)
 
