@@ -296,8 +296,16 @@ function pfUI:CheckNewModules()
   end
 end
 
-function pfUI:RegisterModule(name, func)
+local function BackwardsCompatRegister(func, arg3)
+  if arg3 and type(func) == "string" and type(arg3) == "function" and string.find(func, "vanilla") then
+    return arg3
+  end
+  return func
+end
+
+function pfUI:RegisterModule(name, func, arg3)
   if pfUI.module[name] then return end
+  func = BackwardsCompatRegister(func, arg3)
   pfUI.module[name] = func
   table.insert(pfUI.modules, name)
   if not pfUI.bootup then
@@ -305,8 +313,9 @@ function pfUI:RegisterModule(name, func)
   end
 end
 
-function pfUI:RegisterSkin(name, func)
+function pfUI:RegisterSkin(name, func, arg3)
   if pfUI.skin[name] then return end
+  func = BackwardsCompatRegister(func, arg3)
   pfUI.skin[name] = func
   table.insert(pfUI.skins, name)
   if not pfUI.bootup then
