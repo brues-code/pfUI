@@ -915,6 +915,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("questlog",   nil,           "showQuestLevels",  "0")
 
   pfUI:UpdateConfig("character",  "inventory",   "durability",       "1")
+  pfUI:UpdateConfig("character",  "reputation",  "repRequired",      "1")
   pfUI:UpdateConfig("thirdparty", nil,           "chatbg",           "1")
   pfUI:UpdateConfig("thirdparty", nil,           "showmeter",        "0")
   pfUI:UpdateConfig("thirdparty", "dpsmate",     "skin",             "0")

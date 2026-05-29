@@ -287,6 +287,31 @@ pfUI:RegisterSkin("Character", function ()
     SkinCheckbox(ReputationDetailAtWarCheckBox)
     SkinCheckbox(ReputationDetailInactiveCheckBox)
     SkinCheckbox(ReputationDetailMainScreenCheckBox)
+
+    -- Append "(N)" to each standing label where N is rep remaining to the
+    -- next reaction. Skip exalted (reaction 8) and effectively-capped bars.
+    -- Each bar's OnLeave handler (Blizzard's ReputationFrame.xml) restores
+    -- the FactionStanding text from `bar.standingText` on mouseout, so we
+    -- stash our augmented text there too — otherwise hovering a bar strips
+    -- the "(N)" suffix off.
+    hooksecurefunc("ReputationFrame_Update", function()
+      if C.character.reputation.repRequired ~= "1" then return end
+      local offset = FauxScrollFrame_GetOffset(ReputationListScrollFrame)
+      for i = 1, NUM_FACTIONS_DISPLAYED do
+        local standing = _G["ReputationBar"..i.."FactionStanding"]
+        if standing and standing:IsVisible() then
+          local faction = C_Reputation.GetFactionDataByIndex(offset + i)
+          if faction and faction.reaction and faction.reaction < 8 then
+            local repLeft = faction.nextReactionThreshold - faction.currentStanding
+            if repLeft > 1 then
+              local text = standing:GetText() .. string.format(" (%d)", repLeft)
+              standing:SetText(text)
+              standing:GetParent().standingText = text
+            end
+          end
+        end
+      end
+    end)
   end
 
   do -- Skills Tab
