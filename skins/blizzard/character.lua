@@ -81,6 +81,14 @@ pfUI:RegisterSkin("Character", function ()
       "AmmoSlot"
     }
 
+    local DURABILITY_THRESHOLD_COLORS = {
+      RED_FONT_COLOR,
+      ORANGE_THREAT_COLOR,
+      YELLOW_FONT_COLOR,
+      INVASION_FONT_COLOR,
+      PURE_GREEN_COLOR,
+    }
+
     local function RefreshPetPosition()
       CharacterFrameTab3:ClearAllPoints()
       CharacterFrameTab3:SetPoint("LEFT", HasPetUI() and CharacterFrameTab2 or CharacterFrameTab1, "RIGHT", border*2 + 1, 0)
@@ -88,9 +96,9 @@ pfUI:RegisterSkin("Character", function ()
 
     local function RefreshCharacterSlot(slot)
       local slotId = slot:GetID()
-      local link = GetInventoryItemLink("player", slotId)
+      local itemID = GetInventoryItemID("player", slotId)
       if slot and slot.backdrop then
-        if link then
+        if itemID then
           local isBroken = GetInventoryItemBroken("player", slotId)
           local quality = GetInventoryItemQuality("player", slotId)
           if isBroken then
@@ -101,13 +109,31 @@ pfUI:RegisterSkin("Character", function ()
           else
             slot.backdrop:SetBackdropBorderColor(pfUI.cache.er, pfUI.cache.eg, pfUI.cache.eb, pfUI.cache.ea)
           end
+          if C.character.inventory.durability == "1" then
+            local current, maximum = GetInventoryItemDurability(slotId)
+            if current and maximum and maximum > 0 then
+              local pct = math.floor((current / maximum) * 100)
+              slot.durabilityText:SetText(pct .. "%")
+              -- 0-20% red, 20-40% orange, 40-60% yellow, 60-80% invasion, 80-100% green
+              local color = DURABILITY_THRESHOLD_COLORS[math.max(1, math.ceil(pct / 20))]
+              slot.durabilityText:SetTextColor(color:GetRGB())
+              slot.durabilityText:Show()
+            else
+              slot.durabilityText:SetText("")
+              slot.durabilityText:Hide()
+            end
+          else
+            slot.durabilityText:SetText("")
+            slot.durabilityText:Hide()
+          end
         else
           slot.backdrop:SetBackdropBorderColor(pfUI.cache.er, pfUI.cache.eg, pfUI.cache.eb, pfUI.cache.ea)
+          slot.durabilityText:SetText("")
+          slot.durabilityText:Hide()
         end
 
-        if ShaguScore and link then
-          local _, _, itemID = string.find(GetInventoryItemLink("player", slotId), "item:(%d+):%d+:%d+:%d+")
-          local itemLevel = ShaguScore.Database[tonumber(itemID)] or 0
+        if ShaguScore and itemID then
+          local itemLevel = C_Item.GetCurrentItemLevel({ equipmentSlotIndex = slotId })
           local _, _, quality, _, _, _, _, _, itemSlot, _ = GetItemInfo(itemID)
           local score = ShaguScore:Calculate(itemSlot, quality, itemLevel)
           if score and score > 0 and quality and quality > 0 then
@@ -174,11 +200,11 @@ pfUI:RegisterSkin("Character", function ()
 
       HandleIcon(frame.backdrop, _G["Character"..slotName.."IconTexture"])
 
-      if not frame.scoreText then
-        frame.scoreText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        frame.scoreText:SetFont(pfUI.font_default, 12, "OUTLINE")
-        frame.scoreText:SetPoint("TOPRIGHT", 0, 0)
-      end
+      CreateFontString(frame, "scoreText", "OVERLAY", 12)
+      frame.scoreText:SetPoint("TOPRIGHT", 0, 0)
+
+      CreateFontString(frame, "durabilityText", "OVERLAY", 10)
+      frame.durabilityText:SetPoint("BOTTOM", 0, 2)
     end
   end
 

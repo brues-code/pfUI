@@ -2393,6 +2393,10 @@ pfUI:RegisterModule("gui", function ()
       end)
     end
 
+    CreateGUIEntry(T["Character"], T["Inventory"], function()
+      CreateConfig(nil, T["Show Durability"], C.character.inventory, "durability", "checkbox")
+    end)
+
     CreateGUIEntry(T["Bags & Bank"], nil, function()
       CreateConfig(nil, T["Disable Item Quality Color For \"Common\" Items"], C.appearance.bags, "borderlimit", "checkbox")
       CreateConfig(nil, T["Enable Item Quality Color For Equipment Only"], C.appearance.bags, "borderonlygear", "checkbox")

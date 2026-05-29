@@ -913,6 +913,8 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("gm",         nil,           "server",           "elysium")
 
   pfUI:UpdateConfig("questlog",   nil,           "showQuestLevels",  "0")
+
+  pfUI:UpdateConfig("character",  "inventory",   "durability",       "1")
   pfUI:UpdateConfig("thirdparty", nil,           "chatbg",           "1")
   pfUI:UpdateConfig("thirdparty", nil,           "showmeter",        "0")
   pfUI:UpdateConfig("thirdparty", "dpsmate",     "skin",             "0")

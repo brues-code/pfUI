@@ -1167,6 +1167,26 @@ function pfUI.api.CreateBackdrop(f, inset, legacy, transp, backdropSetting)
   end
 end
 
+-- [ Create FontString ]
+-- Get-or-create a FontString attached to `f` as the named field. Idempotent —
+-- subsequent calls return the existing FontString. Defaults to pfUI's typical
+-- font style: default font at config size, OUTLINE flag, OVERLAY layer.
+-- 'f'      [frame]   parent frame
+-- 'key'    [string]  field name on `f` to stash the FontString (e.g. "scoreText")
+-- 'layer'  [string]  draw layer. Defaults to "OVERLAY".
+-- 'size'   [int]     font size. Defaults to C.global.font_size.
+-- 'flags'  [string]  font flags. Defaults to "OUTLINE".
+-- 'font'   [string]  font path. Defaults to pfUI.font_default.
+function pfUI.api.CreateFontString(f, key, layer, size, flags, font)
+  if not f or not key then return end
+  if f[key] then return f[key] end
+
+  local fs = f:CreateFontString(nil, layer or "OVERLAY")
+  fs:SetFont(font or pfUI.font_default, size or C.global.font_size, flags or "OUTLINE")
+  f[key] = fs
+  return fs
+end
+
 -- [ Create Shadow ]
 -- Creates a pfUI compatible frame as shadow element
 -- 'f'          [frame]         the frame which should get a backdrop.
