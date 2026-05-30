@@ -2398,7 +2398,7 @@ pfUI:RegisterModule("gui", function ()
     end)
 
     CreateGUIEntry(T["Character"], T["Reputation"], function()
-      CreateConfig(nil, T["Show Rep Required To Next Standing"], C.character.reputation, "repRequired", "checkbox")
+      CreateConfig(nil, T["Show Reputation Remaining"], C.character.reputation, "repRequired", "checkbox")
     end)
 
     CreateGUIEntry(T["Bags & Bank"], nil, function()
