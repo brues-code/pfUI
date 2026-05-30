@@ -215,8 +215,24 @@ pfUI:RegisterModule("equipmentmanager", function()
 
     btn:SetScript("OnEnter", function()
       GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-      if this.itemID then
-        GameTooltip:SetHyperlink("item:"..this.itemID..":0:0:0")
+      if this.location then
+        -- Set is selected and the item resolved to a real location: use
+        -- the location-aware tooltip so durability/charges/etc. show.
+        local loc = EquipmentManager_GetLocationData(this.location)
+        if loc.isBags then
+          GameTooltip:SetBagItem(loc.bag, loc.slot)
+        elseif loc.isPlayer then
+          GameTooltip:SetInventoryItem("player", loc.slot)
+        else
+          GameTooltip:SetInventoryItemByID(this.itemID)
+        end
+      elseif this.itemID then
+        -- No set selected (showing equipped) OR set item is missing.
+        if GetInventoryItemID("player", this.slotID) == this.itemID then
+          GameTooltip:SetInventoryItem("player", this.slotID)
+        else
+          GameTooltip:SetInventoryItemByID(this.itemID)
+        end
       else
         GameTooltip:SetText(_G[strupper(this.slotName)] or this.slotName)
       end
@@ -678,9 +694,11 @@ pfUI:RegisterModule("equipmentmanager", function()
     -- otherwise show currently equipped items.
     local setItemIDs = selectedSetID and (C_EquipmentSet.GetItemIDs(selectedSetID) or {}) or nil
     local setIgnored = {}
+    local setLocations = nil
     if selectedSetID then
       local ig = C_EquipmentSet.GetIgnoredSlots(selectedSetID) or {}
       for _, s in ipairs(ig) do setIgnored[s] = true end
+      setLocations = C_EquipmentSet.GetItemLocations(selectedSetID) or {}
     end
 
     for _, slot in ipairs(SLOTS) do
@@ -690,6 +708,7 @@ pfUI:RegisterModule("equipmentmanager", function()
       if not itemID then itemID = GetInventoryItemID and GetInventoryItemID("player", slot.id) end
 
       btn.itemID = itemID
+      btn.location = setLocations and setLocations[slot.id] or nil
       if itemID then
         btn.texture:SetTexture(C_Item.GetItemIconByID(itemID) or "Interface\\Icons\\INV_Misc_QuestionMark")
         btn.texture:SetTexCoord(.08, .92, .08, .92)
@@ -706,13 +725,8 @@ pfUI:RegisterModule("equipmentmanager", function()
       if isIgnored then btn.ignoredOverlay:Show() else btn.ignoredOverlay:Hide() end
 
       -- Missing item (set has slot but item not resolved): red border
-      if selectedSetID and setItemIDs and not setItemIDs[slot.id] and not isIgnored then
-        local locations = C_EquipmentSet.GetItemLocations(selectedSetID) or {}
-        if not locations[slot.id] then
-          btn.backdrop:SetBackdropBorderColor(0.9, 0.2, 0.2, 1)
-        else
-          btn.backdrop:SetBackdropBorderColor(pfUI.cache.er, pfUI.cache.eg, pfUI.cache.eb, pfUI.cache.ea)
-        end
+      if selectedSetID and setItemIDs and not setItemIDs[slot.id] and not isIgnored and not btn.location then
+        btn.backdrop:SetBackdropBorderColor(0.9, 0.2, 0.2, 1)
       else
         btn.backdrop:SetBackdropBorderColor(pfUI.cache.er, pfUI.cache.eg, pfUI.cache.eb, pfUI.cache.ea)
       end
