@@ -38,6 +38,17 @@ pfUI:RegisterModule("equipmentmanager", function()
   local selectedSetID = nil
   local pendingAction = nil  -- "new" | "save" | "rename" — what the popups apply to
 
+  -- Shared by the Equip button and set-row double-click.
+  local function EquipSet(setID)
+    if not setID then return end
+    if C_EquipmentSet.EquipmentSetContainsLockedItems(setID) then
+      UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT or "Locked items in set", 1, .1, .1, 1)
+      return
+    end
+    ClearCursor()
+    C_EquipmentSet.UseEquipmentSet(setID)
+  end
+
   -- ============================================================
   -- Main content frame: opens as a sidecar to the right of CharacterFrame
   -- (matches ReputationDetailFrame's positioning pattern).
@@ -136,6 +147,14 @@ pfUI:RegisterModule("equipmentmanager", function()
 
     row:SetScript("OnClick", function()
       selectedSetID = row.setID
+      -- Detect double-click manually; vanilla Button has no native event.
+      local now = GetTime()
+      if row.lastClick and (now - row.lastClick) < 0.4 then
+        row.lastClick = nil
+        EquipSet(row.setID)
+      else
+        row.lastClick = now
+      end
       pfUI.equipmentmanager.Refresh()
     end)
 
@@ -462,7 +481,6 @@ pfUI:RegisterModule("equipmentmanager", function()
       namePopup.title:SetText(action == "new" and (T["Name Set"] or "Name Set") or (T["Save Set"] or "Save Set"))
       iconScroll:Show()
       namePopup.iconLabel:Show()
-      pfUI.equipmentmanager.RefreshIconGrid()
     end
     namePopup:Show()
     if action ~= "rename" then pfUI.equipmentmanager.RefreshIconGrid() end
@@ -496,15 +514,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     }
     StaticPopup_Show("PFUI_EQMGR_DELETE")
   end)
-  btnEquip:SetScript("OnClick", function()
-    if not selectedSetID then return end
-    if C_EquipmentSet.EquipmentSetContainsLockedItems(selectedSetID) then
-      UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT or "Locked items in set", 1, .1, .1, 1)
-      return
-    end
-    ClearCursor()
-    C_EquipmentSet.UseEquipmentSet(selectedSetID)
-  end)
+  btnEquip:SetScript("OnClick", function() EquipSet(selectedSetID) end)
 
   -- ============================================================
   -- Equipment flyout (per-slot popup)
