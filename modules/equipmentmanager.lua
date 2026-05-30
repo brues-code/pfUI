@@ -404,7 +404,7 @@ pfUI:RegisterModule("equipmentmanager", function()
           GameTooltip:Show()
         end
       end)
-      btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+      btn:SetScript("OnLeave", GameTooltip_Hide)
       iconButtons[i] = btn
     end
   end
