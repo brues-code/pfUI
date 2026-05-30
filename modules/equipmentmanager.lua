@@ -46,12 +46,15 @@ pfUI:RegisterModule("equipmentmanager", function()
   local frame = CreateFrame("Frame", "pfEquipmentManagerFrame", CharacterFrame)
   frame:SetWidth(380)
   frame:SetHeight(380)
-  if CharacterFrame.backdrop then
-    frame:SetPoint("TOPLEFT", CharacterFrame.backdrop, "TOPRIGHT", 2*border, 0)
-  else
-    frame:SetPoint("TOPLEFT", CharacterFrame, "TOPRIGHT", 2, 0)
-  end
   frame:SetFrameStrata("HIGH")
+  frame:SetScript("OnShow", function()
+    this:ClearAllPoints()
+    if CharacterFrame.backdrop then
+      frame:SetPoint("TOPLEFT", CharacterFrame.backdrop, "TOPRIGHT", 2*border, -2)
+    else
+      frame:SetPoint("TOPLEFT", CharacterFrame, "TOPRIGHT", 0, 0)
+    end
+  end)
   CreateBackdrop(frame, nil, nil, .9)
   CreateBackdropShadow(frame)
   frame:Hide()
