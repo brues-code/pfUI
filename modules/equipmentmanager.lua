@@ -216,8 +216,6 @@ pfUI:RegisterModule("equipmentmanager", function()
     btn:SetScript("OnEnter", function()
       GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
       if this.location then
-        -- Set is selected and the item resolved to a real location: use
-        -- the location-aware tooltip so durability/charges/etc. show.
         local loc = EquipmentManager_GetLocationData(this.location)
         if loc.isBags then
           GameTooltip:SetBagItem(loc.bag, loc.slot)
@@ -243,15 +241,10 @@ pfUI:RegisterModule("equipmentmanager", function()
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     btn:SetScript("OnClick", function()
       if arg1 == "RightButton" then
-        -- Toggle ignored state for the selected set (or session toggles
-        -- for the next save when no set is selected).
         if selectedSetID then
           local ignored = C_EquipmentSet.GetIgnoredSlots(selectedSetID) or {}
           local isIgnored = false
           for _, s in ipairs(ignored) do if s == this.slotID then isIgnored = true; break end end
-          -- Per-set ignored state isn't directly mutable via ClassicAPI;
-          -- session toggles + Save is the documented workflow. We toggle
-          -- the session state and prompt the user to Save.
           if isIgnored then C_EquipmentSet.UnignoreSlotForSave(this.slotID)
           else C_EquipmentSet.IgnoreSlotForSave(this.slotID) end
           UIErrorsFrame:AddMessage(
