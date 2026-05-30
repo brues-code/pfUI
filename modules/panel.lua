@@ -434,7 +434,7 @@ pfUI:RegisterModule("panel", function()
           local cur, max = GetInventoryItemDurability(id)
           if cur and max then
             totalRep = totalRep + (GetInventoryItemRepairCost(id) or 0)
-            local repPercent = math.floor(cur / max * 100)
+            local repPercent = floor(cur / max * 100)
             if repPercent < 100 then
               local _, _, _, hex = GetColorGradient(repPercent/100)
               itemLines[table.getn(itemLines)+1] = {
@@ -458,18 +458,17 @@ pfUI:RegisterModule("panel", function()
       widget:SetScript("OnEvent", function()
         if event == "UNIT_INVENTORY_CHANGED" and arg1 ~= "player" then return end
 
-        local lowestPercent = 100
+        local totalCurr, totalMax = 0, 0
         for id = INVSLOT_FIRST_EQUIPPED, INVSLOT_LAST_EQUIPPED do
           local cur, max = GetInventoryItemDurability(id)
           if cur and max then
-            local repPercent = math.floor(cur / max * 100)
-            if repPercent < lowestPercent then
-              lowestPercent = repPercent
-            end
+            totalCurr = totalCurr + cur
+            totalMax = totalMax + max
           end
         end
+        local armorPercent = totalMax > 0 and floor(totalCurr / totalMax * 100) or 100
 
-        pfUI.panel:OutputPanel("durability", lowestPercent .. "% " .. ARMOR, widget.Tooltip, widget.Click)
+        pfUI.panel:OutputPanel("durability", armorPercent .. "% " .. ARMOR, widget.Tooltip, widget.Click)
       end)
     end
 
