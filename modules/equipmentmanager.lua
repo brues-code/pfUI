@@ -139,6 +139,16 @@ pfUI:RegisterModule("equipmentmanager", function()
       pfUI.equipmentmanager.Refresh()
     end)
 
+    row:SetScript("OnEnter", function()
+      if not this.setID then return end
+      local name = C_EquipmentSet.GetEquipmentSetInfo(this.setID)
+      if not name then return end
+      GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+      GameTooltip:SetEquipmentSet(name)
+      GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
     return row
   end
 
