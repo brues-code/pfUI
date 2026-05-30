@@ -425,20 +425,31 @@ pfUI:RegisterModule("panel", function()
       widget:RegisterEvent("PLAYER_DEAD")
       widget:RegisterEvent("PLAYER_UNGHOST")
       widget:RegisterEvent("UNIT_INVENTORY_CHANGED")
-      widget:RegisterEvent("UPDATE_INVENTORY_DURABILITY")
-
-      widget.itemLines = {}
-      widget.durability_slots = { 1, 3, 5, 6, 7, 8, 9, 10, 16, 17, 18 }
-      widget.totalRep = 0
 
       widget.Click = function() ToggleCharacter("PaperDollFrame") end
       widget.Tooltip = function()
-        if widget.totalRep > 0 then
+        local totalRep = 0
+        local itemLines = {}
+        for id = INVSLOT_FIRST_EQUIPPED, INVSLOT_LAST_EQUIPPED do
+          local cur, max = GetInventoryItemDurability(id)
+          if cur and max then
+            totalRep = totalRep + (GetInventoryItemRepairCost(id) or 0)
+            local repPercent = math.floor(cur / max * 100)
+            if repPercent < 100 then
+              local _, _, _, hex = GetColorGradient(repPercent/100)
+              itemLines[table.getn(itemLines)+1] = {
+                GetInventoryItemLink("player", id),
+                string.format("%s%s%%|r", hex, repPercent)
+              }
+            end
+          end
+        end
+        if totalRep > 0 then
           GameTooltip:ClearLines()
           GameTooltip_SetDefaultAnchor(GameTooltip, this)
           GameTooltip:SetText("|cff555555"..(string.gsub(REPAIR_COST,":","")).."|r")
-          SetTooltipMoney(GameTooltip, widget.totalRep)
-          for _,line in ipairs(widget.itemLines) do
+          SetTooltipMoney(GameTooltip, totalRep)
+          for _,line in ipairs(itemLines) do
             GameTooltip:AddDoubleLine(line[1],line[2])
           end
           GameTooltip:Show()
@@ -448,20 +459,10 @@ pfUI:RegisterModule("panel", function()
         if event == "UNIT_INVENTORY_CHANGED" and arg1 ~= "player" then return end
 
         local lowestPercent = 100
-        widget.totalRep = 0
-        wipe(widget.itemLines)
-        for _, id in pairs(widget.durability_slots) do
+        for id = INVSLOT_FIRST_EQUIPPED, INVSLOT_LAST_EQUIPPED do
           local cur, max = GetInventoryItemDurability(id)
           if cur and max then
-            widget.totalRep = widget.totalRep + (GetInventoryItemRepairCost(id) or 0)
             local repPercent = math.floor(cur / max * 100)
-            if repPercent < 100 then
-              local _, _, _, hex = GetColorGradient(repPercent/100)
-              widget.itemLines[table.getn(widget.itemLines)+1] = {
-                GetInventoryItemLink("player", id),
-                string.format("%s%s%%|r", hex, repPercent)
-              }
-            end
             if repPercent < lowestPercent then
               lowestPercent = repPercent
             end
