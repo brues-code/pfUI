@@ -2415,6 +2415,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Item Slot Size"], C.appearance.bags, "icon_size")
       CreateConfig(nil, T["Auto Sell Grey Items"], C.global, "autosell", "checkbox")
       CreateConfig(nil, T["Auto Repair Items"], C.global, "autorepair", "checkbox")
+      CreateConfig(nil, T["Auto Sort When Opening Bags"], C.appearance.bags, "autoSortOnOpen", "checkbox")
     end)
 
     CreateGUIEntry(T["Loot"], nil, function()

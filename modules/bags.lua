@@ -607,6 +607,9 @@ pfUI:RegisterModule("bags", function ()
         frame.chatWasOpen = true
         chat:Hide()
       end
+      if C.appearance.bags.autoSortOnOpen == "1" then
+        StartSort({0, 1, 2, 3, 4})
+      end
       pfUI.bag:CreateBags(object)
       PlaySound("INTERFACESOUND_BACKPACKOPEN")
     end)
