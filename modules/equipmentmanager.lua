@@ -45,7 +45,7 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   local frame = CreateFrame("Frame", "pfEquipmentManagerFrame", CharacterFrame)
   frame:SetWidth(380)
-  frame:SetHeight(380)
+  frame:SetHeight(350)
   frame:SetFrameStrata("HIGH")
   frame:SetScript("OnShow", function()
     this:ClearAllPoints()
@@ -242,16 +242,21 @@ pfUI:RegisterModule("equipmentmanager", function()
     return b
   end
 
-  -- Anchor button stack from the frame's bottom so it stays in place
-  -- regardless of how many set rows are visible above.
-  local btnDelete = CreateFrame("Button", "pfEqMgrDelete", frame, "UIPanelButtonTemplate")
-  btnDelete:SetWidth(116); btnDelete:SetHeight(22); btnDelete:SetText(T["Delete"] or "Delete")
-  btnDelete:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16, 12)
-  SkinButton(btnDelete)
+  -- Button stack centered below the set list. Anchored to listFrame's
+  -- bottom edge so the column stays aligned with the list above it.
+  local btnNew = CreateFrame("Button", "pfEqMgrNew", frame, "UIPanelButtonTemplate")
+  btnNew:SetWidth(55); btnNew:SetHeight(22); btnNew:SetText(T["New"] or "New")
+  btnNew:SetPoint("TOPRIGHT", listFrame, "BOTTOM", -3, -8)
+  SkinButton(btnNew)
+
+  local btnSave = CreateFrame("Button", "pfEqMgrSave", frame, "UIPanelButtonTemplate")
+  btnSave:SetWidth(55); btnSave:SetHeight(22); btnSave:SetText(T["Save"] or "Save")
+  btnSave:SetPoint("LEFT", btnNew, "RIGHT", 6, 0)
+  SkinButton(btnSave)
 
   local btnEquip = CreateFrame("Button", "pfEqMgrEquip", frame, "UIPanelButtonTemplate")
   btnEquip:SetWidth(55); btnEquip:SetHeight(22); btnEquip:SetText(T["Equip"] or "Equip")
-  btnEquip:SetPoint("BOTTOMLEFT", btnDelete, "TOPLEFT", 0, 4)
+  btnEquip:SetPoint("TOPLEFT", btnNew, "BOTTOMLEFT", 0, -4)
   SkinButton(btnEquip)
 
   local btnRename = CreateFrame("Button", "pfEqMgrRename", frame, "UIPanelButtonTemplate")
@@ -259,15 +264,11 @@ pfUI:RegisterModule("equipmentmanager", function()
   btnRename:SetPoint("LEFT", btnEquip, "RIGHT", 6, 0)
   SkinButton(btnRename)
 
-  local btnNew = CreateFrame("Button", "pfEqMgrNew", frame, "UIPanelButtonTemplate")
-  btnNew:SetWidth(55); btnNew:SetHeight(22); btnNew:SetText(T["New"] or "New")
-  btnNew:SetPoint("BOTTOMLEFT", btnEquip, "TOPLEFT", 0, 4)
-  SkinButton(btnNew)
-
-  local btnSave = CreateFrame("Button", "pfEqMgrSave", frame, "UIPanelButtonTemplate")
-  btnSave:SetWidth(55); btnSave:SetHeight(22); btnSave:SetText(T["Save"] or "Save")
-  btnSave:SetPoint("LEFT", btnNew, "RIGHT", 6, 0)
-  SkinButton(btnSave)
+  local btnDelete = CreateFrame("Button", "pfEqMgrDelete", frame, "UIPanelButtonTemplate")
+  btnDelete:SetHeight(22); btnDelete:SetText(T["Delete"] or "Delete")
+  btnDelete:SetPoint("TOPLEFT", btnEquip, "BOTTOMLEFT", 0, -4)
+  btnDelete:SetPoint("TOPRIGHT", btnRename, "BOTTOMRIGHT", 0, -4)
+  SkinButton(btnDelete)
 
   -- ============================================================
   -- Name/icon entry popup
