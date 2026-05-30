@@ -174,69 +174,6 @@ pfUI:RegisterModule("superwow", function ()
     end
   end
 
-  -- Autoloot Control API
-  if SetAutoloot then
-    pfUI.api.SetAutoloot = function(enabled)
-      SetAutoloot(enabled and 1 or 0)
-    end
-
-    pfUI.api.GetAutoloot = function()
-      return SetAutoloot() == 1
-    end
-
-    pfUI.api.ToggleAutoloot = function()
-      local current = SetAutoloot()
-      SetAutoloot(current == 1 and 0 or 1)
-      return SetAutoloot() == 1
-    end
-  end
-
-  -- GetPlayerBuffID wrapper
-  if GetPlayerBuffID then
-    pfUI.api.GetPlayerBuffSpellId = function(buffIndex)
-      return GetPlayerBuffID(buffIndex)
-    end
-  end
-
-  -- CombatLogAdd wrapper for logging
-  if CombatLogAdd then
-    pfUI.api.LogToCombatLog = function(text, raw)
-      CombatLogAdd(text, raw and 1 or nil)
-    end
-  end
-
-  -- Local Raid Markers (marks only visible to self)
-  if SetRaidTarget then
-    local origSetRaidTarget = SetRaidTarget
-    pfUI.api.SetLocalRaidTarget = function(unit, index)
-      origSetRaidTarget(unit, index, "local")
-    end
-  end
-
-  -- Weapon Enchant Info on other players
-  if GetWeaponEnchantInfo then
-    local origGetWeaponEnchantInfo = GetWeaponEnchantInfo
-    pfUI.api.GetUnitWeaponEnchants = function(unit)
-      if unit and unit ~= "player" then
-        local mhName, ohName = GetWeaponEnchantInfo(unit)
-        return {
-          mainHand = mhName,
-          offHand = ohName,
-        }
-      else
-        local hasMainHandEnchant, mainHandExpiration, mainHandCharges, hasOffHandEnchant, offHandExpiration, offHandCharges = origGetWeaponEnchantInfo()
-        return {
-          mainHand = hasMainHandEnchant and true or false,
-          mainHandExpiration = mainHandExpiration,
-          mainHandCharges = mainHandCharges,
-          offHand = hasOffHandEnchant and true or false,
-          offHandExpiration = offHandExpiration,
-          offHandCharges = offHandCharges,
-        }
-      end
-    end
-  end
-
   -- Enhance libcast with SuperWoW data for NPCs and other players
   -- Player casts use SPELLCAST_* events for proper pushback handling
   local supercast = CreateFrame("Frame")
@@ -295,22 +232,8 @@ pfUI:RegisterModule("superwow", function ()
       local spell_id = arg4
       local timer = arg5
 
-      -- get spell info from spell id
-      local spell, icon, _
-      if GetSpellRec then
-        local rec = GetSpellRec(spell_id)
-        if rec then
-          spell = rec.name
-          local iconID = rec.spellIconID
-          icon = iconID and GetSpellIconTexture(iconID) or nil
-        end
-      elseif SpellInfo and SpellInfo(spell_id) then
-        spell, _, icon = SpellInfo(spell_id)
-      end
-
-      -- set fallback values
-      spell = spell or UNKNOWN
-      icon = icon or "Interface\\Icons\\INV_Misc_QuestionMark"
+      local spell = C_Spell.GetSpellName(spell_id) or UNKNOWN
+      local icon = C_Spell.GetSpellTexture(spell_id) or "Interface\\Icons\\INV_Misc_QuestionMark"
 
       -- skip on buff procs during cast
       if event_type == "CAST" then

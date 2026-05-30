@@ -371,24 +371,8 @@ function libdebuff:GetSpellIcon(spellId)
   if iconCache[spellId] then
     return iconCache[spellId]
   end
-  
-  local texture = nil
-  
-  if GetSpellRecField and GetSpellIconTexture then
-    local spellIconId = GetSpellRecField(spellId, "spellIconID")
-    if spellIconId and type(spellIconId) == "number" and spellIconId > 0 then
-      texture = GetSpellIconTexture(spellIconId)
-      -- GetSpellIconTexture may return short name, needs full path for SetTexture
-      if texture and not string.find(texture, "\\") then
-        texture = "Interface\\Icons\\" .. texture
-      end
-    end
-  end
-  
-  if not texture then
-    texture = "Interface\\Icons\\INV_Misc_QuestionMark"
-  end
-  
+
+  local texture = C_Spell.GetSpellTexture(spellId) or "Interface\\Icons\\INV_Misc_QuestionMark"
   iconCache[spellId] = texture
   return texture
 end
@@ -1250,34 +1234,16 @@ if hasNampower then
       local isChannel = spellType == 1 and (not arg6 or arg6 == 0)
       
       if not casterGuid or not spellId then return end
-      
-      -- Get spell name via Nampower
-      local spellName = nil
-      if GetSpellRec then
-        local rec = GetSpellRec(spellId)
-        spellName = rec and rec.name or nil
-      end
 
-      
+      local spellName = C_Spell.GetSpellName(spellId)
       local icon = libdebuff:GetSpellIcon(spellId)
       
       -- Use item icon for item-triggered casts
-      if itemId and itemId > 0 and GetItemStatsField and GetItemIconTexture then
-        local displayInfoId = GetItemStatsField(itemId, "displayInfoID")
-        if displayInfoId then
-          local itemIcon = GetItemIconTexture(displayInfoId)
-          if itemIcon then
-            -- GetItemIconTexture returns short name (e.g. "INV_Gizmo_08"), needs full path
-            if not string.find(itemIcon, "\\") then
-              itemIcon = "Interface\\Icons\\" .. itemIcon
-            end
-            icon = itemIcon
-          end
-        end
-        -- Store in persistent item icon cache (survives SPELL_GO clearing libdebuff_casts)
+      if itemId and itemId > 0 then
+        icon = C_Item.GetItemIconByID(itemId) or icon
         pfUI.libdebuff_item_icons[casterGuid] = {
           icon = icon,
-          name = GetItemStatsField and GetItemStatsField(itemId, "displayName") or nil
+          name = GetItemInfo(itemId),
         }
       else
         pfUI.libdebuff_item_icons[casterGuid] = nil
@@ -1467,15 +1433,9 @@ if hasNampower then
       local targetGuid = arg4
       
       if success ~= 1 or not spellId then return end
-      
-      -- Get spell name
-      local spellName = nil
-      if GetSpellRec then
-        local rec = GetSpellRec(spellId)
-        spellName = rec and rec.name or nil
-      end
 
-      
+      local spellName = C_Spell.GetSpellName(spellId)
+
       -- Store pending cast info for libpredict (heal prediction target tracking)
       -- This allows libpredict to resolve the correct target for Nampower queued casts,
       -- where CastSpellByName hook fires while current_cast is set and spell_queue

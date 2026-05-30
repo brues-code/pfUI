@@ -318,9 +318,7 @@ pfUI:RegisterModule("swingtimer", function ()
     local _, _, id = string.find(l, "item:(%d+)")
     id = tonumber(id)
     if not id then return false end
-    local s = GetItemStats and GetItemStats(id)
-    if not s then return false end
-    return OH_WEAPON_TYPES[s.inventoryType] == true
+    return OH_WEAPON_TYPES[C_Item.GetItemInventoryTypeByID(id)] == true
   end
 
   local function UpdateWeaponSpeeds()

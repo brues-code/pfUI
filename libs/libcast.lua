@@ -309,18 +309,9 @@ local lastSpellId = nil  -- spellId cached from SPELL_START_SELF (Nampower)
 libcast:SetScript("OnEvent", function()
   -- Fill database with player casts
   if event == "SPELLCAST_START" then
-    -- Get icon from Nampower using spellId cached from SPELL_START_SELF
-    icon = nil
-    if lastSpellId and GetSpellRecField and GetSpellIconTexture then
-      local iconId = GetSpellRecField(lastSpellId, "spellIconID")
-      if iconId then
-        icon = GetSpellIconTexture(iconId)
-        if icon and not string.find(icon, "\\") then
-          icon = "Interface\\Icons\\" .. icon
-        end
-      end
-    end
-    -- fallback to L["spells"] / lastcasttex if Nampower didn't provide icon
+    -- Get icon via spellId cached from SPELL_START_SELF
+    icon = lastSpellId and C_Spell.GetSpellTexture(lastSpellId) or nil
+    -- fallback to L["spells"] / lastcasttex if no icon resolved
     if not icon then
       icon = L["spells"][arg1] and L["spells"][arg1].icon and string.format("%s%s", "Interface\\Icons\\", L["spells"][arg1].icon) or lastcasttex
     end
