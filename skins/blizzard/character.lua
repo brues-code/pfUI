@@ -81,14 +81,6 @@ pfUI:RegisterSkin("Character", function ()
       "AmmoSlot"
     }
 
-    local DURABILITY_THRESHOLD_COLORS = {
-      RED_FONT_COLOR,
-      ORANGE_THREAT_COLOR,
-      YELLOW_FONT_COLOR,
-      INVASION_FONT_COLOR,
-      PURE_GREEN_COLOR,
-    }
-
     local function RefreshPetPosition()
       CharacterFrameTab3:ClearAllPoints()
       CharacterFrameTab3:SetPoint("LEFT", HasPetUI() and CharacterFrameTab2 or CharacterFrameTab1, "RIGHT", border*2 + 1, 0)
@@ -112,11 +104,10 @@ pfUI:RegisterSkin("Character", function ()
           if C.character.inventory.durability == "1" then
             local current, maximum = GetInventoryItemDurability(slotId)
             if current and maximum and maximum > 0 then
-              local pct = math.floor((current / maximum) * 100)
+              local pct = floor((current / maximum) * 100)
               slot.durabilityText:SetText(pct .. "%")
-              -- 0-20% red, 20-40% orange, 40-60% yellow, 60-80% invasion, 80-100% green
-              local color = DURABILITY_THRESHOLD_COLORS[math.max(1, math.ceil(pct / 20))]
-              slot.durabilityText:SetTextColor(color:GetRGB())
+              local r, g, b = GetColorGradient(pct / 100)
+              slot.durabilityText:SetTextColor(r, g, b)
               slot.durabilityText:Show()
             else
               slot.durabilityText:SetText("")
