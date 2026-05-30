@@ -465,6 +465,7 @@ pfUI:RegisterModule("equipmentmanager", function()
       pfUI.equipmentmanager.RefreshIconGrid()
     end
     namePopup:Show()
+    if action ~= "rename" then pfUI.equipmentmanager.RefreshIconGrid() end
     namePopup.editbox:SetFocus()
   end
 
