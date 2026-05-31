@@ -7,8 +7,6 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   pfUI.equipmentmanager = pfUI.equipmentmanager or {}
 
-  local MAX_EQUIPMENT_SETS_PER_PLAYER = 10
-  local NUM_LE_EQUIPMENT_SETS_MAX_ROWS = MAX_EQUIPMENT_SETS_PER_PLAYER
   local SET_ROW_HEIGHT = 36
 
   local rawborder, border = GetBorderSize()
@@ -240,23 +238,33 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- Set list (left column)
   -- ============================================================
 
-  local LIST_VISIBLE_ROWS = 8
+  local LIST_VISIBLE_ROWS = 7
+  local LIST_ROW_STRIDE = SET_ROW_HEIGHT + 2
   local listFrame = CreateFrame("Frame", nil, frame)
   listFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -58)
   listFrame:SetWidth(180)
-  listFrame:SetHeight(SET_ROW_HEIGHT * LIST_VISIBLE_ROWS + 4)
+  -- Height fits N rows + (N-1) inter-row gaps + 3px top/bottom padding.
+  listFrame:SetHeight(LIST_VISIBLE_ROWS * LIST_ROW_STRIDE + 4)
   CreateBackdrop(listFrame, nil, nil, .75)
 
+  -- Mouse-wheel scroll: list of [sets..., newSetRow] is virtualized
+  -- through LIST_VISIBLE_ROWS slots. Refresh() consumes listFrame.offset
+  -- and the wheel handler clamps + bumps it.
+  listFrame.offset = 0
+  listFrame:EnableMouseWheel(true)
+  listFrame:SetScript("OnMouseWheel", function()
+    listFrame.offset = listFrame.offset - (arg1 or 0)
+    pfUI.equipmentmanager.Refresh()
+  end)
+
   local setRows = {}
-  local function CreateSetRow(i)
+  local function CreateSetRow()
     local row = CreateFrame("Button", nil, listFrame)
     row:SetWidth(170)
     row:SetHeight(SET_ROW_HEIGHT)
-    if i == 1 then
-      row:SetPoint("TOPLEFT", listFrame, "TOPLEFT", 5, -3)
-    else
-      row:SetPoint("TOPLEFT", setRows[i-1], "BOTTOMLEFT", 0, -2)
-    end
+    -- Position is set per-Refresh based on the row's visible slot;
+    -- start anchored to avoid uninitialized geometry before first Refresh.
+    row:SetPoint("TOPLEFT", listFrame, "TOPLEFT", 5, -3)
 
     row.icon = row:CreateTexture(nil, "ARTWORK")
     row.icon:SetWidth(30)
@@ -331,9 +339,11 @@ pfUI:RegisterModule("equipmentmanager", function()
     return row
   end
 
-  for i = 1, NUM_LE_EQUIPMENT_SETS_MAX_ROWS do
-    setRows[i] = CreateSetRow(i)
-  end
+  -- Rows are allocated lazily in Refresh — ClassicAPI no longer caps
+  -- the number of equipment sets, so we grow the pool to numSets on
+  -- demand. The set list is wheel-scrolled, so only LIST_VISIBLE_ROWS
+  -- are ever positioned in-frame at a time, but each row is bound to a
+  -- specific set index (row[i] always shows ids[i]).
 
   -- "+ New Set" pseudo-row: appears after the last set in the list,
   -- click to open the New set popup.
@@ -985,9 +995,23 @@ pfUI:RegisterModule("equipmentmanager", function()
       selectedSetID = nil
     end
 
-    -- Set rows
-    for i, row in ipairs(setRows) do
-      if i <= numSets then
+    -- Virtual list = sets ++ newSetRow. Clamp the current scroll
+    -- offset against the visible window before laying out rows so
+    -- deleting sets snaps the list back into view.
+    local totalItems = numSets + 1
+    local maxOffset = math.max(0, totalItems - LIST_VISIBLE_ROWS)
+    if listFrame.offset > maxOffset then listFrame.offset = maxOffset end
+    if listFrame.offset < 0 then listFrame.offset = 0 end
+    local off = listFrame.offset
+
+    -- Set rows: lazy-grow the pool to numSets, then position visible
+    -- ones into slots and hide the rest. Each row stays bound to a
+    -- specific set index (row[i] always shows ids[i]).
+    for i = 1, numSets do
+      if not setRows[i] then setRows[i] = CreateSetRow() end
+      local row = setRows[i]
+      local slot = i - off
+      if slot >= 1 and slot <= LIST_VISIBLE_ROWS then
         local setID = ids[i]
         local name, icon, _, isEquipped, _, _, _, numMissing = C_EquipmentSet.GetEquipmentSetInfo(setID)
         row.setID = setID
@@ -1002,24 +1026,29 @@ pfUI:RegisterModule("equipmentmanager", function()
           row.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         end
         if setID == selectedSetID then row.highlight:Show() else row.highlight:Hide() end
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", listFrame, "TOPLEFT", 5, -3 - (slot - 1) * LIST_ROW_STRIDE)
         row:Show()
       else
         row:Hide()
         row.setID = nil
       end
     end
+    -- Hide pool entries past the current set count (left over from a
+    -- previous Refresh with more sets — e.g. just deleted one).
+    for i = numSets + 1, table.getn(setRows) do
+      setRows[i]:Hide()
+      setRows[i].setID = nil
+    end
 
-    -- "+ New Set" row sits after the last real set; hide it at the cap.
-    if numSets >= MAX_EQUIPMENT_SETS_PER_PLAYER then
-      newSetRow:Hide()
-    else
+    -- "+ New Set" row occupies virtual index numSets+1.
+    local newSlot = (numSets + 1) - off
+    if newSlot >= 1 and newSlot <= LIST_VISIBLE_ROWS then
       newSetRow:ClearAllPoints()
-      if numSets == 0 then
-        newSetRow:SetPoint("TOPLEFT", listFrame, "TOPLEFT", 5, -3)
-      else
-        newSetRow:SetPoint("TOPLEFT", setRows[numSets], "BOTTOMLEFT", 0, -2)
-      end
+      newSetRow:SetPoint("TOPLEFT", listFrame, "TOPLEFT", 5, -3 - (newSlot - 1) * LIST_ROW_STRIDE)
       newSetRow:Show()
+    else
+      newSetRow:Hide()
     end
 
     -- Update the ignored-overlay textures attached to each paperdoll
