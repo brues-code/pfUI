@@ -677,13 +677,20 @@ pfUI:RegisterModule("equipmentmanager", function()
     local slot = _G["Character"..slotName]
     if slot then
       -- "Ignored" overlay rendered on top of the paperdoll slot icon.
-      -- Transparent variant: the item icon stays partially visible
-      -- underneath, matching modern WoW. Opaque is for flyout buttons.
-      local overlay = slot:CreateTexture(nil, "OVERLAY")
-      overlay:SetAllPoints(slot)
+      -- pfUI loads modules BEFORE skins (pfUI.lua:407-418), so at this
+      -- point slot.backdrop doesn't exist yet — the character skin
+      -- creates it later and reparents the item icon to it. A plain
+      -- texture on `slot` would render BENEATH the backdrop's icon.
+      -- Wrap the texture in a frame with a higher frame level so it
+      -- renders above the backdrop regardless of skin-init order.
+      local overlayFrame = CreateFrame("Frame", nil, slot)
+      overlayFrame:SetAllPoints(slot)
+      overlayFrame:SetFrameLevel(slot:GetFrameLevel() + 10)
+      local overlay = overlayFrame:CreateTexture(nil, "OVERLAY")
+      overlay:SetAllPoints(overlayFrame)
       overlay:SetTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-LeaveItem-Transparent")
-      overlay:Hide()
-      slotOverlays[slot:GetID()] = overlay
+      overlayFrame:Hide()
+      slotOverlays[slot:GetID()] = overlayFrame
 
       -- Popout arrow button — clicking opens the equipment flyout for
       -- this slot. Replaces the Alt+click trigger with a discoverable
