@@ -180,22 +180,22 @@ pfUI:RegisterModule("equipmentmanager", function()
   CreateBackdrop(rowMenu, nil, nil, .95)
   CreateBackdropShadow(rowMenu)
   rowMenu:EnableMouse(true)
-  -- OnLeave fires when the cursor moves onto a child button (child
-  -- becomes the topmost mouse target). Poll MouseIsOver instead — it's
-  -- geometric and includes the buttons inside the menu rect. The
-  -- anchorBtn check keeps the menu open on the click frame, when the
-  -- cursor is still on the gear and hasn't reached the menu yet.
-  rowMenu:SetScript("OnShow", function()
-    this:SetScript("OnUpdate", function()
-      if not MouseIsOver(this) and not (this.anchorBtn and MouseIsOver(this.anchorBtn)) then
-        this:Hide()
-      end
-    end)
+
+  -- Click-anywhere-else-to-close: GLOBAL_MOUSE_DOWN fires on any mouse
+  -- button press regardless of which frame the click lands on, and
+  -- (unlike a veil frame) doesn't consume the click — the original
+  -- target still receives the event. The anchorBtn check leaves the
+  -- gear-click toggle to the gear's own OnClick handler so the menu
+  -- doesn't close-then-reopen on its triggering click.
+  rowMenu:RegisterEvent("GLOBAL_MOUSE_DOWN")
+  rowMenu:SetScript("OnEvent", function()
+    if not this:IsShown() then return end
+    if MouseIsOver(this) then return end
+    if this.anchorBtn and MouseIsOver(this.anchorBtn) then return end
+    this:Hide()
   end)
-  rowMenu:SetScript("OnHide", function()
-    this:SetScript("OnUpdate", nil)
-    this.anchorBtn = nil
-  end)
+  -- Escape closes it (vanilla's UI panel close-with-Escape mechanism).
+  tinsert(UISpecialFrames, "pfEqMgrRowMenu")
 
   rowMenu.changeBtn = CreateFrame("Button", nil, rowMenu, "UIPanelButtonTemplate")
   rowMenu.changeBtn:SetWidth(130); rowMenu.changeBtn:SetHeight(20)
@@ -294,6 +294,13 @@ pfUI:RegisterModule("equipmentmanager", function()
     row.gear:Hide()
     row.gear:SetScript("OnClick", function()
       if not row.setID then return end
+      -- Toggle: clicking the gear that owns the open menu closes it.
+      -- GLOBAL_MOUSE_DOWN's anchorBtn check excludes the gear, so the
+      -- close has to happen here.
+      if rowMenu:IsShown() and rowMenu.targetSetID == row.setID then
+        rowMenu:Hide()
+        return
+      end
       rowMenu.targetSetID = row.setID
       rowMenu.anchorBtn = row.gear
       rowMenu:ClearAllPoints()

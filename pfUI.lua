@@ -26,7 +26,7 @@ pfUI.bootup = true
 -- ClassicAPI dependency check.
 -- pfUI relies pervasively on the modern C_* / SuperWoW / nameplate / focus
 -- API surface that ClassicAPI polyfills, so presence is required.
-local PFUI_CLASSIC_API_MIN = 10303  -- v1.3.3 (X*10000 + Y*100 + Z)
+local PFUI_CLASSIC_API_MIN = 10304  -- v1.3.4 (X*10000 + Y*100 + Z)
 if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
   pfUI.disabled = true
 
