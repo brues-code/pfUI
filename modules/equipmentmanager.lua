@@ -10,33 +10,22 @@ pfUI:RegisterModule("equipmentmanager", function()
   local MAX_EQUIPMENT_SETS_PER_PLAYER = 10
   local NUM_LE_EQUIPMENT_SETS_MAX_ROWS = MAX_EQUIPMENT_SETS_PER_PLAYER
   local SET_ROW_HEIGHT = 36
-  local SLOT_SIZE = 36
-
-  local SLOTS = {
-    { id = 1,  name = "HeadSlot" },
-    { id = 2,  name = "NeckSlot" },
-    { id = 3,  name = "ShoulderSlot" },
-    { id = 15, name = "BackSlot" },
-    { id = 5,  name = "ChestSlot" },
-    { id = 4,  name = "ShirtSlot" },
-    { id = 19, name = "TabardSlot" },
-    { id = 9,  name = "WristSlot" },
-    { id = 10, name = "HandsSlot" },
-    { id = 6,  name = "WaistSlot" },
-    { id = 7,  name = "LegsSlot" },
-    { id = 8,  name = "FeetSlot" },
-    { id = 11, name = "Finger0Slot" },
-    { id = 12, name = "Finger1Slot" },
-    { id = 13, name = "Trinket0Slot" },
-    { id = 14, name = "Trinket1Slot" },
-    { id = 16, name = "MainHandSlot" },
-    { id = 17, name = "SecondaryHandSlot" },
-    { id = 18, name = "RangedSlot" },
-  }
 
   local rawborder, border = GetBorderSize()
   local selectedSetID = nil
   local pendingAction = nil  -- "new" | "save" | "rename" — what the popups apply to
+  local slotOverlays = {}    -- [invSlotID] = ignored-overlay texture on the character slot
+  local popoutButtons = {}   -- popout arrow buttons; toggled with the EM frame
+
+  -- Swap a popout's chevron between closed (points away from slot) and
+  -- reversed (points toward slot — indicates "flyout is open").
+  local function SetPopoutReversed(popout, reversed)
+    if not popout then return end
+    local nc = reversed and popout.coordReversed or popout.coordNormal
+    local hc = reversed and popout.coordReversedHi or popout.coordNormalHi
+    popout:GetNormalTexture():SetTexCoord(unpack(nc))
+    popout:GetHighlightTexture():SetTexCoord(unpack(hc))
+  end
 
   -- Shared by the Equip button and set-row double-click.
   local function EquipSet(setID)
@@ -55,7 +44,7 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- ============================================================
 
   local frame = CreateFrame("Frame", "pfEquipmentManagerFrame", CharacterFrame)
-  frame:SetWidth(380)
+  frame:SetWidth(220)
   frame:SetHeight(350)
   frame:SetFrameStrata("HIGH")
   frame:SetScript("OnShow", function()
@@ -84,14 +73,12 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- ============================================================
 
   local toggleBtn = CreateFrame("Button", "pfEqMgrToggleButton", PaperDollFrame)
-  toggleBtn:SetWidth(20)
-  toggleBtn:SetHeight(20)
+  toggleBtn:SetWidth(28)
+  toggleBtn:SetHeight(28)
   toggleBtn:SetPoint("BOTTOM", CharacterHandsSlot, "TOP", 0, 4)
-  CreateBackdrop(toggleBtn)
-  toggleBtn.texture = toggleBtn:CreateTexture(nil, "ARTWORK")
-  toggleBtn.texture:SetAllPoints(toggleBtn)
-  toggleBtn.texture:SetTexCoord(.08, .92, .08, .92)
-  toggleBtn.texture:SetTexture("Interface\\Icons\\INV_Chest_Plate06")
+  toggleBtn:SetNormalTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-Button")
+  toggleBtn:SetPushedTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-Button-Pushed")
+  toggleBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
   toggleBtn:SetScript("OnEnter", function()
     GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
     GameTooltip:SetText(T["Equipment Manager"] or "Equipment Manager")
@@ -173,97 +160,6 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   for i = 1, NUM_LE_EQUIPMENT_SETS_MAX_ROWS do
     setRows[i] = CreateSetRow(i)
-  end
-
-  -- ============================================================
-  -- Slot grid (right column)
-  -- ============================================================
-
-  local slotGrid = CreateFrame("Frame", nil, frame)
-  slotGrid:SetPoint("TOPLEFT", listFrame, "TOPRIGHT", 12, 0)
-  slotGrid:SetWidth(4 * (SLOT_SIZE + 4))
-  slotGrid:SetHeight(5 * (SLOT_SIZE + 4))
-
-  local slotButtons = {}
-  for idx, slot in ipairs(SLOTS) do
-    local col = math.mod(idx - 1, 4)
-    local row = math.floor((idx - 1) / 4)
-    local btn = CreateFrame("Button", "pfEqMgrSlot"..slot.id, slotGrid)
-    btn:SetWidth(SLOT_SIZE)
-    btn:SetHeight(SLOT_SIZE)
-    btn:SetPoint("TOPLEFT", slotGrid, "TOPLEFT", col * (SLOT_SIZE + 4), -row * (SLOT_SIZE + 4))
-    btn.slotID = slot.id
-    btn.slotName = slot.name
-    local _, emptyTex = GetInventorySlotInfo(strupper(slot.name))
-    btn.emptyTexture = emptyTex
-
-    CreateBackdrop(btn)
-    btn.texture = btn:CreateTexture(nil, "ARTWORK")
-    btn.texture:SetPoint("TOPLEFT", btn, "TOPLEFT", 2, -2)
-    btn.texture:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
-    btn.texture:SetTexCoord(.08, .92, .08, .92)
-
-    -- "Ignored" overlay (X mark when slot is in ignored list)
-    btn.ignoredOverlay = btn:CreateTexture(nil, "OVERLAY")
-    btn.ignoredOverlay:SetAllPoints(btn.texture)
-    btn.ignoredOverlay:SetTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
-    btn.ignoredOverlay:SetVertexColor(1, 0.3, 0.3, 0.85)
-    btn.ignoredOverlay:Hide()
-
-    -- Missing indicator (red border tint)
-    btn.missingFlag = false
-
-    btn:SetScript("OnEnter", function()
-      GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-      if this.location then
-        local loc = EquipmentManager_GetLocationData(this.location)
-        if loc.isBags then
-          GameTooltip:SetBagItem(loc.bag, loc.slot)
-        elseif loc.isPlayer then
-          GameTooltip:SetInventoryItem("player", loc.slot)
-        else
-          GameTooltip:SetInventoryItemByID(this.itemID)
-        end
-      elseif this.itemID then
-        -- No set selected (showing equipped) OR set item is missing.
-        if GetInventoryItemID("player", this.slotID) == this.itemID then
-          GameTooltip:SetInventoryItem("player", this.slotID)
-        else
-          GameTooltip:SetInventoryItemByID(this.itemID)
-        end
-      else
-        GameTooltip:SetText(_G[strupper(this.slotName)] or this.slotName)
-      end
-      GameTooltip:Show()
-    end)
-    btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    btn:SetScript("OnClick", function()
-      if arg1 == "RightButton" then
-        if selectedSetID then
-          local ignored = C_EquipmentSet.GetIgnoredSlots(selectedSetID) or {}
-          local isIgnored = false
-          for _, s in ipairs(ignored) do if s == this.slotID then isIgnored = true; break end end
-          if isIgnored then C_EquipmentSet.UnignoreSlotForSave(this.slotID)
-          else C_EquipmentSet.IgnoreSlotForSave(this.slotID) end
-          UIErrorsFrame:AddMessage(
-            (T["Slot ignored toggled — click Save to update set"] or "Slot ignored toggled — click Save to update set"),
-            1, 1, 0, 1)
-        else
-          if C_EquipmentSet.IsSlotIgnoredForSave(this.slotID) then
-            C_EquipmentSet.UnignoreSlotForSave(this.slotID)
-          else
-            C_EquipmentSet.IgnoreSlotForSave(this.slotID)
-          end
-          pfUI.equipmentmanager.Refresh()
-        end
-      else
-        pfUI.equipmentmanager.ShowFlyout(this)
-      end
-    end)
-
-    slotButtons[slot.id] = btn
   end
 
   -- ============================================================
@@ -537,6 +433,52 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   local FLYOUT_BTN_SIZE = 36
   local FLYOUT_COLS = 5
+  -- Sentinels for the flyout's virtual entries (negative values never
+  -- collide with real packed locations from GetInventoryItemsForSlot).
+  local PLACEINBAGS_LOCATION = -1
+  local IGNORESLOT_LOCATION = -2    -- "ignore this slot" — shown when not ignored
+  local UNIGNORESLOT_LOCATION = -3  -- "un-ignore this slot" — shown when ignored
+
+  -- Toggle a slot's ignored state for the selected set. ClassicAPI's
+  -- IgnoreSlotForSave is session-state, so we restore the set's current
+  -- ignored list, flip the target slot, and SaveEquipmentSet to persist.
+  -- Side effect: re-snapshots equipment for non-ignored slots, so the
+  -- caller should make sure the set's gear matches current equipment
+  -- (this is the common case since the user just selected/equipped it).
+  local function ToggleIgnoredForSet(setID, slotID)
+    if not setID then return end
+    local name, icon = C_EquipmentSet.GetEquipmentSetInfo(setID)
+    if not name then return end
+    C_EquipmentSet.ClearIgnoredSlotsForSave()
+    local currentIgnored = C_EquipmentSet.GetIgnoredSlots(setID) or {}
+    local wasIgnored = false
+    for _, s in ipairs(currentIgnored) do
+      if s == slotID then wasIgnored = true
+      else C_EquipmentSet.IgnoreSlotForSave(s) end
+    end
+    if not wasIgnored then C_EquipmentSet.IgnoreSlotForSave(slotID) end
+    C_EquipmentSet.SaveEquipmentSet(setID, icon)
+    C_EquipmentSet.ClearIgnoredSlotsForSave()
+  end
+
+  -- Find first empty bag slot and drop the cursor item into it.
+  local function UnequipToBags(invSlot)
+    if not GetInventoryItemID("player", invSlot) then return end
+    ClearCursor()
+    PickupInventoryItem(invSlot)
+    if not CursorHasItem() then return end
+    for bag = 0, 4 do
+      local nslots = GetContainerNumSlots(bag) or 0
+      for slot = 1, nslots do
+        if not C_Container.GetContainerItemID(bag, slot) then
+          PickupContainerItem(bag, slot)
+          return
+        end
+      end
+    end
+    ClearCursor()
+    UIErrorsFrame:AddMessage(EQUIPMENT_MANAGER_BAGS_FULL or "Your bags are full.", 1, .1, .1, 1)
+  end
 
   local function MakeFlyoutButton(i)
     local b = CreateFrame("Button", nil, flyout)
@@ -550,14 +492,31 @@ pfUI:RegisterModule("equipmentmanager", function()
     b.count:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -2, 2)
     b:SetScript("OnEnter", function()
       GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-      if this.bag then
+      if this.specialAction == "placeInBags" then
+        GameTooltip:SetText(EQUIPMENT_MANAGER_PLACE_IN_BAGS or "Place in Bags", 1, 1, 1)
+      elseif this.specialAction == "ignore" then
+        GameTooltip:SetText(EQUIPMENT_MANAGER_IGNORE_SLOT or "Ignore this slot", 1, 1, 1)
+      elseif this.specialAction == "unignore" then
+        GameTooltip:SetText(EQUIPMENT_MANAGER_UNIGNORE_SLOT or "Stop ignoring this slot", 1, 1, 1)
+      elseif this.bag then
         GameTooltip:SetBagItem(this.bag, this.slot)
       elseif this.invSlot then
         GameTooltip:SetInventoryItem("player", this.invSlot)
       end
+      GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b:SetScript("OnClick", function()
+      if this.specialAction == "placeInBags" then
+        UnequipToBags(flyout.targetInvSlot)
+        flyout:Hide()
+        return
+      elseif this.specialAction == "ignore" or this.specialAction == "unignore" then
+        ToggleIgnoredForSet(selectedSetID, flyout.targetInvSlot)
+        flyout:Hide()
+        pfUI.equipmentmanager.Refresh()
+        return
+      end
       ClearCursor()
       if this.bag then
         PickupContainerItem(this.bag, this.slot)
@@ -573,7 +532,9 @@ pfUI:RegisterModule("equipmentmanager", function()
   end
 
   function pfUI.equipmentmanager.ShowFlyout(slotBtn)
-    local invSlot = slotBtn.slotID
+    -- Accept either the EM grid btn (has .slotID) or a vanilla
+    -- CharacterXxxxSlot button (use GetID()).
+    local invSlot = slotBtn.slotID or slotBtn:GetID()
 
     -- ClassicAPI's GetInventoryItemsForSlot does the eligibility filter
     -- (invType → slot compatibility, 2H/finger/trinket rules) for us;
@@ -589,6 +550,20 @@ pfUI:RegisterModule("equipmentmanager", function()
       table.insert(ordered, location)
     end
     table.sort(ordered)
+    -- Append "place in bags" virtual entry if the slot has an equipped item.
+    if GetInventoryItemID("player", invSlot) then
+      table.insert(ordered, PLACEINBAGS_LOCATION)
+    end
+    -- Append ignore/un-ignore entry when a set is selected: which one we
+    -- show depends on whether the set currently has this slot ignored.
+    if selectedSetID then
+      local currentIgnored = C_EquipmentSet.GetIgnoredSlots(selectedSetID) or {}
+      local isIgnored = false
+      for _, s in ipairs(currentIgnored) do
+        if s == invSlot then isIgnored = true; break end
+      end
+      table.insert(ordered, isIgnored and UNIGNORESLOT_LOCATION or IGNORESLOT_LOCATION)
+    end
 
     flyout.targetInvSlot = invSlot
     local num = table.getn(ordered)
@@ -597,16 +572,32 @@ pfUI:RegisterModule("equipmentmanager", function()
     end
     for i, b in ipairs(flyout.buttons) do
       if i <= num then
-        local loc = EquipmentManager_GetLocationData(ordered[i])
-        if loc.isBags then
-          b.bag = loc.bag; b.slot = loc.slot; b.invSlot = nil
-          local tex, count = GetContainerItemInfo(loc.bag, loc.slot)
-          b.texture:SetTexture(tex)
-          if count and count > 1 then b.count:SetText(count) else b.count:SetText("") end
-        else  -- isPlayer (equipped in some other slot)
-          b.bag = nil; b.slot = nil; b.invSlot = loc.slot
-          b.texture:SetTexture(GetInventoryItemTexture("player", loc.slot))
+        local location = ordered[i]
+        b.specialAction = nil; b.bag = nil; b.slot = nil; b.invSlot = nil
+        if location == PLACEINBAGS_LOCATION then
+          b.specialAction = "placeInBags"
+          b.texture:SetTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-ItemIntoBag")
           b.count:SetText("")
+        elseif location == IGNORESLOT_LOCATION then
+          b.specialAction = "ignore"
+          b.texture:SetTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-LeaveItem-Opaque")
+          b.count:SetText("")
+        elseif location == UNIGNORESLOT_LOCATION then
+          b.specialAction = "unignore"
+          b.texture:SetTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-Undo")
+          b.count:SetText("")
+        else
+          local loc = EquipmentManager_GetLocationData(location)
+          if loc.isBags then
+            b.bag = loc.bag; b.slot = loc.slot
+            local tex, count = GetContainerItemInfo(loc.bag, loc.slot)
+            b.texture:SetTexture(tex)
+            if count and count > 1 then b.count:SetText(count) else b.count:SetText("") end
+          else  -- isPlayer (equipped in some other slot)
+            b.invSlot = loc.slot
+            b.texture:SetTexture(GetInventoryItemTexture("player", loc.slot))
+            b.count:SetText("")
+          end
         end
         local col = math.mod(i - 1, FLYOUT_COLS)
         local row = math.floor((i - 1) / FLYOUT_COLS)
@@ -629,12 +620,133 @@ pfUI:RegisterModule("equipmentmanager", function()
     flyout:SetWidth(cols * (FLYOUT_BTN_SIZE + 2) + 6)
     flyout:SetHeight(rows * (FLYOUT_BTN_SIZE + 2) + 6)
     flyout:ClearAllPoints()
-    flyout:SetPoint("TOPLEFT", slotBtn, "TOPRIGHT", 4, 0)
+    -- Anchor to the popout button so the flyout sits past it (avoids
+    -- overlapping the chevron). Falls back to the slot itself for the
+    -- EM grid btns which don't have a separate popout.
+    local anchorBtn = slotBtn.popout or slotBtn
+    if invSlot == 16 or invSlot == 17 or invSlot == 18 then
+      flyout:SetPoint("BOTTOMLEFT", anchorBtn, "TOPLEFT", 0, 4)
+    else
+      local centerX = (anchorBtn:GetLeft() or 0) + anchorBtn:GetWidth()/2
+      if centerX > GetScreenWidth()/2 then
+        flyout:SetPoint("TOPRIGHT", anchorBtn, "TOPLEFT", -4, 0)
+      else
+        flyout:SetPoint("TOPLEFT", anchorBtn, "TOPRIGHT", 4, 0)
+      end
+    end
+    -- Reverse the chevron on the active popout, restore the previously
+    -- active one (if any). flyout.currentPopout drives OnHide cleanup.
+    if flyout.currentPopout and flyout.currentPopout ~= slotBtn.popout then
+      SetPopoutReversed(flyout.currentPopout, false)
+    end
+    flyout.currentPopout = slotBtn.popout
+    SetPopoutReversed(slotBtn.popout, true)
     flyout:Show()
   end
 
-  -- Hide flyout on outside click
-  flyout:SetScript("OnHide", function() this.targetInvSlot = nil end)
+  -- Hide flyout on outside click; restore the active popout's chevron.
+  flyout:SetScript("OnHide", function()
+    this.targetInvSlot = nil
+    if this.currentPopout then
+      SetPopoutReversed(this.currentPopout, false)
+      this.currentPopout = nil
+    end
+  end)
+
+  -- ============================================================
+  -- Alt+left-click on a character paperdoll slot → open flyout.
+  -- Wraps each CharacterXxxxSlot's existing OnClick so the default
+  -- behaviors (pickup / unequip / use trinket) stay intact for plain
+  -- and right clicks.
+  -- ============================================================
+
+  local CHAR_SLOT_NAMES = {
+    "HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot",
+    "ShirtSlot", "TabardSlot", "WristSlot", "HandsSlot", "WaistSlot",
+    "LegsSlot", "FeetSlot", "Finger0Slot", "Finger1Slot",
+    "Trinket0Slot", "Trinket1Slot", "MainHandSlot", "SecondaryHandSlot",
+    "RangedSlot",
+  }
+  -- Slot ID classification for popout positioning. Weapons sit at the
+  -- bottom of the paperdoll, so their popout goes on top (chevron up).
+  -- All other slots get the popout on their right side, chevron right.
+  local UP_ARROW_SLOTS = { [16]=1, [17]=1, [18]=1 }
+  local POPOUT_TEX = "Interface\\AddOns\\pfUI\\img\\UI-GearManager-FlyoutButton"
+
+  for _, slotName in ipairs(CHAR_SLOT_NAMES) do
+    local slot = _G["Character"..slotName]
+    if slot then
+      -- "Ignored" overlay rendered on top of the paperdoll slot icon.
+      -- Transparent variant: the item icon stays partially visible
+      -- underneath, matching modern WoW. Opaque is for flyout buttons.
+      local overlay = slot:CreateTexture(nil, "OVERLAY")
+      overlay:SetAllPoints(slot)
+      overlay:SetTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-LeaveItem-Transparent")
+      overlay:Hide()
+      slotOverlays[slot:GetID()] = overlay
+
+      -- Popout arrow button — clicking opens the equipment flyout for
+      -- this slot. Replaces the Alt+click trigger with a discoverable
+      -- visual affordance matching modern WoW's paperdoll.
+      local invSlot = slot:GetID()
+      local popout = CreateFrame("Button", nil, slot)
+      popout:SetFrameLevel(slot:GetFrameLevel() + 1)
+      -- Match Blizzard's EquipmentFlyoutPopoutButtonTemplate: 16x32,
+      -- anchored LEFT to slot's RIGHT (chevron points away from slot
+      -- toward the flyout's opening side).
+      popout:SetWidth(16); popout:SetHeight(32)
+      if UP_ARROW_SLOTS[invSlot] then
+        -- Weapon row: popout on TOP, vertical orientation.
+        popout:SetWidth(32); popout:SetHeight(16)
+        popout:SetPoint("BOTTOM", slot, "TOP", 0, 0)
+      else
+        -- All horizontal slots get the popout on the RIGHT edge, chevron
+        -- points right. Right-column slot popouts extend slightly into
+        -- the EM sidecar gutter — acceptable, matches modern UX.
+        popout:SetPoint("LEFT", slot, "RIGHT", 0, 0)
+      end
+      popout:SetNormalTexture(POPOUT_TEX)
+      popout:SetHighlightTexture(POPOUT_TEX, "ADD")
+      -- Stash both texCoord variants (normal=closed, reversed=open) so
+      -- SetPopoutReversed can swap between them. Reversed = swap all
+      -- y-values 0↔0.5 / 0.5↔1, matching modern WoW.
+      if UP_ARROW_SLOTS[invSlot] then
+        -- Closed: chevron points UP (toward where the flyout will open).
+        popout.coordNormal     = { 0.15625, 0.84375, 0, 0.5 }
+        popout.coordReversed   = { 0.15625, 0.84375, 0.5, 0 }
+        popout.coordNormalHi   = { 0.15625, 0.84375, 0.5, 1 }
+        popout.coordReversedHi = { 0.15625, 0.84375, 1, 0.5 }
+      else
+        popout.coordNormal     = { 0.15625, 0.5, 0.84375, 0.5, 0.15625, 0, 0.84375, 0 }
+        popout.coordReversed   = { 0.15625, 0, 0.84375, 0, 0.15625, 0.5, 0.84375, 0.5 }
+        popout.coordNormalHi   = { 0.15625, 1, 0.84375, 1, 0.15625, 0.5, 0.84375, 0.5 }
+        popout.coordReversedHi = { 0.15625, 0.5, 0.84375, 0.5, 0.15625, 1, 0.84375, 1 }
+      end
+      SetPopoutReversed(popout, false)
+      slot.popout = popout
+      popout:SetScript("OnClick", function()
+        -- Toggle: if the flyout is showing for this same slot, hide it;
+        -- otherwise (re)open it for the clicked slot.
+        if flyout:IsShown() and flyout.targetInvSlot == invSlot then
+          flyout:Hide()
+        else
+          pfUI.equipmentmanager.ShowFlyout(slot)
+        end
+      end)
+      popout:Hide()
+      table.insert(popoutButtons, popout)
+    end
+  end
+
+  -- Tie popout visibility to the EM sidecar. They appear when the
+  -- sidecar opens, hide when it closes, and the flyout closes too.
+  HookScript(frame, "OnShow", function()
+    for _, b in ipairs(popoutButtons) do b:Show() end
+  end)
+  HookScript(frame, "OnHide", function()
+    for _, b in ipairs(popoutButtons) do b:Hide() end
+    if flyout then flyout:Hide() end
+  end)
 
   -- ============================================================
   -- Refresh
@@ -683,46 +795,16 @@ pfUI:RegisterModule("equipmentmanager", function()
       end
     end
 
-    -- Slot grid: if a set is selected, show that set's composition;
-    -- otherwise show currently equipped items.
-    local setItemIDs = selectedSetID and (C_EquipmentSet.GetItemIDs(selectedSetID) or {}) or nil
+    -- Update the ignored-overlay textures attached to each paperdoll
+    -- slot. Only visible when a set is selected and that set has the
+    -- slot in its ignored list.
     local setIgnored = {}
-    local setLocations = nil
     if selectedSetID then
       local ig = C_EquipmentSet.GetIgnoredSlots(selectedSetID) or {}
       for _, s in ipairs(ig) do setIgnored[s] = true end
-      setLocations = C_EquipmentSet.GetItemLocations(selectedSetID) or {}
     end
-
-    for _, slot in ipairs(SLOTS) do
-      local btn = slotButtons[slot.id]
-      local itemID
-      if setItemIDs then itemID = setItemIDs[slot.id] end
-      if not itemID then itemID = GetInventoryItemID and GetInventoryItemID("player", slot.id) end
-
-      btn.itemID = itemID
-      btn.location = setLocations and setLocations[slot.id] or nil
-      if itemID then
-        btn.texture:SetTexture(C_Item.GetItemIconByID(itemID) or "Interface\\Icons\\INV_Misc_QuestionMark")
-        btn.texture:SetTexCoord(.08, .92, .08, .92)
-      else
-        btn.texture:SetTexture(btn.emptyTexture)
-        -- Paperdoll slot textures have generous transparent padding around
-        -- the silhouette; crop in so the icon visually fills the slot.
-        btn.texture:SetTexCoord(0.075, 0.925, 0.075, 0.925)
-      end
-
-      -- Ignored state: set-specific (saved) or session toggle (when no set)
-      local isIgnored = setItemIDs and setIgnored[slot.id]
-        or (not selectedSetID and C_EquipmentSet.IsSlotIgnoredForSave(slot.id))
-      if isIgnored then btn.ignoredOverlay:Show() else btn.ignoredOverlay:Hide() end
-
-      -- Missing item (set has slot but item not resolved): red border
-      if selectedSetID and setItemIDs and not setItemIDs[slot.id] and not isIgnored and not btn.location then
-        btn.backdrop:SetBackdropBorderColor(0.9, 0.2, 0.2, 1)
-      else
-        btn.backdrop:SetBackdropBorderColor(pfUI.cache.er, pfUI.cache.eg, pfUI.cache.eb, pfUI.cache.ea)
-      end
+    for slotID, overlay in pairs(slotOverlays) do
+      if selectedSetID and setIgnored[slotID] then overlay:Show() else overlay:Hide() end
     end
 
     -- Button enable state
