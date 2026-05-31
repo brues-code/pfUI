@@ -182,7 +182,22 @@ pfUI:RegisterModule("equipmentmanager", function()
   CreateBackdrop(rowMenu, nil, nil, .95)
   CreateBackdropShadow(rowMenu)
   rowMenu:EnableMouse(true)
-  rowMenu:SetScript("OnLeave", function() this:Hide() end)
+  -- OnLeave fires when the cursor moves onto a child button (child
+  -- becomes the topmost mouse target). Poll MouseIsOver instead — it's
+  -- geometric and includes the buttons inside the menu rect. The
+  -- anchorBtn check keeps the menu open on the click frame, when the
+  -- cursor is still on the gear and hasn't reached the menu yet.
+  rowMenu:SetScript("OnShow", function()
+    this:SetScript("OnUpdate", function()
+      if not MouseIsOver(this) and not (this.anchorBtn and MouseIsOver(this.anchorBtn)) then
+        this:Hide()
+      end
+    end)
+  end)
+  rowMenu:SetScript("OnHide", function()
+    this:SetScript("OnUpdate", nil)
+    this.anchorBtn = nil
+  end)
 
   rowMenu.changeBtn = CreateFrame("Button", nil, rowMenu, "UIPanelButtonTemplate")
   rowMenu.changeBtn:SetWidth(130); rowMenu.changeBtn:SetHeight(20)
@@ -272,8 +287,9 @@ pfUI:RegisterModule("equipmentmanager", function()
     row.gear:SetScript("OnClick", function()
       if not row.setID then return end
       rowMenu.targetSetID = row.setID
+      rowMenu.anchorBtn = row.gear
       rowMenu:ClearAllPoints()
-      rowMenu:SetPoint("TOPLEFT", row.gear, "BOTTOMRIGHT", 0, 0)
+      rowMenu:SetPoint("TOPRIGHT", row.gear, "BOTTOMRIGHT", 0, 0)
       rowMenu:Show()
     end)
 
@@ -290,20 +306,26 @@ pfUI:RegisterModule("equipmentmanager", function()
       pfUI.equipmentmanager.Refresh()
     end)
 
+    -- Hover handling: OnLeave fires when the cursor moves onto a child
+    -- (the gear button becomes the topmost mouse target). Use an
+    -- OnUpdate poll so the gear stays shown while the cursor is over
+    -- the row OR the gear itself.
     row:SetScript("OnEnter", function()
-      if this.setID then
-        local name = C_EquipmentSet.GetEquipmentSetInfo(this.setID)
-        if name then
-          GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-          GameTooltip:SetEquipmentSet(name)
-          GameTooltip:Show()
-        end
-        row.gear:Show()
+      if not this.setID then return end
+      local name = C_EquipmentSet.GetEquipmentSetInfo(this.setID)
+      if name then
+        GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+        GameTooltip:SetEquipmentSet(name)
+        GameTooltip:Show()
       end
-    end)
-    row:SetScript("OnLeave", function()
-      GameTooltip:Hide()
-      row.gear:Hide()
+      row.gear:Show()
+      this:SetScript("OnUpdate", function()
+        if not MouseIsOver(this) and not MouseIsOver(row.gear) then
+          this:SetScript("OnUpdate", nil)
+          GameTooltip:Hide()
+          row.gear:Hide()
+        end
+      end)
     end)
 
     return row
