@@ -126,12 +126,108 @@ pfUI:RegisterModule("equipmentmanager", function()
   end)
 
   -- ============================================================
+  -- Forward declaration: OpenNamePopup is defined later, but referenced
+  -- by the row context menu and the "+ New Set" row created earlier.
+  -- ============================================================
+  local OpenNamePopup
+
+  -- ============================================================
+  -- Equip + Save buttons (top of list area)
+  -- ============================================================
+
+  local btnEquip = CreateFrame("Button", "pfEqMgrEquip", frame, "UIPanelButtonTemplate")
+  btnEquip:SetWidth(86); btnEquip:SetHeight(22); btnEquip:SetText(T["Equip"] or "Equip")
+  btnEquip:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -30)
+  SkinButton(btnEquip)
+  btnEquip:SetScript("OnClick", function() EquipSet(selectedSetID) end)
+
+  local btnSave = CreateFrame("Button", "pfEqMgrSave", frame, "UIPanelButtonTemplate")
+  btnSave:SetWidth(86); btnSave:SetHeight(22); btnSave:SetText(T["Save"] or "Save")
+  btnSave:SetPoint("LEFT", btnEquip, "RIGHT", 6, 0)
+  SkinButton(btnSave)
+  btnSave:SetScript("OnClick", function()
+    if not selectedSetID then return end
+    local name, icon = C_EquipmentSet.GetEquipmentSetInfo(selectedSetID)
+    if not name then return end
+    local targetID = selectedSetID
+    StaticPopupDialogs["PFUI_EQMGR_SAVE_CONFIRM"] = {
+      text = string.format(T["Would you like to save the equipment set '%s'?"] or "Would you like to save the equipment set '%s'?", name),
+      button1 = YES, button2 = NO,
+      OnAccept = function()
+        -- Direct save: keep existing name + icon, commit pending ignored toggles.
+        C_EquipmentSet.ClearIgnoredSlotsForSave()
+        local effective = GetEffectiveIgnored(targetID)
+        for slotID in pairs(effective) do
+          C_EquipmentSet.IgnoreSlotForSave(slotID)
+        end
+        C_EquipmentSet.SaveEquipmentSet(targetID, icon)
+        C_EquipmentSet.ClearIgnoredSlotsForSave()
+        pendingIgnoredToggles[targetID] = nil
+        pfUI.equipmentmanager.Refresh()
+      end,
+      timeout = 0, whileDead = 1, hideOnEscape = 1, exclusive = 1,
+    }
+    StaticPopup_Show("PFUI_EQMGR_SAVE_CONFIRM")
+  end)
+
+  -- ============================================================
+  -- Per-row context menu (single instance, repositioned per click).
+  -- Triggered by the gear icon on each set row.
+  -- ============================================================
+
+  local rowMenu = CreateFrame("Frame", "pfEqMgrRowMenu", UIParent)
+  rowMenu:SetFrameStrata("DIALOG")
+  rowMenu:SetWidth(140); rowMenu:SetHeight(50)
+  rowMenu:Hide()
+  CreateBackdrop(rowMenu, nil, nil, .95)
+  CreateBackdropShadow(rowMenu)
+  rowMenu:EnableMouse(true)
+  rowMenu:SetScript("OnLeave", function() this:Hide() end)
+
+  rowMenu.changeBtn = CreateFrame("Button", nil, rowMenu, "UIPanelButtonTemplate")
+  rowMenu.changeBtn:SetWidth(130); rowMenu.changeBtn:SetHeight(20)
+  rowMenu.changeBtn:SetPoint("TOPLEFT", rowMenu, "TOPLEFT", 5, -3)
+  rowMenu.changeBtn:SetText(T["Change Name/Icon"] or "Change Name/Icon")
+  SkinButton(rowMenu.changeBtn)
+  rowMenu.changeBtn:SetScript("OnClick", function()
+    rowMenu:Hide()
+    if not rowMenu.targetSetID then return end
+    local name, icon = C_EquipmentSet.GetEquipmentSetInfo(rowMenu.targetSetID)
+    selectedSetID = rowMenu.targetSetID
+    OpenNamePopup("save", name, icon)
+  end)
+
+  rowMenu.deleteBtn = CreateFrame("Button", nil, rowMenu, "UIPanelButtonTemplate")
+  rowMenu.deleteBtn:SetWidth(130); rowMenu.deleteBtn:SetHeight(20)
+  rowMenu.deleteBtn:SetPoint("TOP", rowMenu.changeBtn, "BOTTOM", 0, -2)
+  rowMenu.deleteBtn:SetText(T["Delete"] or "Delete")
+  SkinButton(rowMenu.deleteBtn)
+  rowMenu.deleteBtn:SetScript("OnClick", function()
+    rowMenu:Hide()
+    if not rowMenu.targetSetID then return end
+    local targetID = rowMenu.targetSetID
+    local name = C_EquipmentSet.GetEquipmentSetInfo(targetID)
+    StaticPopupDialogs["PFUI_EQMGR_DELETE"] = {
+      text = string.format(T["Delete equipment set '%s'?"] or "Delete equipment set '%s'?", name or "?"),
+      button1 = YES, button2 = NO,
+      OnAccept = function()
+        pendingIgnoredToggles[targetID] = nil
+        C_EquipmentSet.DeleteEquipmentSet(targetID)
+        if selectedSetID == targetID then selectedSetID = nil end
+        pfUI.equipmentmanager.Refresh()
+      end,
+      timeout = 0, whileDead = 1, hideOnEscape = 1, exclusive = 1,
+    }
+    StaticPopup_Show("PFUI_EQMGR_DELETE")
+  end)
+
+  -- ============================================================
   -- Set list (left column)
   -- ============================================================
 
-  local LIST_VISIBLE_ROWS = 6
+  local LIST_VISIBLE_ROWS = 8
   local listFrame = CreateFrame("Frame", nil, frame)
-  listFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -30)
+  listFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -58)
   listFrame:SetWidth(180)
   listFrame:SetHeight(SET_ROW_HEIGHT * LIST_VISIBLE_ROWS + 4)
   CreateBackdrop(listFrame, nil, nil, .75)
@@ -155,13 +251,31 @@ pfUI:RegisterModule("equipmentmanager", function()
 
     row.text = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     row.text:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-    row.text:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+    row.text:SetPoint("RIGHT", row, "RIGHT", -22, 0)
     row.text:SetJustifyH("LEFT")
 
     row.highlight = row:CreateTexture(nil, "BACKGROUND")
     row.highlight:SetAllPoints(row)
     row.highlight:SetTexture(.3, .3, .3, .4)
     row.highlight:Hide()
+
+    -- Gear icon (hidden by default, shown while the row is hovered).
+    -- Clicking it opens the row context menu (Change Name/Icon / Delete).
+    row.gear = CreateFrame("Button", nil, row)
+    row.gear:SetWidth(16); row.gear:SetHeight(16)
+    row.gear:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+    row.gear.tex = row.gear:CreateTexture(nil, "ARTWORK")
+    row.gear.tex:SetAllPoints(row.gear)
+    row.gear.tex:SetTexture("Interface\\AddOns\\pfUI\\img\\Gear_64Grey")
+    row.gear:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    row.gear:Hide()
+    row.gear:SetScript("OnClick", function()
+      if not row.setID then return end
+      rowMenu.targetSetID = row.setID
+      rowMenu:ClearAllPoints()
+      rowMenu:SetPoint("TOPLEFT", row.gear, "BOTTOMRIGHT", 0, 0)
+      rowMenu:Show()
+    end)
 
     row:SetScript("OnClick", function()
       selectedSetID = row.setID
@@ -177,14 +291,20 @@ pfUI:RegisterModule("equipmentmanager", function()
     end)
 
     row:SetScript("OnEnter", function()
-      if not this.setID then return end
-      local name = C_EquipmentSet.GetEquipmentSetInfo(this.setID)
-      if not name then return end
-      GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-      GameTooltip:SetEquipmentSet(name)
-      GameTooltip:Show()
+      if this.setID then
+        local name = C_EquipmentSet.GetEquipmentSetInfo(this.setID)
+        if name then
+          GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+          GameTooltip:SetEquipmentSet(name)
+          GameTooltip:Show()
+        end
+        row.gear:Show()
+      end
     end)
-    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    row:SetScript("OnLeave", function()
+      GameTooltip:Hide()
+      row.gear:Hide()
+    end)
 
     return row
   end
@@ -193,8 +313,33 @@ pfUI:RegisterModule("equipmentmanager", function()
     setRows[i] = CreateSetRow(i)
   end
 
+  -- "+ New Set" pseudo-row: appears after the last set in the list,
+  -- click to open the New set popup.
+  local newSetRow = CreateFrame("Button", nil, listFrame)
+  newSetRow:SetWidth(170); newSetRow:SetHeight(SET_ROW_HEIGHT)
+
+  newSetRow.icon = newSetRow:CreateTexture(nil, "ARTWORK")
+  newSetRow.icon:SetWidth(24); newSetRow.icon:SetHeight(24)
+  newSetRow.icon:SetPoint("LEFT", newSetRow, "LEFT", 5, 0)
+  newSetRow.icon:SetTexture("Interface\\AddOns\\pfUI\\img\\Character-Plus")
+
+  newSetRow.text = newSetRow:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  newSetRow.text:SetPoint("LEFT", newSetRow.icon, "RIGHT", 8, 0)
+  newSetRow.text:SetPoint("RIGHT", newSetRow, "RIGHT", -4, 0)
+  newSetRow.text:SetJustifyH("LEFT")
+  newSetRow.text:SetText(T["New Set"] or "New Set")
+  newSetRow.text:SetTextColor(0.2, 1, 0.2)
+
+  newSetRow.highlight = newSetRow:CreateTexture(nil, "BACKGROUND")
+  newSetRow.highlight:SetAllPoints(newSetRow)
+  newSetRow.highlight:SetTexture(.3, .3, .3, .4)
+  newSetRow.highlight:Hide()
+  newSetRow:SetScript("OnEnter", function() newSetRow.highlight:Show() end)
+  newSetRow:SetScript("OnLeave", function() newSetRow.highlight:Hide() end)
+  newSetRow:SetScript("OnClick", function() OpenNamePopup("new") end)
+
   -- ============================================================
-  -- Action buttons row (below set list)
+  -- Helper used by the name popup (defined later)
   -- ============================================================
 
   local function MakeButton(name, label, parent, anchor, ax, ay, width)
@@ -207,33 +352,8 @@ pfUI:RegisterModule("equipmentmanager", function()
     return b
   end
 
-  -- Button stack centered below the set list. Anchored to listFrame's
-  -- bottom edge so the column stays aligned with the list above it.
-  local btnNew = CreateFrame("Button", "pfEqMgrNew", frame, "UIPanelButtonTemplate")
-  btnNew:SetWidth(55); btnNew:SetHeight(22); btnNew:SetText(T["New"] or "New")
-  btnNew:SetPoint("TOPRIGHT", listFrame, "BOTTOM", -3, -8)
-  SkinButton(btnNew)
-
-  local btnSave = CreateFrame("Button", "pfEqMgrSave", frame, "UIPanelButtonTemplate")
-  btnSave:SetWidth(55); btnSave:SetHeight(22); btnSave:SetText(T["Save"] or "Save")
-  btnSave:SetPoint("LEFT", btnNew, "RIGHT", 6, 0)
-  SkinButton(btnSave)
-
-  local btnEquip = CreateFrame("Button", "pfEqMgrEquip", frame, "UIPanelButtonTemplate")
-  btnEquip:SetWidth(55); btnEquip:SetHeight(22); btnEquip:SetText(T["Equip"] or "Equip")
-  btnEquip:SetPoint("TOPLEFT", btnNew, "BOTTOMLEFT", 0, -4)
-  SkinButton(btnEquip)
-
-  local btnRename = CreateFrame("Button", "pfEqMgrRename", frame, "UIPanelButtonTemplate")
-  btnRename:SetWidth(55); btnRename:SetHeight(22); btnRename:SetText(T["Rename"] or "Rename")
-  btnRename:SetPoint("LEFT", btnEquip, "RIGHT", 6, 0)
-  SkinButton(btnRename)
-
-  local btnDelete = CreateFrame("Button", "pfEqMgrDelete", frame, "UIPanelButtonTemplate")
-  btnDelete:SetHeight(22); btnDelete:SetText(T["Delete"] or "Delete")
-  btnDelete:SetPoint("TOPLEFT", btnEquip, "BOTTOMLEFT", 0, -4)
-  btnDelete:SetPoint("TOPRIGHT", btnRename, "BOTTOMRIGHT", 0, -4)
-  SkinButton(btnDelete)
+  -- Equip / Save buttons + per-row context menu replace the old bottom
+  -- button stack. Delete and Change Name/Icon live in the row gear menu.
 
   -- ============================================================
   -- Name/icon entry popup
@@ -475,7 +595,10 @@ pfUI:RegisterModule("equipmentmanager", function()
     pfUI.equipmentmanager.Refresh()
   end)
 
-  local function OpenNamePopup(action, prefillName, prefillIcon)
+  -- Assignment (not `local function`) so this fills in the forward
+  -- declaration at the top of the module — closures created earlier
+  -- (row gear menu, "+ New Set" row, etc.) capture the same upvalue.
+  function OpenNamePopup(action, prefillName, prefillIcon)
     pendingAction = action
     namePopup.editbox:SetText(prefillName or "")
     EnsureProvider()
@@ -505,36 +628,6 @@ pfUI:RegisterModule("equipmentmanager", function()
     if action ~= "rename" then pfUI.equipmentmanager.RefreshIconGrid() end
     namePopup.editbox:SetFocus()
   end
-
-  -- Wire main action buttons
-  btnNew:SetScript("OnClick", function() OpenNamePopup("new") end)
-  btnSave:SetScript("OnClick", function()
-    if not selectedSetID then OpenNamePopup("new"); return end
-    local name, icon = C_EquipmentSet.GetEquipmentSetInfo(selectedSetID)
-    OpenNamePopup("save", name, icon)
-  end)
-  btnRename:SetScript("OnClick", function()
-    if not selectedSetID then return end
-    local name = C_EquipmentSet.GetEquipmentSetInfo(selectedSetID)
-    OpenNamePopup("rename", name)
-  end)
-  btnDelete:SetScript("OnClick", function()
-    if not selectedSetID then return end
-    local name = C_EquipmentSet.GetEquipmentSetInfo(selectedSetID)
-    StaticPopupDialogs["PFUI_EQMGR_DELETE"] = {
-      text = string.format(T["Delete equipment set '%s'?"] or "Delete equipment set '%s'?", name or "?"),
-      button1 = YES, button2 = NO,
-      OnAccept = function()
-        pendingIgnoredToggles[selectedSetID] = nil
-        C_EquipmentSet.DeleteEquipmentSet(selectedSetID)
-        selectedSetID = nil
-        pfUI.equipmentmanager.Refresh()
-      end,
-      timeout = 0, whileDead = 1, hideOnEscape = 1, exclusive = 1,
-    }
-    StaticPopup_Show("PFUI_EQMGR_DELETE")
-  end)
-  btnEquip:SetScript("OnClick", function() EquipSet(selectedSetID) end)
 
   -- ============================================================
   -- Equipment flyout (per-slot popup)
@@ -894,6 +987,19 @@ pfUI:RegisterModule("equipmentmanager", function()
       end
     end
 
+    -- "+ New Set" row sits after the last real set; hide it at the cap.
+    if numSets >= MAX_EQUIPMENT_SETS_PER_PLAYER then
+      newSetRow:Hide()
+    else
+      newSetRow:ClearAllPoints()
+      if numSets == 0 then
+        newSetRow:SetPoint("TOPLEFT", listFrame, "TOPLEFT", 5, -3)
+      else
+        newSetRow:SetPoint("TOPLEFT", setRows[numSets], "BOTTOMLEFT", 0, -2)
+      end
+      newSetRow:Show()
+    end
+
     -- Update the ignored-overlay textures attached to each paperdoll
     -- slot. Uses effective state (persistent + pending toggles) so
     -- uncommitted user changes show immediately.
@@ -902,14 +1008,10 @@ pfUI:RegisterModule("equipmentmanager", function()
       if selectedSetID and setIgnored[slotID] then overlay:Show() else overlay:Hide() end
     end
 
-    -- Button enable state
+    -- Equip + Save are the only top buttons now; enable when a set is selected.
     local hasSelection = selectedSetID and true or false
-    if hasSelection then
-      btnSave:Enable(); btnEquip:Enable(); btnRename:Enable(); btnDelete:Enable()
-    else
-      btnSave:Disable(); btnEquip:Disable(); btnRename:Disable(); btnDelete:Disable()
-    end
-    if numSets >= MAX_EQUIPMENT_SETS_PER_PLAYER then btnNew:Disable() else btnNew:Enable() end
+    if hasSelection then btnEquip:Enable(); btnSave:Enable()
+    else btnEquip:Disable(); btnSave:Disable() end
   end
 
   -- ============================================================
