@@ -307,7 +307,11 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- Declared here (before the filter dropdown setup) so that closure
   -- captures pick up the local, not a global.
   local provider = nil
-  local selectedIconIdx = 1
+  -- Selection is tracked by PATH (not index) so it survives filter
+  -- changes: a spell icon you picked still saves correctly even after
+  -- you switch the filter to "Items" and it's no longer in the visible list.
+  local QUESTION_MARK = "INTERFACE\\ICONS\\INV_MISC_QUESTIONMARK"
+  local selectedIconPath = QUESTION_MARK
 
   local function EnsureProvider()
     if not provider then
@@ -338,7 +342,9 @@ pfUI:RegisterModule("equipmentmanager", function()
       if value == "spells" then provider:SetIconTypes({ IconDataProviderIconType.Spell })
       elseif value == "items" then provider:SetIconTypes({ IconDataProviderIconType.Item })
       else provider:SetIconTypes(nil) end
-      selectedIconIdx = 1
+      -- Don't reset selection — selectedIconPath persists. If the
+      -- selected icon isn't in the new filter, no grid entry will be
+      -- highlighted but Save will still write the chosen icon.
       pfUI.equipmentmanager.RefreshIconGrid()
     end
   end
@@ -375,8 +381,9 @@ pfUI:RegisterModule("equipmentmanager", function()
       btn.texture:SetTexCoord(.08, .92, .08, .92)
       btn.gridIndex = i
       btn:SetScript("OnClick", function()
-        if this.iconIndex then
-          selectedIconIdx = this.iconIndex
+        if this.iconIndex and provider then
+          local path = provider:GetIconByIndex(this.iconIndex)
+          if path then selectedIconPath = path end
           pfUI.equipmentmanager.RefreshIconGrid()
         end
       end)
@@ -407,8 +414,9 @@ pfUI:RegisterModule("equipmentmanager", function()
       if listIdx <= numIcons then
         btn:Show()
         btn.iconIndex = listIdx
-        btn.texture:SetTexture(provider:GetIconByIndex(listIdx))
-        if listIdx == selectedIconIdx then
+        local path = provider:GetIconByIndex(listIdx)
+        btn.texture:SetTexture(path)
+        if path == selectedIconPath then
           btn.backdrop:SetBackdropBorderColor(1, 0.82, 0, 1)
         else
           btn.backdrop:SetBackdropBorderColor(pfUI.cache.er, pfUI.cache.eg, pfUI.cache.eb, pfUI.cache.ea)
@@ -418,8 +426,9 @@ pfUI:RegisterModule("equipmentmanager", function()
         btn.iconIndex = nil
       end
     end
-    -- Sync the "Currently Selected" preview with the chosen icon.
-    namePopup.selectedPreview.tex:SetTexture(provider:GetIconByIndex(selectedIconIdx))
+    -- Sync the "Currently Selected" preview from the path directly so it
+    -- still shows the chosen icon when filtered out of the grid.
+    namePopup.selectedPreview.tex:SetTexture(selectedIconPath)
   end
 
   iconScroll:SetScript("OnVerticalScroll", function()
@@ -442,7 +451,8 @@ pfUI:RegisterModule("equipmentmanager", function()
   btnPopupOK:SetScript("OnClick", function()
     local name = namePopup.editbox:GetText()
     if not name or name == "" then return end
-    local iconForSave = provider and provider:GetIconForSaving(selectedIconIdx) or "INV_MISC_QUESTIONMARK"
+    -- Strip the prefix to match ClassicAPI's persisted short-form basenames.
+    local iconForSave = string.gsub(selectedIconPath, "INTERFACE\\ICONS\\", "")
     if pendingAction == "new" then
       C_EquipmentSet.CreateEquipmentSet(name, iconForSave)
       C_EquipmentSet.ClearIgnoredSlotsForSave()
@@ -470,12 +480,10 @@ pfUI:RegisterModule("equipmentmanager", function()
     namePopup.editbox:SetText(prefillName or "")
     EnsureProvider()
     if prefillIcon then
-      -- Stored icons are short-form basenames; GetIconByIndex returns
-      -- the full "INTERFACE\\ICONS\\X" path, so reconstruct before lookup.
       local short = string.gsub(prefillIcon, "INTERFACE\\ICONS\\", "")
-      selectedIconIdx = provider:GetIndexOfIcon("INTERFACE\\ICONS\\" .. strupper(short)) or 1
+      selectedIconPath = "INTERFACE\\ICONS\\" .. strupper(short)
     else
-      selectedIconIdx = 1
+      selectedIconPath = QUESTION_MARK
     end
     if action == "rename" then
       namePopup.title:SetText(T["Rename Set"] or "Rename Set")
