@@ -78,6 +78,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     else
       frame:SetPoint("TOPLEFT", CharacterFrame, "TOPRIGHT", 0, 0)
     end
+    for _, b in ipairs(popoutButtons) do b:Show() end
   end)
   CreateBackdrop(frame, nil, nil, .9)
   CreateBackdropShadow(frame)
@@ -642,6 +643,10 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- ============================================================
 
   local flyout = CreateFrame("Frame", "pfEqMgrFlyout", UIParent)
+  frame:SetScript("OnHide", function()
+    for _, b in ipairs(popoutButtons) do b:Hide() end
+    flyout:Hide()
+  end)
   flyout:SetFrameStrata("DIALOG")
   flyout:Hide()
   CreateBackdrop(flyout, nil, nil, .9)
@@ -859,7 +864,6 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- Slot ID classification for popout positioning. Weapons sit at the
   -- bottom of the paperdoll, so their popout goes on top (chevron up).
   -- All other slots get the popout on their right side, chevron right.
-  local UP_ARROW_SLOTS = { [16]=1, [17]=1, [18]=1 }
   local POPOUT_TEX = pfUI.path.."\\img\\UI-GearManager-FlyoutButton"
 
   for _, slotName in ipairs(CHAR_SLOT_NAMES) do
@@ -891,7 +895,7 @@ pfUI:RegisterModule("equipmentmanager", function()
       -- anchored LEFT to slot's RIGHT (chevron points away from slot
       -- toward the flyout's opening side).
       popout:SetWidth(16); popout:SetHeight(32)
-      if UP_ARROW_SLOTS[invSlot] then
+      if INVSLOTS_EQUIPABLE_IN_COMBAT[invSlot] then
         -- Weapon row: popout on TOP, vertical orientation.
         popout:SetWidth(32); popout:SetHeight(16)
         popout:SetPoint("BOTTOM", slot, "TOP", 0, 0)
@@ -906,7 +910,7 @@ pfUI:RegisterModule("equipmentmanager", function()
       -- Stash both texCoord variants (normal=closed, reversed=open) so
       -- SetPopoutReversed can swap between them. Reversed = swap all
       -- y-values 0↔0.5 / 0.5↔1, matching modern WoW.
-      if UP_ARROW_SLOTS[invSlot] then
+      if INVSLOTS_EQUIPABLE_IN_COMBAT[invSlot] then
         -- Closed: chevron points UP (toward where the flyout will open).
         popout.coordNormal     = { 0.15625, 0.84375, 0, 0.5 }
         popout.coordReversed   = { 0.15625, 0.84375, 0.5, 0 }
@@ -1052,9 +1056,4 @@ pfUI:RegisterModule("equipmentmanager", function()
     pfUI.equipmentmanager.Refresh()
   end)
 
-  -- Hide the sidecar + flyout when the character pane closes.
-  HookScript(CharacterFrame, "OnHide", function()
-    frame:Hide()
-    flyout:Hide()
-  end)
 end)
