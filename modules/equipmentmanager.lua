@@ -637,21 +637,24 @@ pfUI:RegisterModule("equipmentmanager", function()
     -- Skip the item currently equipped in this slot (it would be a no-op swap).
     items[invSlot + ITEM_INVENTORY_LOCATION_PLAYER] = nil
 
-    -- Collect into an ordered list (sorted by packed location for stable display).
+    -- Special buttons go FIRST (ignore/un-ignore, then place-in-bags),
+    -- with eligible items appended after. Layout matches modern WoW.
     local ordered = {}
-    for location in pairs(items) do
-      table.insert(ordered, location)
-    end
-    table.sort(ordered)
-    -- Append "place in bags" virtual entry if the slot has an equipped item.
-    if GetInventoryItemID("player", invSlot) then
-      table.insert(ordered, PLACEINBAGS_LOCATION)
-    end
-    -- Append ignore/un-ignore entry when a set is selected: which one we
-    -- show depends on the slot's EFFECTIVE state (persistent + pending).
     if selectedSetID then
       local effective = GetEffectiveIgnored(selectedSetID)
       table.insert(ordered, effective[invSlot] and UNIGNORESLOT_LOCATION or IGNORESLOT_LOCATION)
+    end
+    if GetInventoryItemID("player", invSlot) then
+      table.insert(ordered, PLACEINBAGS_LOCATION)
+    end
+    -- Eligible items, sorted by packed location for stable display.
+    local itemLocations = {}
+    for location in pairs(items) do
+      table.insert(itemLocations, location)
+    end
+    table.sort(itemLocations)
+    for _, location in ipairs(itemLocations) do
+      table.insert(ordered, location)
     end
 
     flyout.targetInvSlot = invSlot
