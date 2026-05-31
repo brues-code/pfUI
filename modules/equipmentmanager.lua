@@ -105,8 +105,8 @@ pfUI:RegisterModule("equipmentmanager", function()
   toggleBtn:SetWidth(28)
   toggleBtn:SetHeight(28)
   toggleBtn:SetPoint("BOTTOM", CharacterHandsSlot, "TOP", 0, 4)
-  toggleBtn:SetNormalTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-Button")
-  toggleBtn:SetPushedTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-Button-Pushed")
+  toggleBtn:SetNormalTexture(pfUI.path.."\\img\\UI-GearManager-Button")
+  toggleBtn:SetPushedTexture(pfUI.path.."\\img\\UI-GearManager-Button-Pushed")
   toggleBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
   toggleBtn:SetScript("OnEnter", function()
     GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
@@ -289,7 +289,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     row.gear:SetPoint("RIGHT", row, "RIGHT", -4, 0)
     row.gear.tex = row.gear:CreateTexture(nil, "ARTWORK")
     row.gear.tex:SetAllPoints(row.gear)
-    row.gear.tex:SetTexture("Interface\\AddOns\\pfUI\\img\\Gear_64Grey")
+    row.gear.tex:SetTexture(pfUI.path.."\\img\\Gear_64Grey")
     row.gear:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     row.gear:Hide()
     row.gear:SetScript("OnClick", function()
@@ -360,7 +360,7 @@ pfUI:RegisterModule("equipmentmanager", function()
   newSetRow.icon = newSetRow:CreateTexture(nil, "ARTWORK")
   newSetRow.icon:SetWidth(24); newSetRow.icon:SetHeight(24)
   newSetRow.icon:SetPoint("LEFT", newSetRow, "LEFT", 5, 0)
-  newSetRow.icon:SetTexture("Interface\\AddOns\\pfUI\\img\\Character-Plus")
+  newSetRow.icon:SetTexture(pfUI.path.."\\img\\Character-Plus")
 
   newSetRow.text = newSetRow:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   newSetRow.text:SetPoint("LEFT", newSetRow.icon, "RIGHT", 8, 0)
@@ -800,15 +800,15 @@ pfUI:RegisterModule("equipmentmanager", function()
         b.specialAction = nil; b.bag = nil; b.slot = nil; b.invSlot = nil
         if location == PLACEINBAGS_LOCATION then
           b.specialAction = "placeInBags"
-          b.texture:SetTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-ItemIntoBag")
+          b.texture:SetTexture(pfUI.path.."\\img\\UI-GearManager-ItemIntoBag")
           b.count:SetText("")
         elseif location == IGNORESLOT_LOCATION then
           b.specialAction = "ignore"
-          b.texture:SetTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-LeaveItem-Opaque")
+          b.texture:SetTexture(pfUI.path.."\\img\\UI-GearManager-LeaveItem-Opaque")
           b.count:SetText("")
         elseif location == UNIGNORESLOT_LOCATION then
           b.specialAction = "unignore"
-          b.texture:SetTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-Undo")
+          b.texture:SetTexture(pfUI.path.."\\img\\UI-GearManager-Undo")
           b.count:SetText("")
         else
           local loc = EquipmentManager_GetLocationData(location)
@@ -895,7 +895,7 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- bottom of the paperdoll, so their popout goes on top (chevron up).
   -- All other slots get the popout on their right side, chevron right.
   local UP_ARROW_SLOTS = { [16]=1, [17]=1, [18]=1 }
-  local POPOUT_TEX = "Interface\\AddOns\\pfUI\\img\\UI-GearManager-FlyoutButton"
+  local POPOUT_TEX = pfUI.path.."\\img\\UI-GearManager-FlyoutButton"
 
   for _, slotName in ipairs(CHAR_SLOT_NAMES) do
     local slot = _G["Character"..slotName]
@@ -912,7 +912,7 @@ pfUI:RegisterModule("equipmentmanager", function()
       overlayFrame:SetFrameLevel(slot:GetFrameLevel() + 10)
       local overlay = overlayFrame:CreateTexture(nil, "OVERLAY")
       overlay:SetAllPoints(overlayFrame)
-      overlay:SetTexture("Interface\\AddOns\\pfUI\\img\\UI-GearManager-LeaveItem-Transparent")
+      overlay:SetTexture(pfUI.path.."\\img\\UI-GearManager-LeaveItem-Transparent")
       overlayFrame:Hide()
       slotOverlays[slot:GetID()] = overlayFrame
 
