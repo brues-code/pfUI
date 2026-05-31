@@ -17,6 +17,37 @@ pfUI:RegisterModule("equipmentmanager", function()
   local slotOverlays = {}    -- [invSlotID] = ignored-overlay texture on the character slot
   local popoutButtons = {}   -- popout arrow buttons; toggled with the EM frame
 
+  -- Pending ignored-slot toggles per set. A slotID in this table means
+  -- the effective state for that slot is FLIPPED from what's persisted.
+  -- Committed when the user clicks Save; cleared when a set is deleted.
+  -- Declared here (not nearer the helpers below) so the Save / Delete
+  -- closures created earlier in the module can capture them as upvalues.
+  local pendingIgnoredToggles = {}
+
+  local function GetEffectiveIgnored(setID)
+    local result = {}
+    if not setID then return result end
+    local persistent = C_EquipmentSet.GetIgnoredSlots(setID) or {}
+    for _, s in ipairs(persistent) do result[s] = true end
+    local pending = pendingIgnoredToggles[setID]
+    if pending then
+      for slotID in pairs(pending) do
+        if result[slotID] then result[slotID] = nil else result[slotID] = true end
+      end
+    end
+    return result
+  end
+
+  local function ToggleIgnoredForSet(setID, slotID)
+    if not setID then return end
+    pendingIgnoredToggles[setID] = pendingIgnoredToggles[setID] or {}
+    if pendingIgnoredToggles[setID][slotID] then
+      pendingIgnoredToggles[setID][slotID] = nil
+    else
+      pendingIgnoredToggles[setID][slotID] = true
+    end
+  end
+
   -- Swap a popout's chevron between closed (points away from slot) and
   -- reversed (points toward slot — indicates "flyout is open").
   local function SetPopoutReversed(popout, reversed)
@@ -356,8 +387,16 @@ pfUI:RegisterModule("equipmentmanager", function()
       C_EquipmentSet.ClearIgnoredSlotsForSave()
       selectedSetID = C_EquipmentSet.GetEquipmentSetID(name)
     elseif pendingAction == "save" and selectedSetID then
+      -- Commit pending ignored toggles: load the effective list into
+      -- ClassicAPI's session state, then SaveEquipmentSet captures it.
+      C_EquipmentSet.ClearIgnoredSlotsForSave()
+      local effective = GetEffectiveIgnored(selectedSetID)
+      for slotID in pairs(effective) do
+        C_EquipmentSet.IgnoreSlotForSave(slotID)
+      end
       C_EquipmentSet.SaveEquipmentSet(selectedSetID, iconForSave)
       C_EquipmentSet.ClearIgnoredSlotsForSave()
+      pendingIgnoredToggles[selectedSetID] = nil
     elseif pendingAction == "rename" and selectedSetID then
       C_EquipmentSet.ModifyEquipmentSet(selectedSetID, name)
     end
@@ -411,6 +450,7 @@ pfUI:RegisterModule("equipmentmanager", function()
       text = string.format(T["Delete equipment set '%s'?"] or "Delete equipment set '%s'?", name or "?"),
       button1 = YES, button2 = NO,
       OnAccept = function()
+        pendingIgnoredToggles[selectedSetID] = nil
         C_EquipmentSet.DeleteEquipmentSet(selectedSetID)
         selectedSetID = nil
         pfUI.equipmentmanager.Refresh()
@@ -438,28 +478,6 @@ pfUI:RegisterModule("equipmentmanager", function()
   local PLACEINBAGS_LOCATION = -1
   local IGNORESLOT_LOCATION = -2    -- "ignore this slot" — shown when not ignored
   local UNIGNORESLOT_LOCATION = -3  -- "un-ignore this slot" — shown when ignored
-
-  -- Toggle a slot's ignored state for the selected set. ClassicAPI's
-  -- IgnoreSlotForSave is session-state, so we restore the set's current
-  -- ignored list, flip the target slot, and SaveEquipmentSet to persist.
-  -- Side effect: re-snapshots equipment for non-ignored slots, so the
-  -- caller should make sure the set's gear matches current equipment
-  -- (this is the common case since the user just selected/equipped it).
-  local function ToggleIgnoredForSet(setID, slotID)
-    if not setID then return end
-    local name, icon = C_EquipmentSet.GetEquipmentSetInfo(setID)
-    if not name then return end
-    C_EquipmentSet.ClearIgnoredSlotsForSave()
-    local currentIgnored = C_EquipmentSet.GetIgnoredSlots(setID) or {}
-    local wasIgnored = false
-    for _, s in ipairs(currentIgnored) do
-      if s == slotID then wasIgnored = true
-      else C_EquipmentSet.IgnoreSlotForSave(s) end
-    end
-    if not wasIgnored then C_EquipmentSet.IgnoreSlotForSave(slotID) end
-    C_EquipmentSet.SaveEquipmentSet(setID, icon)
-    C_EquipmentSet.ClearIgnoredSlotsForSave()
-  end
 
   -- Find first empty bag slot and drop the cursor item into it.
   local function UnequipToBags(invSlot)
@@ -555,14 +573,10 @@ pfUI:RegisterModule("equipmentmanager", function()
       table.insert(ordered, PLACEINBAGS_LOCATION)
     end
     -- Append ignore/un-ignore entry when a set is selected: which one we
-    -- show depends on whether the set currently has this slot ignored.
+    -- show depends on the slot's EFFECTIVE state (persistent + pending).
     if selectedSetID then
-      local currentIgnored = C_EquipmentSet.GetIgnoredSlots(selectedSetID) or {}
-      local isIgnored = false
-      for _, s in ipairs(currentIgnored) do
-        if s == invSlot then isIgnored = true; break end
-      end
-      table.insert(ordered, isIgnored and UNIGNORESLOT_LOCATION or IGNORESLOT_LOCATION)
+      local effective = GetEffectiveIgnored(selectedSetID)
+      table.insert(ordered, effective[invSlot] and UNIGNORESLOT_LOCATION or IGNORESLOT_LOCATION)
     end
 
     flyout.targetInvSlot = invSlot
@@ -803,13 +817,9 @@ pfUI:RegisterModule("equipmentmanager", function()
     end
 
     -- Update the ignored-overlay textures attached to each paperdoll
-    -- slot. Only visible when a set is selected and that set has the
-    -- slot in its ignored list.
-    local setIgnored = {}
-    if selectedSetID then
-      local ig = C_EquipmentSet.GetIgnoredSlots(selectedSetID) or {}
-      for _, s in ipairs(ig) do setIgnored[s] = true end
-    end
+    -- slot. Uses effective state (persistent + pending toggles) so
+    -- uncommitted user changes show immediately.
+    local setIgnored = selectedSetID and GetEffectiveIgnored(selectedSetID) or {}
     for slotID, overlay in pairs(slotOverlays) do
       if selectedSetID and setIgnored[slotID] then overlay:Show() else overlay:Hide() end
     end
