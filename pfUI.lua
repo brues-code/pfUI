@@ -95,7 +95,7 @@ end
 local tocs = { "", "-master", "-tbc", "-wotlk" }
 for _, name in pairs(tocs) do
   local current = string.format("pfUI%s", name)
-  local _, title = GetAddOnInfo(current)
+  local title = C_AddOns.GetAddOnName(current)
   if title then
     pfUI.name = current
     pfUI.path = "Interface\\AddOns\\" .. current
