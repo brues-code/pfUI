@@ -241,8 +241,8 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   local namePopup = CreateFrame("Frame", "pfEqMgrNamePopup", UIParent)
   namePopup:SetFrameStrata("DIALOG")
-  namePopup:SetWidth(260)
-  namePopup:SetHeight(330)
+  namePopup:SetWidth(500)
+  namePopup:SetHeight(540)
   namePopup:SetPoint("CENTER", UIParent, "CENTER")
   namePopup:Hide()
   CreateBackdrop(namePopup, nil, nil, .9)
@@ -255,30 +255,67 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   namePopup.title = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   namePopup.title:SetPoint("TOP", namePopup, "TOP", 0, -10)
-  namePopup.title:SetText(T["Name Set"] or "Name Set")
+  namePopup.title:SetText(T["Save Set"] or "Save Set")
+
+  -- Name label + EditBox (left side)
+  namePopup.nameLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  namePopup.nameLabel:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -34)
+  namePopup.nameLabel:SetText(T["Enter Set Name (Max 16 Characters):"] or "Enter Set Name (Max 16 Characters):")
 
   namePopup.editbox = CreateFrame("EditBox", "pfEqMgrNameEdit", namePopup, "InputBoxTemplate")
-  namePopup.editbox:SetWidth(220)
+  namePopup.editbox:SetWidth(280)
   namePopup.editbox:SetHeight(20)
-  namePopup.editbox:SetPoint("TOP", namePopup, "TOP", 0, -32)
+  namePopup.editbox:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -52)
   namePopup.editbox:SetAutoFocus(false)
-  namePopup.editbox:SetMaxLetters(32)
+  namePopup.editbox:SetMaxLetters(16)
   CreateBackdrop(namePopup.editbox)
 
-  namePopup.iconLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  namePopup.iconLabel:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -62)
-  namePopup.iconLabel:SetText(T["Icon"] or "Icon")
+  -- Currently Selected preview (top right)
+  namePopup.selectedLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  namePopup.selectedLabel:SetPoint("TOPRIGHT", namePopup, "TOPRIGHT", -14, -28)
+  namePopup.selectedLabel:SetText(T["Currently Selected"] or "Currently Selected")
+  namePopup.selectedLabel:SetTextColor(1, 0.82, 0)
 
-  -- Icon picker: 5×5 grid of buttons + scroll
-  local ICON_GRID_COLS = 5
-  local ICON_GRID_ROWS = 5
+  namePopup.selectedPreview = CreateFrame("Frame", nil, namePopup)
+  namePopup.selectedPreview:SetWidth(42)
+  namePopup.selectedPreview:SetHeight(42)
+  namePopup.selectedPreview:SetPoint("TOPRIGHT", namePopup, "TOPRIGHT", -14, -44)
+  CreateBackdrop(namePopup.selectedPreview)
+  namePopup.selectedPreview.tex = namePopup.selectedPreview:CreateTexture(nil, "ARTWORK")
+  namePopup.selectedPreview.tex:SetAllPoints(namePopup.selectedPreview)
+  namePopup.selectedPreview.tex:SetTexCoord(.08, .92, .08, .92)
+
+  -- "Choose an Icon:" label
+  namePopup.iconLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  namePopup.iconLabel:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -100)
+  namePopup.iconLabel:SetText(T["Choose an Icon:"] or "Choose an Icon:")
+
+  -- Icon picker: 10×8 grid of buttons + scroll
+  local ICON_GRID_COLS = 10
+  local ICON_GRID_ROWS = 8
   local ICON_BTN_SIZE = 36
   local ICON_BTN_PAD = 6
 
   local iconScroll = CreateFrame("ScrollFrame", "pfEqMgrIconScroll", namePopup, "FauxScrollFrameTemplate")
-  iconScroll:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -78)
+  iconScroll:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -130)
   iconScroll:SetWidth(ICON_GRID_COLS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
   iconScroll:SetHeight(ICON_GRID_ROWS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
+
+  -- IconDataProviderMixin owns the icon DB, dedup, lazy load, and
+  -- prefix handling. Init lazily on first picker open; release on hide
+  -- so the shared BaseIconFilenames cache gets garbage-collected.
+  -- Declared here (before the filter dropdown setup) so that closure
+  -- captures pick up the local, not a global.
+  local provider = nil
+  local selectedIconIdx = 1
+
+  local function EnsureProvider()
+    if not provider then
+      provider = CreateAndInitFromMixin(IconDataProviderMixin,
+                                         IconDataProviderExtraType.Equipment)
+    end
+  end
+
   -- Anchor scrollbar to iconScroll's right edge so its position tracks
   -- the icon grid rather than the popup. -16/+16 vertical insets are the
   -- standard up/down arrow spacing for UIPanelScrollBarTemplate.
@@ -289,18 +326,40 @@ pfUI:RegisterModule("equipmentmanager", function()
     scrollbar:SetPoint("BOTTOMLEFT", iconScroll, "BOTTOMRIGHT", 8, 16)
     SkinScrollbar(scrollbar)
   end
-  -- IconDataProviderMixin owns the icon DB, dedup, lazy load, and
-  -- prefix handling. Init lazily on first picker open; release on hide
-  -- so the shared BaseIconFilenames cache gets garbage-collected.
-  local provider = nil
-  local selectedIconIdx = 1
 
-  local function EnsureProvider()
-    if not provider then
-      provider = CreateAndInitFromMixin(IconDataProviderMixin,
-                                         IconDataProviderExtraType.Equipment)
+  -- Filter dropdown: "All Icons" / "Spells" / "Items" (top right of icon area).
+  local filterDropdown = CreateFrame("Frame", "pfEqMgrIconFilter", namePopup, "UIDropDownMenuTemplate")
+  filterDropdown:SetPoint("TOPRIGHT", namePopup, "TOPRIGHT", 0, -94)
+  local currentFilter = "all"
+  local function ApplyFilter(value)
+    currentFilter = value
+    UIDropDownMenu_SetSelectedValue(filterDropdown, value)
+    if provider then
+      if value == "spells" then provider:SetIconTypes({ IconDataProviderIconType.Spell })
+      elseif value == "items" then provider:SetIconTypes({ IconDataProviderIconType.Item })
+      else provider:SetIconTypes(nil) end
+      selectedIconIdx = 1
+      pfUI.equipmentmanager.RefreshIconGrid()
     end
   end
+  UIDropDownMenu_Initialize(filterDropdown, function()
+    local info
+    info = {}; info.text = T["All Icons"] or "All Icons"; info.value = "all"
+    info.func = function() ApplyFilter("all") end
+    info.checked = currentFilter == "all"
+    UIDropDownMenu_AddButton(info)
+    info = {}; info.text = T["Spells"] or "Spells"; info.value = "spells"
+    info.func = function() ApplyFilter("spells") end
+    info.checked = currentFilter == "spells"
+    UIDropDownMenu_AddButton(info)
+    info = {}; info.text = T["Items"] or "Items"; info.value = "items"
+    info.func = function() ApplyFilter("items") end
+    info.checked = currentFilter == "items"
+    UIDropDownMenu_AddButton(info)
+  end)
+  UIDropDownMenu_SetWidth(120, filterDropdown)
+  UIDropDownMenu_SetSelectedValue(filterDropdown, "all")
+  SkinDropDown(filterDropdown)
 
   local iconButtons = {}
   for r = 1, ICON_GRID_ROWS do
@@ -359,6 +418,8 @@ pfUI:RegisterModule("equipmentmanager", function()
         btn.iconIndex = nil
       end
     end
+    -- Sync the "Currently Selected" preview with the chosen icon.
+    namePopup.selectedPreview.tex:SetTexture(provider:GetIconByIndex(selectedIconIdx))
   end
 
   iconScroll:SetScript("OnVerticalScroll", function()
@@ -421,10 +482,16 @@ pfUI:RegisterModule("equipmentmanager", function()
       iconScroll:Hide()
       for _, b in ipairs(iconButtons) do b:Hide() end
       namePopup.iconLabel:Hide()
+      namePopup.selectedLabel:Hide()
+      namePopup.selectedPreview:Hide()
+      filterDropdown:Hide()
     else
       namePopup.title:SetText(action == "new" and (T["Name Set"] or "Name Set") or (T["Save Set"] or "Save Set"))
       iconScroll:Show()
       namePopup.iconLabel:Show()
+      namePopup.selectedLabel:Show()
+      namePopup.selectedPreview:Show()
+      filterDropdown:Show()
     end
     namePopup:Show()
     if action ~= "rename" then pfUI.equipmentmanager.RefreshIconGrid() end
