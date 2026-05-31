@@ -15,11 +15,9 @@ pfUI:RegisterModule("equipmentmanager", function()
   local slotOverlays = {}    -- [invSlotID] = ignored-overlay texture on the character slot
   local popoutButtons = {}   -- popout arrow buttons; toggled with the EM frame
 
-  -- Pending ignored-slot toggles per set. A slotID in this table means
-  -- the effective state for that slot is FLIPPED from what's persisted.
-  -- Committed when the user clicks Save; cleared when a set is deleted.
-  -- Declared here (not nearer the helpers below) so the Save / Delete
-  -- closures created earlier in the module can capture them as upvalues.
+  -- Pending ignored-slot toggles per set: a slotID here means the
+  -- effective state is flipped from what's persisted. Committed on
+  -- Save, cleared on delete.
   local pendingIgnoredToggles = {}
 
   local function GetEffectiveIgnored(setID)
@@ -46,8 +44,6 @@ pfUI:RegisterModule("equipmentmanager", function()
     end
   end
 
-  -- Swap a popout's chevron between closed (points away from slot) and
-  -- reversed (points toward slot — indicates "flyout is open").
   local function SetPopoutReversed(popout, reversed)
     if not popout then return end
     local nc = reversed and popout.coordReversed or popout.coordNormal
@@ -56,7 +52,6 @@ pfUI:RegisterModule("equipmentmanager", function()
     popout:GetHighlightTexture():SetTexCoord(unpack(hc))
   end
 
-  -- Shared by the Equip button and set-row double-click.
   local function EquipSet(setID)
     if not setID then return end
     if C_EquipmentSet.EquipmentSetContainsLockedItems(setID) then
@@ -123,11 +118,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     end
   end)
 
-  -- ============================================================
-  -- Forward declaration: OpenNamePopup is defined later, but referenced
-  -- by the row context menu and the "+ New Set" row created earlier.
-  -- ============================================================
-  local OpenNamePopup
+  local OpenNamePopup  -- forward declared; assigned below
 
   -- ============================================================
   -- Equip + Save buttons (top of list area)
@@ -152,7 +143,6 @@ pfUI:RegisterModule("equipmentmanager", function()
       text = string.format(T["Would you like to save the equipment set '%s'?"] or "Would you like to save the equipment set '%s'?", name),
       button1 = YES, button2 = NO,
       OnAccept = function()
-        -- Direct save: keep existing name + icon, commit pending ignored toggles.
         C_EquipmentSet.ClearIgnoredSlotsForSave()
         local effective = GetEffectiveIgnored(targetID)
         for slotID in pairs(effective) do
@@ -181,12 +171,9 @@ pfUI:RegisterModule("equipmentmanager", function()
   CreateBackdropShadow(rowMenu)
   rowMenu:EnableMouse(true)
 
-  -- Click-anywhere-else-to-close: GLOBAL_MOUSE_DOWN fires on any mouse
-  -- button press regardless of which frame the click lands on, and
-  -- (unlike a veil frame) doesn't consume the click — the original
-  -- target still receives the event. The anchorBtn check leaves the
-  -- gear-click toggle to the gear's own OnClick handler so the menu
-  -- doesn't close-then-reopen on its triggering click.
+  -- Close on click outside via GLOBAL_MOUSE_DOWN (fires on any click
+  -- without consuming it). The anchorBtn check defers the gear-click
+  -- toggle to the gear's own OnClick so opening doesn't trigger close.
   rowMenu:RegisterEvent("GLOBAL_MOUSE_DOWN")
   rowMenu:SetScript("OnEvent", function()
     if not this:IsShown() then return end
@@ -194,8 +181,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     if this.anchorBtn and MouseIsOver(this.anchorBtn) then return end
     this:Hide()
   end)
-  -- Escape closes it (vanilla's UI panel close-with-Escape mechanism).
-  tinsert(UISpecialFrames, "pfEqMgrRowMenu")
+  tinsert(UISpecialFrames, "pfEqMgrRowMenu")  -- Escape closes it
 
   rowMenu.changeBtn = CreateFrame("Button", nil, rowMenu, "UIPanelButtonTemplate")
   rowMenu.changeBtn:SetWidth(130); rowMenu.changeBtn:SetHeight(20)
@@ -282,8 +268,6 @@ pfUI:RegisterModule("equipmentmanager", function()
     row.highlight:SetTexture(.3, .3, .3, .4)
     row.highlight:Hide()
 
-    -- Gear icon (hidden by default, shown while the row is hovered).
-    -- Clicking it opens the row context menu (Change Name/Icon / Delete).
     row.gear = CreateFrame("Button", nil, row)
     row.gear:SetWidth(16); row.gear:SetHeight(16)
     row.gear:SetPoint("RIGHT", row, "RIGHT", -4, 0)
@@ -352,8 +336,6 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- are ever positioned in-frame at a time, but each row is bound to a
   -- specific set index (row[i] always shows ids[i]).
 
-  -- "+ New Set" pseudo-row: appears after the last set in the list,
-  -- click to open the New set popup.
   local newSetRow = CreateFrame("Button", nil, listFrame)
   newSetRow:SetWidth(170); newSetRow:SetHeight(SET_ROW_HEIGHT)
 
@@ -377,10 +359,6 @@ pfUI:RegisterModule("equipmentmanager", function()
   newSetRow:SetScript("OnLeave", function() newSetRow.highlight:Hide() end)
   newSetRow:SetScript("OnClick", function() OpenNamePopup("new") end)
 
-  -- ============================================================
-  -- Helper used by the name popup (defined later)
-  -- ============================================================
-
   local function MakeButton(name, label, parent, anchor, ax, ay, width)
     local b = CreateFrame("Button", name, parent, "UIPanelButtonTemplate")
     b:SetWidth(width or 70)
@@ -390,9 +368,6 @@ pfUI:RegisterModule("equipmentmanager", function()
     SkinButton(b)
     return b
   end
-
-  -- Equip / Save buttons + per-row context menu replace the old bottom
-  -- button stack. Delete and Change Name/Icon live in the row gear menu.
 
   -- ============================================================
   -- Name/icon entry popup
@@ -416,7 +391,6 @@ pfUI:RegisterModule("equipmentmanager", function()
   namePopup.title:SetPoint("TOP", namePopup, "TOP", 0, -10)
   namePopup.title:SetText(T["Save Set"] or "Save Set")
 
-  -- Name label + EditBox (left side)
   namePopup.nameLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   namePopup.nameLabel:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -34)
   namePopup.nameLabel:SetText(T["Enter Set Name (Max 16 Characters):"] or "Enter Set Name (Max 16 Characters):")
@@ -429,7 +403,6 @@ pfUI:RegisterModule("equipmentmanager", function()
   namePopup.editbox:SetMaxLetters(16)
   CreateBackdrop(namePopup.editbox)
 
-  -- Currently Selected preview (top right)
   namePopup.selectedLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   namePopup.selectedLabel:SetPoint("TOPRIGHT", namePopup, "TOPRIGHT", -14, -28)
   namePopup.selectedLabel:SetText(T["Currently Selected"] or "Currently Selected")
@@ -444,7 +417,6 @@ pfUI:RegisterModule("equipmentmanager", function()
   namePopup.selectedPreview.tex:SetAllPoints(namePopup.selectedPreview)
   namePopup.selectedPreview.tex:SetTexCoord(.08, .92, .08, .92)
 
-  -- "Choose an Icon:" label
   namePopup.iconLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   namePopup.iconLabel:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -100)
   namePopup.iconLabel:SetText(T["Choose an Icon:"] or "Choose an Icon:")
@@ -460,11 +432,8 @@ pfUI:RegisterModule("equipmentmanager", function()
   iconScroll:SetWidth(ICON_GRID_COLS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
   iconScroll:SetHeight(ICON_GRID_ROWS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
 
-  -- IconDataProviderMixin owns the icon DB, dedup, lazy load, and
-  -- prefix handling. Init lazily on first picker open; release on hide
-  -- so the shared BaseIconFilenames cache gets garbage-collected.
-  -- Declared here (before the filter dropdown setup) so that closure
-  -- captures pick up the local, not a global.
+  -- IconDataProviderMixin owns the icon DB, dedup, and lazy load.
+  -- Init on first picker open; release on hide so the cache GCs.
   local provider = nil
   -- Selection is tracked by PATH (not index) so it survives filter
   -- changes: a spell icon you picked still saves correctly even after
@@ -868,7 +837,6 @@ pfUI:RegisterModule("equipmentmanager", function()
     flyout:Show()
   end
 
-  -- Hide flyout on outside click; restore the active popout's chevron.
   flyout:SetScript("OnHide", function()
     this.targetInvSlot = nil
     if this.currentPopout then
@@ -878,10 +846,7 @@ pfUI:RegisterModule("equipmentmanager", function()
   end)
 
   -- ============================================================
-  -- Alt+left-click on a character paperdoll slot → open flyout.
-  -- Wraps each CharacterXxxxSlot's existing OnClick so the default
-  -- behaviors (pickup / unequip / use trinket) stay intact for plain
-  -- and right clicks.
+  -- Paperdoll slot setup: ignored overlay + popout button per slot.
   -- ============================================================
 
   local CHAR_SLOT_NAMES = {
@@ -1066,7 +1031,6 @@ pfUI:RegisterModule("equipmentmanager", function()
       if selectedSetID and setIgnored[slotID] then overlay:Show() else overlay:Hide() end
     end
 
-    -- Equip + Save are the only top buttons now; enable when a set is selected.
     local hasSelection = selectedSetID and true or false
     if hasSelection then btnEquip:Enable(); btnSave:Enable()
     else btnEquip:Disable(); btnSave:Disable() end
