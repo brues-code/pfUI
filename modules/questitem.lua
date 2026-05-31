@@ -146,7 +146,7 @@ pfUI:RegisterModule("questitem", function ()
   -- populates ItemRefTooltip, so we just read the item back out of the tooltip
   -- instead of re-parsing the "item:NNN" out of the link string.
   hooksecurefunc("SetItemRef", function()
-    if IsAltKeyDown() or IsShiftKeyDown() or IsControlKeyDown() then return end
+    if IsModifierKeyDown() then return end
     if ItemRefTooltip:HasItem() then
       local name, _, id = ItemRefTooltip:GetItem()
       if name and id then AddTooltip(ItemRefTooltip, name, id) end

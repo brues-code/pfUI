@@ -41,7 +41,7 @@ pfUI:RegisterModule("sellvalue", function ()
   end)
 
   hooksecurefunc("SetItemRef", function()
-    if IsAltKeyDown() or IsShiftKeyDown() or IsControlKeyDown() then return end
+    if IsModifierKeyDown() then return end
     if ItemRefTooltip:HasItem() then
       local _, _, id = ItemRefTooltip:GetItem()
       if id then AddVendorPrices(ItemRefTooltip, id, 1) end
