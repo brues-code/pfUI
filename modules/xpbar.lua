@@ -6,9 +6,9 @@ pfUI:RegisterModule("xpbar", function ()
   local REST_WINDOW = 300    -- seconds of sliding-window samples for rate calc
   
   local REST_CAP_MUL = 1.5   -- target rested cap = UnitXPMax * 1.5
-  -- if IsTurtleWoW() then
-  --   REST_CAP_MUL = 1.13
-  -- end
+  if IsTurtleWoW() then
+    REST_CAP_MUL = 1.13
+  end
 
   local data = CreateFrame("Frame", "pfExperienceBarData", UIParent)
   data.rest_samples = {}
