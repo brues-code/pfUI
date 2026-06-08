@@ -4,49 +4,6 @@ pfUI:RegisterSkin("Mailbox", function ()
 
   -- Compatibility
   local StationeryBackgroundLeft, StationeryBackgroundRight
-  if ATTACHMENTS_MAX_SEND then -- tbc
-    do -- SendMailFrame
-      for i = 1, ATTACHMENTS_MAX_SEND do
-        local btn = _G["SendMailAttachment"..i]
-        StripTextures(btn)
-        SkinButton(btn, nil, nil, nil, nil, true)
-      end
-
-      hooksecurefunc("SendMailFrame_Update", function()
-        for i = 1, ATTACHMENTS_MAX_SEND do
-          local btn = _G["SendMailAttachment"..i]
-          HandleIcon(btn, btn:GetNormalTexture())
-
-          local link = GetSendMailItemLink(i)
-          if link then
-            local r,g,b = GetItemQualityColor(select(3, GetItemInfo(link)))
-            btn:SetBackdropBorderColor(r,g,b,1)
-            else
-            btn:SetBackdropBorderColor(GetStringColor(pfUI_config.appearance.border.color))
-          end
-        end
-      end)
-
-      StationeryBackgroundLeft, StationeryBackgroundRight = SendStationeryBackgroundLeft, SendStationeryBackgroundRight
-    end
-
-    do -- OpenMailFrame
-      for i = 1, ATTACHMENTS_MAX_RECEIVE do
-        SkinButton(_G["OpenMailAttachmentButton"..i], nil, nil, nil, _G["OpenMailAttachmentButton"..i.."IconTexture"], true)
-      end
-
-      hooksecurefunc("InboxFrame_OnClick", function(index)
-        for i=1, ATTACHMENTS_MAX_RECEIVE do
-          local link = GetInboxItemLink(index, i)
-          if not link then return end
-          local r,g,b = GetItemQualityColor(select(3, GetItemInfo(link)))
-          _G["OpenMailAttachmentButton"..i]:SetBackdropBorderColor(r,g,b,1)
-        end
-      end)
-
-      SkinButton(OpenMailReportSpamButton)
-    end
-  else -- vanilla
     do -- SendMailFrame
       local skin = CreateFrame("Frame")
       skin:SetScript("OnEvent", function()
@@ -58,10 +15,9 @@ pfUI:RegisterSkin("Mailbox", function ()
           hooksecurefunc("SendMailFrame_Update", function()
             HandleIcon(SendMailPackageButton, SendMailPackageButton:GetNormalTexture())
 
-            local link = GetItemLinkByName(GetSendMailItem())
-            if link then
-              local _,_,linkstr = string.find(link, "(item:%d+:%d+:%d+:%d+)")
-              local _,_,quality = GetItemInfo(linkstr)
+            local _, itemID = GetSendMailItemLink()
+            if itemID then
+              local quality = C_Item.GetItemQualityByID(itemID)
               local r,g,b = GetItemQualityColor(quality)
               SendMailPackageButton:SetBackdropBorderColor(r,g,b,1)
               else
@@ -85,10 +41,7 @@ pfUI:RegisterSkin("Mailbox", function ()
 
             if button.item then
               HandleIcon(self, self:GetNormalTexture())
-
-              local link = GetContainerItemLink(button.item[1], button.item[2])
-              local _,_,linkstr = string.find(link, "(item:%d+:%d+:%d+:%d+)")
-              local _,_,quality = GetItemInfo(linkstr)
+              local quality = C_Item.GetItemQuality(ItemLocation:CreateFromBagAndSlot(button.item[1], button.item[2]))
               local r,g,b = GetItemQualityColor(quality)
               self:SetBackdropBorderColor(r,g,b,1)
             else
@@ -110,11 +63,9 @@ pfUI:RegisterSkin("Mailbox", function ()
       SkinButton(OpenMailPackageButton, nil, nil, nil, OpenMailPackageButtonIconTexture)
 
       hooksecurefunc("InboxFrame_OnClick", function(index)
-        local name = GetInboxItem(index)
-        local link = name and GetItemLinkByName(name)
-        if link then
-          local _,_,linkstr = string.find(link, "(item:%d+:%d+:%d+:%d+)")
-          local _,_,quality = GetItemInfo(linkstr)
+        local _, itemID = GetInboxItemLink(index)
+        if itemID then
+          local quality = C_Item.GetItemQualityByID(itemID)
           local r,g,b = GetItemQualityColor(quality)
           OpenMailPackageButton:SetBackdropBorderColor(r,g,b,1)
         else
@@ -122,7 +73,6 @@ pfUI:RegisterSkin("Mailbox", function ()
         end
       end)
     end
-  end
 
   StripTextures(MailFrame, true)
   CreateBackdrop(MailFrame, nil, nil, .75)
