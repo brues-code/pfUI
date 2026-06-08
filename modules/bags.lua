@@ -1,9 +1,9 @@
 pfUI:RegisterModule("bags", function ()
   local rawborder, default_border = GetBorderSize("bags")
 
-  local knownInventorySpellTextures = {
-    Spell_Holy_RemoveCurse = {frame="disenchant"},
-    Spell_Nature_MoonKey = {frame="picklock"},
+  local extractSpells = {
+    [13262] = {frame="disenchant"},
+    [1804] = {frame="picklock"},
   }
 
   local scanner = libtipscan:GetScanner("input_search")
@@ -691,14 +691,9 @@ pfUI:RegisterModule("bags", function ()
 
   function pfUI.bag:RefreshSpells()
     if not (pfUI.bag and pfUI.bag.right) then return end
-    local _, _, offset, numSpells = GetSpellTabInfo(1)
-    for spellIndex = offset + 1, offset + numSpells do
-      local spellTexture = GetSpellTexture(spellIndex, BOOKTYPE_SPELL)
-      -- scan for disenchant and pick lock
-      for texture, widget in pairs(knownInventorySpellTextures) do
-        if spellTexture and texture and strfind(spellTexture, texture) and pfUI.bag.right[widget.frame] then
-          pfUI.bag.right[widget.frame]:SetID(spellIndex)
-        end
+    for spellID, widget in pairs(extractSpells) do
+      if IsSpellKnown(spellID) and pfUI.bag.right[widget.frame] then
+        pfUI.bag.right[widget.frame]:SetID(spellID)
       end
     end
     pfUI.bag:ReanchorAdditions()
@@ -854,9 +849,8 @@ pfUI:RegisterModule("bags", function ()
           frame.disenchant.texture:SetVertexColor(1,1,.25,1)
           local id = this:GetID()
           if id and id > 0 then
-            local name = GetSpellName(id, BOOKTYPE_SPELL)
             GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-            GameTooltip:SetText(name)
+            GameTooltip:SetSpellByID(id)
             GameTooltip:Show()
           end
         end)
@@ -872,7 +866,7 @@ pfUI:RegisterModule("bags", function ()
         frame.disenchant:SetScript("OnClick", function()
           local id = this:GetID()
           if id and id > 0 then
-            CastSpell(id,BOOKTYPE_SPELL)
+            CastSpellByName(id)
           end
         end)
       end
@@ -898,9 +892,8 @@ pfUI:RegisterModule("bags", function ()
           frame.picklock.texture:SetVertexColor(1,1,.25,1)
           local id = this:GetID()
           if id and id > 0 then
-            local name = GetSpellName(id, BOOKTYPE_SPELL)
             GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-            GameTooltip:SetText(name)
+            GameTooltip:SetSpellByID(id)
             GameTooltip:Show()
           end
         end)
@@ -916,7 +909,7 @@ pfUI:RegisterModule("bags", function ()
         frame.picklock:SetScript("OnClick", function()
           local id = this:GetID()
           if id and id > 0 then
-            CastSpell(id,BOOKTYPE_SPELL)
+            CastSpellByName(id)
           end
         end)
       end
