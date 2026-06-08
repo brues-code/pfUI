@@ -10,4 +10,5 @@
   <Include file="..\libs\libtotem.lua"/>
   <Include file="..\libs\libthrottle.lua"/>
   <Include file="..\libs\libpredict.lua"/>
+  <Include file="..\libs\libbagsort.lua"/>
 </Ui>
