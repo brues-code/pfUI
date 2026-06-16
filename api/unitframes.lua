@@ -491,6 +491,7 @@ function pfUI.uf:UpdateConfig()
   if tonumber(f.config.pheight) < 0 then f.power:Hide() end
 
   pfUI.api.CreateBackdrop(f.power, default_border)
+  f.power.bar:SetFrameLevel(f.power:GetFrameLevel() + 1)
   f.power.bar:SetStatusBarTexture(pfUI.media[f.config.pbartexture])
   f.power.bar:SetAllPoints(f.power)
 
