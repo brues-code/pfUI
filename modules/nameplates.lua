@@ -70,6 +70,7 @@ pfUI:RegisterModule("nameplates", function ()
     return pfUI.libdebuff_casts and pfUI.libdebuff_casts[guid]
   end
   
+  local guidTargetTokenCache = {}  -- guid -> "<guid>target" interned string
   local debuffCache = {}    -- guid -> { [spellID] = { start, duration } }
   -- Reusable per-plate debuff display buffer (avoid GC churn from per-call table creation)
   local debuffDisplayBuf = {}  -- [i] = { effect, texture, stacks, dtype, duration, timeleft }
@@ -87,9 +88,28 @@ pfUI:RegisterModule("nameplates", function ()
     b.effect, b.texture, b.stacks, b.dtype, b.duration, b.timeleft = effect, texture, stacks, dtype, duration, timeleft
   end
 
-  -- PERF: Track visible plate count for adaptive throttling
+  -- PERF: Module-level IterDebuffs callback for PlateCacheDebuffs — same
+  -- rationale; PlateCacheDebuffs runs per visible plate per throttled tick.
+  local _pcdSelf, _pcdNow, _pcdId
+  local function iterPlateCacheDebuffsCallback(auraSlot, spellId, effect, texture, stacks, dtype, duration, timeleft)
+    if not effect or not texture then return end
+    _pcdId = _pcdId + 1
+    if _pcdId > 16 then return end
+    local stop = (timeleft and timeleft > 0) and (_pcdNow + timeleft) or nil
+    local start = stop and (stop - (duration or 0)) or _pcdNow
+    local cache = _pcdSelf.debuffcache[_pcdId] or {}
+    cache.effect = effect
+    cache.texture = texture
+    cache.stacks = stacks
+    cache.duration = duration or 0
+    cache.start = start
+    cache.stop = stop
+    cache.empty = nil
+    _pcdSelf.debuffcache[_pcdId] = cache
+  end
+
+  -- PERF: visiblePlateCount maintained event-driven (NAME_PLATE_UNIT_ADDED/_REMOVED)
   local visiblePlateCount = 0
-  local lastVisibleCheck = 0
 
   -- wipe polyfill
   local wipe = wipe or function(t) for k in pairs(t) do t[k] = nil end end
@@ -206,7 +226,14 @@ pfUI:RegisterModule("nameplates", function ()
     local mobTargetGuid = GetUnitField and GetUnitField(guid, "target")
     local hasTarget = mobTargetGuid and mobTargetGuid ~= NULL_GUID
 
-    local target = guid.."target"
+    -- PERF: cache the SuperWoW-style "<guid>target" unit token. The concat
+    -- intern-hits Lua's string pool every call; caching once per guid
+    -- saves the hash+lookup. Cleared in NAME_PLATE_UNIT_REMOVED.
+    local target = guidTargetTokenCache[guid]
+    if not target then
+      target = guid .. "target"
+      guidTargetTokenCache[guid] = target
+    end
     local color = false
 
     local castInfo = GetCastInfo(guid)
@@ -388,22 +415,8 @@ pfUI:RegisterModule("nameplates", function ()
 
     -- Use IterDebuffs if Nampower available, else fall back to slot loop
     if unitstr and libdebuff.IterDebuffs and UnitGUID then
-      local id = 0
-      libdebuff:IterDebuffs(unitstr, function(auraSlot, spellId, effect, texture, stacks, dtype, duration, timeleft)
-        if not effect or not texture then return end
-        id = id + 1
-        if id > 16 then return end
-        local stop = (timeleft and timeleft > 0) and (now + timeleft) or nil
-        local start = stop and (stop - (duration or 0)) or now
-        self.debuffcache[id] = self.debuffcache[id] or {}
-        self.debuffcache[id].effect = effect
-        self.debuffcache[id].texture = texture
-        self.debuffcache[id].stacks = stacks
-        self.debuffcache[id].duration = duration or 0
-        self.debuffcache[id].start = start
-        self.debuffcache[id].stop = stop
-        self.debuffcache[id].empty = nil
-      end)
+      _pcdSelf, _pcdNow, _pcdId = self, now, 0
+      libdebuff:IterDebuffs(unitstr, iterPlateCacheDebuffsCallback)
     else
       for id = 1, 16 do
         local effect, _, texture, stacks, _, duration, timeleft
@@ -640,14 +653,17 @@ end
         plate.nameplate.cachedGuid = UnitGUID(arg1)
         nameplates.OnShow(plate)
       end
+      visiblePlateCount = visiblePlateCount + 1
 
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
+      visiblePlateCount = visiblePlateCount > 0 and visiblePlateCount - 1 or 0
       -- arg1 = "nameplateN" unit token; UnitGUID still resolves inside the
       -- handler (the slot is freed after dispatch returns)
       local guid = UnitGUID(arg1)
       if guid then
         if debuffCache[guid] then debuffCache[guid] = nil end
         if threatMemory[guid] then threatMemory[guid] = nil end
+        if guidTargetTokenCache[guid] then guidTargetTokenCache[guid] = nil end
         if combatColorCache[guid] then combatColorCache[guid] = nil end
         local castInfo = GetCastInfo(guid)
         if castInfo and castInfo.endTime and castInfo.endTime < GetTime() then
@@ -713,11 +729,7 @@ end
       end
     end
 
-    -- PERF: Update visible plate count periodically for adaptive throttling
-    if frameState.now - lastVisibleCheck > 0.5 then
-      lastVisibleCheck = frameState.now
-      visiblePlateCount = table.getn(C_NamePlate.GetNamePlates())
-    end
+    -- visiblePlateCount is maintained event-driven via NAME_PLATE_UNIT_ADDED/_REMOVED.
 
     -- Central OnUpdate for all visible plates
     for plate in pairs(registry) do
@@ -1040,6 +1052,7 @@ end
       plate.cache.name = name
       plate.cache.player = nil
       plate.cdCache = nil  -- new unit, reset spell-keyed timer cache
+      plate.name:SetText(GetNameString(name))
     end
 
     -- read and cache unittype
@@ -1142,9 +1155,15 @@ end
       plate.totem:Hide()
     end
 
-    plate.name:SetText(GetNameString(name))
-    plate.level:SetText(string.format("%s%s", level, (elitestrings[elite] or "")))
-    
+    -- Gate level SetText behind a (level, elite) cache. string.format
+    -- here was firing every OnDataChanged tick per plate; with the cache
+    -- it only re-formats on real changes (level up / elite-state flip).
+    if plate.cache.level ~= level or plate.cache.elite ~= elite then
+      plate.cache.level = level
+      plate.cache.elite = elite
+      plate.level:SetText(string.format("%s%s", level, (elitestrings[elite] or "")))
+    end
+
     -- Set level color from GetDifficultyColor when using DB level
     if levelFromDB and type(level) == "number" then
       local color = GetDifficultyColor(level)
@@ -1670,6 +1689,27 @@ end
   -- Mirrors the approach used in castbar.lua for the target unit frame castbar.
   -- ============================================================================
 
+  -- Skip SetText when the rounded value hasn't changed since last frame.
+  -- `string.format("%.2f", ...)` allocates a fresh string every call; this
+  -- gate compares cheap integers and only formats when the displayed value
+  -- would actually differ. Reset via lastEndTime-changed branch above.
+  local function SetCastbarText(castbar, remaining)
+    local rounded
+    if C.unitframes.castbardecimals == "1" then
+      rounded = floor(remaining * 10)
+      if castbar.lastTextTick ~= rounded then
+        castbar.lastTextTick = rounded
+        castbar.text:SetText(rounded / 10)
+      end
+    else
+      rounded = floor(remaining * 100)
+      if castbar.lastTextTick ~= rounded then
+        castbar.lastTextTick = rounded
+        castbar.text:SetText(string.format("%.2f", remaining))
+      end
+    end
+  end
+
   -- Shared castbar update logic (used by both dedicated frame and central loop)
   nameplates.UpdateCastbar = function(nameplate, now)
     if not nameplate or not nameplate.castbar then return end
@@ -1689,6 +1729,7 @@ end
         local duration = castInfo.endTime - castInfo.startTime
         if nameplate.castbar.lastEndTime ~= castInfo.endTime then
           nameplate.castbar.lastEndTime = castInfo.endTime
+          nameplate.castbar.lastTextTick = nil
           -- Use relative 0..duration range (same as castbar.lua) to avoid
           -- floating-point precision loss with large absolute timestamps
           nameplate.castbar:SetMinMaxValues(0, duration)
@@ -1712,12 +1753,7 @@ end
         barValue = barValue < 0 and 0 or barValue
         barValue = barValue > duration and duration or barValue
         nameplate.castbar:SetValue(barValue)
-        local remaining = castInfo.endTime - now
-        if C.unitframes.castbardecimals == "1" then
-          nameplate.castbar.text:SetText(floor(remaining * 10) / 10)
-        else
-          nameplate.castbar.text:SetText(string.format("%.2f", remaining))
-        end
+        SetCastbarText(nameplate.castbar, castInfo.endTime - now)
         if not nameplate.castbar.isShown then nameplate.castbar.isShown = true; nameplate.castbar:Show() end
       end
     else
@@ -1738,6 +1774,7 @@ end
           if cur > max then cur = max end
           if nameplate.castbar.lastEndTime ~= endTime then
             nameplate.castbar.lastEndTime = endTime
+            nameplate.castbar.lastTextTick = nil
             nameplate.castbar:SetMinMaxValues(0, max)
             nameplate.castbar:SetStatusBarColor(strsplit(",", C.appearance.castbar[(channel and "channelcolor" or "castbarcolor")]))
             if texture then
@@ -1751,12 +1788,7 @@ end
             end
           end
           nameplate.castbar:SetValue(cur)
-          local remaining = channel and cur or (max - cur)
-          if C.unitframes.castbardecimals == "1" then
-            nameplate.castbar.text:SetText(floor(remaining * 10) / 10)
-          else
-            nameplate.castbar.text:SetText(string.format("%.2f", remaining))
-          end
+          SetCastbarText(nameplate.castbar, channel and cur or (max - cur))
           if not nameplate.castbar.isShown then nameplate.castbar.isShown = true; nameplate.castbar:Show() end
         else
           nameplate.castbar.isShown = nil
