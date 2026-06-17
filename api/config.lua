@@ -866,6 +866,7 @@ function pfUI:LoadConfig()
 
   pfUI:UpdateConfig("nameplates", nil,           "showhp",           "0")
   pfUI:UpdateConfig("nameplates", nil,           "hptextpos",        "RIGHT")
+  pfUI:UpdateConfig("nameplates", nil,           "nametextpos",      "CENTER")
   pfUI:UpdateConfig("nameplates", nil,           "hptextformat",     "curmaxs")
   pfUI:UpdateConfig("nameplates", nil,           "vpos",             "-10")
   pfUI:UpdateConfig("nameplates", nil,           "width",            "120")

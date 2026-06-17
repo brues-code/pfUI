@@ -893,8 +893,6 @@ end
     parent:SetScript("OnUpdate", nil)  -- Disable Blizzard's OnUpdate
 
     nameplates.OnConfigChange(parent)
-    -- NOTE: OnShow is driven by NAME_PLATE_UNIT_ADDED, not called here.
-    -- At NAME_PLATE_CREATED time the unit hasn't been bound yet.
   end
 
   nameplates.OnConfigChange = function(frame)
@@ -933,9 +931,19 @@ end
     nameplate:SetPoint("TOP", parent, "TOP", 0, 0)
 
     nameplate.name:SetFont(font, font_size, font_style)
+    local nameTextPos = C.nameplates.nametextpos or "CENTER"
+    local nameAnchor = nameTextPos == "RIGHT" and { "BOTTOMRIGHT", "TOPRIGHT" }
+                    or nameTextPos == "CENTER" and { "BOTTOM", "TOP" }
+                    or { "BOTTOMLEFT", "TOPLEFT" }
+    nameplate.name:ClearAllPoints()
+    nameplate.name:SetPoint(nameAnchor[1], nameplate.health, nameAnchor[2], 0, -healthoffset)
+    nameplate.name:SetJustifyH(nameTextPos)
 
     nameplate.health:SetOrientation(orientation)
-    nameplate.health:SetPoint("TOP", nameplate.name, "BOTTOM", 0, healthoffset)
+    -- Bar anchors to the plate directly so the name's JustifyH (configurable
+    -- below) can shift left/right without dragging the bar with it.
+    nameplate.health:ClearAllPoints()
+    nameplate.health:SetPoint("BOTTOM", nameplate, "BOTTOM", 0, 0)
     nameplate.health:SetStatusBarTexture(hptexture)
     nameplate.health:SetWidth(C.nameplates.width)
     nameplate.health:SetHeight(C.nameplates.heighthealth)
@@ -987,8 +995,6 @@ end
     nameplate.castbar.icon:SetPoint("TOPLEFT", nameplate.health, "TOPRIGHT", default_border*3, 0)
     nameplate.castbar.icon:SetWidth(C.nameplates.heightcast + default_border*3 + C.nameplates.heighthealth)
     CreateBackdrop(nameplate.castbar.icon, default_border)
-
-    nameplates:OnDataChanged(nameplate)
   end
 
   nameplates.OnValueChanged = function()
@@ -1023,7 +1029,7 @@ end
 
     -- use unit guid as unitstr if possible
     if not unitstr then
-      unitstr = plate.parent:GetName(1)
+      unitstr = plate.cachedGuid
     end
 
     -- ignore players with npc names if plate level is lower than player level
@@ -1075,7 +1081,7 @@ end
 
     -- target indicator
     if cfg.outcombatstate then
-      local guid = plate.parent:GetName(1) or ""
+      local guid = plate.cachedGuid or ""
 
       -- determine color based on combat state
       local color = GetCombatStateColor(guid)
@@ -1166,13 +1172,11 @@ end
 
     if cfg.showhp then
       local rhp, rhpmax, estimated
-      
-      -- Try Nampower first for real HP values via GUID
-      local guid = plate.parent:GetName(1)
+      local guid = plate.cachedGuid
       if guid and GetUnitField then
         local npHp = GetUnitField(guid, "health")
         local npMaxHp = GetUnitField(guid, "maxHealth")
-        if npHp and npHp > 0 and npMaxHp and npMaxHp > 0 then
+        if npHp and npHp > 0 and npMaxHp and npMaxHp > 0 and npMaxHp ~= 100 then
           rhp, rhpmax = npHp, npMaxHp
         end
       end
@@ -1226,7 +1230,7 @@ end
     end
 
     if cfg.barcombatstate then
-      local guid = plate.parent:GetName(1) or ""
+      local guid = plate.cachedGuid or ""
       local color = GetCombatStateColor(guid)
 
       if color then
@@ -1878,6 +1882,9 @@ end
     -- apply all config changes
     for plate in pairs(registry) do
       nameplates.OnConfigChange(plate)
+      if plate.nameplate and plate.nameplate.cachedGuid then
+        nameplates:OnDataChanged(plate.nameplate)
+      end
     end
   end
 
