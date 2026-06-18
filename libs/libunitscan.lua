@@ -78,6 +78,7 @@ libunitscan:RegisterEvent("PLAYER_TARGET_CHANGED")
 libunitscan:RegisterEvent("WHO_LIST_UPDATE")
 libunitscan:RegisterEvent("CHAT_MSG_SYSTEM")
 libunitscan:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
+libunitscan:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 libunitscan:SetScript("OnEvent", function()
   if event == "PLAYER_ENTERING_WORLD" then
 
@@ -141,8 +142,10 @@ libunitscan:SetScript("OnEvent", function()
       AddData("players", name, class, level, nil, guild)
     end
 
-  elseif event == "UPDATE_MOUSEOVER_UNIT" or event == "PLAYER_TARGET_CHANGED" then
-    local scan = event == "PLAYER_TARGET_CHANGED" and "target" or "mouseover"
+  elseif event == "UPDATE_MOUSEOVER_UNIT" or event == "PLAYER_TARGET_CHANGED" or event == "NAME_PLATE_UNIT_ADDED" then
+    local scan = event == "PLAYER_TARGET_CHANGED" and "target"
+              or event == "NAME_PLATE_UNIT_ADDED" and arg1
+              or "mouseover"
     local name, class, level, elite, guild, _
     if UnitIsPlayer(scan) then
       _, class = UnitClass(scan)
