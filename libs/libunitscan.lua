@@ -50,7 +50,7 @@ function GetUnitInfo(name, active)
     return ret.class, ret.level, ret.elite, true, ret.guild
   elseif units["mobs"][name] then
     local ret = units["mobs"][name]
-    return ret.class, ret.level, ret.elite, nil, nil
+    return ret.class, ret.level, ret.elite, nil, ret.guild
   elseif active then
     queue[name] = true
     libunitscan:Show()
@@ -163,7 +163,8 @@ libunitscan:SetScript("OnEvent", function()
       -- UnitLevel returns -1 for unknown levels, don't overwrite known values
       level = level > 0 and level or nil
       name = UnitName(scan)
-      AddData("mobs", name, class, level, elite)
+      guild = UnitSubName(scan)
+      AddData("mobs", name, class, level, elite, guild)
     end
   end
 end)
