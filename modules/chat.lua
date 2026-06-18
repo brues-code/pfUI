@@ -763,7 +763,7 @@ pfUI:RegisterModule("chat", function ()
         --   _, class = GetPlayerInfoByGUID(guid)
         -- end
         if not class then
-          class = GetUnitData(real)
+          class = GetUnitInfo(real)
         end
         if class then
           if class ~= UNKNOWN then

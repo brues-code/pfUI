@@ -10,7 +10,7 @@ setfenv(1, pfUI:GetEnvironment())
 -- on further expansions.
 --
 -- External functions:
---   GetUnitData(name, active)
+--   GetUnitInfo(name, active)
 --     Returns information of the given unitname. Returns nil if no match is found.
 --     When nothing is found and the active flag is set, the autoscanner will
 --     automatically pick it up and try to fill the missing entry by targetting the unit.
@@ -44,7 +44,7 @@ local function RememberByUnit(unit, name, class)
   C_PlayerCache.RememberPlayer(guid, name, class, UnitRace(unit), UnitSex(unit))
 end
 
-function GetUnitData(name, active)
+function GetUnitInfo(name, active)
   if units["players"][name] then
     local ret = units["players"][name]
     return ret.class, ret.level, ret.elite, true, ret.guild

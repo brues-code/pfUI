@@ -61,7 +61,7 @@ pfUI:RegisterModule("afkcam", function ()
     if not this:IsVisible() then return end
     local info = _G.ChatTypeInfo[string.gsub(event,"CHAT_MSG_","")]
     if not info then return end
-    local class = GetUnitData(arg2 or "")
+    local class = GetUnitInfo(arg2 or "")
     local author, msg
     if class and class ~= UNKNOWN then
       local class_color = PFUI_CLASS_COLORS[class]:GenerateHexColorMarkup()
