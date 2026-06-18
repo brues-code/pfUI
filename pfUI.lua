@@ -27,14 +27,21 @@ pfUI.bootup = true
 -- pfUI relies pervasively on the modern C_* / SuperWoW / nameplate / focus
 -- API surface that ClassicAPI polyfills, so presence is required.
 local PFUI_CLASSIC_API_MIN = 10314  -- v1.3.14 (X*10000 + Y*100 + Z)
+local function FormatVersion(packed)
+  local x = math.floor(packed / 10000)
+  local y = math.floor(math.mod(packed, 10000) / 100)
+  local z = math.mod(packed, 100)
+  return string.format("v%d.%d.%d", x, y, z)
+end
 if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
   pfUI.disabled = true
 
+  local minVersion = FormatVersion(PFUI_CLASSIC_API_MIN)
   local alertFrame = CreateFrame("Frame")
   alertFrame:RegisterEvent("PLAYER_LOGIN")
   alertFrame:SetScript("OnEvent", function()
     StaticPopupDialogs["PFUI_CLASSICAPI_REQUIRED"] = {
-      text = "This fork of |cff33ffccpf|cffffffffUI|r requires ClassicAPI\n v1.2.0 or newer.\n\nAll |cff33ffccpf|cffffffffUI|r modules have been disabled.\nInstall ClassicAPI from:",
+      text = "This fork of |cff33ffccpf|cffffffffUI|r requires ClassicAPI\n " .. minVersion .. " or newer.\n\nAll |cff33ffccpf|cffffffffUI|r modules have been disabled.\nInstall ClassicAPI from:",
       button1 = OKAY,
       hasEditBox = 1,
       editBoxWidth = 280,
@@ -45,7 +52,7 @@ if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
       OnShow = function()
         local editBox = _G[this:GetName().."EditBox"]
         if editBox then
-          editBox:SetText("https://github.com/brues-code/ClassicAPI")
+          editBox:SetText("https://github.com/brues-code/ClassicAPI/releases/tag/" .. minVersion)
           editBox:HighlightText()
           editBox:SetFocus()
         end
@@ -54,7 +61,7 @@ if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
     StaticPopup_Show("PFUI_CLASSICAPI_REQUIRED")
     if DEFAULT_CHAT_FRAME then
       DEFAULT_CHAT_FRAME:AddMessage(
-        "This fork of pfUI requires ClassicAPI v1.2.0+. Get it at https://github.com/brues-code/ClassicAPI",
+        "This fork of pfUI requires ClassicAPI " .. minVersion .. "+. Get it at https://github.com/brues-code/ClassicAPI/releases/tag/" .. minVersion,
         1, 0.3, 0.3
       )
     end
