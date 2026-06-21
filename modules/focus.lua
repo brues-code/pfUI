@@ -26,21 +26,21 @@ pfUI:RegisterModule("focus", function ()
   end)
 end)
 
-SLASH_PFFOCUS1, SLASH_PFFOCUS2 = '/focus', '/pffocus'
-function SlashCmdList.PFFOCUS(msg)
-  if msg == "" then
-    FocusUnit("target")
-    return
-  end
+-- /focus and /clearfocus live in ClassicAPI's SlashCommandsRegistry now.
+-- /focusname is pfUI-specific because the engine has no name→GUID
+-- lookup for off-screen units — we resolve via a short target-swap.
 
-  -- Resolve name → unit via short target-swap, capturing focus during the swap.
+SLASH_PFFOCUSNAME1, SLASH_PFFOCUSNAME2 = '/focusname', '/pffocusname'
+function SlashCmdList.PFFOCUSNAME(msg)
+  if msg == "" then return end
+
   local prevGUID = UnitGUID("target")
   local prevPlayer = UnitIsUnit("target", "player")
 
-  -- Suppress "Unknown unit" errors during targeting attempts (fired async)
+  -- Suppress async "Unknown unit" errors fired by TargetByName misses.
   UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE")
 
-  -- Try exact match first, then prefix match via /tar
+  -- Try exact match first, then prefix match via /target.
   TargetByName(msg, true)
   if not UnitExists("target") then
     SlashCmdList.TARGET(msg)
@@ -50,7 +50,6 @@ function SlashCmdList.PFFOCUS(msg)
     FocusUnit("target")
   end
 
-  -- Re-enable errors next frame
   local restore = CreateFrame("Frame")
   restore:SetScript("OnUpdate", function()
     UIErrorsFrame:RegisterEvent("UI_ERROR_MESSAGE")
@@ -64,11 +63,6 @@ function SlashCmdList.PFFOCUS(msg)
   else
     ClearTarget()
   end
-end
-
-SLASH_PFCLEARFOCUS1, SLASH_PFCLEARFOCUS2 = '/clearfocus', '/pfclearfocus'
-function SlashCmdList.PFCLEARFOCUS(msg)
-  ClearFocus()
 end
 
 SLASH_PFCASTFOCUS1, SLASH_PFCASTFOCUS2 = '/castfocus', '/pfcastfocus'
