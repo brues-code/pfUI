@@ -370,6 +370,16 @@ pfUI:RegisterModule("actionbar", function ()
     if not self.scanmacro then return end
     if pfUI.bars.skip_macro then return end
 
+    -- SuperCleveRoidMacros: for macros it manages, leave spellslot/booktype unset
+    -- so the button's icon, cooldown, and tooltip flow through the hooked
+    -- GetActionTexture / GetActionCooldown / GameTooltip:SetAction and follow the
+    -- active conditional dynamically, instead of being frozen to the first
+    -- statically-scanned spell.
+    if CleveRoids and CleveRoids.IsManagedAction and CleveRoids.IsManagedAction(self.id) then
+      self.spellslot, self.booktype = nil, nil
+      return
+    end
+
     local kind, slot = GetActionInfo(self.id)
     self.spellslot, self.booktype = nil, nil
     if kind == 'macro' then
