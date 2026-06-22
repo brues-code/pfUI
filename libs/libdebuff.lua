@@ -226,7 +226,7 @@ StaticPopupDialogs["LIBDEBUFF_NAMPOWER_UPDATE"] = {
   hideOnEscape = 0,
   preferredIndex = 3,
   OnAccept = function()
-    pfUI.chat.urlcopy.CopyText("https://github.com/me0wg4ming/pfUI/wiki/How-to-install-nampower")
+    pfUI.chat.urlcopy.CopyText(GetAddOnMetadata(pfUI.name, "X-Website") .. "/wiki/How-to-install-nampower")
   end,
 }
 
@@ -239,7 +239,7 @@ StaticPopupDialogs["LIBDEBUFF_NAMPOWER_MISSING"] = {
   hideOnEscape = 0,
   preferredIndex = 3,
   OnAccept = function()
-    pfUI.chat.urlcopy.CopyText("https://github.com/me0wg4ming/pfUI/wiki/How-to-install-nampower")
+    pfUI.chat.urlcopy.CopyText(GetAddOnMetadata(pfUI.name, "X-Website") .. "/wiki/How-to-install-nampower")
   end,
 }
 

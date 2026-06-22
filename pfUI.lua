@@ -26,20 +26,29 @@ pfUI.bootup = true
 -- ClassicAPI dependency check.
 -- pfUI relies pervasively on the modern C_* / SuperWoW / nameplate / focus
 -- API surface that ClassicAPI polyfills, so presence is required.
-local PFUI_CLASSIC_API_MIN = 10403  -- (X*10000 + Y*100 + Z)
+--
+-- MIN is the hard floor — bumped manually when pfUI starts using a new
+-- ClassicAPI feature. Below this, pfUI disables itself entirely.
+-- LATEST is the soft target — replaced by the release workflow with whatever
+-- ClassicAPI release was current at build time. Between MIN and LATEST,
+-- pfUI runs normally but nudges the user to update.
+local PFUI_CLASSIC_API_MIN    = 10403  -- (X*10000 + Y*100 + Z)
+local PFUI_CLASSIC_API_LATEST = 99999999
+
 local function FormatVersion(packed)
   local x = math.floor(packed / 10000)
   local y = math.floor(math.mod(packed, 10000) / 100)
   local z = math.mod(packed, 100)
   return string.format("v%d.%d.%d", x, y, z)
 end
+local function ClassicAPIReleaseUrl(version)
+  return GetAddOnMetadata("!!!ClassicAPI", "X-Website") .. "/releases/tag/" .. version
+end
 if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
   pfUI.disabled = true
 
   local minVersion = FormatVersion(PFUI_CLASSIC_API_MIN)
-  local alertFrame = CreateFrame("Frame")
-  alertFrame:RegisterEvent("PLAYER_LOGIN")
-  alertFrame:SetScript("OnEvent", function()
+  EventUtil.ContinueOnPlayerLogin(function()
     StaticPopupDialogs["PFUI_CLASSICAPI_REQUIRED"] = {
       text = "This fork of |cff33ffccpf|cffffffffUI|r requires ClassicAPI\n " .. minVersion .. " or newer.\n\nAll |cff33ffccpf|cffffffffUI|r modules have been disabled.\nInstall ClassicAPI from:",
       button1 = OKAY,
@@ -52,7 +61,7 @@ if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
       OnShow = function()
         local editBox = _G[this:GetName().."EditBox"]
         if editBox then
-          editBox:SetText("https://github.com/brues-code/ClassicAPI/releases/tag/" .. minVersion)
+          editBox:SetText(ClassicAPIReleaseUrl(minVersion))
           editBox:HighlightText()
           editBox:SetFocus()
         end
@@ -61,10 +70,25 @@ if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
     StaticPopup_Show("PFUI_CLASSICAPI_REQUIRED")
     if DEFAULT_CHAT_FRAME then
       DEFAULT_CHAT_FRAME:AddMessage(
-        "This fork of pfUI requires ClassicAPI " .. minVersion .. "+. Get it at https://github.com/brues-code/ClassicAPI/releases/tag/" .. minVersion,
+        "This fork of pfUI requires ClassicAPI " .. minVersion .. "+. Get it at " .. ClassicAPIReleaseUrl(minVersion),
         1, 0.3, 0.3
       )
     end
+  end)
+elseif CLASSIC_API_VERSION < PFUI_CLASSIC_API_LATEST then
+  -- Above MIN but below the release-pinned LATEST — soft nudge in chat,
+  -- delayed so it lands after the login welcome spam instead of getting
+  -- buried.
+  local latestVersion = FormatVersion(PFUI_CLASSIC_API_LATEST)
+  EventUtil.ContinueOnPlayerLogin(function()
+    C_Timer.After(8, function()
+      if DEFAULT_CHAT_FRAME then
+        DEFAULT_CHAT_FRAME:AddMessage(
+          "|cff33ffccpf|rUI: ClassicAPI " .. latestVersion .. " is available — " .. ClassicAPIReleaseUrl(latestVersion),
+          1, 0.85, 0.3
+        )
+      end
+    end)
   end)
 end
 

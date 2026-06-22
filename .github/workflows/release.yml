@@ -17,6 +17,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Pin ClassicAPI latest version to current release
+        run: |
+          LATEST=$(gh api repos/brues-code/ClassicAPI/releases/latest --jq .tag_name | tr -d v)
+          IFS=. read -r MAJOR MINOR PATCH <<<"$LATEST"
+          PACKED=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          echo "Pinning PFUI_CLASSIC_API_LATEST to $LATEST ($PACKED)"
+          sed -i "s/^local PFUI_CLASSIC_API_LATEST = [0-9]*/local PFUI_CLASSIC_API_LATEST = $PACKED/" pfUI.lua
+          grep '^local PFUI_CLASSIC_API_' pfUI.lua
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Package and release to GitHub
         uses: BigWigsMods/packager@v2
         env:
