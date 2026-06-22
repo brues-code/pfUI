@@ -166,8 +166,8 @@ pfUI:RegisterModule("superwow", function ()
     end
 
     -- Add slash command for clickthrough toggle
-    SLASH_PFCLICKTHROUGH1 = "/clickthrough"
-    SLASH_PFCLICKTHROUGH2 = "/ct"
+    _G.SLASH_PFCLICKTHROUGH1 = "/clickthrough"
+    _G.SLASH_PFCLICKTHROUGH2 = "/ct"
     SlashCmdList["PFCLICKTHROUGH"] = function()
       local enabled = pfUI.api.ToggleClickthrough()
       DEFAULT_CHAT_FRAME:AddMessage("|cff33ffccpfUI|r: Clickthrough mode " .. (enabled and "|cff00ff00enabled|r" or "|cffff0000disabled|r"))

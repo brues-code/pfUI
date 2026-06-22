@@ -150,8 +150,8 @@ pfUI:RegisterModule("nampower", function ()
 
   -- /disenchantall slash command (DisenchantAll is Nampower-provided)
   if DisenchantAll then
-    SLASH_PFDISENCHANTALL1 = "/disenchantall"
-    SLASH_PFDISENCHANTALL2 = "/dea"
+    _G.SLASH_PFDISENCHANTALL1 = "/disenchantall"
+    _G.SLASH_PFDISENCHANTALL2 = "/dea"
     SlashCmdList["PFDISENCHANTALL"] = function()
       DisenchantAll()
       DEFAULT_CHAT_FRAME:AddMessage("|cff33ffccpfUI|r: Disenchanting all eligible items...")

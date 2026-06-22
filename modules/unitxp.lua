@@ -352,7 +352,7 @@ pfUI:RegisterModule("unitxp", function ()
   end
 
   -- Debug command to test UnitXP indicators
-  SLASH_PFUNITXP1 = "/pfunitxp"
+  _G.SLASH_PFUNITXP1 = "/pfunitxp"
   SlashCmdList["PFUNITXP"] = function()
     local chat = DEFAULT_CHAT_FRAME
     chat:AddMessage("|cff33ffccpfUI|r: UnitXP Indicator Debug")
