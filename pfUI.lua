@@ -26,7 +26,7 @@ pfUI.bootup = true
 -- ClassicAPI dependency check.
 -- pfUI relies pervasively on the modern C_* / SuperWoW / nameplate / focus
 -- API surface that ClassicAPI polyfills, so presence is required.
-local PFUI_CLASSIC_API_MIN = 10315  -- (X*10000 + Y*100 + Z)
+local PFUI_CLASSIC_API_MIN = 10403  -- (X*10000 + Y*100 + Z)
 local function FormatVersion(packed)
   local x = math.floor(packed / 10000)
   local y = math.floor(math.mod(packed, 10000) / 100)
