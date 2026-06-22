@@ -61,7 +61,7 @@ do
       }
       StaticPopup_Show("PFUI_CLASSICAPI_REQUIRED")
       DEFAULT_CHAT_FRAME:AddMessage(
-        "This fork of pfUI requires ClassicAPI " .. minVersion .. "+. Get it at " .. PFUI_CLASSIC_API_LATEST_URL,
+        "This fork of |cff33ffccpf|cffffffffUI|r requires ClassicAPI " .. minVersion .. "+. Get it at " .. PFUI_CLASSIC_API_LATEST_URL,
         1, 0.3, 0.3
       )
     end)
