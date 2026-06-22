@@ -1752,7 +1752,7 @@ end
         end
         barValue = barValue < 0 and 0 or barValue
         barValue = barValue > duration and duration or barValue
-        nameplate.castbar:SetValue(barValue)
+        PixelUtil.SetStatusBarValue(nameplate.castbar, barValue)
         SetCastbarText(nameplate.castbar, castInfo.endTime - now)
         if not nameplate.castbar.isShown then nameplate.castbar.isShown = true; nameplate.castbar:Show() end
       end
@@ -1787,7 +1787,7 @@ end
               nameplate.castbar.spell:SetText("")
             end
           end
-          nameplate.castbar:SetValue(cur)
+          PixelUtil.SetStatusBarValue(nameplate.castbar, cur)
           SetCastbarText(nameplate.castbar, channel and cur or (max - cur))
           if not nameplate.castbar.isShown then nameplate.castbar.isShown = true; nameplate.castbar:Show() end
         else

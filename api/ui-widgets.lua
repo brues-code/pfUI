@@ -83,6 +83,14 @@ do -- statusbars
       self:DisplayValue(self.val_ or self.val)
     end,
 
+    ["GetMinMaxValues"] = function(self)
+      return self.min, self.max
+    end,
+
+    ["GetValue"] = function(self)
+      return self.val
+    end,
+
     ["SetValue"] = function(self, val)
       self.val = val or 0
 

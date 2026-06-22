@@ -237,7 +237,7 @@ pfUI:RegisterModule("castbar", function ()
         cur = cur > max and max or cur
         cur = cur < 0 and 0 or cur
 
-        this.bar:SetValue(cur)
+        PixelUtil.SetStatusBarValue(this.bar, cur)
 
         if this.showtimer then
           if this.delay and this.delay > 0 then
