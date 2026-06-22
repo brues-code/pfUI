@@ -1024,9 +1024,13 @@ end
     local name = plate.original.name:GetText()
     local level = plate.original.level:IsShown() and plate.original.level:GetObjectType() == "FontString" and tonumber(plate.original.level:GetText()) or "??"
 
-    -- cache name and reset unittype on change
-    if plate.cache.name ~= name then
+    -- reset per-unit cache when the plate is reassigned. Gate on GUID *and*
+    -- name — name alone misses pool reuse between same-named units (e.g. plate
+    -- held a player "Ironforge Guard" and is now reassigned to the NPC by the
+    -- same name), which would leak a stale "PLAYER" hint into GetUnitInfo.
+    if plate.cache.name ~= name or plate.cache.guid ~= plate.cachedGuid then
       plate.cache.name = name
+      plate.cache.guid = plate.cachedGuid
       plate.cache.player = nil
       plate.cdCache = nil  -- new unit, reset spell-keyed timer cache
       plate.name:SetText(GetNameString(name))
@@ -1037,14 +1041,13 @@ end
     local unitstr = target and "target" or mouseover and "mouseover" or plate.cachedGuid or nil
 
     -- resolve player vs npc from plate's own unit so libunitscan can't return
-    -- a player record for an NPC sharing the same name (e.g. Chromie)
-    if not plate.cache.player and unitstr then
-      plate.cache.player = UnitIsPlayer(unitstr) and "PLAYER" or "NPC"
+    -- a player record for an NPC sharing the same name (e.g. Chromie). Stored
+    -- as true/false/nil so it doubles as the GetUnitInfo hint.
+    if plate.cache.player == nil and unitstr then
+      plate.cache.player = UnitIsPlayer(unitstr) and true or false
     end
-    local isPlayer
-    if plate.cache.player then isPlayer = plate.cache.player == "PLAYER" end
-    local class, ulevel, elite, player, guild = GetUnitInfo(name, true, isPlayer)
-    if plate.cache.player then player = isPlayer and true or nil end
+    local class, ulevel, elite, player, guild = GetUnitInfo(name, true, plate.cache.player)
+    if plate.cache.player ~= nil then player = plate.cache.player or nil end
 
     -- Use database level ONLY if current level is ?? (fixes ?? after reload, but doesn't override visible levels)
     local levelFromDB = false
@@ -1540,8 +1543,12 @@ end
       update = true
     end
 
-    -- trigger update when unit was found
-    if nameplate.wait_for_scan and GetUnitInfo(name, true) then
+    -- trigger update when unit was found. Pass the cached player hint so the
+    -- retry probes the same table OnDataChanged will read on the next pass —
+    -- otherwise an NPC sharing a name with a known player flips wait_for_scan
+    -- off here, then OnDataChanged re-sets it, every frame until the mob scan
+    -- lands.
+    if nameplate.wait_for_scan and GetUnitInfo(name, true, nameplate.cache.player) then
       nameplate.wait_for_scan = nil
       update = true
     end
