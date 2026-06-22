@@ -1023,15 +1023,21 @@ end
     local hpmin, hpmax = plate.original.healthbar:GetMinMaxValues()
     local name = plate.original.name:GetText()
     local level = plate.original.level:IsShown() and plate.original.level:GetObjectType() == "FontString" and tonumber(plate.original.level:GetText()) or "??"
-    local class, ulevel, elite, player, guild = GetUnitInfo(name, true)
-    
+
+    if not plate.cache.player and plate.cachedGuid then
+      plate.cache.player = UnitIsPlayer(plate.cachedGuid) and "PLAYER" or "NPC"
+    end
+    local isPlayer
+    if plate.cache.player then isPlayer = plate.cache.player == "PLAYER" end
+    local class, ulevel, elite, player, guild = GetUnitInfo(name, true, isPlayer)
+
     -- Use database level ONLY if current level is ?? (fixes ?? after reload, but doesn't override visible levels)
     local levelFromDB = false
     if level == "??" and ulevel and ulevel > 0 then
       level = ulevel
       levelFromDB = true
     end
-    
+
     local target = plate.istarget
     local mouseover = UnitExists("mouseover") and plate.original.glow:IsShown() or nil
     local unitstr = target and "target" or mouseover and "mouseover" or nil

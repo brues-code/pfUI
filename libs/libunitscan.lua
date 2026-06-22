@@ -10,10 +10,12 @@ setfenv(1, pfUI:GetEnvironment())
 -- on further expansions.
 --
 -- External functions:
---   GetUnitInfo(name, active)
+--   GetUnitInfo(name, active, isPlayer)
 --     Returns information of the given unitname. Returns nil if no match is found.
 --     When nothing is found and the active flag is set, the autoscanner will
 --     automatically pick it up and try to fill the missing entry by targetting the unit.
+--     Pass isPlayer=true/false to restrict the lookup to the players or mobs table
+--     (avoids name-collision false positives, e.g. a player and an NPC named Chromie).
 --
 --     class[String] - The class of the unit
 --     level[Number] - The level of the unit
@@ -44,11 +46,11 @@ local function RememberByUnit(unit, name, class)
   C_PlayerCache.RememberPlayer(guid, name, class, UnitRace(unit), UnitSex(unit))
 end
 
-function GetUnitInfo(name, active)
-  if units["players"][name] then
+function GetUnitInfo(name, active, isPlayer)
+  if isPlayer ~= false and units["players"][name] then
     local ret = units["players"][name]
     return ret.class, ret.level, ret.elite, true, ret.guild
-  elseif units["mobs"][name] then
+  elseif isPlayer ~= true and units["mobs"][name] then
     local ret = units["mobs"][name]
     return ret.class, ret.level, ret.elite, nil, ret.guild
   elseif active then
