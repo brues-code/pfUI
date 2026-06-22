@@ -394,12 +394,20 @@ pfUI:SetScript("OnEvent", function()
   end
 
   if arg1 == pfUI.name then
-    -- read pfUI version from .toc file
-    local major, minor, fix = pfUI.api.strsplit(".", tostring(GetAddOnMetadata(pfUI.name, "Version")))
-    pfUI.version.major = tonumber(major) or 1
-    pfUI.version.minor = tonumber(minor) or 2
-    pfUI.version.fix   = tonumber(fix)   or 0
-    pfUI.version.string = pfUI.version.major .. "." .. pfUI.version.minor .. "." .. pfUI.version.fix
+    -- read pfUI version from .toc file. Source/dev installs leave Version as
+    -- "@project-version@" until release tooling substitutes it — mark those
+    -- explicitly as "dev" instead of pretending they're a real numbered build.
+    local raw = tostring(GetAddOnMetadata(pfUI.name, "Version"))
+    if strfind(raw, "@") then
+      pfUI.version.major, pfUI.version.minor, pfUI.version.fix = 0, 0, 0
+      pfUI.version.string = "dev"
+    else
+      local major, minor, fix = pfUI.api.strsplit(".", raw)
+      pfUI.version.major = tonumber(major) or 0
+      pfUI.version.minor = tonumber(minor) or 0
+      pfUI.version.fix   = tonumber(fix)   or 0
+      pfUI.version.string = pfUI.version.major .. "." .. pfUI.version.minor .. "." .. pfUI.version.fix
+    end
 
     -- use "Modern" as default profile on a fresh install
     if pfUI.api.isempty(pfUI_init) and pfUI.api.isempty(pfUI_config) then
