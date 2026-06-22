@@ -1,13 +1,11 @@
-# Initial release
-
-First tagged release of the brues fork of pfUI. Highlights since upstream:
-
-- Hard dependency on [ClassicAPI](https://github.com/brues-code/ClassicAPI) — modern `C_*` namespaces, SuperWoW APIs, and engine polyfills (focus, nameplates, GUIDs).
+- Hard dependency on [ClassicAPI](https://github.com/brues-code/ClassicAPI) — modern `C_*` namespaces and engine polyfills (focus, nameplates, GUIDs).
 - TBC/Wrath/expansion plumbing removed; vanilla 1.12 + Turtle WoW only.
 - Nameplate overhaul — GUID-keyed caches, per-tick allocation cuts, name-collision filtering, configurable name text position.
-- Equipment manager rewrite with mouse-wheel scrolling, GLOBAL_MOUSE_DOWN popovers, and unbounded set count.
+- Unit auras rebuilt on `C_UnitAuras` — replaces the old tooltip-scraping aura tracker with structured engine data, so buff/debuff durations, stack counts, and source attribution are accurate without polling.
+- Equipment manager — new backport of Blizzard's gear-set UI, integrated into the character pane. Save, swap, and edit sets without a third-party addon.
+- Bag sorting — new built-in feature (previously pfUI only deferred to third-party sorters).
 - `/focus` and `/clearfocus` moved to ClassicAPI; `/focusname` retained in pfUI.
-- libbagsort extracted into its own library; questitem refactored onto `C_QuestLog`.
+- questitem refactored onto `C_QuestLog`.
 - `updatenotify` isolated to its own `pfUI-brues` addon-message prefix so we don't share traffic with upstream pfUI installs.
 
 See full commit history at https://github.com/brues-code/pfUI/commits/master for details.
