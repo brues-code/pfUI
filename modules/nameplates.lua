@@ -1024,35 +1024,6 @@ end
     local name = plate.original.name:GetText()
     local level = plate.original.level:IsShown() and plate.original.level:GetObjectType() == "FontString" and tonumber(plate.original.level:GetText()) or "??"
 
-    if not plate.cache.player and plate.cachedGuid then
-      plate.cache.player = UnitIsPlayer(plate.cachedGuid) and "PLAYER" or "NPC"
-    end
-    local isPlayer
-    if plate.cache.player then isPlayer = plate.cache.player == "PLAYER" end
-    local class, ulevel, elite, player, guild = GetUnitInfo(name, true, isPlayer)
-
-    -- Use database level ONLY if current level is ?? (fixes ?? after reload, but doesn't override visible levels)
-    local levelFromDB = false
-    if level == "??" and ulevel and ulevel > 0 then
-      level = ulevel
-      levelFromDB = true
-    end
-
-    local target = plate.istarget
-    local mouseover = UnitExists("mouseover") and plate.original.glow:IsShown() or nil
-    local unitstr = target and "target" or mouseover and "mouseover" or nil
-    local red, green, blue = plate.original.healthbar:GetStatusBarColor()
-    local unittype = GetUnitType(red, green, blue) or "ENEMY_NPC"
-    local font_size = C.nameplates.use_unitfonts == "1" and C.global.font_unit_size or C.global.font_size
-
-    -- use unit guid as unitstr if possible
-    if not unitstr then
-      unitstr = plate.cachedGuid
-    end
-
-    -- ignore players with npc names if plate level is lower than player level
-    if ulevel and ulevel > (level == "??" and -1 or level) then player = nil end
-
     -- cache name and reset unittype on change
     if plate.cache.name ~= name then
       plate.cache.name = name
@@ -1061,14 +1032,33 @@ end
       plate.name:SetText(GetNameString(name))
     end
 
-    -- read and cache unittype
-    if plate.cache.player then
-      -- overwrite unittype from cache if existing
-      player = plate.cache.player == "PLAYER" and true or nil
-    elseif unitstr then
-      -- read unit type while unitstr is set
+    local target = plate.istarget
+    local mouseover = UnitExists("mouseover") and plate.original.glow:IsShown() or nil
+    local unitstr = target and "target" or mouseover and "mouseover" or plate.cachedGuid or nil
+
+    -- resolve player vs npc from plate's own unit so libunitscan can't return
+    -- a player record for an NPC sharing the same name (e.g. Chromie)
+    if not plate.cache.player and unitstr then
       plate.cache.player = UnitIsPlayer(unitstr) and "PLAYER" or "NPC"
     end
+    local isPlayer
+    if plate.cache.player then isPlayer = plate.cache.player == "PLAYER" end
+    local class, ulevel, elite, player, guild = GetUnitInfo(name, true, isPlayer)
+    if plate.cache.player then player = isPlayer and true or nil end
+
+    -- Use database level ONLY if current level is ?? (fixes ?? after reload, but doesn't override visible levels)
+    local levelFromDB = false
+    if level == "??" and ulevel and ulevel > 0 then
+      level = ulevel
+      levelFromDB = true
+    end
+
+    local red, green, blue = plate.original.healthbar:GetStatusBarColor()
+    local unittype = GetUnitType(red, green, blue) or "ENEMY_NPC"
+    local font_size = C.nameplates.use_unitfonts == "1" and C.global.font_unit_size or C.global.font_size
+
+    -- ignore players with npc names if plate level is lower than player level
+    if ulevel and ulevel > (level == "??" and -1 or level) then player = nil end
 
     if player and unittype == "ENEMY_NPC" then unittype = "ENEMY_PLAYER" end
     if player and unittype == "FRIENDLY_NPC" then unittype = "FRIENDLY_PLAYER" end
