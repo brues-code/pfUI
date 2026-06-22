@@ -152,9 +152,15 @@ pfUI:RegisterModule("nampower", function ()
   if DisenchantAll then
     _G.SLASH_PFDISENCHANTALL1 = "/disenchantall"
     _G.SLASH_PFDISENCHANTALL2 = "/dea"
-    SlashCmdList["PFDISENCHANTALL"] = function()
-      DisenchantAll()
-      DEFAULT_CHAT_FRAME:AddMessage("|cff33ffccpfUI|r: Disenchanting all eligible items...")
+    SlashCmdList["PFDISENCHANTALL"] = function(msg)
+      -- DisenchantAll(itemIdOrName | quality, [includeSoulbound]).
+      -- Quality is a string keyword ("greens", "blues", "purples", or pipe-
+      -- combined). Numbers are interpreted as item IDs, not quality levels.
+      -- Default to "greens" — the typical disenchant-farming target.
+      local arg = (msg and msg ~= "") and msg or "greens"
+      local target = tonumber(arg) or arg
+      DisenchantAll(target)
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ffccpfUI|r: DisenchantAll(" .. tostring(target) .. ")")
     end
   end
 
