@@ -217,6 +217,10 @@ pfUI.libpredict_pending_cast = pfUI.libpredict_pending_cast or {}
 -- STATIC POPUP DIALOGS
 -- ============================================================================
 
+local function CopyNampowerLink()
+  pfUI.chat.urlcopy.CopyText("https://github.com/brues-code/nampower")
+end
+
 StaticPopupDialogs["LIBDEBUFF_NAMPOWER_UPDATE"] = {
   text = "|cffff0000!!!WARNING!!!|r\n\nNampower Update Required!\n\nYour current version: %s\nRequired version: 3.0.0+\n\nPlease update Nampower to continue using pfUI!",
   button1 = "Show Download",
@@ -225,9 +229,7 @@ StaticPopupDialogs["LIBDEBUFF_NAMPOWER_UPDATE"] = {
   whileDead = 1,
   hideOnEscape = 0,
   preferredIndex = 3,
-  OnAccept = function()
-    pfUI.chat.urlcopy.CopyText(GetAddOnMetadata(pfUI.name, "X-Website") .. "/wiki/How-to-install-nampower")
-  end,
+  OnAccept = CopyNampowerLink,
 }
 
 StaticPopupDialogs["LIBDEBUFF_NAMPOWER_MISSING"] = {
@@ -238,9 +240,7 @@ StaticPopupDialogs["LIBDEBUFF_NAMPOWER_MISSING"] = {
   whileDead = 1,
   hideOnEscape = 0,
   preferredIndex = 3,
-  OnAccept = function()
-    pfUI.chat.urlcopy.CopyText(GetAddOnMetadata(pfUI.name, "X-Website") .. "/wiki/How-to-install-nampower")
-  end,
+  OnAccept = CopyNampowerLink,
 }
 
 -- ============================================================================
