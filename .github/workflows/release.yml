@@ -23,7 +23,7 @@ jobs:
           IFS=. read -r MAJOR MINOR PATCH <<<"$LATEST"
           PACKED=$((MAJOR * 10000 + MINOR * 100 + PATCH))
           echo "Pinning PFUI_CLASSIC_API_LATEST to $LATEST ($PACKED)"
-          sed -i "s/^\([[:space:]]*\)local PFUI_CLASSIC_API_LATEST  = [0-9]*/\1local PFUI_CLASSIC_API_LATEST  = $PACKED/" pfUI.lua
+          sed -i "s/^\([[:space:]]*\)local PFUI_CLASSIC_API_LATEST  = .*/\1local PFUI_CLASSIC_API_LATEST  = $PACKED/" pfUI.lua
           grep 'local PFUI_CLASSIC_API_' pfUI.lua
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
