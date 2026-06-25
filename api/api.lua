@@ -193,10 +193,7 @@ end
 -- name         [string]        The localized name of the buff.
 -- return:      [bool]          true if unit has buff otherwise "nil"
 function pfUI.api.UnitHasBuff(unit, name)
-  for _, aura in ipairs(C_UnitAuras.GetUnitAuras(unit, "HELPFUL")) do
-    if aura.name == name then return true end
-  end
-  return nil
+  return C_UnitAuras.GetAuraDataBySpellName(unit, name, "HELPFUL") ~= nil or nil
 end
 
 -- [ GetUnbuffedRoster ]

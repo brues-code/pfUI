@@ -74,18 +74,11 @@ pfUI:RegisterModule("buffwatch", function ()
   end
 
   local function GetBuffData(unit, id, type, selfdebuff)
-    if unit == "player" then
-      local aura = C_UnitAuras.GetAuraDataByIndex("player", id, type)
-      if not aura then return end
-      local remaining = aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or 0
-      return remaining, aura.icon, aura.name, aura.applications
-    elseif libdebuff and selfdebuff then
-      local name, _, texture, stacks, _, _, timeleft = libdebuff:UnitOwnDebuff(unit, id)
-      return timeleft, texture, name, stacks
-    elseif libdebuff then
-      local name, _, texture, stacks, _, _, timeleft = libdebuff:UnitDebuff(unit, id)
-      return timeleft, texture, name, stacks
-    end
+    local filter = (selfdebuff and type == "HARMFUL") and "HARMFUL|PLAYER" or type
+    local aura = C_UnitAuras.GetAuraDataByIndex(unit, id, filter)
+    if not aura then return end
+    local remaining = aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or 0
+    return remaining, aura.icon, aura.name, aura.applications
   end
 
   local function StatusBarOnClick()
@@ -117,15 +110,17 @@ pfUI:RegisterModule("buffwatch", function ()
     if this.unit == "player" then
       GameTooltip:SetUnitAura("player", this.id, this.type)
     elseif this.type == "HARMFUL" then
-      -- For "only own debuffs" mode: find the REAL slot by matching spell name AND caster
+      -- selfdebuff filters the displayed list to player-cast harmful auras, but
+      -- SetUnitAura's index has to be into the engine's full HARMFUL list. Look
+      -- up the displayed aura via the PLAYER filter, then scan engine slots for
+      -- one whose name + sourceGUID match.
       local config = this.parent and this.parent.config
-      if config and config.selfdebuff == "1" and libdebuff then
-        local ownDebuffName = libdebuff:UnitOwnDebuff(this.unit, this.id)
-        if ownDebuffName then
-          -- Search through all game slots to find OUR debuff with matching name
+      if config and config.selfdebuff == "1" then
+        local ownAura = C_UnitAuras.GetAuraDataByIndex(this.unit, this.id, "HARMFUL|PLAYER")
+        if ownAura then
           for gameSlot = 1, 16 do
-            local gameName, _, _, _, _, _, _, gameCaster = libdebuff:UnitDebuff(this.unit, gameSlot)
-            if gameName == ownDebuffName and gameCaster == "player" then
+            local check = C_UnitAuras.GetDebuffDataByIndex(this.unit, gameSlot)
+            if check and check.name == ownAura.name and check.sourceGUID == ownAura.sourceGUID then
               GameTooltip:SetUnitAura(this.unit, gameSlot, "HARMFUL")
               break
             end

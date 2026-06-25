@@ -87,13 +87,16 @@ local function DebuffOnEnter()
   if this:GetParent().label ~= "player" then
     local parent = this:GetParent()
 
-    -- For "only own debuffs" mode: find the REAL slot by matching spell name AND caster
-    if parent.config and parent.config.selfdebuff == "1" and libdebuff then
-      local ownDebuffName = libdebuff:UnitOwnDebuff(unitstr, this.id)
-      if ownDebuffName then
+    -- selfdebuff filters the displayed list to player-cast harmful auras, but
+    -- SetUnitAura's index has to be into the engine's full HARMFUL list. Look
+    -- up the displayed aura via the PLAYER filter, then scan engine slots for
+    -- one whose name + sourceGUID match.
+    if parent.config and parent.config.selfdebuff == "1" then
+      local ownAura = C_UnitAuras.GetAuraDataByIndex(unitstr, this.id, "HARMFUL|PLAYER")
+      if ownAura then
         for gameSlot = 1, 16 do
-          local gameName, _, _, _, _, _, _, gameCaster = libdebuff:UnitDebuff(unitstr, gameSlot)
-          if gameName == ownDebuffName and gameCaster == "player" then
+          local check = C_UnitAuras.GetDebuffDataByIndex(unitstr, gameSlot)
+          if check and check.name == ownAura.name and check.sourceGUID == ownAura.sourceGUID then
             GameTooltip:SetUnitAura(unitstr, gameSlot, "HARMFUL")
             return
           end
@@ -1971,16 +1974,15 @@ function pfUI.uf:RefreshUnit(unit, component)
         invert_h * ((row+buffrow)*(multiply*default_border + unit.config.debuffsize + 1) + (multiply*default_border + 1)))
       end
 
-      local aura
-      if unit.label ~= "player" and selfdebuff == "1" then
-        _, _, texture, stacks, dtype = libdebuff:UnitOwnDebuff(unitstr, i)
+      -- selfdebuff narrows to player-cast harmful auras via the PLAYER filter.
+      -- Player-frame debuffs aren't gated on it (it'd hide most party-applied
+      -- effects on you).
+      local filter = (unit.label ~= "player" and selfdebuff == "1") and "HARMFUL|PLAYER" or "HARMFUL"
+      local aura = C_UnitAuras.GetAuraDataByIndex(unitstr, i, filter)
+      if aura then
+        texture, stacks, dtype = aura.icon, aura.applications, aura.dispelName
       else
-        aura = C_UnitAuras.GetDebuffDataByIndex(unitstr, i)
-        if aura then
-          texture, stacks, dtype = aura.icon, aura.applications, aura.dispelName
-        else
-          texture, stacks, dtype = nil, 0, nil
-        end
+        texture, stacks, dtype = nil, 0, nil
       end
 
       unit.debuffs[i].texture:SetTexture(texture)
@@ -1992,8 +1994,9 @@ function pfUI.uf:RefreshUnit(unit, component)
         unit.debuffs[i]:Show()
 
         if aura and aura.expirationTime > 0 then
-          -- Player path: real engine expirationTime. Cap start to now to keep pfUI's
-          -- cooldown text out of the 2^32-wraparound branch for talent-extended debuffs.
+          -- Cap start to now so talent-extended debuffs (expirationTime past
+          -- the dbc base duration) don't push start into the future and trip
+          -- CooldownFrame_SetTimer's 2^32-wraparound branch.
           local now = GetTime()
           local start = aura.expirationTime - aura.duration
           local duration = aura.duration
@@ -2002,16 +2005,6 @@ function pfUI.uf:RefreshUnit(unit, component)
           end
           if duration > 0 then
             CooldownFrame_SetTimer(unit.debuffs[i].cd, start, duration, 1)
-          end
-        elseif libdebuff and selfdebuff == "1" then
-          local _, _, _, _, _, duration, timeleft = libdebuff:UnitOwnDebuff(unitstr, i)
-          if duration and timeleft then
-            CooldownFrame_SetTimer(unit.debuffs[i].cd, GetTime() + timeleft - duration, duration, 1)
-          end
-        elseif libdebuff then
-          local _, _, _, _, _, duration, timeleft = libdebuff:UnitDebuff(unitstr, i)
-          if duration and timeleft then
-            CooldownFrame_SetTimer(unit.debuffs[i].cd, GetTime() + timeleft - duration, duration, 1)
           end
         end
 
@@ -2198,29 +2191,16 @@ function pfUI.uf:RefreshUnit(unit, component)
         end
       end
 
+      local debuffFilter = unit.config.selfdebuff == "1" and "HARMFUL|PLAYER" or "HARMFUL"
       for i=1,16 do -- scan for custom debuffs
-        local aura = C_UnitAuras.GetDebuffDataByIndex(unitstr, i)
+        local aura = C_UnitAuras.GetAuraDataByIndex(unitstr, i, debuffFilter)
         if aura then
-          local name = aura.name
-          local texture = aura.icon
           local timeleft = aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or nil
-
-          -- libdebuff provides caster correlation + reconstructed timer for non-player units
-          if libdebuff then
-            if unit.config.selfdebuff == "1" then
-              name, _, texture, _, _, _, timeleft = libdebuff:UnitOwnDebuff(unitstr, i)
-            else
-              name, _, texture, _, _, _, timeleft = libdebuff:UnitDebuff(unitstr, i)
-            end
-          end
-
-          if name then
-            for _, filter in pairs(unit.indicator_custom) do
-              if filter == string.lower(name) then
-                pfUI.uf:AddIcon(unit, pos, texture, timeleft, aura.applications)
-                pos = pos + 1
-                break
-              end
+          for _, filter in pairs(unit.indicator_custom) do
+            if filter == string.lower(aura.name) then
+              pfUI.uf:AddIcon(unit, pos, aura.icon, timeleft, aura.applications)
+              pos = pos + 1
+              break
             end
           end
         end

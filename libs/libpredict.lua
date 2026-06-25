@@ -944,16 +944,6 @@ local INSTANT_HOT_COOLDOWN = 1.0  -- 1 Sekunde Cooldown (GCD ist 1.5s)
 -- Pending HoTs Queue - wird nach Delay verifiziert
 local pendingHots = {}
 
--- Helper: check if buff is present on unit
-local function UnitHasBuff(unit, buffName)
-  for i = 1, 32 do
-    local name = UnitBuff(unit, i)
-    if not name then break end
-    if name == buffName then return true end
-  end
-  return false
-end
-
 -- Gather Data by User Actions
 hooksecurefunc("CastSpell", function(id, bookType)
   if not libpredict.sender.enabled then return end
