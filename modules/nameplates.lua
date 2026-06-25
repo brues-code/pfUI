@@ -78,36 +78,6 @@ pfUI:RegisterModule("nameplates", function ()
   local threatMemory = {}   -- guid -> true if mob had player targeted
   local debuffSeen = {}     -- reusable table for debuff tracking (avoid GC churn)
 
-  -- PERF: Module-level IterDebuffs callback to avoid closure allocation per call
-  local _iterDebuffCount = 0
-  local function iterDebuffCallback(auraSlot, spellId, effect, texture, stacks, dtype, duration, timeleft)
-    if not texture or string.find(texture, "QuestionMark") then return end
-    _iterDebuffCount = _iterDebuffCount + 1
-    if _iterDebuffCount > 16 then return end
-    local b = debuffDisplayBuf[_iterDebuffCount]
-    b.effect, b.texture, b.stacks, b.dtype, b.duration, b.timeleft = effect, texture, stacks, dtype, duration, timeleft
-  end
-
-  -- PERF: Module-level IterDebuffs callback for PlateCacheDebuffs — same
-  -- rationale; PlateCacheDebuffs runs per visible plate per throttled tick.
-  local _pcdSelf, _pcdNow, _pcdId
-  local function iterPlateCacheDebuffsCallback(auraSlot, spellId, effect, texture, stacks, dtype, duration, timeleft)
-    if not effect or not texture then return end
-    _pcdId = _pcdId + 1
-    if _pcdId > 16 then return end
-    local stop = (timeleft and timeleft > 0) and (_pcdNow + timeleft) or nil
-    local start = stop and (stop - (duration or 0)) or _pcdNow
-    local cache = _pcdSelf.debuffcache[_pcdId] or {}
-    cache.effect = effect
-    cache.texture = texture
-    cache.stacks = stacks
-    cache.duration = duration or 0
-    cache.start = start
-    cache.stop = stop
-    cache.empty = nil
-    _pcdSelf.debuffcache[_pcdId] = cache
-  end
-
   -- PERF: visiblePlateCount maintained event-driven (NAME_PLATE_UNIT_ADDED/_REMOVED)
   local visiblePlateCount = 0
 
@@ -134,6 +104,7 @@ pfUI:RegisterModule("nameplates", function ()
     cfg.showdebuffs = C.nameplates["showdebuffs"] == "1"
     cfg.showdebuffs_hostile = C.nameplates["showdebuffs_hostile"] == "1"
     cfg.showdebuffs_friendly = C.nameplates["showdebuffs_friendly"] == "1"
+    cfg.owndebuffs = C.nameplates["owndebuffs"] == "1"
     cfg.targetzoom = C.nameplates.targetzoom == "1"
     cfg.zoomval = (tonumber(C.nameplates.targetzoomval) or 0.4) + 1
     cfg.width = tonumber(C.nameplates.width) or 120
@@ -413,27 +384,29 @@ pfUI:RegisterModule("nameplates", function ()
       end
     end
 
-    -- Use IterDebuffs if Nampower available, else fall back to slot loop
-    if unitstr and libdebuff.IterDebuffs and UnitGUID then
-      _pcdSelf, _pcdNow, _pcdId = self, now, 0
-      libdebuff:IterDebuffs(unitstr, iterPlateCacheDebuffsCallback)
-    else
-      for id = 1, 16 do
-        local effect, _, texture, stacks, _, duration, timeleft
-        effect, _, texture, stacks, _, duration, timeleft = libdebuff:UnitDebuff(unitstr, id)
-        if effect and timeleft and timeleft > 0 then
-          local start = now - ( (duration or 0) - ( timeleft or 0) )
-          local stop = now + timeleft
-          self.debuffcache[id] = self.debuffcache[id] or {}
-          self.debuffcache[id].effect = effect
-          self.debuffcache[id].texture = texture
-          self.debuffcache[id].stacks = stacks
-          self.debuffcache[id].duration = duration or 0
-          self.debuffcache[id].start = start
-          self.debuffcache[id].stop = stop
-          self.debuffcache[id].empty = nil
-        end
-      end
+    -- Pull debuffs straight from C_UnitAuras. The HARMFUL filter restricts to
+    -- the debuff range; PLAYER (added when cfg.owndebuffs is on) further
+    -- restricts to auras whose cached caster GUID matches the local player.
+    -- expirationTime comes from ClassicAPI's Aura::Source cache (SMSG_SPELL_GO
+    -- observation) — best-effort, so auras applied before login won't carry
+    -- timing and we treat them as durationless.
+    local filter = cfg.owndebuffs and "HARMFUL|PLAYER" or "HARMFUL"
+    local auras = unitstr and C_UnitAuras.GetUnitAuras(unitstr, filter) or {}
+    for id, aura in ipairs(auras) do
+      if id > 16 then break end
+      local duration = aura.duration or 0
+      local stop = (aura.expirationTime and aura.expirationTime > 0) and aura.expirationTime or nil
+      local start = stop and (stop - duration) or now
+      local cache = self.debuffcache[id] or {}
+      cache.effect = aura.name
+      cache.texture = aura.icon
+      cache.stacks = aura.applications
+      cache.dtype = aura.dispelName
+      cache.duration = duration
+      cache.start = start
+      cache.stop = stop
+      cache.empty = nil
+      self.debuffcache[id] = cache
     end
 
     self.verify = verify
@@ -549,32 +522,9 @@ nameplates:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 nameplates:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 if GetUnitField then
   nameplates:RegisterEvent("UNIT_FLAGS_GUID")
+  nameplates:RegisterEvent("UNIT_AURA_GUID")
 end
   
-  -- Cast tracking handled by libdebuff (SPELL_START/GO/FAILED events)
-  -- No local event registration needed
-
-  -- Callback from libdebuff when auras change (GUID-based, event-driven)
-  nameplates.OnAuraUpdate = function(self, guid)
-    if not guid then return end
-    
-    -- GUID is actual GUID (0xF13000...) from Nampower events
-    local plate = C_NamePlate.GetNamePlateForGUID(guid)
-    if plate and plate.nameplate then
-      -- Mark nameplate for aura update in next OnUpdate cycle
-      plate.nameplate.auraUpdate = true
-    end
-  end
-
-  -- Hook into libdebuff timer signal (fires when slotTimers written or cleared)
-  pfUI.libdebuff_on_unit_updated = pfUI.libdebuff_on_unit_updated or {}
-  table.insert(pfUI.libdebuff_on_unit_updated, function(guid)
-    local plate = C_NamePlate.GetNamePlateForGUID(guid)
-    if plate and plate.nameplate then
-      plate.nameplate.auraUpdate = true
-    end
-  end)
-
   nameplates:SetScript("OnEvent", function()
     -- Stop event handling during logout to prevent crash 132
     if event == "PLAYER_LOGOUT" then
@@ -681,6 +631,17 @@ end
       local plate = C_NamePlate.GetNamePlateForGUID(arg1)
       if plate and plate.nameplate then
         plate.nameplate.eventcache = true
+      end
+
+    elseif event == "UNIT_AURA_GUID" then
+      -- Nampower: fires when a unit's aura set changes (add/remove/modify).
+      -- arg1 = guid. Flag the matching plate so OnUpdate triggers a fresh
+      -- C_UnitAuras read on the next tick instead of waiting on the 0.5s
+      -- throttle — covers expirations, dispels, refreshes, and stack changes
+      -- in one event.
+      local plate = C_NamePlate.GetNamePlateForGUID(arg1)
+      if plate and plate.nameplate then
+        plate.nameplate.auraUpdate = true
       end
 
     elseif event == "PLAYER_TARGET_CHANGED" then
@@ -1291,34 +1252,27 @@ end
         plate:CacheDebuffs(unitstr, verify)
       end
 
-      -- update all debuff icons
-      -- Use IterDebuffs when Nampower available to avoid blind 16-slot loop
-      -- debuffDisplayBuf is a module-level reusable buffer (no GC churn)
+      -- Pull debuffs from C_UnitAuras (HARMFUL range). owndebuffs adds the
+      -- PLAYER filter token so only auras whose caster GUID matches the local
+      -- player come through. debuffDisplayBuf is a module-level reusable
+      -- buffer (no GC churn).
       local debuffCount = 0
-      for i = 1, 16 do debuffDisplayBuf[i].effect = nil end  -- clear previous
-      if unitstr and libdebuff and libdebuff.IterDebuffs and UnitGUID then
-
-        _iterDebuffCount = 0
-        libdebuff:IterDebuffs(unitstr, iterDebuffCallback)
-        debuffCount = _iterDebuffCount
-      elseif unitstr and libdebuff then
-        for i = 1, 16 do
-          local effect, rank, texture, stacks, dtype, duration, timeleft
-          effect, rank, texture, stacks, dtype, duration, timeleft = libdebuff:UnitDebuff(unitstr, i)
-          if effect then
-            debuffCount = debuffCount + 1
-            local b = debuffDisplayBuf[debuffCount]
-            b.effect, b.texture, b.stacks, b.dtype, b.duration, b.timeleft = effect, texture, stacks, dtype, duration, timeleft
-          end
-        end
-      elseif plate.verify == verify then
-        for i = 1, 16 do
-          local effect, rank, texture, stacks, dtype, duration, timeleft = plate:UnitDebuff(i)
-          if effect then
-            debuffCount = debuffCount + 1
-            local b = debuffDisplayBuf[debuffCount]
-            b.effect, b.texture, b.stacks, b.dtype, b.duration, b.timeleft = effect, texture, stacks, dtype, duration, timeleft
-          end
+      for i = 1, 16 do debuffDisplayBuf[i].effect = nil end
+      if unitstr then
+        local filter = cfg.owndebuffs and "HARMFUL|PLAYER" or "HARMFUL"
+        local auras = C_UnitAuras.GetUnitAuras(unitstr, filter)
+        local now = GetTime()
+        for _, aura in ipairs(auras) do
+          if debuffCount >= 16 then break end
+          debuffCount = debuffCount + 1
+          local timeleft = (aura.expirationTime and aura.expirationTime > 0) and (aura.expirationTime - now) or nil
+          local b = debuffDisplayBuf[debuffCount]
+          b.effect = aura.name
+          b.texture = aura.icon
+          b.stacks = aura.applications
+          b.dtype = aura.dispelName
+          b.duration = aura.duration
+          b.timeleft = timeleft
         end
       end
       for i = 1, 16 do
@@ -1346,8 +1300,15 @@ end
           end
 
           if duration and timeleft and cfg.debufftimers then
+            -- C_UnitAuras returns the Spell.dbc base duration, which talents
+            -- can extend past — Shadow Affinity bumps SW:P from 18s to 24s,
+            -- so a fresh cast has timeleft > duration and `now + timeleft -
+            -- duration` lands in the future, which CooldownFrame_SetTimer
+            -- treats as "not yet started" (no swirl). Widen to whichever is
+            -- larger so start <= now.
+            local effDuration = duration > timeleft and duration or timeleft
             plate.cdCache = plate.cdCache or {}
-            local newStart = GetTime() + timeleft - duration
+            local newStart = GetTime() + timeleft - effDuration
             local slotCache = plate.cdCache[index]
             local cachedStart = slotCache and slotCache.effect == effect and slotCache.start
             local cd = plate.debuffs[index].cd
@@ -1361,7 +1322,7 @@ end
                 cd.cachedText = cfg.debufftext
                 cd.configCached = true
               end
-              CooldownFrame_SetTimer(cd, newStart, duration, 1)
+              CooldownFrame_SetTimer(cd, newStart, effDuration, 1)
               plate.cdCache[index] = plate.cdCache[index] or {}
               plate.cdCache[index].effect = effect
               plate.cdCache[index].start = newStart
@@ -1586,17 +1547,6 @@ end
       nameplate.cache.levelcolor = r + g + b
       nameplate.level:SetTextColor(r,g,b,1)
       update = true
-    end
-
-    -- PERF: scan for debuff timeouts using indexed access instead of pairs()
-    if nameplate.debuffcache then
-      for id = 1, 16 do
-        local data = nameplate.debuffcache[id]
-        if data and ( not data.stop or data.stop < now ) and not data.empty then
-          data.empty = true
-          update = true
-        end
-      end
     end
 
     -- use timer based updates

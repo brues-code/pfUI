@@ -1144,12 +1144,8 @@ if hasNampower then
           pfTarget.update_aura = true
         end
       end
-      
-      if pfUI.nameplates and pfUI.nameplates.OnAuraUpdate then
-        pfUI.nameplates:OnAuraUpdate(guid)
-      end
     end
-    
+
     carnageState = nil
     this:Hide()
   end)
@@ -1635,11 +1631,6 @@ if hasNampower then
 
       end
       
-      -- Notify nameplates
-        if pfUI.nameplates and pfUI.nameplates.OnAuraUpdate then
-          pfUI.nameplates:OnAuraUpdate(targetGuid)
-        end
-        
         -- Notify unitframes of debuff updates (UNIT_AURA doesn't fire on refreshes!)
         -- Check player
         if UnitGUID("player") then
@@ -1857,11 +1848,7 @@ if hasNampower then
       
       -- Cleanup expired timers
       CleanupExpiredTimers(guid)
-      
-      -- Notify nameplates
-      if pfUI.nameplates and pfUI.nameplates.OnAuraUpdate then
-        pfUI.nameplates:OnAuraUpdate(guid)
-      end
+
       if pfUI.libdebuff_debuff_added_other_hooks then
         for _, fn in pairs(pfUI.libdebuff_debuff_added_other_hooks) do
           fn(arg1, arg2, arg3, arg4)
@@ -1950,11 +1937,7 @@ if hasNampower then
       
       -- Cleanup expired timers
       CleanupExpiredTimers(guid)
-      
-      -- Notify nameplates
-      if pfUI.nameplates and pfUI.nameplates.OnAuraUpdate then
-        pfUI.nameplates:OnAuraUpdate(guid)
-      end
+
       if pfUI.libdebuff_debuff_removed_other_hooks then
         for _, fn in pairs(pfUI.libdebuff_debuff_removed_other_hooks) do
           fn(arg1, arg2, arg3, arg4)
