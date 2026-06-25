@@ -312,42 +312,41 @@ pfUI:RegisterModule("turtle-wow", function ()
     end
   end)
 
-  -- add Trueshot recognition to to custom castbars.
-  if not libcast.customcast["steadyshot"] then
-    -- add trueshot to pfUI's custom casts
-    local player = UnitName("player")
+  -- Synthetic Steady Shot cast bar. The engine treats Steady Shot as
+  -- instant, but the arrow doesn't actually fire until the next ranged
+  -- swing (~1.4s baseline). Drive a synthetic entry off Nampower's
+  -- SPELL_QUEUE_EVENT so hunters see a tickdown matching the swing wait.
+  -- castbar.lua reads pfUI.synthetic_casts[unit] as a fallback when
+  -- C_Spell.UnitCastingInfo returns nil.
+  pfUI_locale["enUS"]["customcast"]["TRUESHOT"] = "Steady Shot"
+  pfUI_locale["zhCN"]["customcast"]["TRUESHOT"] = "稳固射击"
+  pfUI.synthetic_casts = pfUI.synthetic_casts or {}
 
-    -- add locales
-    pfUI_locale["enUS"]["customcast"]["TRUESHOT"] = "Steady Shot"
-    pfUI_locale["zhCN"]["customcast"]["TRUESHOT"] = "稳固射击"
-    local trueshot = L["customcast"]["TRUESHOT"] or ""
+  local steadyShotName = L["customcast"]["TRUESHOT"]
+  local STEADY_SHOT_ICON = "Interface\\Icons\\Ability_hunter_steadyshot"
+  local STEADY_SHOT_DURATION_MS = 1400  -- not haste-scaled; close enough for the visual cue
+  local ON_SWING_QUEUED, ON_SWING_QUEUE_POPPED = 0, 1
 
-    libcast.customcast[strlower(trueshot)] = function(begin, duration)
-      if begin then
-        -- cast time is 1sec, however it takes 1.4sec to fire in average
-        local duration = libcast.ApplyShotHaste(duration or 1400)
-
-        local _,_, lag = GetNetStats()
-        local start = GetTime() + lag/1000
-
-        -- add cast action to the database
-        libcast.db[player].cast = trueshot
-        libcast.db[player].rank = lastrank
-        libcast.db[player].start = start
-        libcast.db[player].casttime = duration
-        libcast.db[player].icon = "Interface\\Icons\\Ability_hunter_steadyshot"
-        libcast.db[player].channel = nil
-      else
-        -- remove cast action to the database
-        libcast.db[player].cast = nil
-        libcast.db[player].rank = nil
-        libcast.db[player].start = nil
-        libcast.db[player].casttime = nil
-        libcast.db[player].icon = nil
-        libcast.db[player].channel = nil
-      end
+  local steadyShot = CreateFrame("Frame")
+  steadyShot:RegisterEvent("SPELL_QUEUE_EVENT")
+  steadyShot:SetScript("OnEvent", function()
+    if event ~= "SPELL_QUEUE_EVENT" then return end
+    local eventCode, spellId = arg1, arg2
+    if eventCode ~= ON_SWING_QUEUED and eventCode ~= ON_SWING_QUEUE_POPPED then return end
+    if C_Spell.GetSpellName(spellId) ~= steadyShotName then return end
+    if eventCode == ON_SWING_QUEUED then
+      local now = GetTime() * 1000
+      pfUI.synthetic_casts["player"] = {
+        name    = steadyShotName,
+        icon    = STEADY_SHOT_ICON,
+        startMs = now,
+        endMs   = now + STEADY_SHOT_DURATION_MS,
+        spellID = spellId,
+      }
+    else
+      pfUI.synthetic_casts["player"] = nil
     end
-  end
+  end)
 
   -- add skin to twow's talent inspect frame
   if pfUI.skin["Inspect"] and pfUI_config["disabled"]["skin_Inspect"] ~= "1" then

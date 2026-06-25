@@ -103,60 +103,37 @@ pfUI:RegisterModule("castbar", function ()
       local query = this.unitstr ~= "" and this.unitstr or this.unitname
       if not query then return end
 
-      -- Check if we have a GUID-based focus (Turtle WoW native GUID)
-      local focusGuid = nil
-      if this.unitstr and string.find(this.unitstr, "^0x") then
-        focusGuid = this.unitstr
-      elseif this.unitstr and this.unitstr == "player" and UnitGUID then
-        focusGuid = UnitGUID("player")
-      elseif this.unitstr and this.unitstr ~= "player" then
-        local guid = UnitGUID(this.unitstr)
-        if guid then focusGuid = guid end
+      -- C_Spell takes a unit token; ClassicAPI's resolver also accepts GUID
+      -- strings, so this.unitstr can be "player" / "target" / "focus" or a
+      -- raw "0x..." GUID transparently.
+      local cast, nameSubtext, texture, startTime, endTime
+      local name, _, tex, startMs, endMs, _, _, _, spellID = C_Spell.UnitCastingInfo(query)
+      local isChan
+      if not name then
+        name, _, tex, startMs, endMs, _, _, spellID = C_Spell.UnitChannelInfo(query)
+        isChan = true
       end
-      this.focusGuid = focusGuid
-
-      -- Try libdebuff_casts first for GUID-based units (works with Turtle GUID + Nampower events)
-      local cast, nameSubtext, text, texture, startTime, endTime
-      local castBlocked = false
-      if focusGuid and pfUI.libdebuff_casts and pfUI.libdebuff_casts[focusGuid] then
-        local castData = pfUI.libdebuff_casts[focusGuid]
-        if castData.event == "CAST" or castData.event == "FAIL" then
-          castBlocked = true
-          pfUI.libdebuff_casts[focusGuid] = nil
-        elseif (castData.event == "START" or castData.event == "CHANNEL") and castData.endTime and castData.endTime > GetTime() then
-          cast = castData.spellName
-          texture = castData.icon
-          startTime = castData.startTime * 1000
-          endTime = castData.endTime * 1000
-          -- Try to get rank from spell DB via spellID (nameSubtext is not stored in libdebuff_casts)
-          if castData.spellID and GetSpellRecField then
-            nameSubtext = GetSpellRecField(castData.spellID, "rank") or ""
-          else
-            nameSubtext = ""
-          end
-          if castData.event == "CHANNEL" then
-            channel = cast
-          end
+      -- Synthetic fallback for abilities the engine treats as instant-cast but
+      -- that have a meaningful wait window (e.g. Turtle WoW Steady Shot on the
+      -- ranged-swing queue). Per-unit table populated by module-side hooks.
+      if not name and pfUI.synthetic_casts and pfUI.synthetic_casts[query] then
+        local s = pfUI.synthetic_casts[query]
+        if s.endMs > GetTime() * 1000 then
+          name, tex, startMs, endMs, spellID = s.name, s.icon, s.startMs, s.endMs, s.spellID
+          isChan = nil
         end
       end
-
-      local useLibcastForPlayer = this.unitstr == "player"
-
-      -- For player: use player name to query libcast.db directly
-      if not cast and useLibcastForPlayer then
-        query = UnitName("player")
-      end
-
-      -- Fallback: pfGetCastInfo only when no focusGuid (Nampower not available for this unit).
-      -- If we have a focusGuid, libdebuff is authoritative - don't fall back to libcast
-      -- even if no cast is active (prevents false positives e.g. spellbook clicks on CD spells).
-      if not cast and not castBlocked and not focusGuid and pfGetCastInfo then
-        cast, nameSubtext, text, texture, startTime, endTime, isTradeSkill = pfGetCastInfo(query)
-      end
-
-      if not cast and not castBlocked and not focusGuid and pfGetChannelInfo then
-        channel, nameSubtext, text, texture, startTime, endTime, isTradeSkill = pfGetChannelInfo(this.unitstr or this.unitname)
-        cast = channel
+      if name and startMs and endMs then
+        cast = name
+        texture = tex
+        startTime = startMs
+        endTime = endMs
+        if spellID and GetSpellRecField then
+          nameSubtext = GetSpellRecField(spellID, "rank") or ""
+        else
+          nameSubtext = ""
+        end
+        if isChan then channel = cast end
       end
 
       if cast then
@@ -181,35 +158,8 @@ pfUI:RegisterModule("castbar", function ()
             this.icon:Show()
             this.icon:SetHeight(size)
             this.icon:SetWidth(size)
-            
-            -- Override with item icon from libdebuff_casts or persistent item icon cache
-            local useTexture = texture
-            local useItemName = nil
-            if pfUI.libdebuff_casts or pfUI.libdebuff_item_icons then
-              local castGuid = nil
-              if this.unitstr and UnitExists then
-                local guid = UnitGUID(this.unitstr)
-                castGuid = guid
-              end
-              if castGuid then
-                -- First check active cast data
-                if pfUI.libdebuff_casts and pfUI.libdebuff_casts[castGuid] and pfUI.libdebuff_casts[castGuid].itemID then
-                  useTexture = pfUI.libdebuff_casts[castGuid].icon or texture
-                -- Fallback to persistent item icon cache
-                elseif pfUI.libdebuff_item_icons and pfUI.libdebuff_item_icons[castGuid] then
-                  useTexture = pfUI.libdebuff_item_icons[castGuid].icon or texture
-                  useItemName = pfUI.libdebuff_item_icons[castGuid].name
-                end
-              end
-            end
-            
-            this.icon.texture:SetTexture(useTexture)
+            this.icon.texture:SetTexture(texture)
             this.bar:SetPoint("TOPLEFT", this.icon, "TOPRIGHT", this.spacing, 0)
-            
-            -- Override spell name with item name for item-triggered casts
-            if useItemName and this.showname then
-              this.bar.left:SetText(useItemName .. " " .. rank)
-            end
           else
             this.bar:SetPoint("TOPLEFT", this, 0, 0)
             this.icon:Hide()
@@ -255,7 +205,6 @@ pfUI:RegisterModule("castbar", function ()
         this.lastMax = nil
         this.fadeout = 1
         this.delay = 0
-        this.itemIconApplied = nil
       end
     end)
 
@@ -267,10 +216,6 @@ pfUI:RegisterModule("castbar", function ()
       if not delayMs or delayMs <= 0 or not this.endTime then return end
       this.delay = (this.delay or 0) + delayMs / 1000
       this.endTime = this.endTime + delayMs
-      local focusGuid = this.focusGuid
-      if focusGuid and pfUI.libdebuff_casts and pfUI.libdebuff_casts[focusGuid] then
-        pfUI.libdebuff_casts[focusGuid].endTime = this.endTime / 1000
-      end
     end
 
     cb:RegisterEvent("SPELL_DELAYED_SELF")
@@ -299,10 +244,6 @@ pfUI:RegisterModule("castbar", function ()
         if diff > 50 then
           this.delay = (this.delay or 0) + diff / 1000
           this.endTime = newEndTime
-          local focusGuid = this.focusGuid
-          if focusGuid and pfUI.libdebuff_casts and pfUI.libdebuff_casts[focusGuid] then
-            pfUI.libdebuff_casts[focusGuid].endTime = newEndTime / 1000
-          end
         end
 
       elseif event == CASTBAR_EVENT_CAST_START or event == CASTBAR_EVENT_CHANNEL_START then

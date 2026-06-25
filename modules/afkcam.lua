@@ -151,9 +151,7 @@ pfUI:RegisterModule("afkcam", function ()
   delay:SetScript("OnUpdate", function()
     if ( this.tick or 0) > GetTime() then return else this.tick = GetTime() + 1 end
 
-    local name = UnitName("player")
-    local cast = pfGetCastInfo(name)
-    if not cast then cast = pfGetChannelInfo(name) end
+    local cast = C_Spell.UnitCastingInfo("player") or C_Spell.UnitChannelInfo("player")
     if not this.delay then this.delay = 0 end
 
     if cast then

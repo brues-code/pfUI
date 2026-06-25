@@ -546,30 +546,47 @@ function libpredict:ParseComm(sender, msg)
           rank = tonumber(rankStr)
         end
       end
-    elseif select and pfGetCastInfo then
+    elseif select then
       -- latest healcomm
       msgtype = tonumber(string.sub(msg, 1, 3))
       if not msgtype then return end
+
+      -- Resolve sender's name to a group unit token so C_Spell can query
+      -- the cast. Group rosters are tiny (44 slots max) so the walk is cheap
+      -- relative to the cost of receiving a HealComm message.
+      local function senderUnit()
+        if UnitName("player") == sender then return "player" end
+        for i = 1, GetNumPartyMembers() do
+          if UnitName("party"..i) == sender then return "party"..i end
+        end
+        for i = 1, GetNumRaidMembers() do
+          if UnitName("raid"..i) == sender then return "raid"..i end
+        end
+      end
 
       if msgtype == 0 then
         msgtype = "Heal"
         heal = tonumber(string.sub(msg, 4, 8))
         target = string.sub(msg,9, -1)
 
-        local starttime = select(5, pfGetCastInfo(sender))
-        local endtime = select(6, pfGetCastInfo(sender))
-        if not starttime or not endtime then return end
-        time = endtime - starttime
+        local unit = senderUnit()
+        if not unit then return end
+        local startMs = select(4, C_Spell.UnitCastingInfo(unit))
+        local endMs = select(5, C_Spell.UnitCastingInfo(unit))
+        if not startMs or not endMs then return end
+        time = (endMs - startMs) / 1000
       elseif msgtype == 1 then
         msgtype = "Stop"
       elseif msgtype == 2 then
         msgtype = "Heal"
         heal = tonumber(string.sub(msg,4, 8))
         target = {strsplit(":", string.sub(msg,9, -1))}
-        local starttime = select(5, pfGetCastInfo(sender))
-        local endtime = select(6, pfGetCastInfo(sender))
-        if not starttime or not endtime then return end
-        time = endtime - starttime
+        local unit = senderUnit()
+        if not unit then return end
+        local startMs = select(4, C_Spell.UnitCastingInfo(unit))
+        local endMs = select(5, C_Spell.UnitCastingInfo(unit))
+        if not startMs or not endMs then return end
+        time = (endMs - startMs) / 1000
       end
     end
   end

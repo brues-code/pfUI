@@ -3,8 +3,6 @@ pfUI:RegisterModule("nameplates", function ()
   pcall(SetCVar, "ShowVKeyCastbar", 0)
 
   -- Local function references for performance
-  local pfGetCastInfo = pfGetCastInfo    -- provided by libcast for vanilla
-  local pfGetChannelInfo = pfGetChannelInfo  -- provided by libcast for vanilla
   local GetTime = GetTime
   local UnitExists = UnitExists
   local UnitName = UnitName
@@ -65,9 +63,30 @@ pfUI:RegisterModule("nameplates", function ()
 
   local raidGuidCache = {}  -- guid -> name (rebuilt on RAID_ROSTER_UPDATE/PARTY_MEMBERS_CHANGED)
   
-  -- Helper function to safely access libdebuff cast data
+  -- Resolve a plate GUID to its cast/channel info via C_Spell. Returns a
+  -- compact struct (spellName / icon / startTime / endTime / duration /
+  -- isChannel) or nil when the unit isn't casting / the GUID can't map to a
+  -- live token.
   local function GetCastInfo(guid)
-    return pfUI.libdebuff_casts and pfUI.libdebuff_casts[guid]
+    if not guid then return nil end
+    local unit = UnitTokenFromGUID(guid)
+    if not unit then return nil end
+    local name, _, texture, startMs, endMs, _, _, _, spellID = C_Spell.UnitCastingInfo(unit)
+    local isChannel
+    if not name then
+      name, _, texture, startMs, endMs, _, _, spellID = C_Spell.UnitChannelInfo(unit)
+      isChannel = true
+    end
+    if not name or not startMs or not endMs then return nil end
+    return {
+      spellName = name,
+      spellID   = spellID,
+      icon      = texture,
+      startTime = startMs / 1000,
+      endTime   = endMs / 1000,
+      duration  = (endMs - startMs) / 1000,
+      isChannel = isChannel,
+    }
   end
   
   local guidTargetTokenCache = {}  -- guid -> "<guid>target" interned string
@@ -243,15 +262,6 @@ pfUI:RegisterModule("nameplates", function ()
 
   local function DoNothing()
     return
-  end
-
-  local function wipe(table)
-    if type(table) ~= "table" then
-      return
-    end
-    for k in pairs(table) do
-      table[k] = nil
-    end
   end
 
   local function DisableObject(object)
@@ -559,10 +569,6 @@ end
         if threatMemory[guid] then threatMemory[guid] = nil end
         if guidTargetTokenCache[guid] then guidTargetTokenCache[guid] = nil end
         if combatColorCache[guid] then combatColorCache[guid] = nil end
-        local castInfo = GetCastInfo(guid)
-        if castInfo and castInfo.endTime and castInfo.endTime < GetTime() then
-          if pfUI.libdebuff_casts then pfUI.libdebuff_casts[guid] = nil end
-        end
         local plate = C_NamePlate.GetNamePlateForUnit(arg1)
         if plate and plate.nameplate and plate.nameplate.cachedGuid == guid then
           plate.nameplate.cachedGuid = nil
@@ -1305,9 +1311,7 @@ end
     local isCastingNonTarget = not target and nameplate.castbar and nameplate.castbar:IsShown()
     if not isCastingNonTarget and not target and cfg.showcastbar and nameplate.cachedGuid then
       local castInfo = GetCastInfo(nameplate.cachedGuid)
-      if castInfo and castInfo.spellID and castInfo.endTime and castInfo.endTime > now then
-        isCastingNonTarget = true
-      elseif pfGetCastInfo and nameplate.castUpdate then
+      if castInfo and castInfo.endTime > now then
         isCastingNonTarget = true
       end
     end
@@ -1595,94 +1599,40 @@ end
   -- Shared castbar update logic (used by both dedicated frame and central loop)
   nameplates.UpdateCastbar = function(nameplate, now)
     if not nameplate or not nameplate.castbar then return end
-    local unitstr = nameplate.cachedGuid
-    local castInfo = unitstr and GetCastInfo(unitstr)
+    local castInfo = GetCastInfo(nameplate.cachedGuid)
+    if not castInfo or castInfo.endTime < now then
+      nameplate.castbar.isShown = nil
+      nameplate.castbar.lastEndTime = nil
+      nameplate.castbar:Hide()
+      return
+    end
 
-    if castInfo and castInfo.spellID then
-      if castInfo.startTime + castInfo.duration < now then
-        wipe(castInfo)
-        nameplate.castbar:Hide()
-      elseif castInfo.event == "CAST" or castInfo.event == "FAIL" then
-        wipe(castInfo)
-        nameplate.castbar:Hide()
-      else
-        -- Only update min/max, color and icon once per cast (when endTime changes)
-        local isChannel = castInfo.event == "CHANNEL"
-        local duration = castInfo.endTime - castInfo.startTime
-        if nameplate.castbar.lastEndTime ~= castInfo.endTime then
-          nameplate.castbar.lastEndTime = castInfo.endTime
-          nameplate.castbar.lastTextTick = nil
-          -- Use relative 0..duration range (same as castbar.lua) to avoid
-          -- floating-point precision loss with large absolute timestamps
-          nameplate.castbar:SetMinMaxValues(0, duration)
-          nameplate.castbar:SetStatusBarColor(strsplit(",", C.appearance.castbar[(isChannel and "channelcolor" or "castbarcolor")]))
-          if castInfo.icon then
-            nameplate.castbar.icon.tex:SetTexture(castInfo.icon)
-            nameplate.castbar.icon.tex:SetTexCoord(.1,.9,.1,.9)
-          end
-          if cfg.spellname then
-            nameplate.castbar.spell:SetText(castInfo.spellName)
-          else
-            nameplate.castbar.spell:SetText("")
-          end
-        end
-        local barValue
-        if isChannel then
-          barValue = castInfo.endTime - now
-        else
-          barValue = now - castInfo.startTime
-        end
-        barValue = barValue < 0 and 0 or barValue
-        barValue = barValue > duration and duration or barValue
-        nameplate.castbar:SetValue(barValue)
-        SetCastbarText(nameplate.castbar, castInfo.endTime - now)
-        if not nameplate.castbar.isShown then nameplate.castbar.isShown = true; nameplate.castbar:Show() end
+    local isChannel = castInfo.isChannel
+    local duration = castInfo.duration
+    if nameplate.castbar.lastEndTime ~= castInfo.endTime then
+      nameplate.castbar.lastEndTime = castInfo.endTime
+      nameplate.castbar.lastTextTick = nil
+      -- Relative 0..duration range to avoid float precision loss with large
+      -- absolute timestamps.
+      nameplate.castbar:SetMinMaxValues(0, duration)
+      nameplate.castbar:SetStatusBarColor(strsplit(",", C.appearance.castbar[(isChannel and "channelcolor" or "castbarcolor")]))
+      if castInfo.icon then
+        nameplate.castbar.icon.tex:SetTexture(castInfo.icon)
+        nameplate.castbar.icon.tex:SetTexCoord(.1,.9,.1,.9)
       end
-    else
-      -- libcast fallback (vanilla without Nampower)
-      if unitstr and pfGetCastInfo then
-        local cast, _, _, texture, startTime, endTime = pfGetCastInfo(unitstr)
-        local channel
-        if not cast then
-          channel, _, _, texture, startTime, endTime = pfGetChannelInfo(unitstr)
-        end
-        if cast or channel then
-          local effect = cast or channel
-          local duration = endTime - startTime
-          local max = duration / 1000
-          local cur = now - startTime / 1000
-          if channel then cur = max + startTime / 1000 - now end
-          if cur < 0 then cur = 0 end
-          if cur > max then cur = max end
-          if nameplate.castbar.lastEndTime ~= endTime then
-            nameplate.castbar.lastEndTime = endTime
-            nameplate.castbar.lastTextTick = nil
-            nameplate.castbar:SetMinMaxValues(0, max)
-            nameplate.castbar:SetStatusBarColor(strsplit(",", C.appearance.castbar[(channel and "channelcolor" or "castbarcolor")]))
-            if texture then
-              nameplate.castbar.icon.tex:SetTexture(texture)
-              nameplate.castbar.icon.tex:SetTexCoord(.1, .9, .1, .9)
-            end
-            if cfg.spellname then
-              nameplate.castbar.spell:SetText(effect)
-            else
-              nameplate.castbar.spell:SetText("")
-            end
-          end
-          nameplate.castbar:SetValue(cur)
-          SetCastbarText(nameplate.castbar, channel and cur or (max - cur))
-          if not nameplate.castbar.isShown then nameplate.castbar.isShown = true; nameplate.castbar:Show() end
-        else
-          nameplate.castbar.isShown = nil
-          nameplate.castbar.lastEndTime = nil
-          nameplate.castbar:Hide()
-        end
+      if cfg.spellname then
+        nameplate.castbar.spell:SetText(castInfo.spellName)
       else
-        nameplate.castbar.isShown = nil
-        nameplate.castbar.lastEndTime = nil
-        nameplate.castbar:Hide()
+        nameplate.castbar.spell:SetText("")
       end
     end
+
+    local barValue = isChannel and (castInfo.endTime - now) or (now - castInfo.startTime)
+    if barValue < 0 then barValue = 0 end
+    if barValue > duration then barValue = duration end
+    nameplate.castbar:SetValue(barValue)
+    SetCastbarText(nameplate.castbar, castInfo.endTime - now)
+    if not nameplate.castbar.isShown then nameplate.castbar.isShown = true; nameplate.castbar:Show() end
   end
 
   -- Dedicated frame that updates ONLY the target plate castbar.

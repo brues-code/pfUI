@@ -15,7 +15,8 @@ setfenv(1, pfUI:GetEnvironment())
 -- of ClassicAPI's C_UnitAuras (which now provides sourceUnit/sourceGUID and
 -- non-player expirationTime). What remains in libdebuff is the cast-event
 -- bookkeeping consumed by GetBestAuraCast / GetEnhancedDebuffs and the
--- libdebuff_casts / libdebuff_*_hooks broadcast surface.
+-- libdebuff_*_hooks broadcast surface (subscribers in actionbar / swingtimer
+-- / libtotem react to SPELL_GO and SPELL_FAILED).
 
 -- return instantly when another libdebuff is already active
 if pfUI.api.libdebuff then return end
@@ -144,8 +145,6 @@ local iconCache = pfUI.libdebuff_icon_cache
 
 -- Cast Tracking: [casterGuid] = {spellID, spellName, icon, startTime, duration, endTime}
 -- Shared with nameplates for cast-bar display
-pfUI.libdebuff_casts = pfUI.libdebuff_casts or {}
-pfUI.libdebuff_item_icons = pfUI.libdebuff_item_icons or {}  -- [casterGuid] = icon (persists across SPELL_GO)
 
 -- Cleveroids API: [targetGUID][spellID] = {start, duration, caster, stacks}
 pfUI.libdebuff_objects_guid = pfUI.libdebuff_objects_guid or {}
@@ -965,23 +964,19 @@ if hasNampower then
       return
       
     elseif event == "SPELLCAST_CHANNEL_STOP" then
-      -- Channel interrupted by player - clear ownDebuffs for the channeled spell immediately.
-      -- DEBUFF_REMOVED fires later (0.5-1s server lag), causing phantom debuff display.
-      -- We look up the active channel cast and pre-clear ownDebuffs for its target.
-      local myGuid = GetPlayerGUID()
-      local castData = myGuid and pfUI.libdebuff_casts[myGuid]
-      if castData and castData.event == "CHANNEL" and castData.spellName then
-        local spellName = castData.spellName
+      -- Channel interrupted by player - clear ownDebuffs for the channeled spell
+      -- via C_Spell.ChannelInfo. DEBUFF_REMOVED fires later (0.5-1s server lag),
+      -- causing phantom debuff display without this pre-clear.
+      local spellName = select(1, C_Spell.ChannelInfo())
+      if spellName then
         local targetGuid = UnitGUID and UnitGUID("target")
         if targetGuid and ownDebuffs[targetGuid] and ownDebuffs[targetGuid][spellName] then
           local data = ownDebuffs[targetGuid][spellName]
-          -- Only clear if the timer is still active (not already expired naturally)
           local remaining = (data.startTime + data.duration) - GetTime()
           if remaining > 0 then
             ownDebuffs[targetGuid][spellName] = nil
           end
         end
-        pfUI.libdebuff_casts[myGuid] = nil
       end
 
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -1003,47 +998,14 @@ if hasNampower then
       end
 
     elseif event == "SPELL_START_SELF" or event == "SPELL_START_OTHER" then
-      local itemId = arg1
       local spellId = arg2
       local casterGuid = arg3
-      local spellType = arg8 or 0  -- 0=Normal, 1=Channel, 2=Autorepeating
-      -- arg6=castTime, arg7=channel duration
-      -- prefer arg6 if present — some spells (e.g. Volley post-rework) still send
-      -- arg8=1 but now have a real cast time in arg6, so we only fall back to arg7
-      -- when arg6 is nil (true channels like Blizzard)
-      -- arg6=castTime (ms), arg7=channel duration (ms), arg8=spellType
-      -- For channels: arg6=0 (no cast time), arg7=duration, spellType=1
-      -- For normal casts: arg6=castTime, arg7=0, spellType=0
-      -- Note: "not arg6" is wrong in Lua since 0 is truthy - use arg6 == 0 or nil
+      -- arg6=castTime (ms), arg7=channel duration (ms). Prefer arg6 when set —
+      -- some spells (e.g. post-rework Volley) flag as channel via arg8 but ship a
+      -- real cast time in arg6, so we only fall back to arg7 for true channels
+      -- like Blizzard where arg6 is 0/nil.
       local castTime = (arg6 and arg6 > 0) and arg6 or arg7
-      local isChannel = spellType == 1 and (not arg6 or arg6 == 0)
-      
       if not casterGuid or not spellId then return end
-
-      local spellName = C_Spell.GetSpellName(spellId)
-      local icon = libdebuff:GetSpellIcon(spellId)
-      
-      -- Use item icon for item-triggered casts
-      if itemId and itemId > 0 then
-        icon = C_Item.GetItemIconByID(itemId) or icon
-        pfUI.libdebuff_item_icons[casterGuid] = {
-          icon = icon,
-          name = GetItemInfo(itemId),
-        }
-      else
-        pfUI.libdebuff_item_icons[casterGuid] = nil
-      end
-      
-      pfUI.libdebuff_casts[casterGuid] = {
-        spellID = spellId,
-        itemID = itemId and itemId > 0 and itemId or nil,
-        spellName = spellName,
-        icon = icon,
-        startTime = GetTime(),
-        duration = castTime and castTime / 1000 or 0,
-        endTime = castTime and (GetTime() + castTime / 1000) or nil,
-        event = isChannel and "CHANNEL" or "START"
-      }
 
       if event == "SPELL_START_SELF" and pfUI.libdebuff_spell_start_self_hooks then
         for _, fn in pairs(pfUI.libdebuff_spell_start_self_hooks) do
@@ -1062,15 +1024,6 @@ if hasNampower then
       local targetGuid = arg4
       local numHit = arg6 or 0
       local numMissed = arg7 or 0
-      
-      -- Clear cast bar only if SPELL_GO matches the active cast
-      -- (Reactive procs like Frost Armor trigger SPELL_GO but shouldn't clear the castbar)
-      -- Don't clear channels on SPELL_GO - channels persist until duration expires or SPELL_FAILED
-      if casterGuid and pfUI.libdebuff_casts[casterGuid] then
-        if pfUI.libdebuff_casts[casterGuid].spellID == spellId and pfUI.libdebuff_casts[casterGuid].event ~= "CHANNEL" then
-          pfUI.libdebuff_casts[casterGuid] = nil
-        end
-      end
       
       -- Fire registered SPELL_GO_SELF hooks BEFORE miss guard
       -- (Swingtimer needs to see ALL casts, even misses, for swing reset)
@@ -1195,14 +1148,6 @@ if hasNampower then
 
     elseif event == "SPELL_FAILED_OTHER" then
       local casterGuid = arg1
-      local spellId = arg2
-
-      if casterGuid and pfUI.libdebuff_casts[casterGuid] then
-        -- Only clear if spellID matches to avoid clearing a cast that already moved on
-        if pfUI.libdebuff_casts[casterGuid].spellID == spellId then
-          pfUI.libdebuff_casts[casterGuid] = nil
-        end
-      end
       if pfUI.libdebuff_spell_failed_other_hooks then
         for _, fn in pairs(pfUI.libdebuff_spell_failed_other_hooks) do
           fn(casterGuid, arg2)
