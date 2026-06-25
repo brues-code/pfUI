@@ -27,7 +27,7 @@ do
   -- ClassicAPI dependency check.
   -- pfUI relies pervasively on the modern C_* / SuperWoW / nameplate / focus
   -- API surface that ClassicAPI polyfills, so presence is required.
-  local PFUI_CLASSIC_API_MIN     = 10501  -- (X*10000 + Y*100 + Z)
+  local PFUI_CLASSIC_API_MIN     = 10502  -- (X*10000 + Y*100 + Z)
   local PFUI_CLASSIC_API_LATEST  = PFUI_CLASSIC_API_MIN
   local PFUI_CLASSIC_API_WEBSITE = "https://github.com/brues-code/ClassicAPI"
   local PFUI_CLASSIC_API_LATEST_URL = PFUI_CLASSIC_API_WEBSITE .. "/releases/latest"
