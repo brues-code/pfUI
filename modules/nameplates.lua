@@ -371,62 +371,6 @@ pfUI:RegisterModule("nameplates", function ()
     end
   end
 
-  local function PlateCacheDebuffs(self, unitstr, verify)
-    if not self.debuffcache then self.debuffcache = {} end
-    if not libdebuff then return end
-
-    local now = GetTime()
-
-    -- Clear existing cache slots
-    for id = 1, 16 do
-      if self.debuffcache[id] then
-        self.debuffcache[id].empty = true
-      end
-    end
-
-    -- Pull debuffs straight from C_UnitAuras. The HARMFUL filter restricts to
-    -- the debuff range; PLAYER (added when cfg.owndebuffs is on) further
-    -- restricts to auras whose cached caster GUID matches the local player.
-    -- expirationTime comes from ClassicAPI's Aura::Source cache (SMSG_SPELL_GO
-    -- observation) — best-effort, so auras applied before login won't carry
-    -- timing and we treat them as durationless.
-    local filter = cfg.owndebuffs and "HARMFUL|PLAYER" or "HARMFUL"
-    local auras = unitstr and C_UnitAuras.GetUnitAuras(unitstr, filter) or {}
-    for id, aura in ipairs(auras) do
-      if id > 16 then break end
-      local duration = aura.duration or 0
-      local stop = (aura.expirationTime and aura.expirationTime > 0) and aura.expirationTime or nil
-      local start = stop and (stop - duration) or now
-      local cache = self.debuffcache[id] or {}
-      cache.effect = aura.name
-      cache.texture = aura.icon
-      cache.stacks = aura.applications
-      cache.dtype = aura.dispelName
-      cache.duration = duration
-      cache.start = start
-      cache.stop = stop
-      cache.empty = nil
-      self.debuffcache[id] = cache
-    end
-
-    self.verify = verify
-  end
-
-  local function PlateUnitDebuff(self, id)
-    -- break on unknown data
-    if not self.debuffcache then return end
-    if not self.debuffcache[id] then return end
-    if not self.debuffcache[id].stop then return end
-
-    -- break on timeout debuffs
-    if self.debuffcache[id].empty then return end
-    if self.debuffcache[id].stop < GetTime() then return end
-
-    -- return cached debuff
-    local c = self.debuffcache[id]
-    return c.effect, c.rank, c.texture, c.stacks, c.dtype, c.duration, (c.stop - GetTime())
-  end
-
   local function CreateDebuffIcon(plate, index)
     plate.debuffs[index] = CreateFrame("Frame", plate.platename.."Debuff"..index, plate)
     plate.debuffs[index]:Hide()
@@ -734,8 +678,6 @@ end
     nameplate:EnableMouse(0)
     nameplate.parent = parent
     nameplate.cache = {}
-    nameplate.UnitDebuff = PlateUnitDebuff
-    nameplate.CacheDebuffs = PlateCacheDebuffs
     nameplate.original = {}
 
     -- create shortcuts for all known elements and disable them
@@ -1239,19 +1181,6 @@ end
     local isFriendly = unittype == "FRIENDLY_PLAYER" or unittype == "FRIENDLY_NPC"
     local showDebuffsForType = cfg.showdebuffs and (isFriendly and cfg.showdebuffs_friendly or (not isFriendly and cfg.showdebuffs_hostile))
     if showDebuffsForType then
-      -- PERF: Cache verify string - only allocate new string when name/level actually changes
-      if name ~= plate.cachedVerifyName or level ~= plate.cachedVerifyLevel then
-        plate.cachedVerifyName = name
-        plate.cachedVerifyLevel = level
-        plate.cachedVerify = (name or "") .. ":" .. (level or "")
-      end
-      local verify = plate.cachedVerify
-
-      -- update cached debuffs
-      if C.nameplates["guessdebuffs"] == "1" and unitstr then
-        plate:CacheDebuffs(unitstr, verify)
-      end
-
       -- Pull debuffs from C_UnitAuras (HARMFUL range). owndebuffs adds the
       -- PLAYER filter token so only auras whose caster GUID matches the local
       -- player come through. debuffDisplayBuf is a module-level reusable
