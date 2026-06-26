@@ -2776,6 +2776,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Left Text Y Offset"], C.castbar.player, "txtleftoffy")
       CreateConfig(nil, T["Show Lag"], C.castbar.player, "showlag", "checkbox")
       CreateConfig(nil, T["Show Rank"], C.castbar.player, "showrank", "checkbox")
+      CreateConfig(nil, T["Merge Tradeskill Casts"], C.castbar.player, "mergetradeskill", "checkbox")
       CreateConfig(nil, T["Right Text X Offset"], C.castbar.player, "txtrightoffx")
       CreateConfig(nil, T["Right Text Y Offset"], C.castbar.player, "txtrightoffy")
 
