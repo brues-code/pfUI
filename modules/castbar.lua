@@ -16,6 +16,96 @@ pfUI:RegisterModule("castbar", function ()
     end
   end
 
+  -- Clear cast state on the bar. Shows the bar full for one frame, then
+  -- OnUpdate fades it out.
+  local function ClearBar(cb)
+    cb.startTime, cb.endTime, cb.isChannel = nil, nil, nil
+    cb.activeName, cb.spellID = nil, nil
+    cb.lastMax = nil
+    cb.delay = 0
+    cb.bar:SetMinMaxValues(1, 100)
+    cb.bar:SetValue(100)
+    cb.fadeout = 1
+  end
+
+  -- Stamp the bar with cast data and render text/icon/lag once. OnUpdate
+  -- then animates the fill from this state without touching C_Spell.
+  local function StampBar(cb, name, tex, startMs, endMs, spellID, isChannel, delayMs)
+    cb.startTime = startMs
+    cb.endTime = endMs
+    cb.isChannel = isChannel
+    cb.spellID = spellID
+    cb.activeName = name
+    cb.delay = (delayMs or 0) / 1000
+    cb:SetAlpha(1)
+    cb.fadeout = nil
+
+    cb.bar:SetStatusBarColor(strsplit(",", C.appearance.castbar[isChannel and "channelcolor" or "castbarcolor"]))
+
+    local rank = ""
+    if spellID and GetSpellRecField then
+      rank = GetSpellRecField(spellID, "rank") or ""
+    end
+    local spellname = (cb.showname and name) and (name .. " ") or ""
+    local rankstr = (cb.showrank and rank ~= "") and string.format("|cffaaffcc[%s]|r", rank) or ""
+    cb.bar.left:SetText(spellname .. rankstr)
+
+    if tex and cb.showicon then
+      local size = cb:GetHeight()
+      cb.icon:Show()
+      cb.icon:SetHeight(size)
+      cb.icon:SetWidth(size)
+      cb.icon.texture:SetTexture(tex)
+      cb.bar:SetPoint("TOPLEFT", cb.icon, "TOPRIGHT", cb.spacing, 0)
+    else
+      cb.bar:SetPoint("TOPLEFT", cb, 0, 0)
+      cb.icon:Hide()
+    end
+
+    local duration = (endMs - startMs) / 1000
+    if cb.showlag then
+      local _, _, lag = GetNetStats()
+      cb.bar.lag:SetWidth(math.min(cb:GetWidth(), cb:GetWidth() / duration * (lag/1000)))
+      cb.bar.lag:Show()
+    else
+      cb.bar.lag:Hide()
+    end
+
+    cb.bar:SetMinMaxValues(0, duration)
+    cb.lastMax = duration
+  end
+
+  -- One-shot poll: read C_Spell for the bar's unit, stamp or clear. Called
+  -- from event handlers (cast start, target/focus change), never per-frame.
+  local function RefreshBar(cb)
+    local query = cb.unitstr ~= "" and cb.unitstr or cb.unitname
+    if not query or (cb.unitstr ~= "" and not UnitExists(cb.unitstr)) then
+      ClearBar(cb)
+      return
+    end
+    local name, _, tex, startMs, endMs, _, _, _, spellID, _, delayMs = C_Spell.UnitCastingInfo(query)
+    local isChan
+    if not name then
+      name, _, tex, startMs, endMs, _, _, spellID = C_Spell.UnitChannelInfo(query)
+      isChan = true
+    end
+    -- Synthetic fallback for abilities the engine treats as instant-cast but
+    -- that have a meaningful wait window (e.g. Turtle WoW Steady Shot on the
+    -- ranged-swing queue). Per-unit table populated by module-side hooks.
+    if not name and pfUI.synthetic_casts and pfUI.synthetic_casts[query] then
+      local s = pfUI.synthetic_casts[query]
+      if s.endMs > GetTime() * 1000 then
+        name, tex, startMs, endMs, spellID = s.name, s.icon, s.startMs, s.endMs, s.spellID
+        isChan = nil
+      end
+    end
+    if name and startMs and endMs then
+      StampBar(cb, name, tex, startMs, endMs, spellID, isChan, delayMs)
+    else
+      ClearBar(cb)
+    end
+  end
+
   local function CreateCastbar(name, parent, unitstr, unitname)
     local cb = CreateFrame("Frame", name, parent or UIParent)
 
@@ -76,179 +166,161 @@ pfUI:RegisterModule("castbar", function ()
     cb.bar.lag:SetPoint("BOTTOMRIGHT", cb.bar, "BOTTOMRIGHT", 0, 0)
     cb.bar.lag:SetTexture(1,.2,.2,.2)
 
-    -- OnUpdate script with throttle for performance optimization
+    -- OnUpdate animates the bar fill and fades it out on completion. All
+    -- state transitions (cast start/stop/interrupt, channel start/stop,
+    -- pushback) come from the event handler below — we never poll C_Spell
+    -- here.
     cb:SetScript("OnUpdate", function()
-      -- Throttle for performance
       if (this.tick or 0) > GetTime() then return end
-      this.tick = GetTime() + 0.020 -- ~50 FPS for smooth castbar
+      this.tick = GetTime() + 0.020 -- ~50 FPS
 
       if this.drag and this.drag:IsShown() then
         this:SetAlpha(1)
         return
       end
 
-      if not UnitExists(this.unitstr) then
-        this:SetAlpha(0)
-      end
-
       if this.fadeout and this:GetAlpha() > 0 then
-        if this:GetAlpha() == 0 then
-          this.fadeout = nil
-        end
-
-        this:SetAlpha(this:GetAlpha()-0.05)
+        this:SetAlpha(this:GetAlpha() - 0.05)
+        if this:GetAlpha() <= 0 then this.fadeout = nil end
+        return
       end
 
-      local channel = nil
-      local query = this.unitstr ~= "" and this.unitstr or this.unitname
-      if not query then return end
+      if not this.endTime then return end
 
-      -- C_Spell takes a unit token; ClassicAPI's resolver also accepts GUID
-      -- strings, so this.unitstr can be "player" / "target" / "focus" or a
-      -- raw "0x..." GUID transparently.
-      local cast, nameSubtext, texture, startTime, endTime
-      local name, _, tex, startMs, endMs, _, _, _, spellID = C_Spell.UnitCastingInfo(query)
-      local isChan
-      if not name then
-        name, _, tex, startMs, endMs, _, _, spellID = C_Spell.UnitChannelInfo(query)
-        isChan = true
+      -- Non-player bars: if the unit disappears (target died / detarget),
+      -- drop the bar immediately.
+      if this.unitstr ~= "" and this.unitstr ~= "player" and not UnitExists(this.unitstr) then
+        ClearBar(this)
+        return
       end
-      -- Synthetic fallback for abilities the engine treats as instant-cast but
-      -- that have a meaningful wait window (e.g. Turtle WoW Steady Shot on the
-      -- ranged-swing queue). Per-unit table populated by module-side hooks.
-      if not name and pfUI.synthetic_casts and pfUI.synthetic_casts[query] then
-        local s = pfUI.synthetic_casts[query]
-        if s.endMs > GetTime() * 1000 then
-          name, tex, startMs, endMs, spellID = s.name, s.icon, s.startMs, s.endMs, s.spellID
-          isChan = nil
-        end
+
+      local now = GetTime()
+      local endSec = this.endTime / 1000
+      if now >= endSec then
+        ClearBar(this)
+        return
       end
-      if name and startMs and endMs then
-        cast = name
-        texture = tex
-        startTime = startMs
-        endTime = endMs
-        if spellID and GetSpellRecField then
-          nameSubtext = GetSpellRecField(spellID, "rank") or ""
+
+      local startSec = this.startTime / 1000
+      local max = endSec - startSec
+      local cur = this.isChannel and (endSec - now) or (now - startSec)
+      if cur > max then cur = max end
+      if cur < 0 then cur = 0 end
+
+      this.bar:SetValue(cur)
+
+      if this.showtimer then
+        if (this.delay or 0) > 0 then
+          local prefix = "|cffffaaaa" .. (this.isChannel and "-" or "+") .. FormatCastbarTime(this.delay) .. " |r "
+          this.bar.right:SetText(prefix .. FormatCastbarTime(cur) .. " / " .. FormatCastbarTime(max))
         else
-          nameSubtext = ""
+          this.bar.right:SetText(FormatCastbarTime(cur) .. " / " .. FormatCastbarTime(max))
         end
-        if isChan then channel = cast end
-      end
-
-      if cast then
-        local duration = endTime - startTime
-        local max = duration / 1000
-        local cur = GetTime() - startTime / 1000
-
-        this:SetAlpha(1)
-
-        local spellname = this.showname and cast and cast .. " " or ""
-        local rank = this.showrank and nameSubtext and nameSubtext ~= "" and string.format("|cffaaffcc[%s]|r", nameSubtext) or ""
-
-        if this.endTime ~= endTime then
-          this.bar:SetStatusBarColor(strsplit(",", C.appearance.castbar[(channel and "channelcolor" or "castbarcolor")]))
-          this.bar.left:SetText(spellname .. rank)
-          this.fadeout = nil
-          this.endTime = endTime
-
-          -- set texture
-          if texture and this.showicon then
-            local size = this:GetHeight()
-            this.icon:Show()
-            this.icon:SetHeight(size)
-            this.icon:SetWidth(size)
-            this.icon.texture:SetTexture(texture)
-            this.bar:SetPoint("TOPLEFT", this.icon, "TOPRIGHT", this.spacing, 0)
-          else
-            this.bar:SetPoint("TOPLEFT", this, 0, 0)
-            this.icon:Hide()
-          end
-
-          if this.showlag then
-            local _, _, lag = GetNetStats()
-            local width = this:GetWidth() / (duration/1000) * (lag/1000)
-            this.bar.lag:SetWidth(math.min(this:GetWidth(), width))
-          else
-            this.bar.lag:Hide()
-          end
-        end
-
-        local newMax = duration / 1000
-        if this.lastMax ~= newMax then
-          this.bar:SetMinMaxValues(0, newMax)
-          this.lastMax = newMax
-        end
-
-        if channel then
-          cur = max + startTime/1000 - GetTime()
-        end
-
-        cur = cur > max and max or cur
-        cur = cur < 0 and 0 or cur
-
-        this.bar:SetValue(cur)
-
-        if this.showtimer then
-          if this.delay and this.delay > 0 then
-            local delay = "|cffffaaaa" .. (channel and "-" or "+") .. FormatCastbarTime(this.delay) .. " |r "
-            this.bar.right:SetText(delay .. FormatCastbarTime(cur) .. " / " .. FormatCastbarTime(max))
-          else
-            this.bar.right:SetText(FormatCastbarTime(cur) .. " / " .. FormatCastbarTime(max))
-          end
-        end
-
-        this.fadeout = nil
-      else
-        this.bar:SetMinMaxValues(1,100)
-        this.bar:SetValue(100)
-        this.lastMax = nil
-        this.fadeout = 1
-        this.delay = 0
       end
     end)
 
-    -- register for spell delay
-    -- Prefer Nampower's SPELL_DELAYED_SELF (gives casterGuid + delayMs directly).
-    -- Fall back to vanilla SPELLCAST_DELAYED if Nampower is not available.
-    local playerarg = nil
-    local function ApplyPushback(delayMs)
-      if not delayMs or delayMs <= 0 or not this.endTime then return end
-      this.delay = (this.delay or 0) + delayMs / 1000
-      this.endTime = this.endTime + delayMs
+    -- Cast lifecycle events. Player bars react to vanilla SPELLCAST_*; non-
+    -- player bars also react to Nampower SPELL_*_OTHER (gated by the
+    -- NP_EnableSpell{Start,Go}Events CVars, enabled by libdebuff) plus the
+    -- retarget event. Player events also feed non-player bars for the
+    -- target=self case.
+    cb:RegisterEvent("SPELLCAST_START")
+    cb:RegisterEvent("SPELLCAST_STOP")
+    cb:RegisterEvent("SPELLCAST_FAILED")
+    cb:RegisterEvent("SPELLCAST_INTERRUPTED")
+    cb:RegisterEvent("SPELLCAST_CHANNEL_START")
+    cb:RegisterEvent("SPELLCAST_CHANNEL_STOP")
+    cb:RegisterEvent("SPELLCAST_CHANNEL_UPDATE")
+    cb:RegisterEvent("SPELL_DELAYED_SELF")
+    -- Chained same-spell recasts never run the client cast path (the 1.12
+    -- engine short-circuits at spellID == current-cast), so vanilla
+    -- SPELLCAST_START never fires for them. nampower's SPELL_START_SELF
+    -- (server-driven) is the only signal that shows them.
+    cb:RegisterEvent("SPELL_START_SELF")
+    if unitstr ~= "player" and unitstr ~= "" then
+      cb:RegisterEvent("SPELL_START_OTHER")
+      cb:RegisterEvent("SPELL_FAILED_OTHER")
+      if unitstr == "target" then
+        cb:RegisterEvent("PLAYER_TARGET_CHANGED")
+      elseif unitstr == "focus" then
+        cb:RegisterEvent("PLAYER_FOCUS_CHANGED")
+      end
     end
 
-    cb:RegisterEvent("SPELL_DELAYED_SELF")
-    cb:RegisterEvent(CASTBAR_EVENT_CAST_DELAY)
-    cb:RegisterEvent(CASTBAR_EVENT_CHANNEL_DELAY)
-    cb:RegisterEvent(CASTBAR_EVENT_CAST_START)
-    cb:RegisterEvent(CASTBAR_EVENT_CHANNEL_START)
     cb:SetScript("OnEvent", function()
-      if this.unitstr and not UnitIsUnit(this.unitstr, "player") then return end
+      local unit = this.unitstr
 
-      if event == "SPELL_DELAYED_SELF" then
-        -- arg1=casterGuid, arg2=delayMs (Nampower, most accurate)
-        ApplyPushback(arg2)
-
-      elseif event == CASTBAR_EVENT_CAST_DELAY then
-        -- SPELLCAST_DELAYED fallback intentionally removed - addon requires Nampower.
-        -- Cast pushback is handled by SPELL_DELAYED_SELF above.
+      if event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_FOCUS_CHANGED" then
+        RefreshBar(this)
         return
+      end
 
-      elseif event == CASTBAR_EVENT_CHANNEL_DELAY then
-        -- SPELLCAST_CHANNEL_UPDATE fires when a channel is pushed back by damage.
-        -- arg1 = new remaining time in ms. Channel ends sooner = newEndTime < this.endTime.
+      if event == "SPELL_START_OTHER" then
+        -- arg3=casterGuid. Defer one frame so ClassicAPI's UnitChannelInfo
+        -- can see the engine's +0x228 broadcast for remote-unit channels
+        -- (the cohook+packet handler runs in the same frame; the broadcast
+        -- propagates after).
+        if arg3 == UnitGUID(unit) then
+          local target = this
+          C_Timer.After(0, function() RefreshBar(target) end)
+        end
+        return
+      end
+
+      if event == "SPELL_FAILED_OTHER" then
+        if arg1 == UnitGUID(unit) then ClearBar(this) end
+        return
+      end
+
+      -- Vanilla SPELLCAST_* + SPELL_DELAYED_SELF fire only for the local
+      -- player. Non-player bars handle them only when their unit currently
+      -- resolves to the player (target=self / focus=self).
+      if unit ~= "player" and UnitGUID(unit) ~= UnitGUID("player") then return end
+
+      if event == "SPELLCAST_START" or event == "SPELLCAST_CHANNEL_START" then
+        RefreshBar(this)
+      elseif event == "SPELL_START_SELF" then
+        -- Catches chained same-spell recasts (no SPELLCAST_START fires).
+        -- Defer one frame so ClassicAPI's SMSG_SPELL_START co-hook has
+        -- stamped g_cast before we poll, regardless of co-hook order.
+        local target = this
+        C_Timer.After(0, function() RefreshBar(target) end)
+      elseif event == "SPELLCAST_CHANNEL_STOP" then
+        -- A channel's stop can arrive after a following cast already claimed
+        -- the bar (channel->cast transition); only clear if a channel is
+        -- actually being shown, so it doesn't wipe an active cast bar.
+        if this.isChannel then ClearBar(this) end
+      elseif event == "SPELLCAST_STOP" or event == "SPELLCAST_FAILED"
+          or event == "SPELLCAST_INTERRUPTED" then
+        ClearBar(this)
+      elseif event == "SPELL_DELAYED_SELF" then
+        -- Cast pushback. nampower's event carries the delay (arg2); apply it
+        -- locally rather than re-polling, so the bar doesn't depend on
+        -- ClassicAPI's SMSG_SPELL_DELAYED co-hook having bumped g_cast before
+        -- this fires (co-hook order vs nampower is not guaranteed).
+        if not this.endTime or not arg2 then return end
+        local delayMs = tonumber(arg2) or 0
+        if delayMs > 0 then
+          this.delay = (this.delay or 0) + delayMs / 1000
+          this.endTime = this.endTime + delayMs
+          local newDuration = (this.endTime - this.startTime) / 1000
+          this.bar:SetMinMaxValues(0, newDuration)
+          this.lastMax = newDuration
+        end
+      elseif event == "SPELLCAST_CHANNEL_UPDATE" then
+        -- Channel pushback. ClassicAPI doesn't track channel delay in
+        -- g_channel, so we adjust endTime + delay locally and resize the
+        -- bar so OnUpdate animates against the new total.
         if not this.endTime or not arg1 then return end
-        local newEndTime = GetTime() * 1000 + arg1
-        local diff = this.endTime - newEndTime  -- positive = time lost to pushback
+        local newEndMs = GetTime() * 1000 + arg1
+        local diff = this.endTime - newEndMs
         if diff > 50 then
           this.delay = (this.delay or 0) + diff / 1000
-          this.endTime = newEndTime
+          this.endTime = newEndMs
+          local newDuration = (this.endTime - this.startTime) / 1000
+          this.bar:SetMinMaxValues(0, newDuration)
+          this.lastMax = newDuration
         end
-
-      elseif event == CASTBAR_EVENT_CAST_START or event == CASTBAR_EVENT_CHANNEL_START then
-        playerarg = true
-        this.delay = 0
       end
     end)
 
