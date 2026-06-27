@@ -1182,7 +1182,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
       -- use pfUI frames to draw healComm predictions
       local pfHookHealCommSendAddonMessage = HealComm.SendAddonMessage
       function HealComm.SendAddonMessage(this, msg)
-        if not UnitInRaid("player") and GetNumPartyMembers() < 1 then
+        if not IsInGroup() then
           libpredict:ParseChatMessage(UnitName("player"), msg, "HealComm")
         end
         pfHookHealCommSendAddonMessage(this, msg)
