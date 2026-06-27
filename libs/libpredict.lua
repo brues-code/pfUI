@@ -959,8 +959,6 @@ hooksecurefunc("CastSpellByName", function(effect, target)
   if not libpredict.sender.enabled then return end
   local effect, rank = libspell.GetSpellInfo(effect)
   if not effect then return end
-  local mouseover = pfUI and pfUI.uf and pfUI.uf.mouseover and pfUI.uf.mouseover.unit
-  mouseover = mouseover and UnitCanAssist("player", mouseover) and UnitName(mouseover)
 
   local default = UnitName("target") and UnitCanAssist("player", "target") and UnitName("target") or UnitName("player")
 
@@ -979,13 +977,13 @@ hooksecurefunc("CastSpellByName", function(effect, target)
   if not libpredict.sender.current_cast then
     spell_queue[1] = effect
     spell_queue[2] = effect.. ( rank or "" )
-    spell_queue[3] = target or mouseover or default
+    spell_queue[3] = target or default
   end
   
   -- Instant HoTs: libdebuff/Nampower via GetHotDuration, hook method as fallback
   
   if effect == REJUVENATION then
-    local hotTarget = target or mouseover or default
+    local hotTarget = target or default
     local now = pfUI.uf.now or GetTime()
     local key = "Reju" .. hotTarget
     
@@ -1002,7 +1000,7 @@ hooksecurefunc("CastSpellByName", function(effect, target)
     local rankStr = rankNum and tostring(rankNum) or "0"
     libpredict.sender:SendHealCommMsg("Reju/"..hotTarget.."/"..rejuvDuration.."/"..rankStr.."/")
   elseif effect == RENEW then
-    local hotTarget = target or mouseover or default
+    local hotTarget = target or default
     local now = pfUI.uf.now or GetTime()
     local key = "Renew" .. hotTarget
     
