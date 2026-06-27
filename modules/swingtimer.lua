@@ -32,11 +32,12 @@ pfUI:RegisterModule("swingtimer", function ()
     onSwingCache = {},
   }
 
-  -- Ranged spell IDs
-  local RANGED_SPELLIDS = {
-    [75]   = true,  -- Auto Shot (Hunter)
-    [2764] = true,  -- Throw (Warrior/Rogue)
-  }
+  -- Wand "Shoot" runs on the ranged bar but is INDEPENDENT of the melee
+  -- swing clock — casters melee-weave between mainhand swings and wand
+  -- fires, both timers tick concurrently. Every other ranged-auto-attack
+  -- (Hunter Auto Shot, any future auto-repeat ranged spell) replaces MH.
+  local WAND_SHOOT_SPELLID = 5019
+  local THROW_SPELLID      = 2764  -- one-shot ranged, not auto-repeat
 
   -- Spells that DELAY the swing timer by their cast duration but do NOT reset it.
   -- Slam: vanilla behavior on Turtle WoW - delays swing, does not reset.
@@ -355,14 +356,17 @@ pfUI:RegisterModule("swingtimer", function ()
     pfUI.swingtimer:Show()
   end
 
-  -- Reset ranged countdown
-  local function ResetRanged()
+  -- Reset ranged countdown. replaceMH=true (Hunter Auto Shot, Throw) stops
+  -- the melee swing clock while ranged ticks; replaceMH=false (wand Shoot)
+  -- leaves it running for melee weaving.
+  local function ResetRanged(replaceMH)
     if not sw_showranged then return end
     UpdateWeaponSpeeds()
     if S.raSpeed <= 0 then return end
-    -- Ranged replaces MH bar
-    S.mhActive = false
-    pfUI.swingtimer.mainhand:Hide()
+    if replaceMH then
+      S.mhActive = false
+      pfUI.swingtimer.mainhand:Hide()
+    end
     S.raTimerMax = S.raSpeed
     S.raTimer    = S.raSpeed
     S.raActive   = true
@@ -718,8 +722,16 @@ pfUI:RegisterModule("swingtimer", function ()
   -- SPELL_GO hook via libdebuff
   pfUI.libdebuff_spell_go_hooks = pfUI.libdebuff_spell_go_hooks or {}
   pfUI.libdebuff_spell_go_hooks["swingtimer"] = function(spellId)
-    if RANGED_SPELLIDS[spellId] then
-      ResetRanged()
+    -- C_Spell.IsRangedAutoAttackSpell catches both Auto Shot (75) and
+    -- wand Shoot (5019) via Spell.dbc's AUTO_REPEAT attribute (covers
+    -- any future auto-repeat ranged spell automatically). Wand is the
+    -- one independent of the MH swing — everything else replaces it.
+    -- Throw isn't auto-repeat (single-shot) so it's handled explicitly.
+    if C_Spell.IsRangedAutoAttackSpell(spellId) then
+      ResetRanged(spellId ~= WAND_SHOOT_SPELLID)
+      return
+    elseif spellId == THROW_SPELLID then
+      ResetRanged(true)
       return
     elseif swingDelaySpells[spellId] then
       -- Swing-delay spells (Slam, Hammer of Wrath on Turtle WoW):
