@@ -1387,5 +1387,17 @@ function pfUI:MigrateConfig()
     end
   end
 
-  pfUI_config.version = pfUI.version.string
+  -- Stamp the version we've migrated to. Dev / git-cloned builds carry
+  -- "@project-version@" in the toc, which pfUI.lua normalizes to "dev" —
+  -- writing that here would have checkversion() parse it back as 0/0/0 on
+  -- the next /reload and re-fire every migration block, clobbering user
+  -- toggles (notably the >3.6.1 buff migration that rewrites
+  -- buffs.{buffs,debuffs,weapons} from the deprecated global.hide{,w}buff
+  -- knobs). Stamp a far-future sentinel instead so checkversion() can't
+  -- flip true again on subsequent loads.
+  if pfUI.version.string == "dev" then
+    pfUI_config.version = "999.999.999"
+  else
+    pfUI_config.version = pfUI.version.string
+  end
 end
