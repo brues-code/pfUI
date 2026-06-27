@@ -937,10 +937,15 @@ end
     -- name — name alone misses pool reuse between same-named units (e.g. plate
     -- held a player "Ironforge Guard" and is now reassigned to the NPC by the
     -- same name), which would leak a stale "PLAYER" hint into GetUnitInfo.
+    -- Wipe the whole cache table: the PERF gates below ("only update X when
+    -- X changed") would otherwise skip bar/color/text updates when the new
+    -- unit happens to share a cached value with the previous occupant
+    -- (e.g., both at 60% HP percentage on plate pool reuse → bar stays at
+    -- the old fill until the new mob actually changes HP).
     if plate.cache.name ~= name or plate.cache.guid ~= plate.cachedGuid then
+      table.wipe(plate.cache)
       plate.cache.name = name
       plate.cache.guid = plate.cachedGuid
-      plate.cache.player = nil
       plate.cdCache = nil  -- new unit, reset spell-keyed timer cache
       plate.name:SetText(GetNameString(name))
     end
