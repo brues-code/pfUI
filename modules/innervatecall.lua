@@ -39,11 +39,11 @@ pfUI:RegisterModule("innervatecall", function ()
       return "BATTLEGROUND"
     end
 
-    if GetNumRaidMembers() > 0 then
+    if IsInRaid() then
       return "RAID"
     end
 
-    if GetNumPartyMembers() > 0 then
+    if IsInGroup() then
       return "PARTY"
     end
 

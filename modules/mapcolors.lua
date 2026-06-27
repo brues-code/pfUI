@@ -50,7 +50,7 @@ pfUI:RegisterModule("mapcolors", function ()
   end
 
   local function UpdateUnitFrames(unit_button_name)
-    if GetNumRaidMembers() > 0 then
+    if IsInRaid() then
       for i=1, MAX_RAID_MEMBERS do
         local frame_name = unit_button_name.."Raid"..i
         local frame = _G[frame_name]
@@ -68,7 +68,7 @@ pfUI:RegisterModule("mapcolors", function ()
           end
         end
       end
-    elseif GetNumPartyMembers() > 0 then
+    elseif IsInGroup() then
       for i=1, MAX_PARTY_MEMBERS do
         local frame_name = unit_button_name.."Party"..i
         local frame = _G[frame_name]

@@ -305,12 +305,12 @@ function pfUI.uf:UpdateVisibility()
     local id = self.cache_raid
 
     -- always show self in raidframes
-    if not UnitInRaid("player") and GetNumPartyMembers() == 0 and C.unitframes.selfinraid == "1" and id == 1 then
+    if not IsInRaid() and IsInGroup() and C.unitframes.selfinraid == "1" and id == 1 then
       self.id = ""
       self.label = "player"
 
     -- use raidframes for groups
-    elseif not UnitInRaid("player") and GetNumPartyMembers() > 0 and C.unitframes.raidforgroup == "1" then
+    elseif not IsInRaid() and IsInGroup() and C.unitframes.raidforgroup == "1" then
       if id == 1 then
         self.id = ""
         self.label = "player"
@@ -347,12 +347,12 @@ function pfUI.uf:UpdateVisibility()
     -- frame shall not be visible
     visibility = "hide"
     self.visible = nil
-  elseif C["unitframes"]["group"]["hide_in_raid"] == "1" and self.label and strsub(self.label,0,5) == "party" and UnitInRaid("player") then
+  elseif C["unitframes"]["group"]["hide_in_raid"] == "1" and self.label and strsub(self.label,0,5) == "party" and IsInRaid() then
     -- hide group while in raid and option is set
     visibility = "hide"
     self.visible = nil
   elseif ( self.fname == "Group0" or self.fname == "PartyPet0" or self.fname == "Party0Target" )
-  and (GetNumPartyMembers() <= 0 or (C["unitframes"]["group"]["hide_in_raid"] == "1" and UnitInRaid("player"))) then
+  and (not IsInGroup() or (C["unitframes"]["group"]["hide_in_raid"] == "1" and IsInRaid())) then
      -- hide self in group if solo or hide in raid is set
      visibility = "hide"
      self.visible = nil
@@ -1773,7 +1773,7 @@ function pfUI.uf:RefreshIndicators(unit)
   local unitstr = unit.label .. unit.id
 
   if unit.leaderIcon then -- Leader Icon
-    if unit.config.leadericon == "1" and UnitIsPartyLeader(unitstr) and ( GetNumPartyMembers() > 0 or GetNumRaidMembers() > 0 ) then
+    if unit.config.leadericon == "1" and UnitIsPartyLeader(unitstr) and IsInGroup() then
       unit.leaderIcon:Show()
     else
       unit.leaderIcon:Hide()

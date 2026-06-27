@@ -366,9 +366,9 @@ pfUI.libdebuff_spell_go_hooks["libpredict"] = function(spellId, a1, a2, a3, a4, 
       local rankStr = tostring(rank)
       if libpredict.sender and libpredict.sender.SendHealCommMsg then
         libpredict.sender:SendHealCommMsg(hotType .. "/" .. targetName .. "/" .. duration .. "/" .. rankStr .. "/")
-      elseif GetNumRaidMembers() > 0 then
+      elseif IsInRaid() then
         SendAddonMessage("HealComm", hotType .. "/" .. targetName .. "/" .. duration .. "/" .. rankStr .. "/", "RAID")
-      elseif GetNumPartyMembers() > 0 then
+      elseif IsInGroup() then
         SendAddonMessage("HealComm", hotType .. "/" .. targetName .. "/" .. duration .. "/" .. rankStr .. "/", "PARTY")
       end
     end
@@ -1083,10 +1083,10 @@ libpredict.sender = CreateFrame("Frame", "pfPredictionSender", UIParent)
 libpredict.sender.enabled = true
 libpredict.sender.SendHealCommMsg = function(self, msg)
   -- Smart channel selection: Only send to relevant channel to avoid duplicates
-  if GetNumRaidMembers() > 0 then
+  if IsInRaid() then
     -- In raid: Only send to RAID (includes all raid members)
     SendAddonMessage("HealComm", msg, "RAID")
-  elseif GetNumPartyMembers() > 0 then
+  elseif IsInGroup() then
     -- In party: Only send to PARTY
     SendAddonMessage("HealComm", msg, "PARTY")
   end
@@ -1095,10 +1095,10 @@ libpredict.sender.SendHealCommMsg = function(self, msg)
 end
 libpredict.sender.SendResCommMsg = function(self, msg)
   -- Smart channel selection: Only send to relevant channel to avoid duplicates
-  if GetNumRaidMembers() > 0 then
+  if IsInRaid() then
     -- In raid: Only send to RAID (includes all raid members)
     SendAddonMessage("CTRA", msg, "RAID")
-  elseif GetNumPartyMembers() > 0 then
+  elseif IsInGroup() then
     -- In party: Only send to PARTY
     SendAddonMessage("CTRA", msg, "PARTY")
   end
