@@ -39,45 +39,20 @@ pfUI:RegisterModule("swingtimer", function ()
   local WAND_SHOOT_SPELLID = 5019
   local THROW_SPELLID      = 2764  -- one-shot ranged, not auto-repeat
 
-  -- Spells that DELAY the swing timer by their cast duration but do NOT reset it.
-  -- Slam: vanilla behavior on Turtle WoW - delays swing, does not reset.
-  -- Hammer of Wrath: Turtle WoW changed behavior - does not reset swing timer.
-  local swingDelaySpells = {
-    [1464] = true, [8820] = true, [11604] = true, [11605] = true,  -- Slam R1-R4
-    [24275] = true, [24274] = true, [24239] = true,                -- Hammer of Wrath R1-R3
-  }
-
   -- SPELL_ATTR_ON_NEXT_SWING (bit 2, value 4): spell replaces next auto-attack swing.
   -- Covers Raptor Strike, Maul, Mongoose Bite, Holy Strike, etc. automatically.
   local ATTR_ON_NEXT_SWING = 4
   local function IsOnSwingSpell(spellId)
     if S.onSwingCache[spellId] ~= nil then return S.onSwingCache[spellId] end
-    local rec = GetSpellRec(spellId)
-    local result = rec and bit.band(rec.attributes, ATTR_ON_NEXT_SWING) ~= 0 or false
+    local attr = GetSpellRecField(spellId, "attributes") or 0
+    local result = bit.band(attr, ATTR_ON_NEXT_SWING) ~= 0
     S.onSwingCache[spellId] = result
     return result
   end
 
-  -- Heroic Strike spell IDs (all ranks)
-  local hsSpellIDs = {
-    [78] = true, [284] = true, [285] = true, [1608] = true,
-    [11564] = true, [11565] = true, [11566] = true, [11567] = true,
-  }
-
-  -- Cleave spell IDs (all ranks)
-  local cleaveSpellIDs = {
-    [845] = true, [7369] = true, [11608] = true, [11609] = true,
-    [20569] = true,
-    }
-
-  -- Maul spell IDs (all ranks 1 to 7)
-    local maulSpellIDs  = {
-        [6807] = true,
-        [6808] = true,
-        [6809] = true,
-        [8972] = true,
-     [9745] = true, [9880] = true, [9881] = true,
-    }
+  -- HS / Cleave / Maul are detected dynamically via IsOnSwingSpell (the
+  -- SPELL_ATTR_ON_NEXT_SWING bit) + name comparison against the rank-1
+  -- canonical names cached below — no per-rank ID maintenance.
 
   -- Read config
   local sw_width     = tonumber(C.unitframes.swingtimerwidth) or 200
@@ -410,11 +385,35 @@ pfUI:RegisterModule("swingtimer", function ()
     pfUI.swingtimer:Hide()
   end
 
-  -- HS/Cleave helpers. Canonical rank-1 spellIDs resolve to the localized
-  -- spell name once, so the per-slot comparison is locale-independent without
-  -- per-rank hardcoding (every rank of Heroic Strike returns the same name).
-  local HS_NAME = C_Spell.GetSpellName(78)       -- Heroic Strike (Rank 1)
-  local CLEAVE_NAME = C_Spell.GetSpellName(845)  -- Cleave (Rank 1)
+  -- HS/Cleave/Maul helpers. Canonical rank-1 spellIDs resolve to the
+  -- localized spell name once, so per-spell classification is rank- and
+  -- locale-independent without per-rank ID hardcoding (every rank of
+  -- Heroic Strike etc. returns the same name).
+  local HS_NAME     = C_Spell.GetSpellName(78)    -- Heroic Strike (Rank 1)
+  local CLEAVE_NAME = C_Spell.GetSpellName(845)   -- Cleave (Rank 1)
+  local MAUL_NAME   = C_Spell.GetSpellName(6807)  -- Maul (Rank 1)
+
+  -- Classify an on-next-swing spell as "hs" / "cleave" / "maul" / nil.
+  -- IsOnSwingSpell gates the family (ATTR_ON_NEXT_SWING bit 0x04) so
+  -- unrelated spells return nil cheaply.
+  local function ClassifyOnSwingSpell(spellId)
+    if not IsOnSwingSpell(spellId) then return nil end
+    local name = C_Spell.GetSpellName(spellId)
+    if name == HS_NAME then return "hs"
+    elseif name == CLEAVE_NAME then return "cleave"
+    elseif name == MAUL_NAME then return "maul"
+    end
+  end
+
+  -- Set the queue flags from a ClassifyOnSwingSpell result. nil = no-op
+  -- (preserves prior flag state when the queued spell isn't one we
+  -- color-code, matching the legacy table-lookup behavior).
+  local function SetQueuedKind(kind)
+    if not kind then return end
+    S.hsQueued     = (kind == "hs")
+    S.cleaveQueued = (kind == "cleave")
+    S.maulQueued   = (kind == "maul")
+  end
 
   local function RebuildQueueSlotCache()
     if not S.isWarrior or not sw_hsqueue or S.useSpellQueueEvent then return end
@@ -698,11 +697,17 @@ pfUI:RegisterModule("swingtimer", function ()
   local spellStartFrame = CreateFrame("Frame")
   spellStartFrame:RegisterEvent("SPELL_START_SELF")
   spellStartFrame:SetScript("OnEvent", function()
-    if arg1 and arg1 > 0 then
-      S.pendingCastSpellId = arg1
-      -- Slam (and other delay-only spells): freeze the swing timer during cast
-      -- so it pauses instead of ticking down and expiring mid-cast
-      if swingDelaySpells[arg1] and S.mhActive then
+    if not (arg1 and arg1 > 0) then return end
+    S.pendingCastSpellId = arg1
+    -- Freeze the swing timer for cast-time spells that DON'T reset auto-
+    -- attack on completion (Slam, Hammer of Wrath on Turtle, etc.) — those
+    -- let the swing resume from where it paused. Detect dynamically via the
+    -- absent AUTOATTACK interrupt flag (0x08); spells with 0x08 reset on
+    -- SPELL_GO_SELF so freezing isn't necessary. Subsumes the old hardcoded
+    -- swingDelaySpells list (no list maintenance for new Slam-style spells).
+    if S.mhActive then
+      local iflags = GetSpellRecField(arg1, "interruptFlags") or 0
+      if bit.band(iflags, 0x08) == 0 then
         S.mhFrozenAt = GetTime()
       end
     end
@@ -733,49 +738,48 @@ pfUI:RegisterModule("swingtimer", function ()
     elseif spellId == THROW_SPELLID then
       ResetRanged(true)
       return
-    elseif swingDelaySpells[spellId] then
-      -- Swing-delay spells (Slam, Hammer of Wrath on Turtle WoW):
-      -- Delay the swing timer by cast duration, do NOT reset it.
-      if S.mhFrozenAt then
-        local castDuration = GetTime() - S.mhFrozenAt
-        S.mhTimer = S.mhTimer + castDuration
-        S.mhTimerMax = S.mhTimerMax + castDuration
-        S.mhFrozenAt = nil
-      end
-      S.pendingCastSpellId = nil
-      return
-    elseif hsSpellIDs[spellId] or cleaveSpellIDs[spellId] or maulSpellIDs[spellId] or IsOnSwingSpell(spellId) then
-      S.hsQueued = false; S.cleaveQueued = false
-      S.maulQueued = false
-      ResetMH()
-    elseif cleaveSpellIDs[spellId] then
-      S.hsQueued = false; S.cleaveQueued = false
+    elseif IsOnSwingSpell(spellId) then
+      -- On-next-swing ability (HS / Cleave / Maul / Raptor Strike / etc.)
+      -- — the swing fires as the spell consumes it. Drop the queued color.
+      S.hsQueued = false; S.cleaveQueued = false; S.maulQueued = false
       ResetMH()
     else
-      -- Any spell with interruptFlags > 0 resets the swing timer
-      -- (Moonfire, Faerie Fire, Wrath, Starfire etc. - NOT Insect Swarm which has flags=0)
-      local _rec = GetSpellRec(spellId)
-      if _rec and _rec.interruptFlags and _rec.interruptFlags > 0 then
+      -- Mirror the server rule for "does this spell reset the auto-attack
+      -- swing" (Spell::IsMeleeAttackResetSpell in Turtle's core):
+      --   InterruptFlags has SPELL_INTERRUPT_FLAG_AUTOATTACK (0x08)
+      --   AND AttributesEx2 doesn't have NOT_RESET_AUTO_ACTIONS (0x20000).
+      -- If neither path resets and we're holding a frozen-swing-during-cast
+      -- (mhFrozenAt set by SPELL_START_SELF for non-0x08 spells), this is a
+      -- Slam-style cast — push the timer forward by the cast duration so
+      -- the bar resumes from where it paused.
+      local FLAG_AUTOATTACK  = 0x08      -- SPELL_INTERRUPT_FLAG_AUTOATTACK
+      local ATTR_KEEP_SWINGS = 0x20000   -- SPELL_ATTR_EX2_NOT_RESET_AUTO_ACTIONS
+      local iflags = GetSpellRecField(spellId, "interruptFlags") or 0
+      if bit.band(iflags, FLAG_AUTOATTACK) ~= 0
+          and bit.band(GetSpellRecField(spellId, "attributesEx2") or 0, ATTR_KEEP_SWINGS) == 0 then
         if S.mhActive and S.mhSpeed > 0 then
           UpdateWeaponSpeeds()
           S.mhTimerMax = S.mhSpeed
           S.mhTimer    = S.mhSpeed
         end
+        if S.ohActive and S.ohSpeed > 0 then
+          S.ohTimerMax = S.ohSpeed
+          S.ohTimer    = S.ohSpeed
+        end
+      elseif S.mhFrozenAt then
+        local castDuration = GetTime() - S.mhFrozenAt
+        S.mhTimer = S.mhTimer + castDuration
+        S.mhTimerMax = S.mhTimerMax + castDuration
+        S.mhFrozenAt = nil
       end
     end
     S.pendingCastSpellId = nil
   end
 
-  -- SPELL_CAST_EVENT hook: HS/Cleave queue tracking
+  -- SPELL_CAST_EVENT hook: HS/Cleave/Maul queue tracking
   pfUI.libdebuff_spell_cast_hooks = pfUI.libdebuff_spell_cast_hooks or {}
   pfUI.libdebuff_spell_cast_hooks["swingtimer"] = function(success, spellId)
-    if hsSpellIDs[spellId] then
-      S.hsQueued = true; S.cleaveQueued = false; S.maulQueued = false
-    elseif cleaveSpellIDs[spellId] then
-      S.cleaveQueued = true; S.hsQueued = false; S.maulQueued = false
-    elseif maulSpellIDs[spellId] then
-      S.maulQueued = true; S.hsQueued = false; S.cleaveQueued = false
-    end
+    SetQueuedKind(ClassifyOnSwingSpell(spellId))
   end
 
 
@@ -859,13 +863,7 @@ pfUI:RegisterModule("swingtimer", function ()
       local spellId   = arg2 or 0
       if eventCode == ON_SWING_QUEUED then
         S.useSpellQueueEvent = true
-        if hsSpellIDs[spellId] then
-          S.hsQueued = true; S.cleaveQueued = false; S.maulQueued = false
-        elseif cleaveSpellIDs[spellId] then
-          S.cleaveQueued = true; S.hsQueued = false; S.maulQueued = false
-        elseif maulSpellIDs[spellId] then
-          S.maulQueued = true; S.hsQueued = false; S.cleaveQueued = false
-        end
+        SetQueuedKind(ClassifyOnSwingSpell(spellId))
       elseif eventCode == ON_SWING_QUEUE_POPPED then
         S.hsQueued = false; S.cleaveQueued = false; S.maulQueued = false
       end
