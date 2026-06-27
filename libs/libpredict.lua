@@ -190,7 +190,7 @@ pfUI.libdebuff_spell_start_self_hooks["libpredict"] = function(spellId, casterGu
       -- selfcast (ALT) = player, otherwise = current target
       -- Use this to find the correct group to heal
       local pohTarget = target or player
-      if GetNumRaidMembers() > 0 then
+      if IsInRaid() then
         -- Raid: find pohTarget's subgroup and heal only those members
         -- (Turtle WoW changed PoH to heal the target's group, not the caster's group)
         local targetGroup
@@ -299,7 +299,7 @@ pfUI.libdebuff_spell_start_other_hooks["libpredict"] = function(spellId, casterG
 
   -- Prayer of Healing: heal entire subgroup of the target
   if spellName == PRAYER_OF_HEALING then
-    if GetNumRaidMembers() > 0 then
+    if IsInRaid() then
       local targetGroup
       for i = 1, GetNumRaidMembers() do
         local rname, _, subgroup = GetRaidRosterInfo(i)
