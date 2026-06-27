@@ -106,7 +106,7 @@ pfUI:RegisterModule("raid", function ()
     this.pendingUpdate = nil
 
     -- don't proceed without raid
-    if not UnitInRaid("player") then return end
+    if not IsInRaid() then return end
 
     -- clear all existing frames
     for i=1, maxraid do SetRaidIndex(pfUI.uf.raid[i], 0) end

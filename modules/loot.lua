@@ -323,7 +323,7 @@ pfUI:RegisterModule("loot", function ()
   end
 
   function pfUI.loot:InitGroupDropDown()
-    local inRaid = UnitInRaid("player")
+    local inRaid = IsInRaid()
     if UIDROPDOWNMENU_MENU_LEVEL == 1 then
       if ( inRaid ) then
         pfUI.loot:BuildRaidMenu(UIDROPDOWNMENU_MENU_LEVEL)

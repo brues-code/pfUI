@@ -208,7 +208,7 @@ function pfUI.api.GetUnbuffedRoster(name)
     end
   end
 
-  if UnitInRaid("player") then
+  if IsInRaid() then
     for i=1,40 do check("raid"..i) end
   else
     check("player")
@@ -485,7 +485,7 @@ end
 -- 'msg'        [string]          the message to send
 function pfUI.api.SendChatMessageWide(msg)
   local channel = "SAY"
-  if UnitInRaid("player") then
+  if IsInRaid() then
     if ( IsRaidLeader() or IsRaidOfficer() ) then
       channel = "RAID_WARNING"
     else
