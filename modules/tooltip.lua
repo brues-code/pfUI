@@ -146,14 +146,6 @@ pfUI:RegisterModule("tooltip", function ()
       rhp, rhpmax = hp, hpmax
     elseif pfUI.libhealth and pfUI.libhealth.enabled then
       rhp, rhpmax, estimated = pfUI.libhealth:GetUnitHealthByName(this.name, this.level, tonumber(hp), tonumber(hpmax))
-    elseif MobHealthFrame then
-      local index = (this.name or "") .. ":" .. (this.level or "")
-      local ppp = MobHealth_PPP(index)
-      if perc and ppp and ppp > 0 and not UnitIsUnit("mouseover", "pet") then
-        rhp = round(hp * ppp)
-        rhpmax = round(100 * ppp)
-        estimated = true
-      end
     end
 
     if C.tooltip.alwaysperc == "0" and ( estimated or hpmax > 100 or round(hpmax/100*hp) ~= hp ) then

@@ -2838,8 +2838,6 @@ function pfUI.uf:GetStatusValue(unit, pos)
   -- Use libhealth for mob health estimation (overrides Nampower/Standard)
   if pfUI.libhealth and pfUI.libhealth.enabled then
     rhp, rhpmax = pfUI.libhealth:GetUnitHealth(unitstr)
-  elseif unit.label == "target" and (MobHealth3 or MobHealthFrame) and MobHealth_GetTargetCurHP() then
-    rhp, rhpmax = MobHealth_GetTargetCurHP(), MobHealth_GetTargetMaxHP()
   end
 
   if config == "unit" then
