@@ -4,16 +4,18 @@ about: Report a bug or issue with pfUI
 title: "[Bug Description] "
 labels: bug
 assignees: ''
+
 ---
 
 <!-- Please fill out ALL fields below. Issues without this info may be closed. -->
 
-**pfUI Branch:**
-- [ ] Master
-- [ ] experiment
+**pfUI Version:**
 
-**Your Nampower Version:** (e.g. latest, or specific commit/date)
-<!-- Skip if using Compat branch -->
+**Your ClassicAPI Version:**
+
+**Your Nampower Version:**
+
+
 
 **Other Addons installed:**
 <!-- List any other addons you are using, or "none" -->
@@ -45,4 +47,3 @@ Paste error log here
 ## Screenshot / Video
 <!-- Attach a screenshot or video showing the issue. This is REQUIRED. -->
 <!-- Drag & drop images here or paste a link -->
-

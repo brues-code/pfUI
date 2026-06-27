@@ -4,6 +4,7 @@ about: Suggest a new feature or improvement for pfUI
 title: "[Feature] "
 labels: enhancement
 assignees: ''
+
 ---
 
 ## Feature Description
@@ -20,4 +21,3 @@ assignees: ''
 
 ## Examples
 <!-- If possible, show examples from other addons or screenshots/mockups of how it could look -->
-
