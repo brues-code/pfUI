@@ -44,78 +44,13 @@ local healGuidToName = {} -- [casterGuid] = casterName, for SPELL_FAILED_OTHER c
 local ress_timers = {}    -- [target][sender] = expiry_timestamp (60s rez window)
 local RESS_TIMEOUT = 60   -- Vanilla: rez offer expires after 60s
 
-local PRAYER_OF_HEALING
-do -- Prayer of Healing
-  local locales = {
-    ["deDE"] = "Gebet der Heilung",
-    ["enUS"] = "Prayer of Healing",
-    ["esES"] = "Rezo de curación",
-    ["frFR"] = "Prière de soins",
-    ["koKR"] = "치유의 기원",
-    ["ruRU"] = "Молитва исцеления",
-    ["zhCN"] = "治疗祷言",
-  }
-
-  PRAYER_OF_HEALING = locales[GetLocale()] or locales["enUS"]
-end
-
-local REJUVENATION
-do -- Rejuvenation
-  local locales = {
-    ["deDE"] = "Verjüngung",
-    ["enUS"] = "Rejuvenation",
-    ["esES"] = "Rejuvenecimiento",
-    ["frFR"] = "Récupération",
-    ["koKR"] = "회복",
-    ["ruRU"] = "Омоложение",
-    ["zhCN"] = "回春术",
-  }
-
-  REJUVENATION = locales[GetLocale()] or locales["enUS"]
-end
-
-local RENEW
-do -- Renew
-  local locales = {
-    ["deDE"] = "Erneuerung",
-    ["enUS"] = "Renew",
-    ["esES"] = "Renovar",
-    ["frFR"] = "Rénovation",
-    ["koKR"] = "소생",
-    ["ruRU"] = "Обновление",
-    ["zhCN"] = "恢复",
-  }
-
-  RENEW = locales[GetLocale()] or locales["enUS"]
-end
-
-local REGROWTH
-do -- Regrowth
-  local locales = {
-    ["deDE"] = "Nachwachsen",
-    ["enUS"] = "Regrowth",
-    ["esES"] = "Recrecimiento",
-    ["frFR"] = "Rétablissement",
-    ["koKR"] = "재생",
-    ["ruRU"] = "Восстановление",
-    ["zhCN"] = "愈合",
-  }
-
-  REGROWTH = locales[GetLocale()] or locales["enUS"]
-end
-
-
--- Spell IDs for SPELL_GO_SELF callback (Nampower) - Instant HoT detection
-local SPELL_IDS = {
-  -- Rejuvenation (all ranks)
-  [774] = "Reju", [1058] = "Reju", [1430] = "Reju", [2090] = "Reju", [2091] = "Reju",
-  [3627] = "Reju", [8910] = "Reju", [9839] = "Reju", [9840] = "Reju", [9841] = "Reju",
-  [25299] = "Reju", [26981] = "Reju", [26982] = "Reju",
-  -- Renew (all ranks)
-  [139] = "Renew", [6074] = "Renew", [6075] = "Renew", [6076] = "Renew", [6077] = "Renew",
-  [6078] = "Renew", [10927] = "Renew", [10928] = "Renew", [10929] = "Renew", [25315] = "Renew",
-  [25221] = "Renew", [25222] = "Renew",
-}
+-- Localized spell names resolved once from canonical rank-1 spellIDs.
+-- Every rank shares the same name, so per-rank comparisons elsewhere can
+-- be done against these constants without per-locale or per-rank tables.
+local PRAYER_OF_HEALING = C_Spell.GetSpellName(596)   -- Prayer of Healing (Rank 1)
+local REJUVENATION      = C_Spell.GetSpellName(774)   -- Rejuvenation (Rank 1)
+local RENEW             = C_Spell.GetSpellName(139)   -- Renew (Rank 1)
+local REGROWTH          = C_Spell.GetSpellName(8936)  -- Regrowth (Rank 1)
 
 local libpredict = CreateFrame("Frame")
 libpredict:RegisterEvent("UNIT_HEALTH")
@@ -173,7 +108,7 @@ end
 
 local function isRezSpell(spellId)
   if not L["resurrections"] then return false end
-  local spellName = GetSpellRecField and GetSpellRecField(spellId, "name")
+  local spellName = C_Spell.GetSpellName(spellId)
   return spellName and L["resurrections"][spellName]
 end
 
@@ -192,7 +127,7 @@ end)
 -- SPELL_START_SELF: own cast started (heals + rez)
 pfUI.libdebuff_spell_start_self_hooks = pfUI.libdebuff_spell_start_self_hooks or {}
 pfUI.libdebuff_spell_start_self_hooks["libpredict"] = function(spellId, casterGuid, targetGuid, castTime)
-  local spellName = GetSpellRecField and GetSpellRecField(spellId, "name")
+  local spellName = C_Spell.GetSpellName(spellId)
   if not spellName then return end
 
   local pendingTarget = nil
@@ -319,7 +254,7 @@ end
 -- SPELL_GO_SELF: own cast landed (HealStop + Regrowth timer)
 pfUI.libdebuff_spell_go_hooks["libpredict_sender"] = function(spellId)
   libpredict:HealStop(player)
-  local spellName = GetSpellRecField and GetSpellRecField(spellId, "name")
+  local spellName = C_Spell.GetSpellName(spellId)
   if spellName == REGROWTH then
     local now = pfUI.uf.now or GetTime()
     if libpredict.sender.regrowth_timer then
@@ -337,7 +272,7 @@ end
 -- Signature: fn(spellId, casterGuid, targetGuid, castTime)
 pfUI.libdebuff_spell_start_other_hooks = pfUI.libdebuff_spell_start_other_hooks or {}
 pfUI.libdebuff_spell_start_other_hooks["libpredict"] = function(spellId, casterGuid, targetGuid, castTime)
-  local spellName = GetSpellRecField and GetSpellRecField(spellId, "name")
+  local spellName = C_Spell.GetSpellName(spellId)
   if not spellName then return end
 
   local casterName = resolveNameFromGuid(casterGuid)
@@ -404,8 +339,13 @@ end
 -- Signature: fn(spellId, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
 pfUI.libdebuff_spell_go_hooks = pfUI.libdebuff_spell_go_hooks or {}
 pfUI.libdebuff_spell_go_hooks["libpredict"] = function(spellId, a1, a2, a3, a4, a5, a6, a7)
-  -- Instant HoTs
-  local hotType = SPELL_IDS[spellId]
+  -- Instant HoTs — classify by name (rank-independent) instead of a
+  -- hardcoded per-rank ID table.
+  local spellName = C_Spell.GetSpellName(spellId)
+  local hotType
+  if spellName == REJUVENATION then hotType = "Reju"
+  elseif spellName == RENEW then hotType = "Renew"
+  end
   if hotType then
     local targetGuid = a4
     local targetName = resolveNameFromGuid(targetGuid)
@@ -1236,7 +1176,7 @@ libpredict.sender:SetScript("OnEvent", function()
     local amount  = arg4
     local isCrit  = arg5 == 1
     local isPeriodic = arg6 == 1
-    local spellName = GetSpellRecField and GetSpellRecField(spellId, "name")
+    local spellName = C_Spell.GetSpellName(spellId)
     if spellName and spell_queue[1] == spellName then
       UpdateCache(spell_queue[2], amount, isCrit)
     end
@@ -1256,9 +1196,9 @@ libpredict.sender:SetScript("OnEvent", function()
     local casterName = resolveNameFromGuid(casterGuid)
     if not casterName or casterName == player then return end  -- own heals handled by SPELL_HEAL_BY_SELF
 
-    local spellName = GetSpellRecField and GetSpellRecField(spellId, "name")
+    local spellName = C_Spell.GetSpellName(spellId)
     if not spellName then return end
-    local rankStr = GetSpellRecField and GetSpellRecField(spellId, "rank") or ""
+    local rankStr = C_Spell.GetSpellSubtext(spellId)
     local spellKey = spellName .. (rankStr or "")
 
     foreignCache[casterName] = foreignCache[casterName] or {}

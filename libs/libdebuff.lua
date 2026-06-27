@@ -427,7 +427,7 @@ local function GetDebuffSlotMap(guid)
     local spellId = auras[auraSlot]
     if spellId and spellId > 0 then
       displaySlot = displaySlot + 1
-      local spellName = GetSpellRecField and GetSpellRecField(spellId, "name")
+      local spellName = C_Spell.GetSpellName(spellId)
       local texture = libdebuff:GetSpellIcon(spellId)
       local stacks = (auraApps and auraApps[auraSlot] or 0) + 1
       local dtype = nil
@@ -1024,7 +1024,7 @@ if hasNampower then
       local targetGuid = arg4
       local numHit = arg6 or 0
       local numMissed = arg7 or 0
-      
+
       -- Fire registered SPELL_GO_SELF hooks BEFORE miss guard
       -- (Swingtimer needs to see ALL casts, even misses, for swing reset)
       if event == "SPELL_GO_SELF" and pfUI.libdebuff_spell_go_hooks then
@@ -1035,15 +1035,15 @@ if hasNampower then
 
       if numMissed > 0 or numHit == 0 then return end
 
-      local spellName = GetSpellRecField and GetSpellRecField(spellId, "name")
-      local spellRankString = GetSpellRecField and GetSpellRecField(spellId, "rank")
+      local spellName = C_Spell.GetSpellName(spellId)
       if not spellName then return end
-      
+      local spellRankString = C_Spell.GetSpellSubtext(spellId)
+
       local castRank = 0
       if spellRankString and spellRankString ~= "" then
         castRank = tonumber((string.gsub(spellRankString, "Rank ", ""))) or 0
       end
-      
+
       -- Store in pendingCasts for DEBUFF_ADDED correlation.
       -- If this cast is a downrank of an already active debuff, fire the downrank blocked hook
       -- so external addons (e.g. SuperCleveRoidMacros) don't need to re-implement this check.
@@ -1209,7 +1209,7 @@ if hasNampower then
       if not spellId then return end
       if not targetGuid or targetGuid == "" or targetGuid == "0x0000000000000000" then return end
       
-      local spellName = GetSpellRecField and GetSpellRecField(spellId, "name")
+      local spellName = C_Spell.GetSpellName(spellId)
       if not spellName then return end
       
       -- Deduplicate: Ignore if we processed this exact cast recently (within 100ms)
@@ -1469,7 +1469,7 @@ if hasNampower then
 
       -- Invalidate slot map cache for this GUID
       
-      local spellName = GetSpellRecField and GetSpellRecField(spellId, "name")
+      local spellName = C_Spell.GetSpellName(spellId)
       if not spellName then return end
       
       if debugStats.enabled then
@@ -1599,9 +1599,9 @@ if hasNampower then
       local auraSlot = auraSlot_0based and (auraSlot_0based + 1) or nil
 
       -- Invalidate slot map cache for this GUID
-      
-      local spellName = (GetSpellRecField and GetSpellRecField(spellId, "name")) or "?"
-      
+
+      local spellName = C_Spell.GetSpellName(spellId) or "?"
+
       if debugStats.enabled then
         debugStats.debuff_removed = debugStats.debuff_removed + 1
         if IsCurrentTarget(guid) then
@@ -1609,13 +1609,13 @@ if hasNampower then
             GetDebugTimestamp(), displaySlot, auraSlot or -1, auraSlot_0based or -1, spellName))
         end
       end
-      
+
       -- If unit is dead, cleanup all
       if UnitIsDead and UnitIsDead(guid) then
         CleanupUnit(guid)
         return
       end
-      
+
       -- Get auraSlot from event parameter (Nampower 2.29+)
       -- Fallback to displayToAura mapping if not available
       local foundAuraSlot = auraSlot
