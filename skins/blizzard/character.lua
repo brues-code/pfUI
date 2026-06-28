@@ -136,21 +136,18 @@ pfUI:RegisterSkin("Character", function ()
       end
     end
 
-    HookScript(CharacterFrame, "OnShow", function()
+    hooksecurefunc("CharacterFrame_OnShow", function()
       RefreshCharacterSlots()
       RefreshPetPosition()
+    end)
 
-      if not this.hooked then
-        hooksecurefunc("PaperDollItemSlotButton_Update", function()
-          -- update only character slots!
-          if string.find(this:GetName(), "^Character.-Slot$") then
-            RefreshCharacterSlot(this)
-          end
-        end)
-        hooksecurefunc("PetTab_Update", RefreshPetPosition)
-        this.hooked = true
+    hooksecurefunc("PaperDollItemSlotButton_Update", function()
+      if this:GetParent() == PaperDollFrame then
+        RefreshCharacterSlot(this)
       end
     end)
+
+    hooksecurefunc("PetTab_Update", RefreshPetPosition)
 
     StripTextures(PaperDollFrame)
     StripTextures(CharacterAttributesFrame)
