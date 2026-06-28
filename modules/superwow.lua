@@ -23,6 +23,13 @@ SlashCmdList["PFDLLSTATUS"] = function()
     chat:AddMessage("  |cffff0000Nampower|r: Not detected")
   end
 
+  -- ClassicAPI
+  if CLASSIC_API_VERSION then
+    chat:AddMessage("  |cff00ff00ClassicAPI|r: v" .. CLASSIC_API_VERSION)
+  else
+    chat:AddMessage("  |cffff0000ClassicAPI|r: Not detected")
+  end
+
   -- Check if castbar exists for indicator positioning
   if pfUI.castbar and pfUI.castbar.player then
     chat:AddMessage("  |cff00ff00Castbar|r: Available for indicator anchoring")
