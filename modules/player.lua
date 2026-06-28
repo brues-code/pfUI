@@ -118,20 +118,20 @@ pfUI:RegisterModule("player", function ()
   end
 
   -- Add throttle to player frame OnUpdate
+  -- Throttle the unit frame's existing OnUpdate to ~20 FPS so the per-frame
+  -- work stays cheap.
   if pfUI.uf.player:GetScript("OnUpdate") then
     local originalOnUpdate = pfUI.uf.player:GetScript("OnUpdate")
     pfUI.uf.player:SetScript("OnUpdate", function()
-      if (this.throttleTick or 0) > GetTime() then
-        return
-      end
-      this.throttleTick = GetTime() + 0.05  -- Default: 20 FPS
+      if (this.throttleTick or 0) > GetTime() then return end
+      this.throttleTick = GetTime() + 0.05
       originalOnUpdate()
-      if (this.infoTextTick or 0) <= GetTime() then
-        this.infoTextTick = GetTime() + 0.25 -- Don't need to update haste/SP text as often
-        UpdateInfoText()
-      end
     end)
   end
+
+  -- Haste / spell-power overlay text — refreshes 4×/sec on its own ticker,
+  -- independent of the unit frame's OnUpdate cadence.
+  C_Timer.NewTicker(0.25, UpdateInfoText)
 
   -- Replace default's RESET_INSTANCES button with an always working one
   UnitPopupButtons["RESET_INSTANCES_FIX"] = { text = RESET_INSTANCES, dist = 0 }
