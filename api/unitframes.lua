@@ -1902,6 +1902,8 @@ function pfUI.uf:RefreshUnit(unit, component)
           end
           if duration > 0 then
             CooldownFrame_SetTimer(unit.buffs[i].cd, start, duration, 1)
+          else
+            CooldownFrame_SetTimer(unit.buffs[i].cd, 0, 0, 0)
           end
         elseif aura.duration > 0 then
           local guid = UnitGUID(unitstr)
@@ -1912,6 +1914,8 @@ function pfUI.uf:RefreshUnit(unit, component)
           else
             CooldownFrame_SetTimer(unit.buffs[i].cd, 0, 0, 0)
           end
+        else
+          CooldownFrame_SetTimer(unit.buffs[i].cd, 0, 0, 0)
         end
       else
         unit.buffs[i]:Hide()
@@ -2005,7 +2009,11 @@ function pfUI.uf:RefreshUnit(unit, component)
           end
           if duration > 0 then
             CooldownFrame_SetTimer(unit.debuffs[i].cd, start, duration, 1)
+          else
+            CooldownFrame_SetTimer(unit.debuffs[i].cd, 0, 0, 0)
           end
+        else
+          CooldownFrame_SetTimer(unit.debuffs[i].cd, 0, 0, 0)
         end
 
         if stacks > 1 then
