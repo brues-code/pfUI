@@ -73,8 +73,8 @@ end
 
 local function BuffOnClick()
   if this:GetParent().label == "player" then
-    local bid = GetPlayerBuff(PLAYER_BUFF_START_ID + this.id, "HELPFUL")
-    if bid >= 0 then CancelPlayerBuff(bid) end
+    local aura = C_UnitAuras.GetAuraDataByIndex("player", this.id, "HELPFUL")
+    if aura and aura.spellId then C_Spell.CancelSpellByID(aura.spellId) end
   end
 end
 
@@ -114,8 +114,8 @@ end
 
 local function DebuffOnClick()
   if this:GetParent().label == "player" then
-    local bid = GetPlayerBuff(PLAYER_BUFF_START_ID + this.id, "HARMFUL")
-    if bid >= 0 then CancelPlayerBuff(bid) end
+    local aura = C_UnitAuras.GetAuraDataByIndex("player", this.id, "HARMFUL")
+    if aura and aura.spellId then C_Spell.CancelSpellByID(aura.spellId) end
   end
 end
 

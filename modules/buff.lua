@@ -60,6 +60,7 @@ pfUI:RegisterModule("buff", function ()
       buff.mode = buff.btype
       buff.expirationTime = aura.expirationTime
       buff.stackCount = aura.applications
+      buff.spellId = aura.spellId
       buff.texture:SetTexture(aura.icon)
 
       if buff.btype == "HARMFUL" then
@@ -146,9 +147,8 @@ pfUI:RegisterModule("buff", function ()
         CancelItemTempEnchantment(1)
       elseif CancelItemTempEnchantment and this.mode and this.mode == "OFFHAND" then
         CancelItemTempEnchantment(2)
-      else
-        local bid = GetPlayerBuff(PLAYER_BUFF_START_ID + this.id, this.btype)
-        if bid >= 0 then CancelPlayerBuff(bid) end
+      elseif this.spellId then
+        C_Spell.CancelSpellByID(this.spellId)
       end
     end)
 

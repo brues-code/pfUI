@@ -99,8 +99,8 @@ pfUI:RegisterModule("buffwatch", function ()
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ffcc" .. skill .. "|r" .. T["is now blacklisted."])
       end
     elseif this.parent.unit == "player" then
-      local bid = GetPlayerBuff(PLAYER_BUFF_START_ID + this.id, this.type)
-      if bid >= 0 then CancelPlayerBuff(bid) end
+      local aura = C_UnitAuras.GetAuraDataByIndex("player", this.id, this.type)
+      if aura and aura.spellId then C_Spell.CancelSpellByID(aura.spellId) end
     end
   end
 
