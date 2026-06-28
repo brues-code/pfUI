@@ -233,6 +233,14 @@ pfUI:RegisterModule("tooltip", function ()
         end
       end
 
+      if C.tooltip.movespeed == "1" then
+        local currentSpeed = GetUnitSpeed(unit)
+        if currentSpeed and currentSpeed > 0 then
+          local pct = floor(currentSpeed / 7 * 100 + 0.5)
+          GameTooltip:AddLine(T["Speed"] .. ": " .. pct .. "%", 0.7, 0.7, 1)
+        end
+      end
+
       if hp and hpm then
         if hp >= 1000 then hp = round(hp / 1000, 1) .. "k" end
         if hpm >= 1000 then hpm = round(hpm / 1000, 1) .. "k" end
