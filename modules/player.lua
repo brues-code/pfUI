@@ -38,38 +38,6 @@ pfUI:RegisterModule("player", function ()
   playerFrame.myclass = myclass
   playerFrame.isSpellCaster = myclass ~= "WARRIOR" and myclass ~= "ROGUE" and myclass ~= "HUNTER"
 
-  -- Compute class-based casting speed modifier and cache on the frame.
-  -- This is re-evaluated on LEARNED_SPELL_IN_TAB (with 1s delay) so talent changes are handled.
-  -- Not sure if there are any other effects that give % cast reduction time
-  local function UpdatePlayerModCastingTime()
-    playerFrame.modCastingTime = 1
-    if myclass == "MAGE" then
-      local _, _, _, _, acceleratedArcana = GetTalentInfo(1, 16)
-      if acceleratedArcana and acceleratedArcana > 0 then
-        playerFrame.modCastingTime = 0.95
-      end
-    elseif myclass == "WARLOCK" then
-      local _, _, _, _, rapidDeter = GetTalentInfo(1, 14)
-      if rapidDeter and rapidDeter > 0 then
-        playerFrame.modCastingTime = 1 - (rapidDeter * 0.03)
-      end
-    end
-  end
-
-  local talentFrame = CreateFrame("Frame")
-  talentFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-  talentFrame:RegisterEvent("LEARNED_SPELL_IN_TAB")
-  talentFrame:SetScript("OnEvent", function()
-    -- Delay 1s for both PLAYER_ENTERING_WORLD and LEARNED_SPELL_IN_TAB
-    local checkAt = GetTime() + 1
-    talentFrame:SetScript("OnUpdate", function()
-      if GetTime() >= checkAt then
-        talentFrame:SetScript("OnUpdate", nil)
-        UpdatePlayerModCastingTime()
-      end
-    end)
-  end)
-
   -- Convert "r,g,b,a" config color string to a 6-char hex string, or nil if unset
   local function cfgColorToHex(colorStr)
     if not colorStr or colorStr == "" then return nil end
@@ -98,26 +66,25 @@ pfUI:RegisterModule("player", function ()
     if not cfg then
       return
     end
-    local hasteMode = cfg.display_haste  -- "0"=none, "1"=modCastSpeed, "2"=modCastSpeed*modCastingTime
+    -- display_haste: "0"=hidden, "1"=show modCastSpeed (gear haste). Talent-
+    -- side cast-time reductions show up in the actual cast bar via
+    -- C_Spell.UnitCastingInfo; double-folding them into this overlay was
+    -- mixing two different concepts into one number.
+    local showHaste = cfg.display_haste == "1"
     local showSP = cfg.display_spellpower == "1"
 
     local isSpellCaster = playerFrame.isSpellCaster
-    if (hasteMode == "0" or not isSpellCaster) and not showSP then
+    if (not showHaste or not isSpellCaster) and not showSP then
       playerFrame.infoTopCenterText:SetText("")
       return
     end
 
     local haste = GetUnitField("player", "modCastSpeed")
-    local modCastingTime = playerFrame.modCastingTime or 1
     local text = ""
 
-    if isSpellCaster and haste then
+    if showHaste and isSpellCaster and haste then
       local hasteHex = cfgColorToHex(cfg.display_haste_color) or "FFFFFF"
-      if hasteMode == "1" then
-        text = string.format("|cff%s%.1f%%|r", hasteHex, (1 / haste - 1) * 100)
-      elseif hasteMode == "2" then
-        text = string.format("|cff%s%.1f%%|r", hasteHex, (1 / (haste * modCastingTime) - 1) * 100)
-      end
+      text = string.format("|cff%s%.1f%%|r", hasteHex, (1 / haste - 1) * 100)
     end
 
     if showSP and isSpellCaster then

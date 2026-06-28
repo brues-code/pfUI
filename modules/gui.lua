@@ -2380,11 +2380,7 @@ pfUI:RegisterModule("gui", function ()
 
         if c == "player" then
           CreateConfig(nil, T["Player SP/Haste Display"], nil, nil, "header")
-          CreateConfig(nil, T["Haste Display"], C.unitframes[c], "display_haste", "dropdown", {
-            "0:"..T["None"],
-            "1:"..T["Haste (cast speed increase)"],
-            "2:"..T["Effective Haste (Haste * cast time reduction)"], -- Only affects mages/warlocks I believe
-          })
+          CreateConfig(nil, T["Haste Display"], C.unitframes[c], "display_haste", "checkbox")
           CreateConfig(nil, T["Haste Display Color"], C.unitframes[c], "display_haste_color", "color")
           CreateConfig(nil, T["Display Spell Power"], C.unitframes[c], "display_spellpower", "checkbox")
           CreateConfig(nil, T["Use Custom Spell Power Color (unchecked = biggest school color)"], C.unitframes[c], "display_sp_color_override", "checkbox")
