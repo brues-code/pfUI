@@ -100,12 +100,6 @@ pfUI:RegisterModule("nameplates", function ()
   -- PERF: visiblePlateCount maintained event-driven (NAME_PLATE_UNIT_ADDED/_REMOVED)
   local visiblePlateCount = 0
 
-  -- wipe polyfill
-  local wipe = wipe or function(t) for k in pairs(t) do t[k] = nil end end
-
-  -- Player GUID for filtering
-  local PlayerGUID = UnitGUID("player")
-
   -- ============================================================================
   -- OPTIMIZATION: Config caching
   -- ============================================================================

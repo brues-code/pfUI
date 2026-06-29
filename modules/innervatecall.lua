@@ -13,15 +13,6 @@ pfUI:RegisterModule("innervatecall", function ()
 
   local INNERVATE_SPELLID = 29166
 
-  -- Cache player GUID
-  local playerGuid = nil
-  local function GetPlayerGuid()
-    if not playerGuid and UnitGUID then
-      playerGuid = UnitGUID("player")
-    end
-    return playerGuid
-  end
-
   -- GUID → name resolution for the target. UnitTokenFromGUID walks the
   -- engine's known unit tokens (player, party, raid, target, ...) and
   -- returns the first one currently bound to the GUID, so we don't have
