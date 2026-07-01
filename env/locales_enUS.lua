@@ -17,20 +17,6 @@ pfUI_locale["enUS"]["healduration"] = {
   ["Renew"] = "Increases the duration of your Renew spell by 3 sec.",
 }
 
-pfUI_locale["enUS"]["bagtypes"] = {
-  ["Quiver"] = "QUIVER",
-  ["Soul Bag"] = "SOULBAG",
-  ["Bag"] = "DEFAULT",
-}
-
-pfUI_locale["enUS"]["itemtypes"] = {
-  ["INVTYPE_WAND"] = "Wand",
-  ["INVTYPE_THROWN"] = "Thrown",
-  ["INVTYPE_GUN"] = "Gun",
-  ["INVTYPE_CROSSBOW"] = "Crossbow",
-  ["INVTYPE_PROJECTILE"] = "Projectile",
-}
-
 pfUI_locale["enUS"]["customcast"] = {
   ["AIMEDSHOT"] = "Aimed Shot",
   ["MULTISHOT"] = "Multi-Shot",

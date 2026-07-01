@@ -17,20 +17,6 @@ pfUI_locale["ruRU"]["healduration"] = {
   ["Renew"] = "Продлевает действие \"Обновления\" на 3 сек.",
 }
 
-pfUI_locale["ruRU"]["bagtypes"] = {
-  ["Колчан"] = "QUIVER",
-  ["Сумка душ"] = "SOULBAG",
-  ["Сумка"] = "DEFAULT",
-}
-
-pfUI_locale["ruRU"]["itemtypes"] = {
-  ["INVTYPE_WAND"] = "Жезл",
-  ["INVTYPE_THROWN"] = "Метательное",
-  ["INVTYPE_GUN"] = "Огнестрельное",
-  ["INVTYPE_CROSSBOW"] = "Арбалет",
-  ["INVTYPE_PROJECTILE"] = "Боеприпасы",
-}
-
 pfUI_locale["ruRU"]["customcast"] = {
   ["AIMEDSHOT"] = "Прицельный выстрел",
   ["MULTISHOT"] = "Залп",

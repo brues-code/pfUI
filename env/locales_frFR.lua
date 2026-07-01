@@ -17,20 +17,6 @@ pfUI_locale["frFR"]["healduration"] = {
   ["Renew"] = "Augmente la durée de votre sort Rénovation de 3 sec.",
 }
 
-pfUI_locale["frFR"]["bagtypes"] = {
-  ["Carquois"] = "QUIVER",
-  ["Sac d'âme"] = "SOULBAG",
-  ["Conteneur"] = "DEFAULT",
-}
-
-pfUI_locale["frFR"]["itemtypes"] = {
-  ["INVTYPE_WAND"] = "Baguette",
-  ["INVTYPE_THROWN"] = "Armes de jet",
-  ["INVTYPE_GUN"] = "Arme à feu",
-  ["INVTYPE_CROSSBOW"] = "Arbalète",
-  ["INVTYPE_PROJECTILE"] = "Projectile",
-}
-
 pfUI_locale["frFR"]["customcast"] = {
   ["AIMEDSHOT"] = "Visée",
   ["MULTISHOT"] = "Flèches multiples",

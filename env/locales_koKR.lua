@@ -17,20 +17,6 @@ pfUI_locale["koKR"]["healduration"] = {
   ["Renew"] = "소생의 지속시간이 3초만큼 증가합니다.",
 }
 
-pfUI_locale["koKR"]["bagtypes"] = {
-  ["화살통"] = "QUIVER",
-  ["영혼의 가방"] = "SOULBAG",
-  ["가방"] = "DEFAULT",
-}
-
-pfUI_locale["koKR"]["itemtypes"] = {
-  ["INVTYPE_WAND"] = "마법봉",
-  ["INVTYPE_THROWN"] = "투척 무기",
-  ["INVTYPE_GUN"] = "총",
-  ["INVTYPE_CROSSBOW"] = "석궁",
-  ["INVTYPE_PROJECTILE"] = "투사체",
-}
-
 pfUI_locale["koKR"]["customcast"] = {
   ["AIMEDSHOT"] = "조준 사격",
   ["MULTISHOT"] = "일제 사격",

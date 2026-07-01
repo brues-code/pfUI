@@ -17,20 +17,6 @@ pfUI_locale["deDE"]["healduration"] = {
   ["Renew"] = "Erhöht die Wirkungsdauer von 'Erneuerung' um 3 Sek.",
 }
 
-pfUI_locale["deDE"]["bagtypes"] = {
-  ["Köcher"] = "QUIVER",
-  ["Seelentasche"] = "SOULBAG",
-  ["Behälter"] = "DEFAULT",
-}
-
-pfUI_locale["deDE"]["itemtypes"] = {
-  ["INVTYPE_WAND"] = "Zauberstab",
-  ["INVTYPE_THROWN"] = "Wurfwaffe",
-  ["INVTYPE_GUN"] = "Schusswaffe",
-  ["INVTYPE_CROSSBOW"] = "Armbrust",
-  ["INVTYPE_PROJECTILE"] = "Projektil",
-}
-
 pfUI_locale["deDE"]["customcast"] = {
   ["AIMEDSHOT"] = "Gezielter Schuss",
   ["MULTISHOT"] = "Mehrfach-Schuss",

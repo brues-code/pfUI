@@ -17,20 +17,6 @@ pfUI_locale["zhCN"]["healduration"] = {
   ["Renew"] = "使你的恢复术的持续时间延长3秒。",
 }
 
-pfUI_locale["zhCN"]["bagtypes"] = {
-  ["箭袋"] = "QUIVER",
-  ["灵魂袋"] = "SOULBAG",
-  ["容器"] = "DEFAULT",
-}
-
-pfUI_locale["zhCN"]["itemtypes"] = {
-  ["INVTYPE_WAND"] = "魔杖",
-  ["INVTYPE_THROWN"] = "投掷武器",
-  ["INVTYPE_GUN"] = "枪械",
-  ["INVTYPE_CROSSBOW"] = "弩",
-  ["INVTYPE_PROJECTILE"] = "弹药",
-}
-
 pfUI_locale["zhCN"]["customcast"] = {
   ["AIMEDSHOT"] = "瞄准射击",
   ["MULTISHOT"] = "多重射击",

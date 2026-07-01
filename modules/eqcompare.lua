@@ -1,10 +1,5 @@
 pfUI:RegisterModule("eqcompare", function ()
   local sides = { "Left", "Right" }
-  local loc = pfUI.cache["locale"]
-  for key, value in pairs(L["itemtypes"]) do setglobal(key, value) end
-  INVTYPE_WEAPON_OTHER = INVTYPE_WEAPON.."_other"
-  INVTYPE_FINGER_OTHER = INVTYPE_FINGER.."_other"
-  INVTYPE_TRINKET_OTHER = INVTYPE_TRINKET.."_other"
 
   local function AddHeader(tooltip)
     local name = tooltip:GetName()
@@ -46,39 +41,37 @@ pfUI:RegisterModule("eqcompare", function ()
     tooltip:Show()
   end
 
+  -- Numeric slotTable keyed by Enum.InventoryType (from
+  -- C_Item.GetItemInventoryTypeByID). Pair-slot types (finger / trinket /
+  -- one-hand weapon) list both destinations so both comparison tooltips
+  -- can be shown at once.
   local slotTable = {
-    [INVTYPE_2HWEAPON] = "MainHandSlot",
-    [INVTYPE_BODY] = "ShirtSlot",
-    [INVTYPE_CHEST] = "ChestSlot",
-    [INVTYPE_CLOAK] = "BackSlot",
-    [INVTYPE_FEET] = "FeetSlot",
-    [INVTYPE_FINGER] = "Finger0Slot",
-    [INVTYPE_FINGER_OTHER] = "Finger1Slot",
-    [INVTYPE_HAND] = "HandsSlot",
-    [INVTYPE_HEAD] = "HeadSlot",
-    [INVTYPE_HOLDABLE] = "SecondaryHandSlot",
-    [INVTYPE_LEGS] = "LegsSlot",
-    [INVTYPE_NECK] = "NeckSlot",
-    [INVTYPE_RANGED] = "RangedSlot",
-    [INVTYPE_RELIC] = "RangedSlot",
-    [INVTYPE_ROBE] = "ChestSlot",
-    [INVTYPE_SHIELD] = "SecondaryHandSlot",
-    [INVTYPE_SHOULDER] = "ShoulderSlot",
-    [INVTYPE_TABARD] = "TabardSlot",
-    [INVTYPE_TRINKET] = "Trinket0Slot",
-    [INVTYPE_TRINKET_OTHER] = "Trinket1Slot",
-    [INVTYPE_WAIST] = "WaistSlot",
-    [INVTYPE_WEAPON] = "MainHandSlot",
-    [INVTYPE_WEAPON_OTHER] = "SecondaryHandSlot",
-    [INVTYPE_WEAPONMAINHAND] = "MainHandSlot",
-    [INVTYPE_WEAPONOFFHAND] = "SecondaryHandSlot",
-    [INVTYPE_WRIST] = "WristSlot",
-
-    [INVTYPE_WAND] = "RangedSlot",
-    [INVTYPE_GUN] = "RangedSlot",
-    [INVTYPE_PROJECTILE] = "AmmoSlot",
-    [INVTYPE_CROSSBOW] = "RangedSlot",
-    [INVTYPE_THROWN] = "RangedSlot",
+    [1]  = { "HeadSlot" },
+    [2]  = { "NeckSlot" },
+    [3]  = { "ShoulderSlot" },
+    [4]  = { "ShirtSlot" },
+    [5]  = { "ChestSlot" },
+    [6]  = { "WaistSlot" },
+    [7]  = { "LegsSlot" },
+    [8]  = { "FeetSlot" },
+    [9]  = { "WristSlot" },
+    [10] = { "HandsSlot" },
+    [11] = { "Finger0Slot", "Finger1Slot" },
+    [12] = { "Trinket0Slot", "Trinket1Slot" },
+    [13] = { "MainHandSlot", "SecondaryHandSlot" },  -- one-hand weapon
+    [14] = { "SecondaryHandSlot" },                  -- shield
+    [15] = { "RangedSlot" },                         -- ranged (bow)
+    [16] = { "BackSlot" },
+    [17] = { "MainHandSlot" },                       -- two-hand weapon
+    [19] = { "TabardSlot" },
+    [20] = { "ChestSlot" },                          -- robe
+    [21] = { "MainHandSlot" },
+    [22] = { "SecondaryHandSlot" },
+    [23] = { "SecondaryHandSlot" },                  -- holdable (off-hand)
+    [24] = { "AmmoSlot" },
+    [25] = { "RangedSlot" },                         -- thrown
+    [26] = { "RangedSlot" },                         -- ranged-right (wand/gun/crossbow)
+    [28] = { "RangedSlot" },                         -- relic
   }
 
   local function startsWith(str, start)
@@ -169,55 +162,52 @@ pfUI:RegisterModule("eqcompare", function ()
     pfUI.eqcompare.tooltip = this
 
     if not IsShiftKeyDown() and C.tooltip.compare.showalways ~= "1" then return end
-    local rawborder, border = GetBorderSize()
 
-    for i=1,this:NumLines() do
-      local tmpText = _G[this:GetName() .. "TextLeft"..i]
-      for slotType, slotName in pairs(slotTable) do
-        if tmpText:GetText() == slotType then
-          local slotID = GetInventorySlotInfo(slotTable[slotType])
+    -- Resolve the item's slot numerically instead of scanning tooltip text
+    -- for a localized INVTYPE_* label. GameTooltip:GetItem() returns
+    -- (name, link, itemID); the slotTable is keyed by Enum.InventoryType.
+    local _, _, itemID = this:GetItem()
+    if not itemID then return end
+    local invType = C_Item.GetItemInventoryTypeByID(itemID)
+    local slots = invType and slotTable[invType]
+    if not slots then return end
 
-          -- determine screen part
-          local ltrigger = GetScreenWidth() / 2
-          local x = GetCursorPosition()
-          x = x / UIParent:GetEffectiveScale()
-          if x > ltrigger then ltrigger = nil end
+    local _, border = GetBorderSize()
 
-          -- first tooltip
-          ShoppingTooltip1:SetOwner(this, "ANCHOR_NONE")
-          ShoppingTooltip1:ClearAllPoints()
+    -- determine screen part
+    local ltrigger = GetScreenWidth() / 2
+    local x = GetCursorPosition()
+    x = x / UIParent:GetEffectiveScale()
+    if x > ltrigger then ltrigger = nil end
 
-          if ltrigger then
-            ShoppingTooltip1:SetPoint("BOTTOMLEFT", this, "BOTTOMRIGHT", 0, 0)
-          else
-            ShoppingTooltip1:SetPoint("BOTTOMRIGHT", this, "BOTTOMLEFT", -border*2-1, 0)
-          end
-
-          ShoppingTooltip1:SetInventoryItem("player", slotID)
-          ShoppingTooltip1:Show()
-          AddHeader(ShoppingTooltip1)
-
-          -- second tooltip
-          if slotTable[slotType .. "_other"] then
-            local slotID_other = GetInventorySlotInfo(slotTable[slotType .. "_other"])
-
-            ShoppingTooltip2:SetOwner(this, "ANCHOR_NONE")
-            ShoppingTooltip2:ClearAllPoints()
-
-            if ltrigger then
-              ShoppingTooltip2:SetPoint("BOTTOMLEFT", ShoppingTooltip1, "BOTTOMRIGHT", 0, 0)
-            else
-              ShoppingTooltip2:SetPoint("BOTTOMRIGHT", ShoppingTooltip1, "BOTTOMLEFT", -border*2-1, 0)
-            end
-
-            ShoppingTooltip2:SetInventoryItem("player", slotID_other)
-            ShoppingTooltip2:Show()
-            AddHeader(ShoppingTooltip2)
-          end
-          return true
-        end
-      end
+    -- first tooltip
+    local slotID = GetInventorySlotInfo(slots[1])
+    ShoppingTooltip1:SetOwner(this, "ANCHOR_NONE")
+    ShoppingTooltip1:ClearAllPoints()
+    if ltrigger then
+      ShoppingTooltip1:SetPoint("BOTTOMLEFT", this, "BOTTOMRIGHT", 0, 0)
+    else
+      ShoppingTooltip1:SetPoint("BOTTOMRIGHT", this, "BOTTOMLEFT", -border*2-1, 0)
     end
+    ShoppingTooltip1:SetInventoryItem("player", slotID)
+    ShoppingTooltip1:Show()
+    AddHeader(ShoppingTooltip1)
+
+    -- second tooltip for pair slots (finger / trinket / 1H weapon)
+    if slots[2] then
+      local slotID_other = GetInventorySlotInfo(slots[2])
+      ShoppingTooltip2:SetOwner(this, "ANCHOR_NONE")
+      ShoppingTooltip2:ClearAllPoints()
+      if ltrigger then
+        ShoppingTooltip2:SetPoint("BOTTOMLEFT", ShoppingTooltip1, "BOTTOMRIGHT", 0, 0)
+      else
+        ShoppingTooltip2:SetPoint("BOTTOMRIGHT", ShoppingTooltip1, "BOTTOMLEFT", -border*2-1, 0)
+      end
+      ShoppingTooltip2:SetInventoryItem("player", slotID_other)
+      ShoppingTooltip2:Show()
+      AddHeader(ShoppingTooltip2)
+    end
+    return true
   end
 
   -- add HookScript method if not already existing

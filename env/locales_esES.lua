@@ -17,20 +17,6 @@ pfUI_locale["esES"]["healduration"] = {
   ["Renew"] = "Aumenta en 3 s la duración de tu hechizo Renovar.",
 }
 
-pfUI_locale["esES"]["bagtypes"] = {
-  ["Carcaj"] = "QUIVER",
-  ["Bolsa de almas"] = "SOULBAG",
-  ["Bolsa"] = "DEFAULT",
-}
-
-pfUI_locale["esES"]["itemtypes"] = {
-  ["INVTYPE_WAND"] = "Varita",
-  ["INVTYPE_THROWN"] = "Arma arrojadiza",
-  ["INVTYPE_GUN"] = "Arma de fuego",
-  ["INVTYPE_CROSSBOW"] = "Ballesta",
-  ["INVTYPE_PROJECTILE"] = "Proyectil",
-}
-
 pfUI_locale["esES"]["customcast"] = {
   ["AIMEDSHOT"] = "Disparo de puntería",
   ["MULTISHOT"] = "Multidisparo",

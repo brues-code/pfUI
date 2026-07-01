@@ -28,12 +28,8 @@ function pfUI.api.HasNampower()
   return GetNampowerVersion and true or false
 end
 
-local isTurtleWoW
 function pfUI.api.IsTurtleWoW()
-  if isTurtleWoW == nil then
-    isTurtleWoW = C_Spell.GetSpellTexture(46050) == "Interface\\Icons\\Trade_Survival"
-  end
-  return isTurtleWoW
+  return C_Spell.GetSpellTexture(46050) == "Interface\\Icons\\Trade_Survival"
 end
 
 -- [ GetUnitDistance ]
@@ -434,13 +430,17 @@ function pfUI.api.GetBagFamily(bag)
 
   local id = GetInventoryItemID("player", ContainerIDToInventoryID(bag))
   if id then
-    local _, _, _, _, _, itemType, subType = GetItemInfo(id)
-    local bagsubtype = L["bagtypes"][subType]
-
-    if bagsubtype == "DEFAULT" then return "BAG" end
-    if bagsubtype == "SOULBAG" then return "SOULBAG" end
-    if bagsubtype == "QUIVER" then return "QUIVER" end
-    if bagsubtype == nil then return "SPECIAL" end
+    -- classID 1 = Container (bags), 11 = Quiver
+    -- Container subclasses: 0 = Bag (default), 1 = Soul Bag, 2+ = specialty (herb/enchanting/etc.)
+    -- Quiver subclasses: 2 = Quiver (arrows), 3 = Ammo Pouch (bullets)
+    local _, _, _, _, _, classID, subClassID = C_Item.GetItemInfoInstant(id)
+    if classID == 1 then
+      if subClassID == 0 then return "BAG" end
+      if subClassID == 1 then return "SOULBAG" end
+      return "SPECIAL"
+    elseif classID == 11 then
+      return "QUIVER"
+    end
   end
 
   return nil
