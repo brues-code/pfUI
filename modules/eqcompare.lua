@@ -74,86 +74,115 @@ pfUI:RegisterModule("eqcompare", function ()
     [28] = { "RangedSlot" },                         -- relic
   }
 
-  local function startsWith(str, start)
-    return string.sub(str, 1, string.len(start)) == start
-  end
-
-  local function ExtractAttributes(tooltip)
-    local name = tooltip:GetName()
-
-    -- get the name/header of the last set comparison tooltip
-    local comparetooltip = pfUI.eqcompare.tooltip:GetName()
-    local iname = _G[comparetooltip .. "TextLeft1"] and _G[comparetooltip .. "TextLeft1"]:GetText()
-
-    -- only run once per item
-    if tooltip.pfCompLastName == iname then return end
-
-    tooltip.pfCompData = {}
-    tooltip.pfCompLastName = iname
-
-    for i=1,30 do
-      local widget = _G[name.."TextLeft"..i]
-      if widget and widget:GetObjectType() == "FontString" then
-        local text = widget:GetText()
-        if text and not string.find(text, "-", 1, true) then
-          local start = 1
-          if startsWith(text, "\+") or startsWith(text, "\(") then start = 2 end
-
-          local space = string.find(text, " ", 1, true)
-          if space then
-            local value = tonumber(string.sub(text, start, space-1))
-            if value and text then
-              -- we've found an attr
-              local attr = string.sub(text, space, string.len(text))
-              tooltip.pfCompData[attr] = { value = tonumber(value), widget = widget }
-            end
-          end
-        end
-      end
+  -- Base stats are annotated INLINE on their tooltip stat line. We match
+  -- by label (the trailing noun after the "N " value prefix), so we need
+  -- the localized noun for each ClassicAPI key. Primary stats come from
+  -- vanilla's "%c%d Stat" format strings (with the noun stripped out);
+  -- resistances are already plain nouns.
+  local BASE_STAT_LABEL_TO_KEY = {}
+  do
+    local function noun(fmt)
+      return fmt and (string.gsub(string.gsub(fmt, "^%%c?%%d ", ""), "^%s+", "")) or nil
+    end
+    local baseFmt = {
+      { key = "ITEM_MOD_STRENGTH_SHORT",  fmt = "ITEM_MOD_STRENGTH" },
+      { key = "ITEM_MOD_AGILITY_SHORT",   fmt = "ITEM_MOD_AGILITY" },
+      { key = "ITEM_MOD_STAMINA_SHORT",   fmt = "ITEM_MOD_STAMINA" },
+      { key = "ITEM_MOD_INTELLECT_SHORT", fmt = "ITEM_MOD_INTELLECT" },
+      { key = "ITEM_MOD_SPIRIT_SHORT",    fmt = "ITEM_MOD_SPIRIT" },
+      { key = "ITEM_MOD_MANA_SHORT",      fmt = "ITEM_MOD_MANA" },
+      { key = "ITEM_MOD_HEALTH_SHORT",    fmt = "ITEM_MOD_HEALTH" },
+    }
+    for _, e in ipairs(baseFmt) do
+      local label = _G[e.key] or noun(_G[e.fmt])
+      if label then BASE_STAT_LABEL_TO_KEY[label] = e.key end
+    end
+    for i = 0, 6 do
+      local label = _G["RESISTANCE"..i.."_NAME"]
+      if label then BASE_STAT_LABEL_TO_KEY[label] = "RESISTANCE"..i.."_NAME" end
     end
   end
 
-  local function CompareAttributes(data, targetData)
-    if not data then return end
+  -- Extended stats (attack power, crit/hit ratings, spell power, defense,
+  -- DPS, mana regen) aren't emitted as their own tooltip lines by vanilla
+  -- in a shape we can reliably match — they're mixed into equip-spell
+  -- descriptions ("Equip: Increases your critical strike chance by 1%").
+  -- Aggregate them into a Blizzard-style summary block at the bottom.
+  local EXTENDED_STAT_LABELS = {
+    ITEM_MOD_ATTACK_POWER_SHORT        = _G.ITEM_MOD_ATTACK_POWER_SHORT or _G.ATTACK_POWER_TOOLTIP or "Attack Power",
+    ITEM_MOD_RANGED_ATTACK_POWER_SHORT = _G.ITEM_MOD_RANGED_ATTACK_POWER_SHORT or _G.RANGED_ATTACK_POWER or "Ranged Attack Power",
+    ITEM_MOD_SPELL_DAMAGE_DONE_SHORT   = _G.ITEM_MOD_SPELL_DAMAGE_DONE_SHORT or "Spell Damage",
+    ITEM_MOD_SPELL_HEALING_DONE_SHORT  = _G.ITEM_MOD_SPELL_HEALING_DONE_SHORT or "Spell Healing",
+    ITEM_MOD_CRIT_MELEE_RATING         = _G.ITEM_MOD_CRIT_MELEE_RATING or "Melee Crit %",
+    ITEM_MOD_CRIT_RANGED_RATING        = _G.ITEM_MOD_CRIT_RANGED_RATING or "Ranged Crit %",
+    ITEM_MOD_HIT_MELEE_RATING          = _G.ITEM_MOD_HIT_MELEE_RATING or "Melee Hit %",
+    ITEM_MOD_HIT_RANGED_RATING         = _G.ITEM_MOD_HIT_RANGED_RATING or "Ranged Hit %",
+    ITEM_MOD_HIT_SPELL_RATING          = _G.ITEM_MOD_HIT_SPELL_RATING or "Spell Hit %",
+    ITEM_MOD_MANA_REGENERATION         = _G.ITEM_MOD_MANA_REGENERATION or "Mana Regen",
+    ITEM_MOD_DEFENSE_SKILL_RATING      = _G.ITEM_MOD_DEFENSE_SKILL_RATING or "Defense",
+    ITEM_MOD_DAMAGE_PER_SECOND_SHORT   = _G.ITEM_MOD_DAMAGE_PER_SECOND_SHORT or "DPS",
+  }
+  local EXTENDED_STAT_ORDER = {
+    "ITEM_MOD_DAMAGE_PER_SECOND_SHORT",
+    "ITEM_MOD_ATTACK_POWER_SHORT",
+    "ITEM_MOD_RANGED_ATTACK_POWER_SHORT",
+    "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT",
+    "ITEM_MOD_SPELL_HEALING_DONE_SHORT",
+    "ITEM_MOD_CRIT_MELEE_RATING",
+    "ITEM_MOD_CRIT_RANGED_RATING",
+    "ITEM_MOD_HIT_MELEE_RATING",
+    "ITEM_MOD_HIT_RANGED_RATING",
+    "ITEM_MOD_HIT_SPELL_RATING",
+    "ITEM_MOD_MANA_REGENERATION",
+    "ITEM_MOD_DEFENSE_SKILL_RATING",
+  }
 
-    for attr,v in pairs(data) do
-      if targetData then
-        local target = targetData[attr]
-        if target then
-          if v.value ~= target.value and v.widget:GetText() then
-            if v.value > target.value then
-              if not strfind(v.widget:GetText(), "|cff88ff88") and not strfind(v.widget:GetText(), "|cffff8888") then
-                v.widget:SetText(v.widget:GetText() .. "|cff88ff88 (+" .. round(v.value - target.value, 1) .. ")")
-              end
-            elseif not v.widget.compSet then
-              if not strfind(v.widget:GetText(), "|cff88ff88") and not strfind(v.widget:GetText(), "|cffff8888") then
-                v.widget:SetText(v.widget:GetText() .. "|cffff8888 (-" .. round(target.value - v.value, 1) .. ")")
-              end
-            end
-            target.processed = true
-          else
-            target.processed = true
-          end
-        else
-          -- this attribute doesnt exist in target
-          if v.widget and v.widget:GetText() then
-            if not strfind(v.widget:GetText(), "|cff88ff88") and not strfind(v.widget:GetText(), "|cffff8888") then
-              v.widget:SetText(v.widget:GetText() .. "|cff88ff88 (+" .. v.value .. ")")
+  local function AnnotateBaseStats(tooltip, delta)
+    for _, region in ipairs({tooltip:GetRegions()}) do
+      if region and region.GetObjectType and region:GetObjectType() == "FontString" then
+        local text = region:GetText()
+        if text and text ~= ""
+           and not strfind(text, "|cff88ff88", 1, true)
+           and not strfind(text, "|cffff8888", 1, true) then
+          -- Widget text shape we care about: "+5 Strength" / "5 Fire Resistance".
+          -- Match the "+N " / "N " prefix, then look up the rest verbatim.
+          local _, endIdx = strfind(text, "^%+?%d+%s+")
+          if endIdx then
+            local rest = string.sub(text, endIdx + 1)
+            rest = gsub(rest, "%s+$", "")
+            local key = BASE_STAT_LABEL_TO_KEY[rest]
+            local v = key and delta[key]
+            if v and v ~= 0 then
+              local color = v > 0 and "|cff88ff88" or "|cffff8888"
+              local sign = v > 0 and "+" or ""
+              region:SetText(text .. " " .. color .. "(" .. sign .. v .. ")|r")
             end
           end
         end
       end
     end
+  end
 
-    for _,target in pairs(targetData) do
-      if target and not target.processed then
-        -- we are an extra value
-        local text = target.widget:GetText()
-        if text and not strfind(text, "|cff88ff88") and not strfind(text, "|cffff8888") then
-          target.widget:SetText(text .. "|cff88ff88 (+" .. target.value .. ")")
+  local function AppendExtendedSummary(tooltip, delta)
+    local first = true
+    for _, key in ipairs(EXTENDED_STAT_ORDER) do
+      local v = delta[key]
+      if v and v ~= 0 then
+        if first then
+          tooltip:AddLine(" ")
+          tooltip:AddLine(T["Compared to equipped:"] or "Compared to equipped:", 0.6, 0.6, 0.6)
+          first = false
         end
+        -- DPS is a float derived from damage/delay in ClassicAPI; every
+        -- other extended stat is an integer. Round DPS to 1 decimal so
+        -- the summary shows "+4.3 DPS" instead of "+4.34302…".
+        local shown = (key == "ITEM_MOD_DAMAGE_PER_SECOND_SHORT") and round(v, 1) or v
+        local color = shown > 0 and "|cff88ff88" or "|cffff8888"
+        local sign = shown > 0 and "+" or ""
+        tooltip:AddDoubleLine(EXTENDED_STAT_LABELS[key] or key, color .. sign .. shown .. "|r")
       end
     end
+    if not first then tooltip:Show() end  -- re-measure after adding lines
   end
 
   pfUI.eqcompare = {}
@@ -207,27 +236,30 @@ pfUI:RegisterModule("eqcompare", function ()
       ShoppingTooltip2:Show()
       AddHeader(ShoppingTooltip2)
     end
+
+    -- Fetch the delta once; annotate base stats inline (green +/red -
+    -- next to their existing tooltip line), then aggregate extended
+    -- stats (attack power, crit/hit ratings, spell power, DPS, …) into
+    -- a "Compared to equipped:" block at the bottom. The extended-stats
+    -- summary is a sub-option of the whole comparison — if base-stat
+    -- comparison is off, we're not doing comparisons at all.
+    if C.tooltip.compare.basestats == "1" then
+      local _, newLink = this:GetItem()
+      local equippedLink = GetInventoryItemLink("player", slotID)
+      if newLink and equippedLink then
+        local delta = C_Item.GetItemStatDelta(equippedLink, newLink)
+        if delta then
+          AnnotateBaseStats(this, delta)
+          if C.tooltip.compare.extendedstats == "1" then AppendExtendedSummary(this, delta) end
+        end
+      end
+    end
     return true
   end
 
   -- add HookScript method if not already existing
   GameTooltip.HookScript = GameTooltip.HookScript or HookScript
-  ShoppingTooltip1.HookScript = ShoppingTooltip1.HookScript or HookScript
-  ShoppingTooltip2.HookScript = ShoppingTooltip2.HookScript or HookScript
 
-  pfUI.eqcompare.ShoppingTooltipShow = function()
-    -- abort if no comparison tooltip has been set
-    if not pfUI.eqcompare.tooltip then return end
-
-    ExtractAttributes(this)
-    ExtractAttributes(pfUI.eqcompare.tooltip)
-    CompareAttributes(pfUI.eqcompare.tooltip.pfCompData, this.pfCompData)
-  end
-
-  -- Add Gametooltip Hooks
+  -- Add Gametooltip Hook
   GameTooltip:HookScript("OnShow", pfUI.eqcompare.GameTooltipShow)
-  if C.tooltip.compare.basestats == "1" then
-    ShoppingTooltip1:HookScript("OnShow", pfUI.eqcompare.ShoppingTooltipShow)
-    ShoppingTooltip2:HookScript("OnShow", pfUI.eqcompare.ShoppingTooltipShow)
-  end
 end)

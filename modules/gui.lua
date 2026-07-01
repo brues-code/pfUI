@@ -2748,7 +2748,21 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Show Movement Speed"], C.tooltip, "movespeed", "checkbox")
       CreateConfig(nil, T["Custom Transparency"], C.tooltip, "alpha")
       CreateConfig(nil, T["Status Bar Texture"], C.tooltip.statusbar, "texture", "dropdown", pfUI.gui.dropdowns.uf_bartexture)
-      CreateConfig(nil, T["Compare Item Base Stats"], C.tooltip.compare, "basestats", "checkbox")
+      local baseCompare = CreateConfig(nil, T["Compare Item Base Stats"], C.tooltip.compare, "basestats", "checkbox")
+      local extCompare = CreateConfig(nil, T["Compare Extended Stats (AP/Crit/etc.)"], C.tooltip.compare, "extendedstats", "checkbox")
+      -- Extended comparison is a sub-option of the base one — gray it out
+      -- (and disable interaction) whenever base comparison itself is off.
+      local function UpdateExtCompareGate()
+        if baseCompare.input:GetChecked() then
+          extCompare.input:Enable()
+          extCompare.caption:SetTextColor(1, 1, 1)
+        else
+          extCompare.input:Disable()
+          extCompare.caption:SetTextColor(0.5, 0.5, 0.5)
+        end
+      end
+      UpdateExtCompareGate()
+      HookScript(baseCompare.input, "OnClick", UpdateExtCompareGate)
       CreateConfig(nil, T["Always Show Item Comparison"], C.tooltip.compare, "showalways", "checkbox")
       CreateConfig(nil, T["Always Show Extended Vendor Values"], C.tooltip.vendor, "showalways", "checkbox")
       CreateConfig(U["questitem"], T["Show Related Quest On Questitems"], C.tooltip.questitem, "showquest", "checkbox")
