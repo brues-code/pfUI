@@ -12,7 +12,9 @@ pfUI:RegisterModule("bubbles", function ()
   pfUI.bubbles:RegisterEvent("CHAT_MSG_MONSTER_PARTY")
 
   pfUI.bubbles:SetScript("OnEvent", function()
-    pfUI.bubbles:SetScript("OnUpdate", pfUI.bubbles.ScanBubbles)
+    -- Bubble frames are attached to WorldFrame after the chat event fires,
+    -- so wait one tick before scanning.
+    RunNextFrame(function() pfUI.bubbles:ScanBubbles() end)
   end)
 
   function pfUI.bubbles:IsBubble(f)
@@ -66,7 +68,5 @@ pfUI:RegisterModule("bubbles", function ()
           end)
         end
     end
-
-    pfUI.bubbles:SetScript("OnUpdate", nil)
   end
 end)

@@ -44,15 +44,13 @@ if GetNampowerVersion then
 end
 
 -- Nampower startup check: show version info and ensure CVars are set.
--- Runs on first OnUpdate after PLAYER_ENTERING_WORLD to give Nampower time to initialize.
+-- Runs the frame after PLAYER_ENTERING_WORLD so Nampower has finished initializing.
 local nampowerCheckFrame = CreateFrame("Frame")
 nampowerCheckFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 nampowerCheckFrame:SetScript("OnEvent", function()
-  -- Defer to next frame so Nampower is fully initialized
-  this:SetScript("OnUpdate", function()
-    this:SetScript("OnUpdate", nil)
-    this:UnregisterAllEvents()
-    this:SetScript("OnEvent", nil)
+  this:UnregisterAllEvents()
+  this:SetScript("OnEvent", nil)
+  RunNextFrame(function()
 
     if GetNampowerVersion then
       local major, minor, patch = GetNampowerVersion()

@@ -66,9 +66,5 @@ pfUI:RegisterModule("macrotweak", function ()
   end)
 
   -- Check conflicts after one tick so all addons have finished loading
-  local watcher = CreateFrame("Frame")
-  watcher:SetScript("OnUpdate", function()
-    this:SetScript("OnUpdate", nil)
-    CheckConflicts()
-  end)
+  RunNextFrame(CheckConflicts)
 end)

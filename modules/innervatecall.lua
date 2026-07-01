@@ -96,14 +96,10 @@ pfUI:RegisterModule("innervatecall", function ()
       end
     end
 
-    local readyAt = GetTime() + cdRemaining
-    frame:SetScript("OnUpdate", function()
-      if GetTime() >= readyAt then
-        frame:SetScript("OnUpdate", nil)
-        local ch = GetAnnounceChannel()
-        if ch then
-          SendChatMessage(">> Innervate is ready <<", ch)
-        end
+    C_Timer.After(cdRemaining, function()
+      local ch = GetAnnounceChannel()
+      if ch then
+        SendChatMessage(">> Innervate is ready <<", ch)
       end
     end)
   end)

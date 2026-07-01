@@ -50,10 +50,8 @@ function SlashCmdList.PFFOCUSNAME(msg)
     FocusUnit("target")
   end
 
-  local restore = CreateFrame("Frame")
-  restore:SetScript("OnUpdate", function()
+  RunNextFrame(function()
     UIErrorsFrame:RegisterEvent("UI_ERROR_MESSAGE")
-    restore:SetScript("OnUpdate", nil)
   end)
 
   if prevGUID and prevGUID ~= "0x0000000000000000" then

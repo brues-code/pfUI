@@ -19,12 +19,7 @@ pfUI:RegisterModule("autovendor", function ()
     local startGold = GetMoney()
     C_MerchantFrame.SellAllJunkItems()
 
-    local reporter = CreateFrame("Frame")
-    reporter.deadline = GetTime() + 0.3
-    reporter:SetScript("OnUpdate", function()
-      if GetTime() < this.deadline then return end
-      this:SetScript("OnUpdate", nil)
-      this:Hide()
+    C_Timer.After(0.3, function()
       local income = GetMoney() - startGold
       if income > 0 then
         DEFAULT_CHAT_FRAME:AddMessage(T["Your vendor trash has been sold and you earned"] .. " " .. CreateGoldString(income))
