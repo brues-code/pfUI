@@ -46,6 +46,11 @@ pfUI:RegisterModule("firstrun", function ()
         return
       end
     end
+
+    if not self.completed then
+      self.completed = true
+      pfUI.events:TriggerEvent("firstrun:complete")
+    end
   end
 
   -- main function to create wizard windows

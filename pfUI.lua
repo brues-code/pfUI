@@ -102,6 +102,10 @@ pfUI.version = {}
 pfUI.hooks = {}
 pfUI.env = {}
 
+pfUI.events = Mixin({}, CallbackRegistryMixin)
+pfUI.events:OnLoad()
+pfUI.events:SetUndefinedEventsAllowed(true)
+
 -- check if macro addons are loaded (disables macrotweak/macroscan)
 function pfUI:MacroAddonsLoaded()
   return IsAddOnLoaded("Supermacro") or IsAddOnLoaded("SuperCleveRoidMacros") or IsAddOnLoaded("UltimaMacros")
