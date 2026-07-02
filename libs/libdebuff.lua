@@ -965,7 +965,7 @@ if hasNampower then
       -- Channel interrupted by player - clear ownDebuffs for the channeled spell
       -- via C_Spell.ChannelInfo. DEBUFF_REMOVED fires later (0.5-1s server lag),
       -- causing phantom debuff display without this pre-clear.
-      local spellName = select(1, C_Spell.ChannelInfo())
+      local spellName = C_Spell.ChannelInfo()
       if spellName then
         local targetGuid = UnitGUID and UnitGUID("target")
         if targetGuid and ownDebuffs[targetGuid] and ownDebuffs[targetGuid][spellName] then
