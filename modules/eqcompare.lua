@@ -252,12 +252,13 @@ pfUI:RegisterModule("eqcompare", function ()
       AddHeader(ShoppingTooltip2)
     end
 
-    if C.tooltip.compare.basestats == "1" then
+    local mode = C.tooltip.compare.mode
+    if mode ~= "off" then
       local equippedLink = GetInventoryItemLink("player", slotID)
       if newLink and equippedLink then
         local delta = C_Item.GetItemStatDelta(equippedLink, newLink)
         if delta then
-          if C.tooltip.compare.extendedstats == "1" then
+          if mode == "extended" then
             local keys = {}
             for _, k in ipairs(BASE_STAT_KEYS)     do table.insert(keys, k) end
             for _, k in ipairs(EXTENDED_STAT_KEYS) do table.insert(keys, k) end

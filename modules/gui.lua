@@ -1,5 +1,5 @@
 pfUI:RegisterModule("gui", function ()
-  local Reload, U, CreateConfig, CreateTabFrame, CreateArea, CreateGUIEntry, EntryUpdate, MakeDependent
+  local Reload, U, CreateConfig, CreateTabFrame, CreateArea, CreateGUIEntry, EntryUpdate
 
   -- "searchDB" gets populated when CreateConfig is called. The table holds
   -- information about the title, its parent buttons and the frame itself:
@@ -212,6 +212,7 @@ pfUI:RegisterModule("gui", function ()
             if not this:GetParent():IsShown() then
               category[config] = r .. "," .. g .. "," .. b .. "," .. a
               if ufunc then ufunc() else pfUI.gui.settingChanged = true end
+              pfUI.events:TriggerEvent("config:changed", category, config)
             end
           end
 
@@ -278,6 +279,7 @@ pfUI:RegisterModule("gui", function ()
             if this:GetText() ~= this:GetParent().category[this:GetParent().config] then
               this:GetParent().category[this:GetParent().config] = this:GetText()
               if ufunc then ufunc() else pfUI.gui.settingChanged = true end
+              pfUI.events:TriggerEvent("config:changed", category, config)
             end
             this:SetTextColor(.2,1,.8,1)
           else
@@ -328,6 +330,7 @@ pfUI:RegisterModule("gui", function ()
           end
 
           if ufunc then ufunc() else pfUI.gui.settingChanged = true end
+          pfUI.events:TriggerEvent("config:changed", category, config)
         end)
 
         if category[config] == "1" then frame.input:SetChecked() end
@@ -360,6 +363,7 @@ pfUI:RegisterModule("gui", function ()
               if category and category[config] ~= value then
                 category[config] = value
                 if ufunc then ufunc() else pfUI.gui.settingChanged = true end
+                pfUI.events:TriggerEvent("config:changed", category, config)
               end
             end
 
@@ -394,6 +398,7 @@ pfUI:RegisterModule("gui", function ()
           end
           category[config] = newconf
           if ufunc then ufunc() else pfUI.gui.settingChanged = true end
+          pfUI.events:TriggerEvent("config:changed", category, config)
           frame.input:UpdateMenu()
         end)
 
@@ -409,6 +414,7 @@ pfUI:RegisterModule("gui", function ()
           CreateQuestionDialog(T["New entry:"], function()
             category[config] = category[config] .. "#" .. this:GetParent().input:GetText()
             if ufunc then ufunc() else pfUI.gui.settingChanged = true end
+            pfUI.events:TriggerEvent("config:changed", category, config)
             frame.input:UpdateMenu()
           end, false, true)
         end)
@@ -594,24 +600,9 @@ pfUI:RegisterModule("gui", function ()
     CreateBackdropShadow(pfUI.gui)
     table.insert(UISpecialFrames, "pfConfigGUI")
 
-    function MakeDependent(child, parent)
-      local function refresh()
-        if parent.input:GetChecked() then
-          child.input:Enable()
-          child.caption:SetTextColor(1, 1, 1)
-        else
-          child.input:Disable()
-          child.caption:SetTextColor(0.5, 0.5, 0.5)
-        end
-      end
-      refresh()
-      HookScript(parent.input, "OnClick", refresh)
-    end
-
     -- make some locals available to thirdparty
     pfUI.gui.Reload = Reload
     pfUI.gui.CreateConfig = CreateConfig
-    pfUI.gui.MakeDependent = MakeDependent
     pfUI.gui.CreateGUIEntry = CreateGUIEntry
     pfUI.gui.UpdaterFunctions = U
 
@@ -2763,10 +2754,26 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Show Movement Speed"], C.tooltip, "movespeed", "checkbox")
       CreateConfig(nil, T["Custom Transparency"], C.tooltip, "alpha")
       CreateConfig(nil, T["Status Bar Texture"], C.tooltip.statusbar, "texture", "dropdown", pfUI.gui.dropdowns.uf_bartexture)
-      local baseCompare = CreateConfig(nil, T["Compare Item Base Stats"], C.tooltip.compare, "basestats", "checkbox")
-      local extCompare = CreateConfig(nil, T["Compare Extended Stats (AP/Crit/etc.)"], C.tooltip.compare, "extendedstats", "checkbox")
-      MakeDependent(extCompare, baseCompare)
-      CreateConfig(nil, T["Always Show Item Comparison"], C.tooltip.compare, "showalways", "checkbox")
+      CreateConfig(nil, T["Item Comparison"], C.tooltip.compare, "mode", "dropdown", {
+        "off:"..(T["Off"] or "Off"),
+        "base:"..(T["Base Stats"] or "Base Stats"),
+        "extended:"..(T["Extended Stats"] or "Extended Stats"),
+      })
+      local showAlways = CreateConfig(nil, T["Always Show Item Comparison"], C.tooltip.compare, "showalways", "checkbox")
+      local function gate()
+        local on = C.tooltip.compare.mode ~= "off"
+        if on then
+          showAlways.input:Enable()
+          showAlways.caption:SetTextColor(1, 1, 1)
+        else
+          showAlways.input:Disable()
+          showAlways.caption:SetTextColor(0.5, 0.5, 0.5)
+        end
+      end
+      gate()
+      pfUI.events:RegisterCallback("config:changed", function(_, cat, key)
+        if cat == C.tooltip.compare and key == "mode" then gate() end
+      end, "eqcompare-showalways-gate")
       CreateConfig(nil, T["Always Show Extended Vendor Values"], C.tooltip.vendor, "showalways", "checkbox")
       CreateConfig(U["questitem"], T["Show Related Quest On Questitems"], C.tooltip.questitem, "showquest", "checkbox")
       CreateConfig(U["questitem"], T["Show Required Questitem Count"], C.tooltip.questitem, "showcount", "checkbox")

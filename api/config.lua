@@ -751,8 +751,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("tooltip",    nil,           "movespeed",        "0")
   pfUI:UpdateConfig("tooltip",    nil,           "alpha",            "0.8")
   pfUI:UpdateConfig("tooltip",    nil,           "alwaysperc",       "0")
-  pfUI:UpdateConfig("tooltip",    "compare",     "basestats",        "1")
-  pfUI:UpdateConfig("tooltip",    "compare",     "extendedstats",    "1")
+  pfUI:UpdateConfig("tooltip",    "compare",     "mode",             "extended")
   pfUI:UpdateConfig("tooltip",    "compare",     "showalways",       "0")
   pfUI:UpdateConfig("tooltip",    "vendor",      "showalways",       "1")
   pfUI:UpdateConfig("tooltip",    "questitem",   "showquest",        "1")
@@ -1373,6 +1372,21 @@ function pfUI:MigrateConfig()
     end
   end
 
+  -- migrate tooltip.compare.basestats + extendedstats into a single mode dropdown
+  if pfUI_config.tooltip and pfUI_config.tooltip.compare then
+    local cmp = pfUI_config.tooltip.compare
+    if cmp.basestats or cmp.extendedstats then
+      if cmp.basestats == "0" then
+        cmp.mode = "off"
+      elseif cmp.extendedstats == "0" then
+        cmp.mode = "base"
+      else
+        cmp.mode = "extended"
+      end
+      cmp.basestats = nil
+      cmp.extendedstats = nil
+    end
+  end
 
   -- Remove "Show only own debuffs" from unitframes and nameplates
   -- (feature was removed; only Target Debuff Bar in buffwatch keeps it)
