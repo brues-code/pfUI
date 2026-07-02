@@ -203,7 +203,12 @@ pfUI:RegisterModule("eqcompare", function ()
   pfUI.eqcompare.tooltip = GameTooltip
 
   local function AnnotateTooltip(tooltip)
-    if not IsShiftKeyDown() and C.tooltip.compare.showalways ~= "1" then return end
+    if not IsShiftKeyDown() then
+      if C.tooltip.compare.showalways ~= "1" then return end
+      local owner = tooltip:GetOwner()
+      local parent = owner and owner:GetParent()
+      if parent == PaperDollFrame then return end
+    end
 
     local _, newLink, itemID = tooltip:GetItem()
     if not itemID then return end
