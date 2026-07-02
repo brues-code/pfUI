@@ -1,5 +1,5 @@
 pfUI:RegisterModule("gui", function ()
-  local Reload, U, CreateConfig, CreateTabFrame, CreateArea, CreateGUIEntry, EntryUpdate
+  local Reload, U, CreateConfig, CreateTabFrame, CreateArea, CreateGUIEntry, EntryUpdate, MakeDependent
 
   -- "searchDB" gets populated when CreateConfig is called. The table holds
   -- information about the title, its parent buttons and the frame itself:
@@ -594,9 +594,24 @@ pfUI:RegisterModule("gui", function ()
     CreateBackdropShadow(pfUI.gui)
     table.insert(UISpecialFrames, "pfConfigGUI")
 
+    function MakeDependent(child, parent)
+      local function refresh()
+        if parent.input:GetChecked() then
+          child.input:Enable()
+          child.caption:SetTextColor(1, 1, 1)
+        else
+          child.input:Disable()
+          child.caption:SetTextColor(0.5, 0.5, 0.5)
+        end
+      end
+      refresh()
+      HookScript(parent.input, "OnClick", refresh)
+    end
+
     -- make some locals available to thirdparty
     pfUI.gui.Reload = Reload
     pfUI.gui.CreateConfig = CreateConfig
+    pfUI.gui.MakeDependent = MakeDependent
     pfUI.gui.CreateGUIEntry = CreateGUIEntry
     pfUI.gui.UpdaterFunctions = U
 
@@ -2750,19 +2765,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Status Bar Texture"], C.tooltip.statusbar, "texture", "dropdown", pfUI.gui.dropdowns.uf_bartexture)
       local baseCompare = CreateConfig(nil, T["Compare Item Base Stats"], C.tooltip.compare, "basestats", "checkbox")
       local extCompare = CreateConfig(nil, T["Compare Extended Stats (AP/Crit/etc.)"], C.tooltip.compare, "extendedstats", "checkbox")
-      -- Extended comparison is a sub-option of the base one — gray it out
-      -- (and disable interaction) whenever base comparison itself is off.
-      local function UpdateExtCompareGate()
-        if baseCompare.input:GetChecked() then
-          extCompare.input:Enable()
-          extCompare.caption:SetTextColor(1, 1, 1)
-        else
-          extCompare.input:Disable()
-          extCompare.caption:SetTextColor(0.5, 0.5, 0.5)
-        end
-      end
-      UpdateExtCompareGate()
-      HookScript(baseCompare.input, "OnClick", UpdateExtCompareGate)
+      MakeDependent(extCompare, baseCompare)
       CreateConfig(nil, T["Always Show Item Comparison"], C.tooltip.compare, "showalways", "checkbox")
       CreateConfig(nil, T["Always Show Extended Vendor Values"], C.tooltip.vendor, "showalways", "checkbox")
       CreateConfig(U["questitem"], T["Show Related Quest On Questitems"], C.tooltip.questitem, "showquest", "checkbox")
