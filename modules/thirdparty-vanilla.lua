@@ -943,7 +943,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
     CreateBackdropShadow(AtlasLootTooltip)
 
     if pfUI.eqcompare then
-      HookScript(AtlasLootTooltip, "OnShow", pfUI.eqcompare.GameTooltipShow)
+      pfUI.eqcompare.HookTooltip(AtlasLootTooltip)
       HookScript(AtlasLootTooltip, "OnHide", function()
         ShoppingTooltip1:Hide()
         ShoppingTooltip2:Hide()
