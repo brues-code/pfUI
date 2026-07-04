@@ -110,7 +110,7 @@ pfUI:RegisterModule("eqcompare", function ()
 
   local TooltipHooks = {
     SetLootRollItem = GetLootRollItemLink,
-    SetLootItem = GetLootSlotItemLink,
+    SetLootItem = GetLootSlotLink,
     SetQuestLogItem = GetQuestLogItemLink,
     SetQuestItem = GetQuestItemLink,
     SetHyperlink = function(link) return link end,
