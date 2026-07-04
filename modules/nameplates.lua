@@ -63,6 +63,14 @@ pfUI:RegisterModule("nameplates", function ()
 
   local raidGuidCache = {}  -- guid -> name (rebuilt on RAID_ROSTER_UPDATE/PARTY_MEMBERS_CHANGED)
   
+  -- ClassicAPI's remote-cast cache has no interrupt signal — an interrupted
+  -- cast keeps being reported until its computed end time (issue #11). When
+  -- nampower tells us a remote cast failed (SPELL_FAILED_OTHER) or the caster
+  -- died (UNIT_DIED), we stamp the event time here (engine-ms domain, same as
+  -- startMs) and GetCastInfo drops any cast that started before the stamp. A
+  -- newer cast clears its unit's entry.
+  local castSuppressed = {}  -- guid -> suppression time (GetTime()*1000)
+
   -- Resolve a plate GUID to its cast/channel info via C_Spell. Returns a
   -- compact struct (spellName / icon / startTime / endTime / duration /
   -- isChannel) or nil when the unit isn't casting / the GUID can't map to a
@@ -78,6 +86,11 @@ pfUI:RegisterModule("nameplates", function ()
       isChannel = true
     end
     if not name or not startMs or not endMs then return nil end
+    local supp = castSuppressed[guid]
+    if supp then
+      if startMs <= supp then return nil end
+      castSuppressed[guid] = nil
+    end
     return {
       spellName = name,
       spellID   = spellID,
@@ -474,6 +487,9 @@ nameplates:RegisterEvent("PARTY_MEMBERS_CHANGED")
 nameplates:RegisterEvent("NAME_PLATE_CREATED")
 nameplates:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 nameplates:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+-- nampower: remote cast interrupted / caster died — see castSuppressed
+nameplates:RegisterEvent("SPELL_FAILED_OTHER")
+nameplates:RegisterEvent("UNIT_DIED")
 if GetUnitField then
   nameplates:RegisterEvent("UNIT_FLAGS_GUID")
   nameplates:RegisterEvent("UNIT_AURA_GUID")
@@ -592,6 +608,19 @@ end
       local plate = C_NamePlate.GetNamePlateForGUID(arg1)
       if plate and plate.nameplate then
         plate.nameplate.auraUpdate = true
+      end
+
+    elseif event == "SPELL_FAILED_OTHER" or event == "UNIT_DIED" then
+      -- Nampower: arg1 = guid. Only stamp when the unit actually has a
+      -- tracked cast — keeps the table from accumulating an entry for every
+      -- combat-log death. Flag the plate so the castbar hides this tick
+      -- instead of waiting out the throttle.
+      if arg1 and GetCastInfo(arg1) then
+        castSuppressed[arg1] = GetTime() * 1000
+        local plate = C_NamePlate.GetNamePlateForGUID(arg1)
+        if plate and plate.nameplate then
+          plate.nameplate.castUpdate = true
+        end
       end
 
     elseif event == "PLAYER_TARGET_CHANGED" then
