@@ -1,93 +1,78 @@
 pfUI:RegisterModule("share", function ()
-  local function serialize(tbl, comp, name, ignored, spacing)
-    local spacing = spacing or ""
-    local match = nil
-    local tname = ( spacing == "" and "" or "[\"" ) .. name .. ( spacing == "" and "" or "\"]" )
-    local str = spacing .. tname .. " = {\n"
+  -- Profile sharing rides ClassicAPI's C_EncodingUtil:
+  --   export:  diff vs defaults -> SerializeCBOR -> CompressString (zlib)
+  --            -> EncodeBase64, prefixed with the format magic
+  --   import:  the reverse, into a plain table — no loadstring, so a
+  --            pasted profile can't execute code
+  -- The Decode/Encode button converts between the transport blob and an
+  -- editable JSON view of the same table.
+  local MAGIC = "!pf1!"
 
+  -- Deep-diff `tbl` against `default`, keeping only changed or added
+  -- values. `ignored` keys are skipped at the top level only (matches the
+  -- old serializer: "position"/"disabled" when Ignore Layout is checked).
+  -- Returns nil when nothing differs.
+  local function DiffConfig(tbl, default, ignored)
+    local diff = nil
     for k, v in pairs(tbl) do
-      if not ( ignored[k] and spacing == "" ) and ( not comp or not comp[k] or comp[k] ~= tbl[k] ) then
+      if not ( ignored and ignored[k] ) then
+        local dv = default and default[k]
         if type(v) == "table" then
-          local result = serialize(tbl[k], comp and comp[k], k, ignored, spacing .. "  ")
-          if result then
-            match = true
-            str = str .. result
+          local sub = DiffConfig(v, type(dv) == "table" and dv or nil)
+          if sub then
+            diff = diff or {}
+            diff[k] = sub
           end
-        elseif type(v) == "string" then
-          match = true
-          local escaped = string.gsub(v, "\\", "\\\\")
-          escaped = string.gsub(escaped, "\"", "\\\"")
-          str = str .. spacing .. "  [\""..k.."\"] = \"".. escaped .."\",\n"
-        elseif type(v) == "number" then
-          match = true
-          str = str .. spacing .. "  [\""..k.."\"] = ".. string.gsub(v, "\\", "\\\\") ..",\n"
+        elseif v ~= dv and ( type(v) == "string" or type(v) == "number" or type(v) == "boolean" ) then
+          diff = diff or {}
+          diff[k] = v
         end
       end
     end
-
-    str = str .. spacing .. "}" .. ( spacing == "" and "" or "," ) .. "\n"
-    return match and str or nil
+    return diff
   end
 
-  local function compress(input)
-    -- based on Rochet2's lzw compression
-    if type(input) ~= "string" then
-      return nil
+  -- EditBoxes don't soft-wrap one giant unbroken line; chunk the blob.
+  local function wrap(str, width)
+    local out = {}
+    for i = 1, strlen(str), width do
+      table.insert(out, strsub(str, i, i + width - 1))
     end
-    local len = strlen(input)
-    if len <= 1 then
-      return "u"..input
-    end
-
-    local dict = {}
-    for i = 0, 255 do
-      local ic, iic = strchar(i), strchar(i, 0)
-      dict[ic] = iic
-    end
-    local a, b = 0, 1
-
-    local result = {"c"}
-    local resultlen = 1
-    local n = 2
-    local word = ""
-    for i = 1, len do
-      local c = strsub(input, i, i)
-      local wc = word..c
-      if not dict[wc] then
-        local write = dict[word]
-        if not write then
-          return nil
-        end
-        result[n] = write
-        resultlen = resultlen + strlen(write)
-        n = n+1
-        if  len <= resultlen then
-          return "u"..input
-        end
-        local str = wc
-        if a >= 256 then
-          a, b = 0, b+1
-          if b >= 256 then
-            dict = {}
-            b = 1
-          end
-        end
-        dict[str] = strchar(a,b)
-        a = a+1
-        word = c
-      else
-        word = wc
-      end
-    end
-    result[n] = dict[word]
-    resultlen = resultlen+strlen(result[n])
-    n = n+1
-    if  len <= resultlen then
-      return "u"..input
-    end
-    return table.concat(result)
+    return table.concat(out, "\n")
   end
 
+  local function Encode(tbl)
+    return MAGIC .. wrap(C_EncodingUtil.EncodeBase64(
+      C_EncodingUtil.CompressString(
+        C_EncodingUtil.SerializeCBOR(tbl))), 92)
+  end
+
+  local function Decode(text)
+    if not text then return nil end
+    text = gsub(text, "%s", "")
+    if strsub(text, 1, strlen(MAGIC)) ~= MAGIC then return nil end
+    local ok, result = pcall(function()
+      return C_EncodingUtil.DeserializeCBOR(
+        C_EncodingUtil.DecompressString(
+          C_EncodingUtil.DecodeBase64(strsub(text, strlen(MAGIC) + 1))))
+    end)
+    if ok and type(result) == "table" then return result end
+    return nil
+  end
+
+  local function DecodeJSON(text)
+    if not text or gsub(text, "%s", "") == "" then return nil end
+    local ok, result = pcall(function()
+      return C_EncodingUtil.DeserializeJSON(text)
+    end)
+    if ok and type(result) == "table" then return result end
+    return nil
+  end
+
+  -- Legacy import (pre-!pf1! exports): base64 -> LZW -> Lua source
+  -- "pfUI_config = {...}". The base64 layer is standard and handled by
+  -- C_EncodingUtil.DecodeBase64; only the custom LZW format needs the old
+  -- Lua decoder. Import-only — new exports always use the CBOR pipeline.
   local function decompress(input)
     -- based on Rochet2's lzw compression
     if type(input) ~= "string" or strlen(input) < 1 then
@@ -159,92 +144,32 @@ pfUI:RegisterModule("share", function ()
     return table.concat(result)
   end
 
-  local function enc(to_encode)
-    local index_table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-    local bit_pattern = ''
-    local encoded = ''
-    local trailing = ''
+  local function DecodeLegacy(text)
+    if not text or gsub(text, "%s", "") == "" then return nil end
 
-    for i = 1, string.len(to_encode) do
-      local remaining = tonumber(string.byte(string.sub(to_encode, i, i)))
-      local bin_bits = ''
-      for i = 7, 0, -1 do
-        local current_power = math.pow(2, i)
-        if remaining >= current_power then
-          bin_bits = bin_bits .. '1'
-          remaining = remaining - current_power
-        else
-          bin_bits = bin_bits .. '0'
-        end
-      end
-      bit_pattern = bit_pattern .. bin_bits
+    -- encoded blob? peel base64 + LZW down to Lua source. Raw (already
+    -- decoded) source pastes are accepted as-is.
+    local source = text
+    local stripped = gsub(text, "%s", "")
+    local ok, decoded = pcall(function()
+      return C_EncodingUtil.DecodeBase64(stripped)
+    end)
+    if ok and decoded then
+      local decompressed = decompress(decoded)
+      if decompressed then source = decompressed end
     end
 
-    if mod(string.len(bit_pattern), 3) == 2 then
-      trailing = '=='
-      bit_pattern = bit_pattern .. '0000000000000000'
-    elseif mod(string.len(bit_pattern), 3) == 1 then
-      trailing = '='
-      bit_pattern = bit_pattern .. '00000000'
-    end
+    local chunk = loadstring(source)
+    if not chunk then return nil end
 
-    local count = 0
-    for i = 1, string.len(bit_pattern), 6 do
-      local byte = string.sub(bit_pattern, i, i+5)
-      local offset = tonumber(tonumber(byte, 2))
-      encoded = encoded .. string.sub(index_table, offset+1, offset+1)
-      count = count + 1
-      if count >= 92 then
-        encoded = encoded .. "\n"
-        count = 0
-      end
-    end
-
-    return string.sub(encoded, 1, -1 - string.len(trailing)) .. trailing
-  end
-
-  local function dec(to_decode)
-    local index_table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-    local padded = gsub(to_decode,"%s", "")
-    local unpadded = gsub(padded,"=", "")
-    local bit_pattern = ''
-    local decoded = ''
-
-    to_decode = gsub(to_decode,"\n", "")
-    to_decode = gsub(to_decode," ", "")
-
-    for i = 1, string.len(unpadded) do
-      local char = string.sub(to_decode, i, i)
-      local offset, _ = string.find(index_table, char)
-      if offset == nil then return nil end
-
-      local remaining = tonumber(offset-1)
-      local bin_bits = ''
-      for i = 7, 0, -1 do
-        local current_power = math.pow(2, i)
-        if remaining >= current_power then
-          bin_bits = bin_bits .. '1'
-          remaining = remaining - current_power
-        else
-          bin_bits = bin_bits .. '0'
-        end
-      end
-
-      bit_pattern = bit_pattern .. string.sub(bin_bits, 3)
-    end
-
-    for i = 1, string.len(bit_pattern), 8 do
-      local byte = string.sub(bit_pattern, i, i+7)
-      decoded = decoded .. strchar(tonumber(byte, 2))
-    end
-
-    local padding_length = string.len(padded)-string.len(unpadded)
-
-    if (padding_length == 1 or padding_length == 2) then
-      decoded = string.sub(decoded,1,-2)
-    end
-
-    return decoded
+    -- Sandbox the chunk: an empty environment means it can assign its
+    -- config table but can't reach any global or API function — a legacy
+    -- profile string is data, never code.
+    local sandbox = {}
+    setfenv(chunk, sandbox)
+    if not pcall(chunk) then return nil end
+    if type(sandbox.pfUI_config) == "table" then return sandbox.pfUI_config end
+    return nil
   end
 
   do -- Window
@@ -309,33 +234,43 @@ pfUI:RegisterModule("share", function ()
         this:GetParent():UpdateScrollChildRect()
         this:GetParent():UpdateScrollState()
 
-        local _, error = loadstring(f.scroll.text:GetText())
-        if error or string.gsub(this:GetText(), " ", "") == "" then
-          f.loadButton:Disable()
-          f.loadButton.text:SetTextColor(1,.5,.5,1)
-        else
+        local text = this:GetText()
+        local blob = Decode(text)
+        local json = not blob and DecodeJSON(text) or nil
+        local legacy = not blob and not json and DecodeLegacy(text) or nil
+
+        if blob or json or legacy then
           f.loadButton:Enable()
           f.loadButton.text:SetTextColor(.5,1,.5,1)
+        else
+          f.loadButton:Disable()
+          f.loadButton.text:SetTextColor(1,.5,.5,1)
         end
 
-        local trydec = dec(this:GetText())
-        if string.gsub(this:GetText(), " ", "") == "" then
-          f.readButton.text:SetText(T["N/A"])
-          f.readButton:Disable()
-        elseif not trydec or trydec == "" then
-          f.readButton:Enable()
-          f.readButton.text:SetText(T["Encode"])
-          f.readButton.func = function()
-            local compressed = enc(compress(f.scroll.text:GetText()))
-            f.scroll.text:SetText(compressed)
-          end
-        else
+        if blob or legacy then
+          -- decoding a legacy string yields the JSON view; re-encoding it
+          -- from there produces a new-format blob (migration path)
           f.readButton:Enable()
           f.readButton.text:SetText(T["Decode"])
           f.readButton.func = function()
-            local uncompressed = decompress(dec(f.scroll.text:GetText()))
-            f.scroll.text:SetText(uncompressed)
+            local current = f.scroll.text:GetText()
+            local config = Decode(current) or DecodeLegacy(current)
+            if config then
+              f.scroll.text:SetText(C_EncodingUtil.SerializeJSON(config))
+            end
           end
+        elseif json then
+          f.readButton:Enable()
+          f.readButton.text:SetText(T["Encode"])
+          f.readButton.func = function()
+            local config = DecodeJSON(f.scroll.text:GetText())
+            if config then
+              f.scroll.text:SetText(Encode(config))
+            end
+          end
+        else
+          f.readButton:Disable()
+          f.readButton.text:SetText(T["N/A"])
         end
       end)
       f.scroll:SetScrollChild(f.scroll.text)
@@ -387,21 +322,23 @@ pfUI:RegisterModule("share", function ()
       f.loadButton.text:SetFont(pfUI.font_default, pfUI_config.global.font_size, "OUTLINE")
       f.loadButton.text:SetText(T["Import"])
       f.loadButton:SetScript("OnClick", function()
-        local ImportConfig, error = loadstring(f.scroll.text:GetText())
-        if not error and f.scroll.text:GetText() ~= "" then
-          ImportConfig()
-          pfUI:LoadConfig()
+        local text = f.scroll.text:GetText()
+        local config = Decode(text) or DecodeJSON(text) or DecodeLegacy(text)
+        if not config then return end
 
-          -- Skip firstrun wizard when importing a shared profile
-          -- The imported config is a complete setup, no wizard needed
-          if pfUI.firstrun and pfUI.firstrun.steps then
-            for _, step in pairs(pfUI.firstrun.steps) do
-              pfUI_init[step.name] = true
-            end
+        _G.pfUI_config = config
+        C = _G.pfUI_config
+        pfUI:LoadConfig()
+
+        -- Skip firstrun wizard when importing a shared profile
+        -- The imported config is a complete setup, no wizard needed
+        if pfUI.firstrun and pfUI.firstrun.steps then
+          for _, step in pairs(pfUI.firstrun.steps) do
+            pfUI_init[step.name] = true
           end
-
-          CreateQuestionDialog(T["Some settings need to reload the UI to take effect.\nDo you want to reloadUI now?"], ReloadUI)
         end
+
+        CreateQuestionDialog(T["Some settings need to reload the UI to take effect.\nDo you want to reloadUI now?"], ReloadUI)
       end)
     end
 
@@ -445,9 +382,9 @@ pfUI:RegisterModule("share", function ()
         ignored["position"] = f.ignorePosition:GetChecked()
         ignored["disabled"] = f.ignorePosition:GetChecked()
 
-        local compressed = enc(compress(serialize(myconfig, defconfig, "pfUI_config", ignored)))
-        f.scroll.text:SetText(compressed)
-        f.scroll.text.value = compressed
+        local encoded = Encode(DiffConfig(myconfig, defconfig, ignored) or {})
+        f.scroll.text:SetText(encoded)
+        f.scroll.text.value = encoded
         f.scroll:SetVerticalScroll(0)
       end)
     end
