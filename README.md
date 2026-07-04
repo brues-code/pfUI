@@ -1,6 +1,6 @@
 # pfUI - ClassicAPI Edition
 
-[![Turtle WoW](https://img.shields.io/badge/Octo%20WoW-1.18.1-brightgreen.svg)](https://octowow.st/)
+[![Octo WoW](https://img.shields.io/badge/Octo%20WoW-1.18.1-brightgreen.svg)](https://octowow.st/)
 [![ClassicAPI](https://img.shields.io/badge/ClassicAPI-Required-purple.svg)](https://github.com/brues-code/ClassicAPI)
 [![SuperWoW](https://img.shields.io/badge/SuperWoW-Required-purple.svg)](https://github.com/balakethelock/SuperWoW)
 [![Nampower](https://img.shields.io/badge/Nampower-Required-purple.svg)](https://github.com/brues-code/nampower)
