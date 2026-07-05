@@ -150,7 +150,7 @@ pfUI:RegisterSkin("Friends", function ()
     end
 
     -- set positions
-    hooksecurefunc("WhoList_Update", function()
+    pfUI.hooksecurefunc("WhoList_Update", function()
       for i = 1, WHOS_TO_DISPLAY do
         local level = _G["WhoFrameButton"..i.."Level"]
         level:ClearAllPoints()
@@ -231,7 +231,7 @@ pfUI:RegisterSkin("Friends", function ()
     end
 
     -- set positions
-    hooksecurefunc("GuildStatus_Update", function()
+    pfUI.hooksecurefunc("GuildStatus_Update", function()
       for i = 1, GUILDMEMBERS_TO_DISPLAY do
         local level = _G["GuildFrameButton"..i.."Level"]
         level:ClearAllPoints()

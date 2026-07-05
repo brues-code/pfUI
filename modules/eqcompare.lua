@@ -139,7 +139,7 @@ pfUI:RegisterModule("eqcompare", function ()
 
   local function HookTooltip(tooltip)
     for setter, getter in pairs(TooltipHooks) do
-      _G['hooksecurefunc'](tooltip, setter, makeHook(getter))
+      pfUI.hooksecurefunc(tooltip, setter, makeHook(getter))
     end
   end
 

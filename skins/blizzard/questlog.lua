@@ -13,7 +13,7 @@ pfUI:RegisterSkin("Quest Log", function ()
 
       StripTextures(QUEST_COUNT)
       QUEST_COUNT:ClearAllPoints()
-      hooksecurefunc("QuestLogUpdateQuestCount", function(numQuests)
+      pfUI.hooksecurefunc("QuestLogUpdateQuestCount", function(numQuests)
         QUEST_COUNT:ClearAllPoints()
         QUEST_COUNT:SetPoint("BOTTOMRIGHT", QuestLogFrame, "TOPRIGHT", 0, -50)
       end)
@@ -24,7 +24,7 @@ pfUI:RegisterSkin("Quest Log", function ()
       QUEST_COUNT:SetPoint("TOPRIGHT", -10, -30)
     end
 
-    hooksecurefunc("QuestLog_OnShow", function()
+    pfUI.hooksecurefunc("QuestLog_OnShow", function()
       QuestLogFrame:ClearAllPoints()
       QuestLogFrame:SetPoint("TOPLEFT", 10, -104)
     end)
@@ -163,7 +163,7 @@ pfUI:RegisterSkin("Quest Log", function ()
     QuestLogListScrollFrame:SetPoint("TOPLEFT", 10, -54)
     QuestLogListScrollFrame:SetHeight(350)
 
-    hooksecurefunc("QuestLog_Update", function()
+    pfUI.hooksecurefunc("QuestLog_Update", function()
       local numEntries = GetNumQuestLogEntries()
       local questIndex, text, level, questTag, isHeader
 

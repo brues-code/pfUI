@@ -65,14 +65,14 @@ pfUI:RegisterModule("turtle-wow", function ()
 
     HookAddonOrVariable("GroupFrame", function()
       -- After Turtle's own init, hide frames if pfUI handles them
-      hooksecurefunc("GroupFrame_Toggle", function()
+      pfUI.hooksecurefunc("GroupFrame_Toggle", function()
         if pfUIHandlesGroupOrRaid() then
           DisableTurtleGroupFrames()
         end
       end)
 
       -- After every group/raid update, re-hide if pfUI handles them
-      hooksecurefunc("GroupFrame_Update", function()
+      pfUI.hooksecurefunc("GroupFrame_Update", function()
         if pfUIHandlesGroupOrRaid() then
           DisableTurtleGroupFrames()
         end
@@ -353,7 +353,7 @@ pfUI:RegisterModule("turtle-wow", function ()
     local initialized = false
 
     HookAddonOrVariable("Blizzard_InspectUI", function()
-      hooksecurefunc("InspectFrame_Show", function()
+      pfUI.hooksecurefunc("InspectFrame_Show", function()
         -- break if theres nothing left to do
         if initialized then return end
 

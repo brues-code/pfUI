@@ -12,7 +12,7 @@ pfUI:RegisterSkin("Auctionhouse", function ()
       SkinArrowButton(AuctionsNextPageButton, "right", 18)
     end
 
-    hooksecurefunc("AuctionFrame_OnShow", function()
+    pfUI.hooksecurefunc("AuctionFrame_OnShow", function()
       AuctionFrame:ClearAllPoints()
       AuctionFrame:SetPoint("TOPLEFT", 10, -104)
     end)
@@ -76,7 +76,7 @@ pfUI:RegisterSkin("Auctionhouse", function ()
           item:SetPoint("LEFT", 2, 0)
         end
       end
-      hooksecurefunc("AuctionFrameBrowse_Update", function()
+      pfUI.hooksecurefunc("AuctionFrameBrowse_Update", function()
         for i = 1, NUM_BROWSE_TO_DISPLAY do
           HandleIcon(_G["BrowseButton"..i.."Item"], _G["BrowseButton"..i.."ItemIconTexture"])
         end
@@ -145,7 +145,7 @@ pfUI:RegisterSkin("Auctionhouse", function ()
         item:ClearAllPoints()
         item:SetPoint("LEFT", 2, 0)
       end
-      hooksecurefunc("AuctionFrameBid_Update", function()
+      pfUI.hooksecurefunc("AuctionFrameBid_Update", function()
         for i = 1, NUM_BIDS_TO_DISPLAY do
           HandleIcon(_G["BidButton"..i.."Item"], _G["BidButton"..i.."ItemIconTexture"])
         end
@@ -191,14 +191,14 @@ pfUI:RegisterSkin("Auctionhouse", function ()
         item:ClearAllPoints()
         item:SetPoint("LEFT", 2, 0)
       end
-      hooksecurefunc("AuctionFrameAuctions_Update", function()
+      pfUI.hooksecurefunc("AuctionFrameAuctions_Update", function()
         for i = 1, NUM_AUCTIONS_TO_DISPLAY do
           HandleIcon(_G["AuctionsButton"..i.."Item"], _G["AuctionsButton"..i.."ItemIconTexture"])
         end
       end)
 
       SkinButton(AuctionsItemButton)
-      hooksecurefunc("AuctionSellItemButton_OnEvent", function()
+      pfUI.hooksecurefunc("AuctionSellItemButton_OnEvent", function()
         if event ~= "NEW_AUCTION_UPDATE" then return end
         HandleIcon(AuctionsItemButton, AuctionsItemButton:GetNormalTexture())
       end)

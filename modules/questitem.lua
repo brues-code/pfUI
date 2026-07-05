@@ -95,7 +95,7 @@ pfUI:RegisterModule("questitem", function ()
   -- itemref tooltip (chat link clicks): hooksecurefunc runs after SetItemRef
   -- populates ItemRefTooltip, so we just read the item back out of the tooltip
   -- instead of re-parsing the "item:NNN" out of the link string.
-  hooksecurefunc("SetItemRef", function()
+  pfUI.hooksecurefunc("SetItemRef", function()
     if IsModifierKeyDown() then return end
     if ItemRefTooltip:HasItem() then
       local _, _, id = ItemRefTooltip:GetItem()

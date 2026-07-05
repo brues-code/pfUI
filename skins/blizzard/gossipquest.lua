@@ -24,11 +24,11 @@ pfUI:RegisterSkin("Gossip and Quest", function ()
     QuestRewardItemHighlightBG:SetTexture(1,1,1,.2)
     QuestRewardItemHighlightBG:SetAllPoints()
 
-    hooksecurefunc("QuestFrameItems_Update", function()
+    pfUI.hooksecurefunc("QuestFrameItems_Update", function()
       QuestRewardItemHighlight:Hide()
     end)
 
-    hooksecurefunc("QuestRewardItem_OnClick", function()
+    pfUI.hooksecurefunc("QuestRewardItem_OnClick", function()
       if this.type == "choice" then
         QuestRewardItemHighlight:SetAllPoints(this.backdrop)
         QuestRewardItemHighlight:Show()

@@ -136,18 +136,18 @@ pfUI:RegisterSkin("Character", function ()
       end
     end
 
-    hooksecurefunc("CharacterFrame_OnShow", function()
+    pfUI.hooksecurefunc("CharacterFrame_OnShow", function()
       RefreshCharacterSlots()
       RefreshPetPosition()
     end)
 
-    hooksecurefunc("PaperDollItemSlotButton_Update", function()
+    pfUI.hooksecurefunc("PaperDollItemSlotButton_Update", function()
       if this:GetParent() == PaperDollFrame then
         RefreshCharacterSlot(this)
       end
     end)
 
-    hooksecurefunc("PetTab_Update", RefreshPetPosition)
+    pfUI.hooksecurefunc("PetTab_Update", RefreshPetPosition)
 
     StripTextures(PaperDollFrame)
     StripTextures(CharacterAttributesFrame)
@@ -270,7 +270,7 @@ pfUI:RegisterSkin("Character", function ()
     -- the FactionStanding text from `bar.standingText` on mouseout, so we
     -- stash our augmented text there too — otherwise hovering a bar strips
     -- the "(N)" suffix off.
-    hooksecurefunc("ReputationFrame_Update", function()
+    pfUI.hooksecurefunc("ReputationFrame_Update", function()
       if C.character.reputation.repRequired ~= "1" then return end
       local offset = FauxScrollFrame_GetOffset(ReputationListScrollFrame)
       for i = 1, NUM_FACTIONS_DISPLAYED do

@@ -192,7 +192,7 @@ pfUI:RegisterSkin("Profession", function ()
         reagentlabel:SetTextColor(1,1,1,1)
 
         local scanner = libtipscan:GetScanner(name)
-        hooksecurefunc(SetSelection, function(id)
+        pfUI.hooksecurefunc(SetSelection, function(id)
           if id and id ~= 0 then
             detailscroll:Show()
             HandleIcon(icon, icon:GetNormalTexture())

@@ -125,13 +125,13 @@ pfUI:RegisterModule("mapcolors", function ()
 
   -- WorldMap
   Initialize('WorldMap')
-  hooksecurefunc('WorldMapButton_OnUpdate', function()
+  pfUI.hooksecurefunc('WorldMapButton_OnUpdate', function()
     if ( this.tick or .5) > GetTime() then return else this.tick = GetTime() + .5 end
     UpdateUnitFrames('WorldMap')
   end)
 
   if C.appearance.worldmap.colornames == "1" then
-    hooksecurefunc('WorldMapUnit_OnEnter', function()
+    pfUI.hooksecurefunc('WorldMapUnit_OnEnter', function()
       if ( this.tick or .5) > GetTime() then return else this.tick = GetTime() + .5 end
       UpdateUnitColors('WorldMap', WorldMapTooltip)
     end)
@@ -141,13 +141,13 @@ pfUI:RegisterModule("mapcolors", function ()
   HookAddonOrVariable("Blizzard_BattlefieldMinimap", function()
     Initialize('BattlefieldMinimap')
 
-    hooksecurefunc('BattlefieldMinimap_OnUpdate', function()
+    pfUI.hooksecurefunc('BattlefieldMinimap_OnUpdate', function()
       if ( this.tick or .5) > GetTime() then return else this.tick = GetTime() + .5 end
       UpdateUnitFrames('BattlefieldMinimap')
     end)
 
     if C.appearance.worldmap.colornames == "1" then
-      hooksecurefunc('BattlefieldMinimapUnit_OnEnter', function()
+      pfUI.hooksecurefunc('BattlefieldMinimapUnit_OnEnter', function()
         if ( this.tick or .5) > GetTime() then return else this.tick = GetTime() + .5 end
         UpdateUnitColors('BattlefieldMinimap', GameTooltip)
       end)

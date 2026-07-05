@@ -38,12 +38,12 @@ pfUI:RegisterSkin("Readycheck", function ()
     frame.bar.text:SetPoint("CENTER", 0, 0)
 
     local max
-    hooksecurefunc("ShowReadyCheck", function()
+    pfUI.hooksecurefunc("ShowReadyCheck", function()
       max = ReadyCheckFrame.timer
       frame.bar:SetMinMaxValues(0, max)
     end)
 
-    hooksecurefunc(update_func, function()
+    pfUI.hooksecurefunc(update_func, function()
       if not ReadyCheckFrame.timer then return end
 
       local perc = ReadyCheckFrame.timer/max

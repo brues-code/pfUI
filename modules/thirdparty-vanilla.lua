@@ -530,7 +530,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
     end
 
     -- replace wim class colors with pfUI ones
-    hooksecurefunc("WIM_InitClassProps", function()
+    pfUI.hooksecurefunc("WIM_InitClassProps", function()
       for class in pairs(PFUI_CLASS_COLORS) do
         local wimclass = _G[format("WIM_LOCALIZED_%s",class)]
         local colorstr = "|c" .. PFUI_CLASS_COLORS[class].colorStr
@@ -547,7 +547,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
       btnClose:SetWidth(13)
       btnClose:SetHeight(13)
     end
-    hooksecurefunc("WIM_Icon_DropDown_Update", function()
+    pfUI.hooksecurefunc("WIM_Icon_DropDown_Update", function()
       for i=1,_G.WIM_MaxMenuCount do
         local btn = _G["WIM_ConversationMenuTellButton"..i]
         if i==1 and btn:IsEnabled() == 0 then return end
@@ -729,7 +729,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
       SkinScrollbar(WIM_HelpScrollFrameScrollBar)
     end
 
-    hooksecurefunc("WIM_WindowOnShow", function()
+    pfUI.hooksecurefunc("WIM_WindowOnShow", function()
       if this.backdrop then return end -- already skinned
 
       local windowname = this:GetName()
@@ -904,7 +904,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
     end
 
     -- trigger the event whenever SuperMacro got an update
-    hooksecurefunc("SM_UpdateActionSpell", function()
+    pfUI.hooksecurefunc("SM_UpdateActionSpell", function()
       for slot=1,120 do pfUI.bars.update[slot] = true end
     end)
   end)
@@ -922,7 +922,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
     pfUI.bars.skip_macro = true
 
     -- send clevermacro events to pfUI actionbars
-    hooksecurefunc("ActionButton_OnEvent", function(event)
+    pfUI.hooksecurefunc("ActionButton_OnEvent", function(event)
       events(this, event)
     end)
   end)

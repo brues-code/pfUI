@@ -99,7 +99,6 @@ pfUI.skins = {}
 pfUI.environment = {}
 pfUI.movables = {}
 pfUI.version = {}
-pfUI.hooks = {}
 pfUI.env = {}
 
 pfUI.events = Mixin({}, CallbackRegistryMixin)

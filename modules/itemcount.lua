@@ -41,7 +41,7 @@ pfUI:RegisterModule("itemcount", function ()
     end
   end)
 
-  hooksecurefunc("SetItemRef", function()
+  pfUI.hooksecurefunc("SetItemRef", function()
     if ItemRefTooltip:HasItem() then
       local _, _, id = ItemRefTooltip:GetItem()
       if id then AddCounts(ItemRefTooltip, id) end
