@@ -312,16 +312,6 @@ local function GetComboPointData(spellName)
   return nil, nil
 end
 
--- Player GUID Cache
-local playerGUID = nil
-local function GetPlayerGUID()
-  if not playerGUID and UnitGUID then
-    local guid = UnitGUID("player")
-    playerGUID = guid
-  end
-  return playerGUID
-end
-
 -- Debug Stats
 pfUI.libdebuff_debugstats = pfUI.libdebuff_debugstats or {
   enabled = false,
@@ -461,7 +451,7 @@ local function GetSlotCaster(guid, auraSlot, spellName)
   end
   
   -- Fallback: Check ownDebuffs
-  local myGuid = GetPlayerGUID()
+  local myGuid = GetPlayerGuid()
   if ownDebuffs[guid] and ownDebuffs[guid][spellName] then
     return myGuid, true
   end
@@ -798,7 +788,7 @@ function libdebuff:GetBestAuraCast(guid, spellName)
     local data = ownDebuffs[guid][spellName]
     local timeleft = (data.startTime + data.duration) - GetTime()
     if timeleft > 0 then
-      return data.startTime, data.duration, timeleft, data.rank, GetPlayerGUID()
+      return data.startTime, data.duration, timeleft, data.rank, GetPlayerGuid()
     end
   end
   
@@ -834,7 +824,7 @@ function libdebuff:GetEnhancedDebuffs(targetGUID)
   local result = {}
   
   if ownDebuffs[targetGUID] then
-    local myGuid = GetPlayerGUID()
+    local myGuid = GetPlayerGuid()
     for spellName, data in pairs(ownDebuffs[targetGUID]) do
       local timeleft = (data.startTime + data.duration) - GetTime()
       if timeleft > 0 then
@@ -883,7 +873,7 @@ if hasNampower then
       -- Carnage triggered! Refresh Rip & Rake
       local guid = carnageState.targetGuid
       local refreshTime = GetTime()
-      local myGuid = GetPlayerGUID()
+      local myGuid = GetPlayerGuid()
       
       -- Refresh in ownDebuffs - only if timer still active
       if ownDebuffs[guid] then
@@ -976,14 +966,8 @@ if hasNampower then
           end
         end
       end
-
-    elseif event == "PLAYER_ENTERING_WORLD" then
-      GetPlayerGUID()
+    elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_TALENT_UPDATE" then
       UpdateCarnageRank()
-      
-    elseif event == "PLAYER_TALENT_UPDATE" then
-      UpdateCarnageRank()
-      
     elseif event == "UNIT_HEALTH" then
       local guid = arg1
       if guid and UnitIsDead and UnitIsDead(guid) then
@@ -1078,7 +1062,7 @@ if hasNampower then
         local selfdebuffMode = pfUI_config and pfUI_config.buffbar and
           pfUI_config.buffbar.tdebuff and pfUI_config.buffbar.tdebuff.selfdebuff == "1"
         if selfdebuffMode then
-          local myGuid2 = GetPlayerGUID()
+          local myGuid2 = GetPlayerGuid()
           if casterGuid == myGuid2 then
             local duration = libdebuff:GetDuration(spellName, castRank) or 0
             if duration > 0 then
@@ -1108,7 +1092,7 @@ if hasNampower then
       end
       
       -- Store rank for our casts
-      local myGuid = GetPlayerGUID()
+      local myGuid = GetPlayerGuid()
       if casterGuid == myGuid then
         lastCastRanks[spellName] = {
           rank = castRank,
@@ -1233,7 +1217,7 @@ if hasNampower then
       
       local duration = durationMs and (durationMs / 1000) or 0
       local startTime = GetTime()
-      local myGuid = GetPlayerGUID()
+      local myGuid = GetPlayerGuid()
       local isOurs = (myGuid and casterGuid == myGuid)
       
       if debugStats.enabled and isOurs then
@@ -1365,15 +1349,12 @@ if hasNampower then
       
         -- Notify unitframes of debuff updates (UNIT_AURA doesn't fire on refreshes!)
         -- Check player
-        if UnitGUID("player") then
-          local playerGuid = UnitGUID("player")
-          if playerGuid == targetGuid and pfPlayer then
-            pfPlayer.update_aura = true
-          end
+        if IsPlayerGuid(targetGuid) and pfPlayer then
+          pfPlayer.update_aura = true
         end
         
         -- Check target
-        if UnitGUID("target") then
+        if UnitExists("target") then
           local tarUnitGUID = UnitGUID("target")
           if tarUnitGUID == targetGuid and pfTarget then
             pfTarget.update_aura = true
@@ -1520,7 +1501,7 @@ if hasNampower then
         end
       end
       
-      local myGuid = GetPlayerGUID()
+      local myGuid = GetPlayerGuid()
       local isOurs = (myGuid and casterGuid == myGuid)
       
       -- Fallback: Check ownDebuffs timing
@@ -1555,7 +1536,7 @@ if hasNampower then
       -- CRITICAL FIX: Update ownDebuffs here too for refresh timing!
       -- This prevents the gap between DEBUFF_REMOVED and AURA_CAST where buffwatch shows nothing
       if isOurs and casterGuid then
-        local myGuid = GetPlayerGUID()
+        local myGuid = GetPlayerGuid()
         if myGuid and casterGuid == myGuid then
           -- Check if we have timer data from allAuraCasts
           if allAuraCasts[guid] and allAuraCasts[guid][spellName] and allAuraCasts[guid][spellName][casterGuid] then

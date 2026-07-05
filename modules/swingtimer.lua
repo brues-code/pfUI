@@ -32,7 +32,6 @@ pfUI:RegisterModule("swingtimer", function ()
     isDruid = false,
     cachedHSSlots = {}, cachedCleaveSlots = {},
     useSpellQueueEvent = false,
-    playerGUID = nil,
     swingThrottle = 0,
     onSwingCache = {},
   }
@@ -832,8 +831,7 @@ pfUI:RegisterModule("swingtimer", function ()
     elseif event == "AUTO_ATTACK_OTHER" then
       -- Parry haste: enemy attacked the player and player parried
       local targetGuid = arg2
-      if not targetGuid or not S.playerGUID then return end
-      if targetGuid ~= S.playerGUID then return end
+      if not targetGuid or not IsPlayerGuid(targetGuid) then return end
       local victimState = arg5 or 0
       -- VICTIMSTATE_PARRY = 3
       -- Vanilla: parry reduces the NEXT swing timer by 40% of weapon speed,
@@ -880,7 +878,6 @@ pfUI:RegisterModule("swingtimer", function ()
       local _, class = UnitClass("player")
       S.isWarrior  = (class == "WARRIOR")
       S.isDruid    = (class == "DRUID")
-      S.playerGUID = UnitGUID("player")
       UpdateWeaponSpeeds()
       RebuildQueueSlotCache()
 
@@ -910,7 +907,7 @@ pfUI:RegisterModule("swingtimer", function ()
       S.maulQueued   = false
 
     elseif event == "UNIT_DIED" then
-      if arg1 and arg1 == S.playerGUID then
+      if IsPlayerGuid(arg1) then
         ResetAll()
       end
     end
