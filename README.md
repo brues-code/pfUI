@@ -23,11 +23,19 @@ Since pfUI 6.0.0 includes integrations with client-side DLLs for enhanced functi
 ### [ClassicAPI](https://github.com/brues-code/ClassicAPI)
 
 Provides:
+- C_NamePlate - Event-driven nameplates (no more per-frame WorldFrame scanning) with real per-plate unit tokens and GUIDs
 - C_UnitAuras - Replaces over 3k lines of hand-rolled aura tracking
 - C_Spell - Replaces thousands of hardcoded spell names for each locale and powers castbar
-- Instant Bag Sorting
-- C_EquipmentSet
-- Focus
+- Real cast bars - Actual cast/channel timing, spellID and interrupt state for any unit (C_Spell.UnitCastingInfo)
+- Focus - A genuine `focus` unit plus `/focus` and `/clearfocus` (FocusUnit / ClearFocus)
+- C_EquipmentSet - Full Equipment Manager with GUID-tracked gear sets (tells apart duplicate/enchanted items)
+- Instant Bag Sorting - C_Container.MoveItem / SwapItems instead of cursor pickup/drop
+- Sell junk in one call - C_MerchantFrame.GetNumJunkItems / SellAllJunkItems
+- Real item data - C_Item counts, quality, sell price and item info by ID
+- GUID-based targeting - Nameplates, mouseover and focus resolve by GUID, not by name text
+- Faster, safer profile sharing - Engine-side serialize/compress/base64 via C_EncodingUtil
+- C_Timer - After / NewTicker replacing hand-rolled OnUpdate throttles
+- Feign death, shapeshift and quest-item detection via real API calls
 - Plenty other functions
 
 ### [SuperWoW](https://github.com/balakethelock/SuperWoW)
