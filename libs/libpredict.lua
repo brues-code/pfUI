@@ -818,7 +818,7 @@ local hotsetbonus = libtipscan:GetScanner("hotsetbonus")
 resetcache:RegisterEvent("PLAYER_ENTERING_WORLD")
 resetcache:RegisterEvent("LEARNED_SPELL_IN_TAB")
 resetcache:RegisterEvent("CHARACTER_POINTS_CHANGED")
-resetcache:RegisterEvent("UNIT_INVENTORY_CHANGED")
+resetcache:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 resetcache:SetScript("OnEvent", function()
   if event == "PLAYER_ENTERING_WORLD" then
     -- load and initialize previous caches of spell amounts
@@ -829,10 +829,7 @@ resetcache:SetScript("OnEvent", function()
     cache = pfUI_cache["prediction"][realm][player]["heals"]
   end
 
-  if event == "UNIT_INVENTORY_CHANGED" or "PLAYER_ENTERING_WORLD" then
-    -- skip non-player events
-    if arg1 and arg1 ~= "player" then return end
-
+  if event == "PLAYER_EQUIPMENT_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
     local gear = ""
     for id = 1, 18 do
       gear = gear .. (GetInventoryItemLink("player",id) or "")

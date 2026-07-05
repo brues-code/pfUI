@@ -1014,7 +1014,7 @@ function pfUI.uf.OnEvent()
     -- Raid frames: update_full is set by raid.lua GUID tracker
   elseif this.label == "pet" and event == "UNIT_PET" then
     this.update_full = true
-  elseif this.label == "player" and (event == "PLAYER_AURAS_CHANGED" or event == "UNIT_INVENTORY_CHANGED") then
+  elseif this.label == "player" and (event == "PLAYER_AURAS_CHANGED" or event == "PLAYER_EQUIPMENT_CHANGED") then
     this.update_aura = true
   elseif this.label == "pet" and event == "UNIT_HAPPINESS" then
     this.update_full = true
@@ -1552,7 +1552,7 @@ function pfUI.uf:EnableEvents()
   f:RegisterEvent("UNIT_FACTION")
   f:RegisterEvent("UNIT_AURA") -- frame=buff, frame=debuff
   f:RegisterEvent("PLAYER_AURAS_CHANGED") -- label=player && frame=buff
-  f:RegisterEvent("UNIT_INVENTORY_CHANGED") -- label=player && frame=buff
+  f:RegisterEvent("PLAYER_EQUIPMENT_CHANGED") -- label=player && frame=buff (ClassicAPI: weapon-enchant buffs)
   f:RegisterEvent("PARTY_MEMBERS_CHANGED") -- label=party, frame=leaderIcon
   f:RegisterEvent("PARTY_LEADER_CHANGED") -- frame=leaderIcon
   f:RegisterEvent("RAID_ROSTER_UPDATE") -- label=raidIcon

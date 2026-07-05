@@ -1536,7 +1536,6 @@ if hasNampower then
       -- CRITICAL FIX: Update ownDebuffs here too for refresh timing!
       -- This prevents the gap between DEBUFF_REMOVED and AURA_CAST where buffwatch shows nothing
       if isOurs and casterGuid then
-        local myGuid = GetPlayerGuid()
         if myGuid and casterGuid == myGuid then
           -- Check if we have timer data from allAuraCasts
           if allAuraCasts[guid] and allAuraCasts[guid][spellName] and allAuraCasts[guid][spellName][casterGuid] then

@@ -788,7 +788,7 @@ pfUI:RegisterModule("swingtimer", function ()
   events:RegisterEvent("AUTO_ATTACK_SELF")
   events:RegisterEvent("AUTO_ATTACK_OTHER")
   events:RegisterEvent("PLAYER_ENTERING_WORLD")
-  events:RegisterEvent("UNIT_INVENTORY_CHANGED")
+  events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")  -- ClassicAPI: per-slot, equipment-only
   events:RegisterEvent("PLAYER_REGEN_DISABLED")
   events:RegisterEvent("PLAYER_REGEN_ENABLED")
   events:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
@@ -881,8 +881,9 @@ pfUI:RegisterModule("swingtimer", function ()
       UpdateWeaponSpeeds()
       RebuildQueueSlotCache()
 
-    elseif event == "UNIT_INVENTORY_CHANGED" then
-      if arg1 and arg1 ~= "player" then return end
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" then
+      -- arg1 = changed slot; only weapon slots (main/off/ranged) affect swing speed
+      if not INVSLOTS_EQUIPABLE_IN_COMBAT[arg1] then return end
       UpdateWeaponSpeeds()
       if S.ohSpeed == 0 then
         S.ohActive = false

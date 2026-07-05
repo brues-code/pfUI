@@ -424,7 +424,8 @@ pfUI:RegisterModule("panel", function()
       widget:RegisterEvent("PLAYER_REGEN_ENABLED")
       widget:RegisterEvent("PLAYER_DEAD")
       widget:RegisterEvent("PLAYER_UNGHOST")
-      widget:RegisterEvent("UNIT_INVENTORY_CHANGED")
+      widget:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")   -- ClassicAPI: equip/unequip changes total durability
+      widget:RegisterEvent("UPDATE_INVENTORY_DURABILITY") -- ClassicAPI: combat wear / repair
 
       widget.Click = function() ToggleCharacter("PaperDollFrame") end
       widget.Tooltip = function()
@@ -456,8 +457,6 @@ pfUI:RegisterModule("panel", function()
         end
       end
       widget:SetScript("OnEvent", function()
-        if event == "UNIT_INVENTORY_CHANGED" and arg1 ~= "player" then return end
-
         local totalCurr, totalMax = 0, 0
         for id = INVSLOT_FIRST_EQUIPPED, INVSLOT_LAST_EQUIPPED do
           local cur, max = GetInventoryItemDurability(id)

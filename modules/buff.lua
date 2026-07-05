@@ -159,7 +159,7 @@ pfUI:RegisterModule("buff", function ()
 
   pfUI.buff = CreateFrame("Frame", "pfGlobalBuffFrame", UIParent)
   pfUI.buff:RegisterEvent("PLAYER_AURAS_CHANGED")
-  pfUI.buff:RegisterEvent("UNIT_INVENTORY_CHANGED")
+  pfUI.buff:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
   pfUI.buff:RegisterEvent("UNIT_MODEL_CHANGED")
   pfUI.buff:RegisterEvent("BUFF_UPDATE_DURATION_SELF")
   pfUI.buff:RegisterEvent("DEBUFF_UPDATE_DURATION_SELF")
