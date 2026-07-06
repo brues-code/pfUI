@@ -8,9 +8,9 @@ pfUI:RegisterModule("easteregg", function ()
     local pvpking = CreateFrame("Frame", "pfPvPKing", UIParent)
     pvpking:Hide()
 
-    pvpking:RegisterEvent("CHAT_MSG_SYSTEM")
+    pvpking:RegisterEvent("PLAYER_FLAGS_CHANGED")
     pvpking:SetScript("OnEvent", function()
-      if strfind(arg1, "You are now", 1) and strfind(arg1, "(AFK)", 1) then
+      if UnitIsAFK('player') then
         _G.CHAT_FLAG_AFK = title .. " "
         this.time = GetTime()
         this:Show()
@@ -61,14 +61,13 @@ pfUI:RegisterModule("easteregg", function ()
     end)
 
     -- trigger fireworks when being AFK
-    fireworks:RegisterEvent("CHAT_MSG_SYSTEM")
+    fireworks:RegisterEvent("PLAYER_FLAGS_CHANGED")
     fireworks:SetScript("OnEvent", function()
-      if strfind(arg1, _G.MARKED_AFK) or strfind(arg1, _G.MARKED_AFK_MESSAGE) then
+      local isAFK = UnitIsAFK('player')
+      if isAFK then
         this:SetAlpha(0)
-        this:Show()
-      elseif strfind(arg1, _G.CLEARED_AFK) then
-        this:Hide()
       end
+      this:SetShown(isAFK)
     end)
 
     -- basic explosion animation

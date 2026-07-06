@@ -1,5 +1,4 @@
 pfUI:RegisterModule("afkcam", function ()
-  local MARKED_AFK_CAPTURE = SanitizePattern(MARKED_AFK_MESSAGE)
   local social_chats = {
     "CHAT_MSG_SAY",
     "CHAT_MSG_WHISPER",
@@ -165,11 +164,10 @@ pfUI:RegisterModule("afkcam", function ()
   end)
 
   afkcam:SetScript("OnEvent", function()
-    if event == "CHAT_MSG_SYSTEM" then
-      if (arg1 == _G.MARKED_AFK) or strfind(arg1, MARKED_AFK_CAPTURE) then
-        delay:Show()
-      elseif (arg1 == _G.CLEARED_AFK) then
-        delay:Hide()
+    if event == "PLAYER_FLAGS_CHANGED" then
+      local isAFK = UnitIsAFK('player')
+      delay:SetShown(isAFK)
+      if not isAFK then
         this:stop()
       end
     else
@@ -180,7 +178,7 @@ pfUI:RegisterModule("afkcam", function ()
     end
   end)
 
-  afkcam:RegisterEvent("CHAT_MSG_SYSTEM")
+  afkcam:RegisterEvent("PLAYER_FLAGS_CHANGED")
   afkcam:RegisterEvent("PLAYER_REGEN_DISABLED")
   afkcam:RegisterEvent("PLAYER_LEAVING_WORLD") -- reseting cvars on PLAYER_LOGOUT crashes the client ¯\_(ツ)_/¯
 end)
