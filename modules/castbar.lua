@@ -241,7 +241,10 @@ pfUI:RegisterModule("castbar", function ()
         return
       end
 
-      if not this.endTime then return end
+      if not this.endTime then
+        if this:GetAlpha() ~= 0 then this:SetAlpha(0) end
+        return
+      end
 
       -- Non-player bars: if the unit disappears (target died / detarget),
       -- drop the bar immediately.
