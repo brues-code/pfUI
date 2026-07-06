@@ -5,7 +5,7 @@ pfUI:RegisterModule("xpbar", function ()
   local REST_WINDOW = 300    -- seconds of sliding-window samples for rate calc
 
   local REST_CAP_MUL = 1.5   -- target rested cap = UnitXPMax * 1.5
-  if IsTurtleWoW() then
+  if TURTLE_WOW_VERSION then
     REST_CAP_MUL = 1.13
   end
 

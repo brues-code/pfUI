@@ -1,5 +1,5 @@
 -- skip module initialization on every other client than turtle-wow
-if not TargetHPText or not TargetHPPercText then return end
+if not TURTLE_WOW_VERSION then return end
 
 pfUI:RegisterModule("turtle-wow", function ()
   -- Manage Turtle WoW's GroupUI (Turtle_GroupUI addon) vs pfUI frames.
@@ -85,64 +85,6 @@ pfUI:RegisterModule("turtle-wow", function ()
   L["debuffs"]['Insect Swarm'] = {[0]=18.0}
   L["debuffs"]['Moonfire'] = {[1]=9.0,[2]=18.0,[3]=18.0,[4]=18.0,[5]=18.0,[6]=18.0,[7]=18.0,[8]=18.0,[9]=18.0,[10]=18.0,[0]=18.0}
   L["debuffs"]['Deep Wound'] = {[0]=6.0}
-
-  -- add custom spell logic to libdebuff
-  HookScript(libdebuff, "OnEvent", function()
-    if event == "CHAT_MSG_SPELL_SELF_DAMAGE" then
-      -- refresh paladin judgements on holy strike
-      -- taken from: https://github.com/doorknob6/pfUI-turtle/blob/master/modules/debuffs.lua
-      local holystrike = string.find(string.sub(arg1,6,17), "Holy Strike")
-      --arg2 is spell dmg when it hits, nil when it misses
-      if holystrike and arg2 then
-        for seal in L["judgements"] do
-          local name = UnitName("target")
-          local level = UnitLevel("target")
-          if name and libdebuff.objects[name] then
-            if level and
-              libdebuff.objects[name][level] and
-              libdebuff.objects[name][level][seal] then
-              libdebuff:AddEffect(name, level, seal)
-            elseif libdebuff.objects[name][0] and
-              libdebuff.objects[name][0][seal] then
-              libdebuff:AddEffect(name, 0, seal)
-            end
-          end
-        end
-      end
-
-      -- refresh rip and rake duration on ferocious bite (Turtle WoW feature)
-      -- Only refresh if Ferocious Bite actually hit (not missed/dodged/parried/etc.)
-      local match = string.find(arg1, "Ferocious Bite")
-      if match and arg2 and not libdebuff:DidSpellFail("Ferocious Bite") then
-        local name = UnitName("target")
-        local level = UnitLevel("target")
-        
-        -- Refresh Rip mit existierender Duration
-        if libdebuff.objects[name] and libdebuff.objects[name][level] and libdebuff.objects[name][level]["Rip"] then
-          local existingDuration = libdebuff.objects[name][level]["Rip"].duration
-          libdebuff:AddEffect(name, level, "Rip", existingDuration)
-        end
-        
-        -- Refresh Rake mit existierender Duration
-        if libdebuff.objects[name] and libdebuff.objects[name][level] and libdebuff.objects[name][level]["Rake"] then
-          local existingDuration = libdebuff.objects[name][level]["Rake"].duration
-          libdebuff:AddEffect(name, level, "Rake", existingDuration)
-        end
-      end
-
-      -- refresh Immolate duration after cast Conflagrate
-      -- Only refresh if Conflagrate actually hit
-      local conflagrate = string.find(string.sub(arg1,6,17), "Conflagrate")
-      if conflagrate and arg2 and not libdebuff:DidSpellFail("Conflagrate") then
-        local name = UnitName("target")
-        local level = UnitLevel("target")
-        if libdebuff.objects[name] and libdebuff.objects[name][level] and libdebuff.objects[name][level]["Immolate"] then
-          local duration = libdebuff.objects[name][level]["Immolate"].duration
-          libdebuff:UpdateDuration(name, level, "Immolate", duration - 3)
-        end
-      end
-    end
-  end)
 
   -- turtle wow totemic recall clear totem indicators
   local _, class = UnitClass("player")

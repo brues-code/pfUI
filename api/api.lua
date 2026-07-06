@@ -28,10 +28,6 @@ function pfUI.api.HasNampower()
   return GetNampowerVersion and true or false
 end
 
-function pfUI.api.IsTurtleWoW()
-  return C_Spell.GetSpellTexture(46050) == "Interface\\Icons\\Trade_Survival"
-end
-
 -- [ GetUnitDistance ]
 -- Returns distance to unit using best available method
 -- 'unit1'    [string]    first unit (default: "player")

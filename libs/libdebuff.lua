@@ -14,7 +14,7 @@ setfenv(1, pfUI:GetEnvironment())
 -- The public per-aura readers (UnitDebuff, UnitOwnDebuff) were retired in favor
 -- of ClassicAPI's C_UnitAuras (which now provides sourceUnit/sourceGUID and
 -- non-player expirationTime). What remains in libdebuff is the cast-event
--- bookkeeping consumed by GetBestAuraCast / GetEnhancedDebuffs and the
+-- bookkeeping consumed by GetBestAuraCast (libpredict HoT tracking) and the
 -- libdebuff_*_hooks broadcast surface (subscribers in actionbar / swingtimer
 -- / libtotem react to SPELL_GO and SPELL_FAILED).
 
@@ -43,13 +43,7 @@ if GetNampowerVersion then
   end
 end
 
--- Nampower startup check: show version info and ensure CVars are set.
--- Runs the frame after PLAYER_ENTERING_WORLD so Nampower has finished initializing.
-local nampowerCheckFrame = CreateFrame("Frame")
-nampowerCheckFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-nampowerCheckFrame:SetScript("OnEvent", function()
-  this:UnregisterAllEvents()
-  this:SetScript("OnEvent", nil)
+EventUtil.ContinueOnPlayerLogin(function()
   RunNextFrame(function()
 
     if GetNampowerVersion then
@@ -58,8 +52,6 @@ nampowerCheckFrame:SetScript("OnEvent", function()
       local versionString = major .. "." .. minor .. "." .. patch
 
       if major > 3 or (major == 3 and minor > 0) or (major == 3 and minor == 0 and patch >= 0) then
-        DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[libdebuff]|r Nampower v" .. versionString .. " detected - GetUnitField mode enabled!")
-
         if SetCVar and GetCVar then
           local cvarsToEnable = {
             "NP_EnableSpellStartEvents",
@@ -89,8 +81,6 @@ nampowerCheckFrame:SetScript("OnEvent", function()
 
           if enabledCount > 0 then
             DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[libdebuff]|r Enabled " .. enabledCount .. " Nampower CVars")
-          elseif alreadyEnabledCount == table.getn(cvarsToEnable) then
-            DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[libdebuff]|r All required Nampower CVars already enabled")
           end
           if failedCount > 0 then
             DEFAULT_CHAT_FRAME:AddMessage("|cffffcc00[libdebuff]|r Warning: Could not check/set " .. failedCount .. " CVars")
@@ -202,10 +192,6 @@ pfUI.libdebuff_spell_cast_hooks = pfUI.libdebuff_spell_cast_hooks or {}
 pfUI.libdebuff_downrank_blocked_hooks = pfUI.libdebuff_downrank_blocked_hooks or {}
 local AURA_CAST_DEDUPE_WINDOW = 0.1  -- Ignore duplicates within 100ms
 
--- Captured combo points from SPELL_CAST_EVENT (before client consumes them)
--- SPELL_CAST_EVENT fires BEFORE UnitAura updates, so GetComboPoints() still works
-local capturedCP = nil
-
 -- Pending cast info for libpredict (heal prediction target tracking)
 -- SPELL_CAST_EVENT fires with targetGuid BEFORE SPELLCAST_START,
 -- which allows libpredict to know the correct target for queued casts.
@@ -278,39 +264,9 @@ local debuffOverwritePairs = {
   ["Demoralizing Roar"] = "Demoralizing Shout",
 }
 
--- Combopoint-based abilities: Only show timers for OUR casts
--- Format: [spellName] = { base = N, perCP = N }
--- Duration formula: duration = base + combopoints * perCP
-local combopointAbilities = {
-  -- Druid
-  ["Rip"]          = { base = 8,  perCP = 2 },
-
-  -- Rogue
-  ["Rupture"]      = { base = 6,  perCP = 2 },
-  ["Kidney Shot"]  = { base = 1,  perCP = 1 },
-  ["Slice and Dice"] = { base = 9, perCP = 3 },
-  ["Expose Armor"] = { base = 30, perCP = 0 },  -- fixed 30s
-}
-
 -- ============================================================================
 -- HELPER FUNCTIONS
 -- ============================================================================
-
--- Check if spell is a combo-point ability
-local function IsComboPointAbility(spellName)
-  if not spellName then return false end
-  return combopointAbilities[spellName] ~= nil
-end
-
--- Get combo-point spell data (base duration and per-CP bonus)
-local function GetComboPointData(spellName)
-  if not spellName then return nil, nil end
-  local cpData = combopointAbilities[spellName]
-  if cpData then
-    return cpData.base, cpData.perCP
-  end
-  return nil, nil
-end
 
 -- Debug Stats
 pfUI.libdebuff_debugstats = pfUI.libdebuff_debugstats or {
@@ -642,16 +598,7 @@ function libdebuff:GetDuration(effect, rank)
     local rank = L["debuffs"][effect][rank] and rank or libdebuff:GetMaxRank(effect)
     local duration = L["debuffs"][effect][rank]
 
-    if effect == L["dyndebuffs"]["Rupture"] then
-      local cp = GetComboPoints() or 0
-      duration = duration + cp*2
-    elseif effect == L["dyndebuffs"]["Kidney Shot"] then
-      local cp = GetComboPoints() or 0
-      duration = duration + cp*1
-    elseif effect == "Rip" or effect == L["dyndebuffs"]["Rip"] then
-      local cp = GetComboPoints() or 0
-      duration = 8 + cp*2
-    elseif effect == L["dyndebuffs"]["Demoralizing Shout"] then
+    if effect == L["dyndebuffs"]["Demoralizing Shout"] then
       local _,_,_,_,count = GetTalentInfo(2,1)
       if count and count > 0 then duration = duration + ( duration / 100 * (count*10)) end
     elseif effect == L["dyndebuffs"]["Shadow Word: Pain"] then
@@ -813,33 +760,6 @@ function libdebuff:GetBestAuraCast(guid, spellName)
   end
   
   return nil
-end
-
--- ============================================================================
--- API: GetEnhancedDebuffs (for external modules)
--- ============================================================================
-
-function libdebuff:GetEnhancedDebuffs(targetGUID)
-  if not targetGUID then return nil end
-  local result = {}
-  
-  if ownDebuffs[targetGUID] then
-    local myGuid = GetPlayerGuid()
-    for spellName, data in pairs(ownDebuffs[targetGUID]) do
-      local timeleft = (data.startTime + data.duration) - GetTime()
-      if timeleft > 0 then
-        result[spellName] = result[spellName] or {}
-        result[spellName][myGuid] = {
-          startTime = data.startTime,
-          duration = data.duration,
-          texture = data.texture,
-          rank = data.rank
-        }
-      end
-    end
-  end
-  
-  return result
 end
 
 -- ============================================================================
@@ -1165,11 +1085,6 @@ if hasNampower then
         pfUI.libpredict_pending_cast.time = nil
       end
       
-      -- Only capture CPs for combo-point abilities
-      if spellName and IsComboPointAbility(spellName) then
-        capturedCP = GetComboPoints() or 0
-      end
-
       -- Fire registered SPELL_CAST_EVENT hooks
       if pfUI.libdebuff_spell_cast_hooks then
         for _, fn in pairs(pfUI.libdebuff_spell_cast_hooks) do
@@ -1224,30 +1139,10 @@ if hasNampower then
         debugStats.aura_cast = debugStats.aura_cast + 1
       end
       
-      -- Combo-point abilities: Calculate duration based on CPs used
-      if IsComboPointAbility(spellName) then
-        if isOurs then
-          -- OWN casts: use captured CPs from SPELL_CAST_EVENT (if available)
-          local cp = capturedCP or 0
-          local base, perCP = GetComboPointData(spellName)
-          if base and perCP then
-            duration = base + cp * perCP
-          else
-            -- Fallback to legacy database
-            duration = libdebuff:GetDuration(spellName, rankNum)
-          end
-          capturedCP = nil  -- consumed
-        else
-          -- OTHER players: CP unknown, no timer (except Expose Armor = fixed 30s)
-          local base, perCP = GetComboPointData(spellName)
-          if perCP and perCP == 0 and base then
-            duration = base  -- fixed duration (Expose Armor)
-          else
-            duration = 0  -- CP unknown for other players
-          end
-        end
-      elseif duration == 0 then
-        -- Non-CP managed spells: use database if AURA_CAST returned 0
+      -- Duration comes from nampower's AURA_CAST event. ClassicAPI's
+      -- C_UnitAuras now resolves combo-scaled durations server-side, so
+      -- libdebuff only needs the database fallback when AURA_CAST reports 0.
+      if duration == 0 then
         duration = libdebuff:GetDuration(spellName, rankNum) or 0
       end
       
@@ -1789,5 +1684,3 @@ _G.SlashCmdList["MEMCHECK"] = function()
   DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00No ownSlots/allSlots (eliminated by GetUnitField approach!)|r")
   DEFAULT_CHAT_FRAME:AddMessage("|cff00ffff============================================================|r")
 end
-
-DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[libdebuff]|r GetUnitField Edition loaded!")

@@ -3,8 +3,9 @@ pfUI:RegisterModule("eqcompare", function ()
 
   local function ShowCompareItem(self, link, shift)
     self = self or GameTooltip
+    shift = shift or IsShiftKeyDown()
 
-    if not link or (not IsShiftKeyDown() and (C.tooltip.compare.showalways ~= "1" or C_Item.IsEquippedItem(link))) then
+    if not link or (not shift and (C.tooltip.compare.showalways ~= "1" or C_Item.IsEquippedItem(link))) then
       return
     end
 
@@ -88,7 +89,7 @@ pfUI:RegisterModule("eqcompare", function ()
   local prevMerchant = ShoppingTooltip1.SetMerchantCompareItem
   local function SetMerchantCompareItem(self, index, compareItem)
     if C.tooltip.compare.basestats == "1" and compareItem == 1 then
-      ShowCompareItem(nil, GetMerchantItemLink(index))
+      ShowCompareItem(nil, GetMerchantItemLink(index), 1)
       return false
     end
     return prevMerchant and prevMerchant(self, index, compareItem)
@@ -97,7 +98,7 @@ pfUI:RegisterModule("eqcompare", function ()
   local prevAuction = ShoppingTooltip1.SetAuctionCompareItem
   local function SetAuctionCompareItem(self, type, index, compareItem)
     if C.tooltip.compare.basestats == "1" and compareItem == 1 then
-      ShowCompareItem(nil, GetAuctionItemLink(type, index))
+      ShowCompareItem(nil, GetAuctionItemLink(type, index), 1)
       return false
     end
     return prevAuction and prevAuction(self, type, index, compareItem)
