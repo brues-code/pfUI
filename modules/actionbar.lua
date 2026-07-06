@@ -1013,10 +1013,8 @@ pfUI:RegisterModule("actionbar", function ()
     -- no button available, create a new one
     if not exists then
       -- prepare the button for vanilla
-      if not f.HookScript then
-        f.HookScript = HookScript
-        f:SetScript("OnClick", ButtonClick)
-      end
+      if not f.HookScript then f.HookScript = HookScript end
+      f:SetScript("OnClick", ButtonClick)
 
       if bar ~= 11 then
         f:RegisterForDrag("LeftButton", "RightButton")
