@@ -532,7 +532,7 @@ pfUI:RegisterModule("panel", function()
       -- Hearthstone bind location
       local hearth = CreateFrame("Frame", "pfPanelBindLocation", UIParent)
       hearth:RegisterEvent("PLAYER_ENTERING_WORLD")
-      hearth:RegisterEvent("CHAT_MSG_SYSTEM")
+      hearth:RegisterEvent("HEARTHSTONE_BOUND")
       hearth:SetScript("OnEvent", function()
         pfUI.panel:OutputPanel("bindlocation", T["Hearthstone"] .. ": " .. (GetBindLocation() or T["Not Set"]))
       end)
