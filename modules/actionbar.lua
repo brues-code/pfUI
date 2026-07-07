@@ -1356,6 +1356,7 @@ pfUI:RegisterModule("actionbar", function ()
 
       -- make stance bar dodge by default
       bars[i]:SetScript("OnShow", function()
+        if pfUI.unlock and pfUI.unlock:IsShown() then return end
         if bars[11] and bars[11]:IsShown() then
           bars[11]:ClearAllPoints()
           bars[11]:SetPoint("BOTTOM", bars[12], "TOP", 0, 3*border)
@@ -1365,6 +1366,7 @@ pfUI:RegisterModule("actionbar", function ()
 
       -- restore old stance bar position
       bars[i]:SetScript("OnHide", function()
+        if pfUI.unlock and pfUI.unlock:IsShown() then return end
         if bars[11] and bars[11]:IsShown() then
           bars[11]:ClearAllPoints()
           bars[11]:SetPoint("BOTTOM", bars[6], "TOP", 0, 3*border)
