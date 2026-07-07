@@ -193,7 +193,7 @@ pfUI:RegisterModule("castbar", function ()
     cb.bar.left:SetFontObject(GameFontWhite)
     cb.bar.left:SetTextColor(1,1,1,1)
     cb.bar.left:SetFont(font, font_size, "OUTLINE")
-    cb.bar.left:SetJustifyH("left")
+    cb.bar.left:SetJustifyH(C.castbar[unitstr].namealign or "LEFT")
 
     -- text right
     cb.bar.right = cb.bar:CreateFontString("Status", "DIALOG", "GameFontNormal")
@@ -204,7 +204,7 @@ pfUI:RegisterModule("castbar", function ()
     cb.bar.right:SetFontObject(GameFontWhite)
     cb.bar.right:SetTextColor(1,1,1,1)
     cb.bar.right:SetFont(font, font_size, "OUTLINE")
-    cb.bar.right:SetJustifyH("right")
+    cb.bar.right:SetJustifyH(C.castbar[unitstr].timealign or "RIGHT")
 
     cb.bar.lag = cb.bar:CreateTexture(nil, "OVERLAY")
     cb.bar.lag:SetPoint("TOPRIGHT", cb.bar, "TOPRIGHT", 0, 0)

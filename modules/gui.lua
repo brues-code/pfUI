@@ -912,6 +912,11 @@ pfUI:RegisterModule("gui", function ()
         "1:" .. T["1 Decimal (2.1)"],
         "2:" .. T["2 Decimals (2.14)"],
       },
+      ["castbaralign"] = {
+        "LEFT:" .. T["Left"],
+        "CENTER:" .. T["Center"],
+        "RIGHT:" .. T["Right"],
+      },
       ["orientation"] = {
         "HORIZONTAL:" .. T["Horizontal"],
         "VERTICAL:" .. T["Vertical"],
@@ -2788,7 +2793,9 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Castbar Height"], C.castbar.player, "height")
       CreateConfig(nil, T["Show Spell Icon"], C.castbar.player, "showicon", "checkbox")
       CreateConfig(nil, T["Show Spell Name"], C.castbar.player, "showname", "checkbox")
+      CreateConfig(nil, T["Spell Name Alignment"], C.castbar.player, "namealign", "dropdown", pfUI.gui.dropdowns.castbaralign)
       CreateConfig(nil, T["Show Timer"], C.castbar.player, "showtimer", "checkbox")
+      CreateConfig(nil, T["Timer Alignment"], C.castbar.player, "timealign", "dropdown", pfUI.gui.dropdowns.castbaralign)
       CreateConfig(nil, T["Left Text X Offset"], C.castbar.player, "txtleftoffx")
       CreateConfig(nil, T["Left Text Y Offset"], C.castbar.player, "txtleftoffy")
       CreateConfig(nil, T["Show Lag"], C.castbar.player, "showlag", "checkbox")
@@ -2803,7 +2810,9 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Castbar Height"], C.castbar.target, "height")
       CreateConfig(nil, T["Show Spell Icon"], C.castbar.target, "showicon", "checkbox")
       CreateConfig(nil, T["Show Spell Name"], C.castbar.target, "showname", "checkbox")
+      CreateConfig(nil, T["Spell Name Alignment"], C.castbar.target, "namealign", "dropdown", pfUI.gui.dropdowns.castbaralign)
       CreateConfig(nil, T["Show Timer"], C.castbar.target, "showtimer", "checkbox")
+      CreateConfig(nil, T["Timer Alignment"], C.castbar.target, "timealign", "dropdown", pfUI.gui.dropdowns.castbaralign)
       CreateConfig(nil, T["Left Text X Offset"], C.castbar.target, "txtleftoffx")
       CreateConfig(nil, T["Left Text Y Offset"], C.castbar.target, "txtleftoffy")
       CreateConfig(nil, T["Show Lag"], C.castbar.target, "showlag", "checkbox")
@@ -2817,7 +2826,9 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Castbar Height"], C.castbar.focus, "height")
       CreateConfig(nil, T["Show Spell Icon"], C.castbar.focus, "showicon", "checkbox")
       CreateConfig(nil, T["Show Spell Name"], C.castbar.focus, "showname", "checkbox")
+      CreateConfig(nil, T["Spell Name Alignment"], C.castbar.focus, "namealign", "dropdown", pfUI.gui.dropdowns.castbaralign)
       CreateConfig(nil, T["Show Timer"], C.castbar.focus, "showtimer", "checkbox")
+      CreateConfig(nil, T["Timer Alignment"], C.castbar.focus, "timealign", "dropdown", pfUI.gui.dropdowns.castbaralign)
       CreateConfig(nil, T["Left Text X Offset"], C.castbar.focus, "txtleftoffx")
       CreateConfig(nil, T["Left Text Y Offset"], C.castbar.focus, "txtleftoffy")
       CreateConfig(nil, T["Show Lag"], C.castbar.focus, "showlag", "checkbox")
