@@ -511,8 +511,7 @@ function libpredict:ParseComm(sender, msg)
 
         local unit = senderUnit()
         if not unit then return end
-        local startMs = select(4, C_Spell.UnitCastingInfo(unit))
-        local endMs = select(5, C_Spell.UnitCastingInfo(unit))
+        local _, _, _, startMs, endMs = C_Spell.UnitCastingInfo(unit)
         if not startMs or not endMs then return end
         time = (endMs - startMs) / 1000
       elseif msgtype == 1 then
@@ -523,8 +522,7 @@ function libpredict:ParseComm(sender, msg)
         target = {strsplit(":", string.sub(msg,9, -1))}
         local unit = senderUnit()
         if not unit then return end
-        local startMs = select(4, C_Spell.UnitCastingInfo(unit))
-        local endMs = select(5, C_Spell.UnitCastingInfo(unit))
+        local _, _, _, startMs, endMs = C_Spell.UnitCastingInfo(unit)
         if not startMs or not endMs then return end
         time = (endMs - startMs) / 1000
       end
