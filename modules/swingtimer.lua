@@ -780,7 +780,10 @@ pfUI:RegisterModule("swingtimer", function ()
   -- SPELL_CAST_EVENT hook: HS/Cleave/Maul queue tracking
   pfUI.libdebuff_spell_cast_hooks = pfUI.libdebuff_spell_cast_hooks or {}
   pfUI.libdebuff_spell_cast_hooks["swingtimer"] = function(success, spellId)
-    SetQueuedKind(ClassifyOnSwingSpell(spellId))
+    local kind = ClassifyOnSwingSpell(spellId)
+    if not kind then return end
+    S.useSpellQueueEvent = true
+    SetQueuedKind(kind)
   end
 
 
