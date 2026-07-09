@@ -546,25 +546,41 @@ end
 -- Sets a function to be called automatically once an addon gets loaded
 -- 'addon'      [string]            addon or variable name
 -- 'func'       [function]          function that should run
-function pfUI.api.HookAddonOrVariable(addon, func)
-  local lurker = CreateFrame("Frame", nil)
-  lurker.func = func
-  lurker:RegisterEvent("ADDON_LOADED")
-  lurker:RegisterEvent("VARIABLES_LOADED")
-  lurker:RegisterEvent("PLAYER_ENTERING_WORLD")
-  lurker:SetScript("OnEvent",function()
-    -- only run when config is available
-    if event == "ADDON_LOADED" and not this.foundConfig then
-      return
-    elseif event == "VARIABLES_LOADED" then
-      this.foundConfig = true
+do
+  local lurker
+  local pending = {}
+
+  local function ProcessPending()
+    if not lurker.foundConfig then return end
+    for i = table.getn(pending), 1, -1 do
+      local hook = pending[i]
+      if IsAddOnLoaded(hook.addon) or _G[hook.addon] then
+        hook.func()
+        table.remove(pending, i)
+      end
+    end
+    if table.getn(pending) == 0 then
+      lurker:UnregisterAllEvents()
+    end
+  end
+
+  function pfUI.api.HookAddonOrVariable(addon, func)
+    if not lurker then
+      lurker = CreateFrame("Frame", nil)
+      lurker:SetScript("OnEvent", function()
+        if event == "VARIABLES_LOADED" or event == "PLAYER_ENTERING_WORLD" then
+          this.foundConfig = true
+        end
+        ProcessPending()
+      end)
     end
 
-    if IsAddOnLoaded(addon) or _G[addon] then
-      this:func()
-      this:UnregisterAllEvents()
-    end
-  end)
+    table.insert(pending, { addon = addon, func = func })
+    lurker:RegisterEvent("ADDON_LOADED")
+    lurker:RegisterEvent("VARIABLES_LOADED")
+    lurker:RegisterEvent("PLAYER_ENTERING_WORLD")
+    ProcessPending()
+  end
 end
 
 -- [ QueueFunction ]
