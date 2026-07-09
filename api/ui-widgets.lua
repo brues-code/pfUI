@@ -569,7 +569,7 @@ end
 -- 'frame'    [frame]         the modelframe that should be used
 function pfUI.api.EnableClickRotate(frame)
   frame:EnableMouse(true)
-  HookScript(frame, "OnUpdate", function()
+  frame:HookScript("OnUpdate", function()
     if this.rotate then
       local x,_ = GetCursorPosition()
       if this.curx > x then
@@ -582,14 +582,14 @@ function pfUI.api.EnableClickRotate(frame)
     end
   end)
 
-  HookScript(frame, "OnMouseDown", function()
+  frame:HookScript("OnMouseDown", function()
     if arg1 == "LeftButton" then
       this.rotate = true
       this.curx, this.cury = GetCursorPosition()
     end
   end)
 
-  HookScript(frame, "OnMouseUp", function()
+  frame:HookScript("OnMouseUp", function()
     this.rotate, this.curx, this.cury = nil, nil, nil
   end)
 end
@@ -615,7 +615,6 @@ function pfUI.api.SetHighlight(frame, cr, cg, cb)
   frame.rr, frame.rg, frame.rb, frame.ra = GetStringColor(pfUI_config.appearance.border.color)
 
   if not frame.pfEnterLeave then
-    if not frame.HookScript then frame.HookScript = HookScript end
     local enter, leave = frame:GetScript("OnEnter"), frame:GetScript("OnLeave")
 
     if enter then
@@ -844,7 +843,6 @@ function pfUI.api.SkinScrollbar(frame, always)
   -- always show parent frame
   if always then
     RunOOC(function()
-      if not parent.HookScript then parent.HookScript = HookScript end
       parent:HookScript("OnHide", function() this:Show() end)
     end)
   end

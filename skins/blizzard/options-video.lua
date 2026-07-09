@@ -49,7 +49,7 @@ pfUI:RegisterSkin("Options - Video", function ()
 
   EnableMovable(OptionsFrame)
 
-  HookScript(OptionsFrame, "OnShow", function()
+  OptionsFrame:HookScript("OnShow", function()
     this:ClearAllPoints()
     this:SetPoint("CENTER", 0, 0)
   end)

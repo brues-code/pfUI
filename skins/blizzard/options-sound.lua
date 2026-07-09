@@ -44,7 +44,7 @@ pfUI:RegisterSkin("Options - Sound", function ()
 
   EnableMovable(SoundOptionsFrame)
 
-  HookScript(SoundOptionsFrame, "OnShow", function()
+  SoundOptionsFrame:HookScript("OnShow", function()
     this:ClearAllPoints()
     this:SetPoint("CENTER", 0, 0)
   end)

@@ -267,7 +267,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
         SW_BarFrame1_Selector:Hide()
 
         -- let user select mode by clicking the title
-        HookScript(SW_BarFrame1_Title, "OnMouseUp", function()
+        SW_BarFrame1_Title:HookScript("OnMouseUp", function()
           local page = SW_Settings and SW_Settings.BarFrames and SW_Settings.BarFrames.SW_BarFrame1 and SW_Settings.BarFrames.SW_BarFrame1.Selected
           if page then
             local target = (arg1 == "LeftButton") and (page + 1) or (arg1 == "RightButton") and (page - 1)
@@ -944,7 +944,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
 
     if pfUI.eqcompare then
       pfUI.eqcompare.HookTooltip(AtlasLootTooltip)
-      HookScript(AtlasLootTooltip, "OnHide", function()
+      AtlasLootTooltip:HookScript("OnHide", function()
         ShoppingTooltip1:Hide()
         ShoppingTooltip2:Hide()
       end)

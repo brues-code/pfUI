@@ -86,7 +86,7 @@ pfUI:RegisterSkin("Books", function ()
     ItemTextScrollFrameScrollBarScrollDownButton.Hide = function(self) self:Disable() end
 
     local first
-    HookScript(ItemTextFrame, "OnShow", function()
+    ItemTextFrame:HookScript("OnShow", function()
       if not first then -- it is necessary to update the scrollbar when you first open the frame
         ItemTextScrollFrameScrollBar:Show()
         ItemTextScrollFrameScrollBar:Hide()

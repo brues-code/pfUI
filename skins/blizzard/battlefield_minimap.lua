@@ -15,7 +15,7 @@ pfUI:RegisterSkin("Battlefield Minimap", function ()
     BattlefieldMinimapTabText:ClearAllPoints()
     BattlefieldMinimapTabText:SetPoint("CENTER", 0, 0)
 
-    HookScript(BattlefieldMinimap, "OnShow", function()
+    BattlefieldMinimap:HookScript("OnShow", function()
       BattlefieldMinimapTab:Hide()
     end)
 

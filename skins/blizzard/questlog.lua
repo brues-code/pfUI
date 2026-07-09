@@ -102,13 +102,13 @@ pfUI:RegisterSkin("Quest Log", function ()
       end
     end)
 
-    HookScript(QuestLogDetailScrollFrame, "OnHide", function()
+    QuestLogDetailScrollFrame:HookScript("OnHide", function()
       SkinArrowButton(QuestLogFrameExpandButton, "RIGHT", 21)
       QuestLogDetailScrollFrame:Hide()
       QuestLogFrame:SetWidth(340)
     end)
 
-    HookScript(QuestLogDetailScrollFrame, "OnShow", function()
+    QuestLogDetailScrollFrame:HookScript("OnShow", function()
       SkinArrowButton(QuestLogFrameExpandButton, "LEFT", 21)
       QuestLogDetailScrollFrame:Show()
       QuestLogFrame:SetWidth(676)

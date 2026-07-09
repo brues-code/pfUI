@@ -54,7 +54,7 @@ pfUI:RegisterModule("map", function ()
     if not this.hooked then
       this.hooked = true
 
-      HookScript(WorldMapFrame, "OnShow", function()
+      WorldMapFrame:HookScript("OnShow", function()
         -- customize
         this:EnableKeyboard(false)
         this:EnableMouseWheel(1)
@@ -66,7 +66,7 @@ pfUI:RegisterModule("map", function ()
         pfOrigSetMapToCurrentZone()
       end)
 
-      HookScript(WorldMapFrame, "OnMouseWheel", function()
+      WorldMapFrame:HookScript("OnMouseWheel", function()
         if IsShiftKeyDown() then
           alpha = clamp(WorldMapFrame:GetAlpha() + arg1/10, 0.1, 1.0)
           WorldMapFrame:SetAlpha(alpha)
@@ -91,11 +91,11 @@ pfUI:RegisterModule("map", function ()
         SaveMovable(this, true)
       end)
 
-      HookScript(WorldMapFrame, "OnDragStart", function()
+      WorldMapFrame:HookScript("OnDragStart", function()
         WorldMapFrame:StartMoving()
       end)
 
-      HookScript(WorldMapFrame, "OnDragStop",function()
+      WorldMapFrame:HookScript("OnDragStop",function()
         WorldMapFrame:StopMovingOrSizing()
         SaveMovable(this, true)
       end)

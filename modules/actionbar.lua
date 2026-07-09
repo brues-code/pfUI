@@ -335,8 +335,7 @@ pfUI:RegisterModule("actionbar", function ()
     local slfcast = C.bars.altself == "1" and IsAltKeyDown() and true or self.slfcast
     slfcast = C.bars.rightself == "1" and arg1 and arg1 == "RightButton" and true or slfcast
     self.slfcast = nil
-
-    if ( pfUI_config.bars.keydown == "1" and keystate == "down" and not drag_active ) or (pfUI_config.bars.keydown == "0" and keystate == "up" or drag_active ) or self.bar == 11 or mouse then
+    if ( C.bars.keydown == "1" and keystate == "down" and not drag_active ) or (C.bars.keydown == "0" and keystate == "up" or drag_active ) or self.bar == 11 or mouse then
       if self.bar == 11 then
         CastShapeshiftForm(self.id)
       elseif grid == 1 then

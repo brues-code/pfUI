@@ -695,7 +695,7 @@ end
       end
     end
 
-    HookScript(nameplate.original.healthbar, "OnValueChanged", nameplates.OnValueChanged)
+    nameplate.original.healthbar:HookScript("OnValueChanged", nameplates.OnValueChanged)
 
     -- adjust sizes and scaling of the nameplate
     nameplate:SetScale(UIParent:GetScale())

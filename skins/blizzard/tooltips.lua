@@ -7,7 +7,7 @@ pfUI:RegisterSkin("Tooltips", function ()
     CreateBackdropShadow(tooltip)
   end
 
-  HookScript(WorldMapTooltip, "OnShow", function()
+  WorldMapTooltip:HookScript("OnShow", function()
     CreateBackdrop(WorldMapTooltip, nil, nil, alpha)
     CreateBackdropShadow(WorldMapTooltip)
   end)
@@ -16,7 +16,7 @@ pfUI:RegisterSkin("Tooltips", function ()
 
   for _, tooltip in pairs({ShoppingTooltip1, ShoppingTooltip2}) do
     tooltip:SetClampedToScreen(true)
-    HookScript(tooltip, "OnShow", function()
+    tooltip:HookScript("OnShow", function()
       local a, b, c, x, y = this:GetPoint()
       if not x or x == 0 then x = (border*2) + ( x or 0 ) + 1 end
       if a then this:SetPoint(a, b, c, x, y) end

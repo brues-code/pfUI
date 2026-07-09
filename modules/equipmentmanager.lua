@@ -940,10 +940,10 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   -- Tie popout visibility to the EM sidecar. They appear when the
   -- sidecar opens, hide when it closes, and the flyout closes too.
-  HookScript(frame, "OnShow", function()
+  frame:HookScript("OnShow", function()
     for _, b in ipairs(popoutButtons) do b:Show() end
   end)
-  HookScript(frame, "OnHide", function()
+  frame:HookScript("OnHide", function()
     for _, b in ipairs(popoutButtons) do b:Hide() end
     if flyout then flyout:Hide() end
   end)
