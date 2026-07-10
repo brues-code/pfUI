@@ -28,9 +28,10 @@ pfUI:RegisterModule("swingtimer", function ()
     pendingCastSpellId = nil,
     mhFrozenAt = nil,
     hsQueued = false, cleaveQueued = false, maulQueued = false,
+    hsSeenCurrent = false, cleaveSeenCurrent = false, maulSeenCurrent = false,
     isWarrior = false,
     isDruid = false,
-    cachedHSSlots = {}, cachedCleaveSlots = {},
+    cachedHSSlots = {}, cachedCleaveSlots = {}, cachedMaulSlots = {},
     useSpellQueueEvent = false,
     swingThrottle = 0,
     onSwingCache = {},
@@ -416,12 +417,15 @@ pfUI:RegisterModule("swingtimer", function ()
     S.hsQueued     = (kind == "hs")
     S.cleaveQueued = (kind == "cleave")
     S.maulQueued   = (kind == "maul")
+    S.hsSeenCurrent, S.cleaveSeenCurrent, S.maulSeenCurrent = false, false, false
   end
 
   local function RebuildQueueSlotCache()
-    if not S.isWarrior or not sw_hsqueue or S.useSpellQueueEvent then return end
+    if not sw_hsqueue then return end
     S.cachedHSSlots     = {}
     S.cachedCleaveSlots = {}
+    S.cachedMaulSlots   = {}
+    if not (S.isWarrior or S.isDruid) then return end
     for slot = 1, 120 do
       local kind, id = GetActionInfo(slot)
       local name
@@ -434,6 +438,8 @@ pfUI:RegisterModule("swingtimer", function ()
         table.insert(S.cachedHSSlots, slot)
       elseif name == CLEAVE_NAME then
         table.insert(S.cachedCleaveSlots, slot)
+      elseif name == MAUL_NAME then
+        table.insert(S.cachedMaulSlots, slot)
       end
     end
   end
@@ -445,9 +451,30 @@ pfUI:RegisterModule("swingtimer", function ()
     return false
   end
 
+  -- Reconcile a stale event-driven queue flag against the client's current
+  -- action. Not every de-queue emits a SPELL_QUEUE pop — pressing Esc or
+  -- re-pressing to cancel an on-swing spell doesn't — so the flag alone stays
+  -- set. IsCurrentAction, which the client clears on cancel, is the reconciling
+  -- signal, but only after it has confirmed the ability as current at least once
+  -- (`seen`): a nampower-initiated cast may never flip IsCurrentAction, and must
+  -- keep its color until its own pop/resolve rather than be cleared early.
+  -- Returns the updated (queued, seen).
+  local function ReconcileQueued(queued, slots, seen)
+    if not queued then return false, false end
+    if CheckQueuedAction(slots) then return true, true end
+    if seen then return false, false end  -- was current, now gone -> cancelled
+    return true, false                    -- never confirmed current -> keep
+  end
+
   local function IsHSOrCleaveQueued()
     if not sw_hsqueue or not S.isWarrior then return false, false end
-    if S.useSpellQueueEvent then return S.hsQueued, S.cleaveQueued end
+    if S.useSpellQueueEvent then
+      S.hsQueued, S.hsSeenCurrent =
+        ReconcileQueued(S.hsQueued, S.cachedHSSlots, S.hsSeenCurrent)
+      S.cleaveQueued, S.cleaveSeenCurrent =
+        ReconcileQueued(S.cleaveQueued, S.cachedCleaveSlots, S.cleaveSeenCurrent)
+      return S.hsQueued, S.cleaveQueued
+    end
     return CheckQueuedAction(S.cachedHSSlots), CheckQueuedAction(S.cachedCleaveSlots)
   end
 
@@ -526,6 +553,10 @@ pfUI:RegisterModule("swingtimer", function ()
     -- HS/Cleave color
     local curR, curG, curB = mhDefaultR, mhDefaultG, mhDefaultB
     if sw_hsqueue then
+      if S.isDruid and S.useSpellQueueEvent then
+        S.maulQueued, S.maulSeenCurrent =
+          ReconcileQueued(S.maulQueued, S.cachedMaulSlots, S.maulSeenCurrent)
+      end
       if S.maulQueued and S.isDruid then
         curR, curG, curB = 1.0, 0.55, 0.0 -- orange for druid maul queue
       elseif S.isWarrior then
