@@ -23,6 +23,8 @@ pfUI:RegisterModule("sellvalue", function ()
           frame:AddDoubleLine(T["Buy"] .. ":", CreateGoldString(buy), 1, 1, 1)
         end
       end
+    elseif not MerchantFrame:IsShown() and sell > 0 then
+        SetTooltipMoney(frame, sell * count)
     end
     frame:Show()
   end
