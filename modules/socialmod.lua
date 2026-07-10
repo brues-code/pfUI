@@ -10,7 +10,7 @@ pfUI:RegisterModule("socialmod", function ()
     end
   end)
   do -- add colors to guild list
-    pfUI.hooksecurefunc("GuildStatus_Update", function()
+    hooksecurefunc("GuildStatus_Update", function()
       local playerzone = GetRealZoneText()
       local off = FauxScrollFrame_GetOffset(GuildListScrollFrame)
       for i=1, GUILDMEMBERS_TO_DISPLAY, 1 do
@@ -70,7 +70,7 @@ pfUI:RegisterModule("socialmod", function ()
   end
 
   do -- add colors to friend list
-    pfUI.hooksecurefunc("FriendsList_Update", function()
+    hooksecurefunc("FriendsList_Update", function()
       if GetNumFriends() == 0 then return end
 
       local playerzone  = GetRealZoneText()
@@ -123,7 +123,7 @@ pfUI:RegisterModule("socialmod", function ()
   end
 
   do -- add colors to who list
-    pfUI.hooksecurefunc("WhoList_Update", function()
+    hooksecurefunc("WhoList_Update", function()
       local num, max = GetNumWhoResults()
       local off = FauxScrollFrame_GetOffset(WhoListScrollFrame)
 

@@ -12,7 +12,7 @@ pfUI:RegisterSkin("Mailbox", function ()
           StripTextures(SendMailPackageButton)
           SkinButton(SendMailPackageButton, nil, nil, nil, nil, true)
 
-          pfUI.hooksecurefunc("SendMailFrame_Update", function()
+          hooksecurefunc("SendMailFrame_Update", function()
             HandleIcon(SendMailPackageButton, SendMailPackageButton:GetNormalTexture())
 
             local _, itemID = GetSendMailItemLink()
@@ -62,7 +62,7 @@ pfUI:RegisterSkin("Mailbox", function ()
     do -- OpenMailFrame
       SkinButton(OpenMailPackageButton, nil, nil, nil, OpenMailPackageButtonIconTexture)
 
-      pfUI.hooksecurefunc("InboxFrame_OnClick", function(index)
+      hooksecurefunc("InboxFrame_OnClick", function(index)
         local _, itemID = GetInboxItemLink(index)
         if itemID then
           local quality = C_Item.GetItemQualityByID(itemID)

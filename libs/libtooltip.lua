@@ -54,6 +54,6 @@ end
 
 pfUI.api.libtooltip = libtooltip
 
-pfUI.hooksecurefunc(GameTooltip, "SetBagItem", function(self, container, slot)
+hooksecurefunc(GameTooltip, "SetBagItem", function(self, container, slot)
   _, libtooltip.itemCount = GetContainerItemInfo(container, slot)
 end)

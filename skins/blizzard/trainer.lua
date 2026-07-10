@@ -36,7 +36,7 @@ pfUI:RegisterSkin("Trainer", function ()
 
     StripTextures(ClassTrainerSkillIcon)
     SkinButton(ClassTrainerSkillIcon, nil, nil, nil, nil, true)
-    pfUI.hooksecurefunc("ClassTrainer_SetSelection", function()
+    hooksecurefunc("ClassTrainer_SetSelection", function()
       HandleIcon(ClassTrainerSkillIcon, ClassTrainerSkillIcon:GetNormalTexture())
     end)
 

@@ -19,7 +19,7 @@ pfUI:RegisterSkin("Options - Video", function ()
       slider:SetPoint(point, anchor, anchorPoint, x, y - shift)
     end
 
-    pfUI.hooksecurefunc("OptionsFrame_Load", function()
+    hooksecurefunc("OptionsFrame_Load", function()
       OptionsFramePixelShaders:SetWidth(230)
       OptionsFrameMiscellaneous:ClearAllPoints()
       OptionsFrameMiscellaneous:SetPoint("LEFT", OptionsFramePixelShaders, "RIGHT", 6, 0)

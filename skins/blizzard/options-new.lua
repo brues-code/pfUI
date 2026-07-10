@@ -184,7 +184,7 @@ pfUI:RegisterSkin("Options - New", function ()
   end
 
   -- hook after category selection: UpdateOptions is local so we hook its caller
-  pfUI.hooksecurefunc("OptionsListButton_OnClick", SkinControls)
+  hooksecurefunc("OptionsListButton_OnClick", SkinControls)
   -- also cover initial load
   OptionsFrame:HookScript("OnShow", SkinControls)
 end)

@@ -6,7 +6,7 @@ pfUI:RegisterSkin("Merchant", function ()
   if MerchantGuildBankRepairButton then -- tbc
     SkinButton(MerchantGuildBankRepairButton, nil, nil, nil, MerchantGuildBankRepairButtonIcon)
     MerchantGuildBankRepairButtonIcon:SetTexCoord(.59, .82, .06, .54)
-    pfUI.hooksecurefunc("MerchantFrame_UpdateRepairButtons", function()
+    hooksecurefunc("MerchantFrame_UpdateRepairButtons", function()
       MerchantGuildBankRepairButton:ClearAllPoints()
       MerchantGuildBankRepairButton:SetPoint("RIGHT", MerchantBuyBackItemItemButton, "LEFT", -14, 0)
       MerchantRepairAllButton:ClearAllPoints()
@@ -56,7 +56,7 @@ pfUI:RegisterSkin("Merchant", function ()
     moneyFrame:SetPoint("BOTTOMLEFT", itemButton, "BOTTOMRIGHT", 5, 1)
   end
 
-  pfUI.hooksecurefunc("MerchantFrame_UpdateMerchantInfo", function()
+  hooksecurefunc("MerchantFrame_UpdateMerchantInfo", function()
     if MerchantFrame.selectedTab == 1 then
       for i = 3, 11, 2 do
       _G["MerchantItem"..i]:ClearAllPoints()

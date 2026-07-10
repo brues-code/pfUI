@@ -41,12 +41,12 @@ pfUI:RegisterModule("unusable", function ()
   end
 
   -- update on regular pfUI button updates
-  pfUI.hooksecurefunc(pfUI.bag, "UpdateSlot", function(self, bag, slot)
+  hooksecurefunc(pfUI.bag, "UpdateSlot", function(self, bag, slot)
     pfUI.unusable:UpdateSlot(bag, slot)
   end)
 
   -- update on bank frame itemlock updates
-  pfUI.hooksecurefunc("BankFrameItemButton_UpdateLock", function()
+  hooksecurefunc("BankFrameItemButton_UpdateLock", function()
     pfUI.unusable:UpdateSlot(-1, this:GetID())
   end)
 end)

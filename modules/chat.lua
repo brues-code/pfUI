@@ -24,7 +24,7 @@ pfUI:RegisterModule("chat", function ()
     end
   end
 
-  pfUI.hooksecurefunc("UnitPopup_OnClick", function(self)
+  hooksecurefunc("UnitPopup_OnClick", function(self)
     if this.value == "IGNORE_PLAYER" then
       AddIgnore(_G[UIDROPDOWNMENU_INIT_MENU].name)
     end
@@ -449,7 +449,7 @@ pfUI:RegisterModule("chat", function ()
     end
   end
 
-  pfUI.hooksecurefunc("FCF_SaveDock", pfUI.chat.RefreshChat)
+  hooksecurefunc("FCF_SaveDock", pfUI.chat.RefreshChat)
 
   if C.chat.global.tabmouse == "1" then
     pfUI.chat.mouseovertab = CreateFrame("Frame")

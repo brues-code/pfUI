@@ -897,7 +897,7 @@ local INSTANT_HOT_COOLDOWN = 1.0  -- 1 Sekunde Cooldown (GCD ist 1.5s)
 local pendingHots = {}
 
 -- Gather Data by User Actions
-pfUI.hooksecurefunc("CastSpell", function(id, bookType)
+hooksecurefunc("CastSpell", function(id, bookType)
   if not libpredict.sender.enabled then return end
   local effect, rank = libspell.GetSpellInfo(id, bookType)
   if not effect then return end
@@ -950,7 +950,7 @@ pfUI.hooksecurefunc("CastSpell", function(id, bookType)
   end
 end)
 
-pfUI.hooksecurefunc("CastSpellByName", function(effect, target)
+hooksecurefunc("CastSpellByName", function(effect, target)
   if not libpredict.sender.enabled then return end
   local effect, rank = libspell.GetSpellInfo(effect)
   if not effect then return end
@@ -1014,7 +1014,7 @@ pfUI.hooksecurefunc("CastSpellByName", function(effect, target)
   end
 end)
 
-pfUI.hooksecurefunc("UseAction", function(slot, target, selfcast)
+hooksecurefunc("UseAction", function(slot, target, selfcast)
   if not libpredict.sender.enabled then return end
   if not IsCurrentAction(slot) then return end
   local kind, id = GetActionInfo(slot)

@@ -551,6 +551,12 @@ function HookScript(f, script, func)
   f:HookScript(script, func)
 end
 
+function hooksecurefunc(tbl, name, func)
+  if type(tbl) == "string" then tbl, name, func = _G, tbl, name end
+  if not tbl or type(tbl[name]) ~= "function" then return end
+  return _G.hooksecurefunc(tbl, name, func)
+end
+
 -- [ HookAddonOrVariable ]
 -- Sets a function to be called automatically once an addon gets loaded
 -- 'addon'      [string]            addon or variable name

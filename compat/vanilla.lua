@@ -28,17 +28,6 @@ ACTIONBAR_SECURE_TEMPLATE_BUTTON = nil
 UNITFRAME_SECURE_TEMPLATE = nil
 
 --[[ Vanilla API Extensions ]]--
--- Safe post-hook helper. The global `hooksecurefunc` belongs to ClassicAPI
--- (its C implementation); this wrapper only adds pfUI's missing-target guard:
--- ClassicAPI errors when target[name] isn't a function, whereas a lot of our
--- call sites hook optional/late-loaded frames and rely on a silent no-op.
--- Normalizes the string form, skips when the target is absent, then delegates
--- to the C version (uncapped args, callback-pcall, taint parity).
-function pfUI.hooksecurefunc(tbl, name, func)
-  if type(tbl) == "string" then tbl, name, func = _G, tbl, name end
-  if not tbl or type(tbl[name]) ~= "function" then return end
-  return _G.hooksecurefunc(tbl, name, func)
-end
 
 do -- GetItemInfo
   local name, link, rarity, minlevel, itype, isubtype, stack

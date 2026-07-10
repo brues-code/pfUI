@@ -136,5 +136,5 @@ pfUI:RegisterModule("cooldown", function ()
 
   -- vanilla does not have a cooldown frame type, so we hook the
   -- regular SetTimer function that each one is calling.
-  pfUI.hooksecurefunc("CooldownFrame_SetTimer", SetCooldown)
+  hooksecurefunc("CooldownFrame_SetTimer", SetCooldown)
 end)

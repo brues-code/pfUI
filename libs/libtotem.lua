@@ -241,14 +241,14 @@ pfUI.libdebuff_spell_go_hooks["libtotem"] = function(spellId)
 end
 
 -- Hook CastSpellByName to store pending name/icon per slot
-pfUI.hooksecurefunc("CastSpellByName", function(effect, target)
+hooksecurefunc("CastSpellByName", function(effect, target)
   local name, rank, icon, _, _, _, spellId = libspell.GetSpellInfo(effect)
   if not name then return end
   libtotem:CheckAddQueue(name, rank, icon, spellId)
 end)
 
 -- Hook CastSpell to store pending name/icon per slot
-pfUI.hooksecurefunc("CastSpell", function(id, bookType)
+hooksecurefunc("CastSpell", function(id, bookType)
   if not id or not bookType then return end
   if bookType ~= BOOKTYPE_SPELL and bookType ~= BOOKTYPE_PET then return end
   local name, rank, icon, _, _, _, spellId = libspell.GetSpellInfo(id, bookType)
@@ -259,7 +259,7 @@ end)
 -- Hook UseAction. GetActionInfo + GetMacroSpell give us the spellID
 -- directly for both spell-action and macro-action slots, so the
 -- tooltip-scan fallback (and the "no spellId available" caveat) goes away.
-pfUI.hooksecurefunc("UseAction", function(slot, target, selfcast)
+hooksecurefunc("UseAction", function(slot, target, selfcast)
   if not IsCurrentAction(slot) then return end
   local kind, id = GetActionInfo(slot)
   local name, rank, spellID

@@ -141,7 +141,7 @@ pfUI:RegisterModule("player", function ()
     end
   end
 
-  pfUI.hooksecurefunc("UnitPopup_OnClick", function()
+  hooksecurefunc("UnitPopup_OnClick", function()
     local button = this.value
     if button == "RESET_INSTANCES_FIX" then
       StaticPopup_Show("CONFIRM_RESET_INSTANCES")

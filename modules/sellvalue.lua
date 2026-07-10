@@ -27,7 +27,7 @@ pfUI:RegisterModule("sellvalue", function ()
     frame:Show()
   end
 
-  pfUI.hooksecurefunc("SetItemRef", function()
+  hooksecurefunc("SetItemRef", function()
     if IsModifierKeyDown() then return end
     if ItemRefTooltip:HasItem() then
       local _, _, id = ItemRefTooltip:GetItem()
@@ -163,7 +163,7 @@ pfUI:RegisterModule("sellvalue", function ()
 
   local function HookTooltip(tooltip)
     for setter, entry in pairs(TooltipHooks) do
-      pfUI.hooksecurefunc(tooltip, setter, makeHook(entry))
+      hooksecurefunc(tooltip, setter, makeHook(entry))
     end
   end
 

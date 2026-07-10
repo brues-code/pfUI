@@ -51,12 +51,12 @@ pfUI:RegisterModule("skin", function ()
   DurabilityFrame.SetPoint = function() return end
 
   if C.appearance.cd.blizzard == "1" then
-    pfUI.hooksecurefunc("PaperDollItemSlotButton_Update", function()
+    hooksecurefunc("PaperDollItemSlotButton_Update", function()
       local cooldown = _G[this:GetName().."Cooldown"]
       if cooldown then cooldown.pfCooldownType = "BLIZZARD" end
     end)
 
-    pfUI.hooksecurefunc("SpellButton_UpdateButton", function()
+    hooksecurefunc("SpellButton_UpdateButton", function()
       local cooldown = _G[this:GetName().."Cooldown"]
       if cooldown then cooldown.pfCooldownType = "BLIZZARD" end
     end)

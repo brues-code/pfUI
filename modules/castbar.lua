@@ -490,7 +490,7 @@ pfUI:RegisterModule("castbar", function ()
     -- (the config knob is read at event time so toggling takes effect on the
     -- next craft without a /reload). DoTradeSkill is synchronous; the server
     -- roundtrip to SPELLCAST_START gives us plenty of time after this hook.
-    pfUI.hooksecurefunc("DoTradeSkill", function(index, num)
+    hooksecurefunc("DoTradeSkill", function(index, num)
       if pfUI.castbar.player then
         pfUI.castbar.player.pendingTradeskillCount = tonumber(num) or 1
       end

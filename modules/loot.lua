@@ -392,7 +392,7 @@ pfUI:RegisterModule("loot", function ()
     end
     pfUI.loot:RemoveMasterlootMenus() -- remove then add to ensure no duplicate menus
     pfUI.loot:AddMasterLootMenus()
-    pfUI.hooksecurefunc("UnitPopup_OnClick",function()
+    hooksecurefunc("UnitPopup_OnClick",function()
       local dropdownFrame = _G[UIDROPDOWNMENU_INIT_MENU]
       if not dropdownFrame then return end
       local button = this.value
@@ -405,7 +405,7 @@ pfUI:RegisterModule("loot", function ()
         end
       end
     end)
-    pfUI.hooksecurefunc("UnitPopup_HideButtons",function()
+    hooksecurefunc("UnitPopup_HideButtons",function()
       local dropdownFrame = _G[UIDROPDOWNMENU_INIT_MENU]
       local unit = dropdownFrame.unit
       local name = dropdownFrame.name

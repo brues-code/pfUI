@@ -58,7 +58,7 @@ pfUI:RegisterModule("minimap", function ()
 
   pfUI.minimap:UpdateConfig()
 
-  pfUI.hooksecurefunc("ToggleMinimap", function()
+  hooksecurefunc("ToggleMinimap", function()
     if pfUI.farmmap and pfUI.farmmap:IsShown() then
       Minimap:Hide()
       return

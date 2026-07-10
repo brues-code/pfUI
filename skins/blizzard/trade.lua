@@ -41,7 +41,7 @@ pfUI:RegisterSkin("Trade", function ()
     RecipientButtonBG:SetAllPoints()
   end
 
-  pfUI.hooksecurefunc("TradeFrame_UpdateTargetItem", function(id)
+  hooksecurefunc("TradeFrame_UpdateTargetItem", function(id)
     HandleIcon(_G["TradeRecipientItem"..id.."ItemButton"], _G["TradeRecipientItem"..id..'IconTexture'])
   end)
 
