@@ -217,6 +217,21 @@ pfUI:RegisterModule("addons", function ()
   pfUI.addons.list:RegisterEvent("PLAYER_ENTERING_WORLD")
   pfUI.addons.list:SetHeight(GetNumAddOns() * 25 + 26)
 
+  local function AddDependencyLines(header, deps)
+    if not deps or table.getn(deps) == 0 then return end
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine(header .. ":", .2, 1, .8)
+    for _, dep in ipairs(deps) do
+      if IsAddOnLoaded(dep) then
+        GameTooltip:AddLine(" " .. dep, .5, 1, .5)
+      elseif C_AddOns.DoesAddOnExist(dep) then
+        GameTooltip:AddLine(" " .. dep, 1, .82, 0)
+      else
+        GameTooltip:AddLine(" " .. dep .. " (" .. T["Missing"] .. ")", 1, .4, .4)
+      end
+    end
+  end
+
   local function AddonOnEnter()
     this:SetBackdropBorderColor(1,1,1,.08)
 
@@ -231,6 +246,8 @@ pfUI:RegisterModule("addons", function ()
     end
 
     GameTooltip:AddLine(this.anote, .75,.75,.75,1)
+    AddDependencyLines(T["Dependencies"], this.adeps)
+    AddDependencyLines(T["Optional Dependencies"], this.aoptdeps)
     GameTooltip:SetWidth(180)
     GameTooltip:Show()
   end
@@ -272,6 +289,8 @@ pfUI:RegisterModule("addons", function ()
         frame.anote = anote
         frame.aauthor = aauthor
         frame.aversion = aversion
+        frame.adeps = { GetAddOnDependencies(i) }                          -- required (.toc Dependencies)
+        frame.aoptdeps = { C_AddOns.GetAddOnOptionalDependencies(i) }      -- optional (.toc OptionalDeps)
 
         frame:SetWidth(340)
         frame:SetHeight(25)
