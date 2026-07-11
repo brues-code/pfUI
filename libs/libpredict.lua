@@ -1020,7 +1020,8 @@ hooksecurefunc("UseAction", function(slot, target, selfcast)
   local kind, id = GetActionInfo(slot)
   local effect, rank
   if kind == "spell" then
-    effect, rank = GetSpellInfo(id)
+    local spellInfo = C_Spell.GetSpellInfo(id)
+    effect, rank = spellInfo.name, spellInfo.rank
   elseif kind == "macro" then
     effect, rank = GetMacroSpell(id)
   end

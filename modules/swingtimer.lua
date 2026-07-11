@@ -430,7 +430,7 @@ pfUI:RegisterModule("swingtimer", function ()
       local kind, id = GetActionInfo(slot)
       local name
       if kind == "spell" then
-        name = GetSpellInfo(id)
+        name = C_Spell.GetSpellName(id)
       elseif kind == "macro" then
         name = GetMacroSpell(id)
       end

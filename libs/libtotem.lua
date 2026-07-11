@@ -228,8 +228,8 @@ pfUI.libdebuff_spell_go_hooks["libtotem"] = function(spellId)
   -- use pending name/icon if available (set by CastSpellByName hook), else GetSpellInfo
   local name = active[slot].pending_name
   local icon = active[slot].pending_icon
-  if not name and GetSpellInfo then
-    name = GetSpellInfo(spellId)
+  if not name then
+    name = C_Spell.GetSpellName(spellId)
   end
   active[slot].name     = name
   active[slot].duration = data.duration
@@ -265,7 +265,8 @@ hooksecurefunc("UseAction", function(slot, target, selfcast)
   local name, rank, spellID
   if kind == "spell" then
     spellID = id
-    name, rank = GetSpellInfo(id)
+    local spellInfo = C_Spell.GetSpellInfo(id)
+    name, rank = spellInfo.name, spellInfo.rank
   elseif kind == "macro" then
     name, rank, spellID = GetMacroSpell(id)
   end
