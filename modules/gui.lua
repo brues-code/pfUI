@@ -2759,22 +2759,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Show Movement Speed"], C.tooltip, "movespeed", "checkbox")
       CreateConfig(nil, T["Custom Transparency"], C.tooltip, "alpha")
       CreateConfig(nil, T["Status Bar Texture"], C.tooltip.statusbar, "texture", "dropdown", pfUI.gui.dropdowns.uf_bartexture)
-      CreateConfig(nil, T["Compare Item Base Stats"], C.tooltip.compare, "basestats", "checkbox")
-      local showAlways = CreateConfig(nil, T["Always Show Item Comparison"], C.tooltip.compare, "showalways", "checkbox")
-      local function gate()
-        local on = C.tooltip.compare.basestats == "1"
-        if on then
-          showAlways.input:Enable()
-          showAlways.caption:SetTextColor(1, 1, 1)
-        else
-          showAlways.input:Disable()
-          showAlways.caption:SetTextColor(0.5, 0.5, 0.5)
-        end
-      end
-      gate()
-      pfUI.events:RegisterCallback("config:changed", function(_, cat, key)
-        if cat == C.tooltip.compare and key == "basestats" then gate() end
-      end, "eqcompare-showalways-gate")
+      CreateConfig(nil, T["Always Show Item Comparison"], C.tooltip.compare, "showalways", "checkbox")
       CreateConfig(nil, T["Always Show Extended Vendor Values"], C.tooltip.vendor, "showalways", "checkbox")
       CreateConfig(U["questitem"], T["Show Related Quest On Questitems"], C.tooltip.questitem, "showquest", "checkbox")
       CreateConfig(U["questitem"], T["Show Required Questitem Count"], C.tooltip.questitem, "showcount", "checkbox")

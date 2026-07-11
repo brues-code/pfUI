@@ -88,7 +88,7 @@ pfUI:RegisterModule("eqcompare", function ()
 
   local prevMerchant = ShoppingTooltip1.SetMerchantCompareItem
   local function SetMerchantCompareItem(self, index, compareItem)
-    if C.tooltip.compare.basestats == "1" and compareItem == 1 then
+    if compareItem == 1 then
       ShowCompareItem(nil, GetMerchantItemLink(index), 1)
       return false
     end
@@ -97,7 +97,7 @@ pfUI:RegisterModule("eqcompare", function ()
 
   local prevAuction = ShoppingTooltip1.SetAuctionCompareItem
   local function SetAuctionCompareItem(self, type, index, compareItem)
-    if C.tooltip.compare.basestats == "1" and compareItem == 1 then
+    if compareItem == 1 then
       ShowCompareItem(nil, GetAuctionItemLink(type, index), 1)
       return false
     end
@@ -132,9 +132,7 @@ pfUI:RegisterModule("eqcompare", function ()
 
   local function makeHook(getter)
     return function(tooltip, arg1, arg2, arg3)
-      if C.tooltip.compare.basestats == "1" then
-        ShowCompareItem(tooltip, getter(arg1, arg2, arg3))
-      end
+      ShowCompareItem(tooltip, getter(arg1, arg2, arg3))
     end
   end
 
