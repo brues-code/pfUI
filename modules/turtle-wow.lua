@@ -299,36 +299,54 @@ pfUI:RegisterModule("turtle-wow", function ()
         -- break if theres nothing left to do
         if initialized then return end
 
-        -- adjust ui positions
+        local _, border = GetBorderSize()
+
+        -- adjust the inspect frame's Talents tab
         SkinTab(InspectFrameTab3)
         InspectFrameTab3:ClearAllPoints()
-        InspectFrameTab3:SetPoint("LEFT", InspectFrameTab2, "RIGHT", GetBorderSize()*2 + 1, 0)
-        TWTalentFrameTab1:SetPoint("TOPLEFT", TWTalentFrameScrollFrame, "TOPLEFT", 2, TWTalentFrameTab1:GetHeight() + 4)
-
+        InspectFrameTab3:SetPoint("LEFT", InspectFrameTab2, "RIGHT", border*2 + 1, 0)
         -- reload text position
         InspectFrameTab3:Hide()
         InspectFrameTab3:Show()
 
-        -- skin inspect window elements
-        StripTextures(InspectTalentsFrame)
-        StripTextures(TWTalentFrameScrollFrame)
-        SkinScrollbar(TWTalentFrameScrollFrameScrollBar)
-        for i = 1, 3 do
-          SkinTab(_G["TWTalentFrameTab"..i])
-        end
+        -- the talent tree frame is created lazily; skin it once it exists
+        if TWTalentFrame then
+          StripTextures(InspectTalentsFrame)
+          StripTextures(TWTalentFrame)
+          StripTextures(TWTalentFrameScrollFrame)
+          SkinScrollbar(TWTalentFrameScrollFrameScrollBar)
 
-        -- skin each talent button
-        for i = 1, (MAX_NUM_TALENTS or 100) do
-          local talent = _G["TWTalentFrameTalent" .. i]
-          if talent then
-            StripTextures(talent)
-            SkinButton(talent, nil, nil, nil, _G["TWTalentFrameTalent" .. i .. "IconTexture"])
-            _G["TWTalentFrameTalent" .. i .. "Rank"]:SetFont(pfUI.font_default, C.global.font_size, "OUTLINE")
+          -- skin + position the talent-tree tabs
+          for i = 1, 3 do
+            local tab = _G["TWTalentFrameTab"..i]
+            if tab then
+              SkinTab(tab)
+              tab:ClearAllPoints()
+              local lastTab = _G["TWTalentFrameTab"..(i-1)]
+              if lastTab then
+                tab:SetPoint("LEFT", lastTab, "RIGHT", border*2 + 1, 0)
+              else
+                tab:SetPoint("TOPLEFT", TWTalentFrameScrollFrame, "TOPLEFT", 2, tab:GetHeight() + 4)
+              end
+            end
           end
-        end
 
-        -- only run once
-        initialized = true
+          -- skin each talent button
+          for i = 1, (MAX_NUM_TALENTS or 100) do
+            local talent = _G["TWTalentFrameTalent"..i]
+            if talent then
+              StripTextures(talent)
+              SkinButton(talent, nil, nil, nil, _G["TWTalentFrameTalent"..i.."IconTexture"])
+              local rank = _G["TWTalentFrameTalent"..i.."Rank"]
+              if rank then
+                rank:SetFont(pfUI.font_default, C.global.font_size, "OUTLINE")
+              end
+            end
+          end
+
+          -- only run once the talent frame has actually been skinned
+          initialized = true
+        end
       end)
     end)
   end
