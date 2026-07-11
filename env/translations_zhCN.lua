@@ -138,7 +138,6 @@ pfUI_translation["zhCN"] = {
   ["Combat Timer"] = "战斗计时器",
   ["Combopoint Height"] = "连击点高度",
   ["Combopoint Width"] = "连击点宽度",
-  ["Compare Item Base Stats"] = "基于属性的装备对比",
   ["Components"] = "组件",
   ["Config UI Settings"] = "界面设置",
   ["Configuration"] = "配置",

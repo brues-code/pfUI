@@ -138,7 +138,6 @@ pfUI_translation["zhTW"] = {
   ["Combat Timer"] = "戰鬥計時器",
   ["Combopoint Height"] = nil,
   ["Combopoint Width"] = nil,
-  ["Compare Item Base Stats"] = "基於屬性的裝備對比",
   ["Components"] = "組件",
   ["Config UI Settings"] = nil,
   ["Configuration"] = "配置",

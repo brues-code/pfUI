@@ -138,7 +138,6 @@ pfUI_translation["deDE"] = {
   ["Combat Timer"] = nil,
   ["Combopoint Height"] = nil,
   ["Combopoint Width"] = nil,
-  ["Compare Item Base Stats"] = nil,
   ["Components"] = nil,
   ["Config UI Settings"] = nil,
   ["Configuration"] = nil,

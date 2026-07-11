@@ -138,7 +138,6 @@ pfUI_translation["ruRU"] = {
   ["Combat Timer"] = "Таймер боя",
   ["Combopoint Height"] = nil,
   ["Combopoint Width"] = nil,
-  ["Compare Item Base Stats"] = "Сравнивать базовые характеристики предмета",
   ["Components"] = "Компоненты",
   ["Config UI Settings"] = "Настройка параметров пользовательского интерфейса",
   ["Configuration"] = "Конфигурация",

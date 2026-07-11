@@ -138,7 +138,6 @@ pfUI_translation["frFR"] = {
   ["Combat Timer"] = "Chronomètre de combat",
   ["Combopoint Height"] = nil,
   ["Combopoint Width"] = nil,
-  ["Compare Item Base Stats"] = "Compare les stats de base d'un objet",
   ["Components"] = "Composants",
   ["Config UI Settings"] = nil,
   ["Configuration"] = "Configuration",

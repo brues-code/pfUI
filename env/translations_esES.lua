@@ -138,7 +138,6 @@ pfUI_translation["esES"] = {
   ["Combat Timer"] = "Temporizador de combate",
   ["Combopoint Height"] = nil,
   ["Combopoint Width"] = nil,
-  ["Compare Item Base Stats"] = "Comparar estadísticas bases de objetos",
   ["Components"] = "Componentes",
   ["Config UI Settings"] = nil,
   ["Configuration"] = "Configuración",
