@@ -2,7 +2,6 @@
 -- Announces Innervate casts via raid/party/battleground chat
 -- Registers AURA_CAST events directly - zero polling, pure event-driven
 
-pfUI:RegisterNewModule("innervatecall", "Innervate Callout", "DRUID")
 pfUI:RegisterModule("innervatecall", function ()
   -- Requires Nampower for AURA_CAST events
   if not GetNampowerVersion then return end

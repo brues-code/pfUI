@@ -1,4 +1,3 @@
-pfUI:RegisterNewModule("marktracking", "Mark Tracker")
 pfUI:RegisterModule("marktracking", function ()
   -- Requires mark1-mark8 unit tokens (Turtle WoW / Nampower)
   if not UnitExists("mark1") and not UnitExists("mark8") then
