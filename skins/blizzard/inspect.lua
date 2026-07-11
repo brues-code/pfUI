@@ -152,9 +152,8 @@ pfUI:RegisterSkin("Inspect", function ()
 
       hooksecurefunc("InspectPaperDollItemSlotButton_Update", function(button)
         local bid = button:GetID()
-        local link = GetInventoryItemLink(InspectFrame.unit, bid)
-        if link then
-          local _,_,itemID = string.find(link, 'item:(%d+)')
+        local itemID = GetInventoryItemID(InspectFrame.unit, bid)
+        if itemID then
           cache[bid] = cache[bid] or {}
           cache[bid]["id"] = itemID
           cache[bid]["tex"] = GetInventoryItemTexture(InspectFrame.unit, button:GetID())
