@@ -87,11 +87,6 @@ pfUI:RegisterSkin("Inspect", function ()
         end)
       end
 
-      -- Colour a slot's border from the item's quality. Via the !!!ClassicAPI
-      -- Item mixin: ContinueOnItemLoad fires now if the data is cached, else
-      -- when ITEM_DATA_LOAD_RESULT lands — replacing the old QueueFunction
-      -- retry poll. Guards against the inspect target / slot changing before
-      -- the (possibly async) load returns.
       local function ColorSlot(slot, id, itemID, vslot)
         local item = Item:CreateFromItemID(itemID)
         if item:IsItemEmpty() then return end
@@ -152,8 +147,6 @@ pfUI:RegisterSkin("Inspect", function ()
               slot.scoreText:SetText("")
             end
           end
-          -- (hasItem but itemID still nil = inspect inventory not synced yet;
-          --  InspectPaperDollItemSlotButton_Update re-fires UpdateSlots)
         end
       end
 
