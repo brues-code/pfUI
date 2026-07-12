@@ -4,7 +4,25 @@ pfUI:RegisterSkin("Character", function ()
 
   -- Honor Tab
   StripTextures(HonorFrame)
-  StripTextures(ArenaFrame)
+  if ArenaFrame then
+    StripTextures(ArenaFrame)
+    for _, frame in pairs({'Arena', 'Honor'}) do
+      for i = 1, 2 do
+        local tab = _G[frame.."FrameTab"..i]
+        local lastTab = _G[frame.."FrameTab"..(i-1)]
+        if lastTab and lastTab:IsShown() then
+          tab:ClearAllPoints()
+          tab:SetPoint("LEFT", lastTab, "RIGHT", border*2 + 1, 0)
+        end
+        SkinTab(tab)
+      end
+    end
+    for i = 1, 3 do
+      local team = _G["ArenaFrameTeam"..i]
+      StripTextures(team)
+      CreateBackdrop(team)
+    end
+  end
 
   HonorFrameProgressBar:SetStatusBarTexture(pfUI.media["img:bar"])
   CreateBackdrop(HonorFrameProgressBar)

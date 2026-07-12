@@ -172,6 +172,14 @@ pfUI:RegisterSkin("Inspect", function ()
 
     do -- Honor Tab
       StripTextures(InspectHonorFrame)
+      if InspectArenaFrame then
+        StripTextures(InspectArenaFrame)
+        for i = 1, 3 do
+          local team = _G["InspectArenaFrameTeam"..i]
+          StripTextures(team)
+          CreateBackdrop(team)
+        end
+      end
 
       CreateBackdrop(InspectHonorFrameProgressBar)
       InspectHonorFrameProgressBar:SetStatusBarTexture(pfUI.media["img:bar"])
