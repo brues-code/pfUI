@@ -4,8 +4,6 @@ pfUI:RegisterModule("unusable", function ()
 
   pfUI.unusable = {}
 
-  local scanner = libtipscan:GetScanner("unusable")
-  local durability = string.gsub(DURABILITY_TEMPLATE, "%%[^%s]+", "(.+)")
   local r, g, b, a = strsplit(",", C.appearance.bags.unusable_color)
 
   function pfUI.unusable:UpdateSlot(bag, slot)
@@ -13,31 +11,18 @@ pfUI:RegisterModule("unusable", function ()
     if not pfUI.bags[bag] then return end
     if not pfUI.bags[bag].slots[slot] then return end
 
-    -- add button shortcuts
-    local frame = pfUI.bags[bag].slots[slot].frame
-    local name = frame:GetName()
-
     -- return on empty buttons
+    local frame = pfUI.bags[bag].slots[slot].frame
     if not frame.hasItem then return end
 
-    -- set the proper tooltip method
-    if bag == BANK_CONTAINER then
-      scanner:SetInventoryItem("player", 39+slot)
-    else
-      scanner:SetBagItem(bag, slot)
+    -- C_PlayerInfo.CanUseItem is the "is this red in the tooltip" gate:
+    -- proficiency, required level, class/race, skill/spell/rep. It checks
+    -- *requirements* only, so a broken (0-durability) item still reads as
+    -- usable -- no durability-line exclusion needed like the old scanner.
+    local itemID = C_Container.GetContainerItemID(bag, slot)
+    if itemID and not C_PlayerInfo.CanUseItem(itemID) then
+      _G.SetItemButtonTextureVertexColor(frame, r, g, b, a)
     end
-
-    -- check for red color in tooltip
-    local red = scanner:Color(RED_FONT_COLOR)
-    if not red then return end
-
-    -- check for broken items
-    local left = scanner:Line(red)
-    local _, _, broken = string.find(left, durability, 1)
-    if broken then return end
-
-    -- update button vertex color
-    _G.SetItemButtonTextureVertexColor(frame, r, g, b, a)
   end
 
   -- update on regular pfUI button updates
