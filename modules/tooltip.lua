@@ -3,8 +3,7 @@ pfUI:RegisterModule("tooltip", function ()
 
   pfUI.tooltip = CreateFrame('Frame', "pfTooltip", GameTooltip)
   pfUI.tooltip.anchorframe = CreateFrame('Frame', "pfTooltipAnchor", UIParent)
-  pfUI.tooltip.anchorframe:SetWidth(128)
-  pfUI.tooltip.anchorframe:SetHeight(72)
+  pfUI.tooltip.anchorframe:SetSize(128, 72)
   pfUI.tooltip.anchorframe:SetPoint("TOP", UIParent, "TOP", 0, -50)
   pfUI.tooltip.anchorframe:Hide()
   UpdateMovable(pfUI.tooltip.anchorframe)
@@ -30,8 +29,8 @@ pfUI:RegisterModule("tooltip", function ()
         -- create mouse follow frame
         if not tooltip.cursor then
           tooltip.cursor = CreateFrame("Frame", nil, UIParent)
-          tooltip.cursor:SetWidth(tonumber(C.tooltip.cursoroffset) * 2)
-          tooltip.cursor:SetHeight(tonumber(C.tooltip.cursoroffset) * 2)
+          local size = tonumber(C.tooltip.cursoroffset) * 2
+          tooltip.cursor:SetSize(size, size)
           tooltip.cursor:SetScript("OnUpdate", function()
             -- throttle - cursor following doesn't need to be every frame
             if (this.tick or 0) > GetTime() then return end
@@ -172,8 +171,9 @@ pfUI:RegisterModule("tooltip", function ()
       local unit = pfUI.tooltip:GetUnit()
       if unit == "none" then
         -- process item tooltips
-        if C.tooltip.itemid == "1" and libtooltip:GetItemID() then
-          GameTooltip:AddLine(T["ItemID"] .. ": " .. libtooltip:GetItemID(), .25,.5,1)
+        if C.tooltip.itemid == "1" and GameTooltip:HasItem() then
+          local _, _, itemID = GameTooltip:GetItem()
+          GameTooltip:AddLine(T["ItemID"] .. ": " .. itemID, .25,.5,1)
           GameTooltip:Show()
         end
 
