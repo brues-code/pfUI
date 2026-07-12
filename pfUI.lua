@@ -5,11 +5,7 @@ end
 
 SLASH_PFUI1 = '/pfui'
 function SlashCmdList.PFUI(msg, editbox)
-  if pfUI.gui:IsShown() then
-    pfUI.gui:Hide()
-  else
-    pfUI.gui:Show()
-  end
+  pfUI.gui:SetShown(not pfUI.gui:IsShown())
 end
 
 SLASH_GM1, SLASH_GM2 = '/gm', '/support'
