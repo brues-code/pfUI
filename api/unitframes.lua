@@ -778,8 +778,7 @@ function pfUI.uf:UpdateConfig()
       invert_v * (i-1-row*perrow)*(multiply*default_border + f.config.buffsize + 1),
       invert_h * (row*(multiply*default_border + f.config.buffsize + 1) + (multiply*default_border + 1)))
 
-      f.buffs[i]:SetWidth(f.config.buffsize)
-      f.buffs[i]:SetHeight(f.config.buffsize)
+      f.buffs[i]:SetSize(f.config.buffsize, f.config.buffsize)
       
       -- Create CD frame if it doesn't exist
       if not f.buffs[i].cd then
@@ -808,11 +807,7 @@ function pfUI.uf:UpdateConfig()
       
       -- immediately show/hide existing cooldown text
       if f.buffs[i].cd.pfCooldownText then
-        if cooldown_text == 1 then
-          f.buffs[i].cd.pfCooldownText:Show()
-        else
-          f.buffs[i].cd.pfCooldownText:Hide()
-        end
+        f.buffs[i].cd.pfCooldownText:SetShown(cooldown_text == 1)
       end
       
       f.buffs[i].id = i
