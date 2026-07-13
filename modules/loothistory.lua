@@ -1,4 +1,3 @@
-pfUI:RegisterNewModule("loothistory", "Loot History")
 pfUI:RegisterModule("loothistory", function ()
   local rawborder, border = GetBorderSize()
 
