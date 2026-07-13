@@ -69,6 +69,11 @@ pfUI:RegisterModule("castbar", function ()
   -- spark to the left edge of the bar.
   local function StartTradeskillCraft(cb)
     cb.currentCraftStart = GetTime() * 1000
+    local remaining = cb.tradeskillTotal - (cb.tradeskillCompleted or 0)
+    cb.endTime = cb.currentCraftStart + cb.tradeskillSingleMs * remaining
+    local duration = (cb.endTime - cb.startTime) / 1000
+    cb.bar:SetMinMaxValues(0, duration)
+    cb.lastMax = duration
     UpdateTradeskillLabel(cb)
   end
 
