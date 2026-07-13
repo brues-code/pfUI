@@ -1,6 +1,5 @@
 pfUI:RegisterModule("mouseover", function ()
-  _G.SLASH_PFCAST1, _G.SLASH_PFCAST2 = "/pfcast", "/pfmouse"
-  function SlashCmdList.PFCAST(msg)
+  pfUI.api.RegisterSlashCommand("PFCAST", { "/pfcast", "/pfmouse" }, function(msg)
     local func = pfUI.api.TryMemoizedFuncLoadstringForSpellCasts(msg)
     local unit = "mouseover"
 
@@ -30,5 +29,5 @@ pfUI:RegisterModule("mouseover", function ()
     if restore_target then TargetUnit(unit) end
     func()
     if restore_target then TargetLastTarget() end
-  end
+  end, true)
 end)

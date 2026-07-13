@@ -385,6 +385,5 @@ pfUI:RegisterModule("loothistory", function ()
     pfUI.loothistory:SetShown(not pfUI.loothistory:IsShown())
   end
 
-  _G.SLASH_PFLOOTHISTORY1, _G.SLASH_PFLOOTHISTORY2 = "/loothistory", "/pfloothistory"
-  _G.SlashCmdList.PFLOOTHISTORY = Toggle
+  pfUI.api.RegisterSlashCommand("PFLOOTHISTORY", { "/loothistory", "/pfloothistory" }, Toggle, true)
 end)

@@ -352,8 +352,7 @@ pfUI:RegisterModule("unitxp", function ()
   end
 
   -- Debug command to test UnitXP indicators
-  _G.SLASH_PFUNITXP1 = "/pfunitxp"
-  SlashCmdList["PFUNITXP"] = function()
+  pfUI.api.RegisterSlashCommand("PFUNITXP", { "/pfunitxp" }, function()
     local chat = DEFAULT_CHAT_FRAME
     chat:AddMessage("|cff33ffccpfUI|r: UnitXP Indicator Debug")
 
@@ -387,5 +386,5 @@ pfUI:RegisterModule("unitxp", function ()
     else
       chat:AddMessage("  Target frame: |cffff0000NOT found|r")
     end
-  end
+  end, true)
 end)

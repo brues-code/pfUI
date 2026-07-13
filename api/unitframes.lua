@@ -19,10 +19,9 @@ function pfUI.uf.ClearGuidTracking()
 end
 
 -- slash command to toggle unitframe test mode
-_G.SLASH_PFTEST1, _G.SLASH_PFTEST2 = "/pftest", "/pfuftest"
-_G.SlashCmdList.PFTEST = function()
+pfUI.api.RegisterSlashCommand("PFTEST", { "/pftest", "/pfuftest" }, function()
   pfUI.uf.showall = not pfUI.uf.showall
-end
+end, true)
 
 -- HoT buff indicators that need name verification because their icons are
 -- reused by other spells. Maps icon (lowercased) → expected aura name +
@@ -3015,9 +3014,7 @@ end
 -- ============================================================================
 -- Slash Commands for Stats Frame
 -- ============================================================================
-_G.SLASH_PFUISTATS1 = "/pfuistats"
-_G.SLASH_PFUISTATS2 = "/ufstats"
-_G.SlashCmdList["PFUISTATS"] = function(msg)
+pfUI.api.RegisterSlashCommand("PFUISTATS", { "/pfuistats", "/ufstats" }, function(msg)
   msg = string.lower(msg or "")
   
   if not pfUI.uf.stats then
@@ -3069,4 +3066,4 @@ _G.SlashCmdList["PFUISTATS"] = function(msg)
       end
     end
   end
-end
+end, true)

@@ -30,8 +30,7 @@ end)
 -- /focusname is pfUI-specific because the engine has no name→GUID
 -- lookup for off-screen units — we resolve via a short target-swap.
 
-SLASH_PFFOCUSNAME1, SLASH_PFFOCUSNAME2 = '/focusname', '/pffocusname'
-function SlashCmdList.PFFOCUSNAME(msg)
+pfUI.api.RegisterSlashCommand("PFFOCUSNAME", { '/focusname', '/pffocusname' }, function(msg)
   if msg == "" then return end
 
   local prevGUID = UnitGUID("target")
@@ -61,10 +60,9 @@ function SlashCmdList.PFFOCUSNAME(msg)
   else
     ClearTarget()
   end
-end
+end, true)
 
-SLASH_PFCASTFOCUS1, SLASH_PFCASTFOCUS2 = '/castfocus', '/pfcastfocus'
-function SlashCmdList.PFCASTFOCUS(msg)
+pfUI.api.RegisterSlashCommand("PFCASTFOCUS", { '/castfocus', '/pfcastfocus' }, function(msg)
   local focusGUID = UnitGUID("focus")
   if not focusGUID or focusGUID == "0x0000000000000000" then
     UIErrorsFrame:AddMessage(SPELL_FAILED_BAD_TARGETS, 1, 0, 0)
@@ -105,10 +103,9 @@ function SlashCmdList.PFCASTFOCUS(msg)
   else
     TargetLastTarget()
   end
-end
+end, true)
 
-SLASH_PFSWAPFOCUS1, SLASH_PFSWAPFOCUS2 = '/swapfocus', '/pfswapfocus'
-function SlashCmdList.PFSWAPFOCUS(msg)
+pfUI.api.RegisterSlashCommand("PFSWAPFOCUS", { '/swapfocus', '/pfswapfocus' }, function(msg)
   local targetGUID = UnitGUID("target")
   local oldFocusGUID = UnitGUID("focus")
 
@@ -118,4 +115,4 @@ function SlashCmdList.PFSWAPFOCUS(msg)
       TargetUnit(oldFocusGUID)
     end
   end
-end
+end, true)

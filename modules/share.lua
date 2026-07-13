@@ -389,9 +389,8 @@ pfUI:RegisterModule("share", function ()
       end)
     end
 
-    _G.SLASH_PFEXPORT1, _G.SLASH_PFEXPORT2, _G.SLASH_PFEXPORT3 = "/export", "/import", "/share"
-    function SlashCmdList.PFEXPORT(msg, editbox)
+    pfUI.api.RegisterSlashCommand("PFEXPORT", { "/export", "/import", "/share" }, function(msg, editbox)
       f:Show()
-    end
+    end, true)
   end
 end)

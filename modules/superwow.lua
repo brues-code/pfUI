@@ -2,8 +2,7 @@
 -- https://github.com/balakethelock/SuperWoW
 
 -- DLL Status Check Command (always available)
-SLASH_PFDLLSTATUS1 = "/pfdll"
-SlashCmdList["PFDLLSTATUS"] = function()
+pfUI.api.RegisterSlashCommand("PFDLLSTATUS", { "/pfdll" }, function()
   local chat = DEFAULT_CHAT_FRAME
   chat:AddMessage("|cff33ffccpfUI|r: DLL Status Check")
 
@@ -43,7 +42,7 @@ SlashCmdList["PFDLLSTATUS"] = function()
   else
     chat:AddMessage("  |cffff0000Target frame|r: NOT found")
   end
-end
+end, true)
 
 pfUI:RegisterModule("superwow", function ()
   if SetAutoloot and SpellInfo and not SUPERWOW_VERSION then
@@ -173,12 +172,10 @@ pfUI:RegisterModule("superwow", function ()
     end
 
     -- Add slash command for clickthrough toggle
-    _G.SLASH_PFCLICKTHROUGH1 = "/clickthrough"
-    _G.SLASH_PFCLICKTHROUGH2 = "/ct"
-    SlashCmdList["PFCLICKTHROUGH"] = function()
+    pfUI.api.RegisterSlashCommand("PFCLICKTHROUGH", { "/clickthrough", "/ct" }, function()
       local enabled = pfUI.api.ToggleClickthrough()
       DEFAULT_CHAT_FRAME:AddMessage("|cff33ffccpfUI|r: Clickthrough mode " .. (enabled and "|cff00ff00enabled|r" or "|cffff0000disabled|r"))
-    end
+    end, true)
   end
 
 end)

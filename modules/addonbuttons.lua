@@ -440,6 +440,5 @@ pfUI:RegisterModule("addonbuttons", function ()
 
   pfUI.addonbuttons:UpdateConfig()
 
-  _G.SLASH_PFABP1, _G.SLASH_PFABP2 = "/abp", "/pfabp"
-  _G.SlashCmdList.PFABP = ManualAddOrRemove
+  pfUI.api.RegisterSlashCommand("PFABP", { "/abp", "/pfabp" }, ManualAddOrRemove, true)
 end)

@@ -25,8 +25,7 @@ pfUI:RegisterModule("farmmode", function ()
     Minimap_ZoomOut()
   end
 
-  _G.SLASH_PFFARMMAP1, _G.SLASH_PFFARMMAP2 = "/farm", "/farmmode"
-  _G.SlashCmdList.PFFARMMAP = ToggleFarmMode
+  pfUI.api.RegisterSlashCommand("PFFARMMAP", { "/farm", "/farmmode" }, ToggleFarmMode, true)
 
   pfUI.farmmap = CreateFrame("Minimap", "pfFarmMap", UIParent)
   pfUI.farmmap:Hide()

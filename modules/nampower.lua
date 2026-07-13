@@ -150,9 +150,7 @@ pfUI:RegisterModule("nampower", function ()
 
   -- /disenchantall slash command (DisenchantAll is Nampower-provided)
   if DisenchantAll then
-    _G.SLASH_PFDISENCHANTALL1 = "/disenchantall"
-    _G.SLASH_PFDISENCHANTALL2 = "/dea"
-    SlashCmdList["PFDISENCHANTALL"] = function(msg)
+    pfUI.api.RegisterSlashCommand("PFDISENCHANTALL", { "/disenchantall", "/dea" }, function(msg)
       -- DisenchantAll(itemIdOrName | quality, [includeSoulbound]).
       -- Quality is a string keyword ("greens", "blues", "purples", or pipe-
       -- combined). Numbers are interpreted as item IDs, not quality levels.
@@ -161,7 +159,7 @@ pfUI:RegisterModule("nampower", function ()
       local target = tonumber(arg) or arg
       DisenchantAll(target)
       DEFAULT_CHAT_FRAME:AddMessage("|cff33ffccpfUI|r: DisenchantAll(" .. tostring(target) .. ")")
-    end
+    end, true)
   end
 
   -- Druid Secondary Mana Bar
