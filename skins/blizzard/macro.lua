@@ -45,8 +45,7 @@ pfUI:RegisterSkin("Macro", function ()
     MacroNewButton:ClearAllPoints()
     MacroNewButton:SetPoint("RIGHT", MacroExitButton, "LEFT", -2*bpad, 0)
 
-    MacroEditButton:SetHeight(22)
-    MacroEditButton:SetWidth(150)
+    MacroEditButton:SetSize(150, 22)
     MacroEditButton:ClearAllPoints()
     MacroEditButton:SetPoint("BOTTOMLEFT", MacroFrameSelectedMacroButton, "BOTTOMRIGHT", 6, -2)
 

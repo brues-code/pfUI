@@ -2,15 +2,14 @@ pfUI:RegisterModule("macrotweak", function ()
   local conflictAddons = { "Supermacro", "SuperCleveRoidMacros", "UltimaMacros" }
   local disabled = false
 
-  local function CheckConflicts()
-    for _, name in pairs(conflictAddons) do
-      if IsAddOnLoaded(name) then
+  for _, addon in pairs(conflictAddons) do
+    local name = addon
+    EventUtil.ContinueOnAddOnLoaded(name, function()
+      if not disabled then
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ffccpfUI|r: " .. name .. " found, macrotweak disabled.")
-        disabled = true
-        return true
       end
-    end
-    return false
+      disabled = true
+    end)
   end
 
   -- do not write macro calls into chat input history
@@ -64,7 +63,4 @@ pfUI:RegisterModule("macrotweak", function ()
       UseInventoryItem(slot)
     end
   end)
-
-  -- Check conflicts after one tick so all addons have finished loading
-  RunNextFrame(CheckConflicts)
 end)
