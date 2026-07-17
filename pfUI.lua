@@ -36,9 +36,16 @@ do
   if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
     local minVersion = FormatVersion(PFUI_CLASSIC_API_MIN)
     pfUI.disabled = true
-    EventUtil.ContinueOnPlayerLogin(function()
+    local detail
+    if not CLASSIC_API_VERSION then
+      detail = "The ClassicAPI DLL isn't loaded. The |cff33ffcc!!!ClassicAPI|r addon ships bundled with it -- delete your |cff33ffcc!!!ClassicAPI|r folder and install the latest release from:"
+    else
+      detail = "ClassicAPI " .. minVersion .. " or newer is required. Delete your |cff33ffcc!!!ClassicAPI|r folder and reinstall the latest release from:"
+    end
+
+    local function ShowRequiredPopup()
       StaticPopupDialogs["PFUI_CLASSICAPI_REQUIRED"] = {
-        text = "This fork of |cff33ffccpf|cffffffffUI|r requires ClassicAPI\n " .. minVersion .. " or newer.\n\nAll |cff33ffccpf|cffffffffUI|r modules have been disabled.\nInstall ClassicAPI from:",
+        text = "|cff33ffccpf|cffffffffUI|r has been disabled.\n\n" .. detail,
         button1 = OKAY,
         hasEditBox = 1,
         editBoxWidth = 280,
@@ -47,7 +54,7 @@ do
         hideOnEscape = 1,
         preferredIndex = 3,
         OnShow = function()
-          local editBox = _G[this:GetName().."EditBox"]
+          local editBox = getglobal(this:GetName().."EditBox")
           if editBox then
             editBox:SetText(PFUI_CLASSIC_API_LATEST_URL)
             editBox:HighlightText()
@@ -57,9 +64,15 @@ do
       }
       StaticPopup_Show("PFUI_CLASSICAPI_REQUIRED")
       DEFAULT_CHAT_FRAME:AddMessage(
-        "This fork of |cff33ffccpf|cffffffffUI|r requires ClassicAPI " .. minVersion .. "+. Get it at " .. PFUI_CLASSIC_API_LATEST_URL,
+        "|cff33ffccpf|cffffffffUI|r disabled: " .. detail .. " " .. PFUI_CLASSIC_API_LATEST_URL,
         1, 0.3, 0.3
       )
+    end
+    local loginFrame = CreateFrame("Frame")
+    loginFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    loginFrame:SetScript("OnEvent", function()
+      loginFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
+      ShowRequiredPopup()
     end)
   elseif CLASSIC_API_VERSION < PFUI_CLASSIC_API_LATEST then
     EventUtil.ContinueOnPlayerLogin(function()
@@ -97,9 +110,11 @@ pfUI.movables = {}
 pfUI.version = {}
 pfUI.env = {}
 
-pfUI.events = Mixin({}, CallbackRegistryMixin)
-pfUI.events:OnLoad()
-pfUI.events:SetUndefinedEventsAllowed(true)
+if not pfUI.disabled then
+  pfUI.events = Mixin({}, CallbackRegistryMixin)
+  pfUI.events:OnLoad()
+  pfUI.events:SetUndefinedEventsAllowed(true)
+end
 
 -- check if macro addons are loaded (disables macrotweak/macroscan)
 function pfUI:MacroAddonsLoaded()
