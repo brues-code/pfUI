@@ -337,6 +337,7 @@ pfUI:RegisterModule("bags", function ()
     local chat = pfUI.chat and ( object == "bank" and pfUI.chat.left or pfUI.chat.right) or nil
 
     frame:SetScript("OnShow", function()
+      frame.opened = true
       if C.appearance.bags.hidechat == "1" and chat and chat:IsVisible() then
         frame.chatWasOpen = true
         chat:Hide()
@@ -355,6 +356,10 @@ pfUI:RegisterModule("bags", function ()
       end
       pfUI.bag:CreateBags(object)
       PlaySound("INTERFACESOUND_BACKPACKCLOSE")
+      if frame.opened then
+        frame.opened = nil
+        pfUI.events:TriggerEvent("bag:closed", object)
+      end
     end)
   end
 

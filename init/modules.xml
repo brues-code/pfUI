@@ -79,4 +79,5 @@
   <Include file="..\modules\bgscore.lua"/>
   <Include file="..\modules\equipmentmanager.lua"/>
   <Include file="..\modules\loothistory.lua"/>
+  <Include file="..\modules\newitem.lua"/>
 </Ui>
