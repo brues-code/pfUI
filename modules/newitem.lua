@@ -13,24 +13,29 @@ pfUI:RegisterModule("newitem", function ()
 
     local frame = pfUI.bags[bag].slots[slot].frame
 
-    if not frame.newitem then
-      local glow = frame:CreateTexture(nil, "OVERLAY")
-      glow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-      glow:SetBlendMode("ADD")
-      glow:SetVertexColor(color:GetRGBA())
-      glow:SetPoint("CENTER", frame, "CENTER")
-      glow:Hide()
-      frame.newitem = glow
+    if frame.hasItem and C_NewItems.IsNewItem(bag, slot) then
+      if not frame.newitem then
+        local glow = frame:CreateTexture(nil, "OVERLAY")
+        glow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+        glow:SetBlendMode("ADD")
+        glow:SetVertexColor(color:GetRGBA())
+        glow:SetPoint("CENTER", frame, "CENTER")
+        glow:Hide()
+        glow.RefreshSize = function(g)
+          local w = g:GetParent():GetWidth()
+          if w > 0 then g:SetSize(w * 1.8, w * 1.8) end
+        end
+        frame.newitem = glow
 
-      frame:HookScript("OnEnter", function()
-        C_NewItems.RemoveNewItem(bag, slot)
-      end)
+        frame:HookScript("OnEnter", function()
+          C_NewItems.RemoveNewItem(bag, slot)
+        end)
+      end
+      frame.newitem:RefreshSize()
+      frame.newitem:Show()
+    elseif frame.newitem and frame.newitem:IsShown() then
+      frame.newitem:Hide()
     end
-
-    local w = frame:GetWidth()
-    if w > 0 then frame.newitem:SetSize(w * 1.8, w * 1.8) end
-
-    frame.newitem:SetShown(frame.hasItem and C_NewItems.IsNewItem(bag, slot))
   end
 
   -- The new-item set can change without any slot's contents changing (an item
