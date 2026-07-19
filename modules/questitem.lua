@@ -1,7 +1,42 @@
 pfUI:RegisterModule("questitem", function ()
-  -- [itemID] = { index = questLogIndex, count = requiredCount }. Rebuilt
-  -- on QUEST_LOG_UPDATE from ClassicAPI's per-quest cached requirements.
   local requiredItems = {}
+
+  local function AddQuest(questID)
+    local details = C_QuestLog.GetQuestDetails(questID)
+    if not details then return false end
+    if details.requirements then
+      for _, req in ipairs(details.requirements) do
+        if req.kind == "item" and req.id and req.id > 0 then
+          requiredItems[req.id] = {
+            questID = questID,
+            title = details.title,
+            level = details.level,
+            count = req.count,
+          }
+        end
+      end
+    end
+    return true
+  end
+
+  local function RemoveQuest(questID)
+    for itemID, entry in pairs(requiredItems) do
+      if entry.questID == questID then requiredItems[itemID] = nil end
+    end
+  end
+
+  local function Seed()
+    for k in pairs(requiredItems) do requiredItems[k] = nil end
+    local complete = true
+    local i = 1
+    while true do
+      local questID = C_QuestLog.GetQuestIDForLogIndex(i)
+      if questID == nil then break end
+      if questID > 0 and not AddQuest(questID) then complete = false end
+      i = i + 1
+    end
+    return complete
+  end
 
   local function AddTooltip(frame, itemID)
     if not itemID then return end
@@ -19,7 +54,7 @@ pfUI:RegisterModule("questitem", function ()
     if not entry and not replace then return end
 
     local quest, level = UNKNOWN, 255
-    if entry then quest, level = GetQuestLogTitle(entry.index) end
+    if entry then quest, level = entry.title, entry.level end
     if not quest then return end
 
     local color = GetDifficultyColor(level)
@@ -42,48 +77,37 @@ pfUI:RegisterModule("questitem", function ()
   pfUI.questitem = CreateFrame("Frame", "pfQuestItemScanner", UIParent)
   pfUI.questitem:RegisterEvent("PLAYER_ENTERING_WORLD")
   pfUI.questitem:RegisterEvent("QUEST_LOG_UPDATE")
+  pfUI.questitem:RegisterEvent("QUEST_ACCEPTED")
+  pfUI.questitem:RegisterEvent("QUEST_REMOVED")
   pfUI.questitem:SetScript("OnEvent", function()
-    -- debounce rebuilds — QUEST_LOG_UPDATE fires in bursts
-    this.run = GetTime() + .5
+    if C.tooltip.questitem.showquest ~= "1" then return end
+    if event == "QUEST_ACCEPTED" then          -- arg1 = logIndex, arg2 = questID
+      if not AddQuest(arg2) then                -- cache cold (rare) -> reseed
+        this.seeding = true
+        this.run = GetTime() + .5
+      end
+    elseif event == "QUEST_REMOVED" then        -- arg1 = questID
+      RemoveQuest(arg1)
+    elseif event == "PLAYER_ENTERING_WORLD" then
+      this.seeding = true                       -- seed pre-existing quests
+      this.run = GetTime() + .5
+    elseif event == "QUEST_LOG_UPDATE" and this.seeding then
+      this.run = GetTime() + .5                 -- keep retrying while cache warms
+    end
   end)
 
   pfUI.questitem:SetScript("OnUpdate", function()
-    if C.tooltip.questitem.showquest ~= "1" then return end
     if not this.run or GetTime() < this.run then return end
-
-    for k in pairs(requiredItems) do requiredItems[k] = nil end
-
-    -- GetQuestIDForLogIndex returns nil past the end, 0 for headers, else
-    -- the questID. GetQuestDetails reads the engine's static-info cache —
-    -- nil if not yet populated; we'll catch it on the next refresh.
-    local i = 1
-    while true do
-      local questID = C_QuestLog.GetQuestIDForLogIndex(i)
-      if questID == nil then break end
-      if questID > 0 then
-        local details = C_QuestLog.GetQuestDetails(questID)
-        if details and details.requirements then
-          for _, req in ipairs(details.requirements) do
-            if req.kind == "item" and req.id and req.id > 0 then
-              requiredItems[req.id] = { index = i, count = req.count }
-            end
-          end
-        end
-      end
-      i = i + 1
-    end
-
     this.run = nil
+    if Seed() then this.seeding = nil end
   end)
 
-  -- reload quest entries on config change
   pfUI.questitem.UpdateConfig = function()
+    if C.tooltip.questitem.showquest ~= "1" then return end
+    pfUI.questitem.seeding = true
     pfUI.questitem.run = GetTime() + .5
   end
 
-  -- regular tooltip: catch every Show via a child frame's OnShow, then ask
-  -- the tooltip directly for the item it's displaying. Replaces a libtooltip
-  -- indirection that did the same query with extra caching layers.
   pfUI.questitem.tooltip = CreateFrame("Frame", "pfQuestItems", GameTooltip)
   pfUI.questitem.tooltip:SetScript("OnShow", function()
     if GameTooltip:HasItem() then
@@ -92,9 +116,6 @@ pfUI:RegisterModule("questitem", function ()
     end
   end)
 
-  -- itemref tooltip (chat link clicks): hooksecurefunc runs after SetItemRef
-  -- populates ItemRefTooltip, so we just read the item back out of the tooltip
-  -- instead of re-parsing the "item:NNN" out of the link string.
   hooksecurefunc("SetItemRef", function()
     if IsModifierKeyDown() then return end
     if ItemRefTooltip:HasItem() then
