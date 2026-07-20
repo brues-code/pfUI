@@ -61,11 +61,27 @@ librange:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
 librange:RegisterEvent("PLAYER_ENTERING_WORLD")
 librange:RegisterEvent("PLAYER_LOGOUT")
 librange:RegisterEvent("PLAYER_LEAVING_WORLD")
+librange:RegisterEvent("RAID_ROSTER_UPDATE")
+librange:RegisterEvent("PARTY_MEMBERS_CHANGED")
 librange:SetScript("OnEvent", function()
-  if event == "PLAYER_LOGOUT" or event == "PLAYER_LEAVING_WORLD" then
+  if event == "PLAYER_LOGOUT" then
     librange_isLoggingOut = true
-    this:SetScript("OnUpdate", nil)
     this:Hide()
+    return
+  end
+
+  if event == "PLAYER_LEAVING_WORLD" then
+    this:Hide()
+    return
+  end
+
+  if event == "RAID_ROSTER_UPDATE" or event == "PARTY_MEMBERS_CHANGED" then
+    -- Roster re-index: unitN tokens now map to different players, so the
+    -- token->realunit cache is stale. Clear it and restart the sweep from
+    -- the top so shifted/joined slots are re-evaluated within one pass
+    -- instead of inheriting the previous occupant's cached range.
+    for k in pairs(unitcache) do unitcache[k] = nil end
+    this.id = 1
     return
   end
 
