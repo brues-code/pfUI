@@ -385,10 +385,10 @@ end
 -- returns:     [string]         entire itemLink for the given item
 function pfUI.api.GetItemLinkByName(name)
   for itemID = 1, 25818 do
-    local itemName, hyperLink, itemQuality = GetItemInfo(itemID)
-    if (itemName and itemName == name) then
-      local _, _, _, hex = GetItemQualityColor(tonumber(itemQuality))
-      return hex.. "|H"..hyperLink.."|h["..itemName.."]|h|r"
+    local itemName = C_Item.GetItemNameByID(itemID)
+    if itemName and itemName == name then
+      local _, itemLink = C_Item.GetItemInfo(itemID)
+      return itemLink
     end
   end
 end
