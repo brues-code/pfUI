@@ -266,11 +266,7 @@ end
 -- 'f'          [float]        the number to breakdown.
 -- returns:     [int],[float]  whole and fractional part.
 function pfUI.api.modf(f)
-  if modf then return modf(f) end
-  if f > 0 then
-    return math.floor(f), mod(f,1)
-  end
-  return math.ceil(f), mod(f,1)
+  return math.modf(f)
 end
 
 -- [ GetServerEpoch ]
