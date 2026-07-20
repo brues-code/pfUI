@@ -232,7 +232,6 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("unitframes", nil,           "druidmanaspace",   "-3")
   pfUI:UpdateConfig("unitframes", nil,           "druidmanatexture", "Interface\\AddOns\\pfUI\\img\\bar")
 
-  pfUI:UpdateConfig("unitframes", nil,           "rangechecki",      "4")
   pfUI:UpdateConfig("unitframes", nil,           "combowidth",       "6")
   pfUI:UpdateConfig("unitframes", nil,           "comboheight",      "6")
   pfUI:UpdateConfig("unitframes", nil,           "swingtimerwidth",  "200")
@@ -1107,13 +1106,6 @@ function pfUI:MigrateConfig()
       pfUI_config.unitframes.animation_speed = "1"
     else
       pfUI_config.unitframes.animation_speed = "5"
-    end
-  end
-
-  -- migrating rangecheck interval (> 3.2.2)
-  if checkversion(3, 2, 2) then
-    if tonumber(pfUI_config.unitframes.rangechecki) <= 1 then
-      pfUI_config.unitframes.rangechecki = "2"
     end
   end
 

@@ -143,6 +143,11 @@ function pfUI.api.UnitInRange(unit)
     return 1
   end
 
+  -- master switch: with the 40y check off, a visible unit beyond interact
+  -- range counts as in range (nothing fades). Invisible units already
+  -- returned nil above, matching the pre-collapse behavior.
+  if C.unitframes.rangecheck == "0" then return 1 end
+
   -- UnitXP precise mode: skip librange entirely, use direct distance check
   if C.unitframes.rangecheck_mode == "unitxp" and _G.UnitXP then
     local threshold = tonumber(C.unitframes.rangecheck_distance) or 40
