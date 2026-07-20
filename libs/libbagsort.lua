@@ -11,26 +11,27 @@ pfUI.api.libbagsort = libbagsort
 libbagsort.itemGrid = {}
 libbagsort.bagList  = nil
 
-local HEARTHSTONE_ITEM_ID = 6948
+local ItemClass   = Enum.ItemClass
+local ItemQuality = Enum.ItemQuality
 
 -- Lower prefix = sorted earlier in the bag.
-local function SortCategoryPrefix(itemId, itemType, itemSubType, quality)
-  if itemId == HEARTHSTONE_ITEM_ID then return "00" end
-  if quality == 0              then return "13" end  -- Poor (gray) always last
-  if itemType == "Weapon" or itemType == "Armor" then
-    if quality and quality >= 4 then return "01" end  -- Epic+ gear
-    if quality == 3             then return "02" end  -- Rare gear
-    if quality == 2             then return "03" end  -- Uncommon gear
-    return "04"                                        -- Common/poor gear
+local function SortCategoryPrefix(itemId, classID, quality)
+  if itemId == HEARTHSTONE_ITEM_ID     then return "00" end
+  if quality == ItemQuality.Poor       then return "13" end  -- gray always last
+  if classID == ItemClass.Weapon or classID == ItemClass.Armor then
+    if quality and quality >= ItemQuality.Epic then return "01" end  -- Epic+ gear
+    if quality == ItemQuality.Rare             then return "02" end  -- Rare gear
+    if quality == ItemQuality.Uncommon         then return "03" end  -- Uncommon gear
+    return "04"                                                      -- Common/poor gear
   end
-  if itemType == "Consumable"  then return "05" end
-  if itemType == "Reagent"     then return "06" end
-  if itemType == "Trade Goods" then return "07" end
-  if itemType == "Quest"       then return "08" end
+  if classID == ItemClass.Consumable then return "05" end
+  if classID == ItemClass.Reagent    then return "06" end
+  if classID == ItemClass.Tradegoods then return "07" end
+  if classID == ItemClass.Questitem  then return "08" end
   -- Non-gear items without a specific type, sorted by quality
-  if quality and quality >= 4  then return "09" end
-  if quality == 3              then return "10" end
-  if quality == 2              then return "11" end
+  if quality and quality >= ItemQuality.Epic then return "09" end
+  if quality == ItemQuality.Rare             then return "10" end
+  if quality == ItemQuality.Uncommon         then return "11" end
   return "12"
 end
 
@@ -41,9 +42,12 @@ local function SortCountSuffix(count)
   return string.sub(s, -6)
 end
 
-local function SortKey(itemId, name, itype, subtype, quality, count)
-  return SortCategoryPrefix(itemId, itype, subtype, quality)
-    .. (itype or "") .. "|" .. (subtype or "") .. "|" .. (name or "zzz") .. "|" .. SortCountSuffix(count)
+local function SortKey(itemId, name, classID, subClassID, quality, count)
+  -- Zero-pad the class/subclass so the secondary grouping sorts numerically
+  -- (as a string, "10" would otherwise precede "2").
+  return SortCategoryPrefix(itemId, classID, quality)
+    .. string.format("%02d|%02d|", classID or 99, subClassID or 99)
+    .. (name or "zzz") .. "|" .. SortCountSuffix(count)
 end
 
 local function ClearSortData()
@@ -112,36 +116,61 @@ local function BuildConsolidateOps(bagList)
   return ops
 end
 
+-- Bag family bitmask (1 << (familyID-1)); 0 = general-purpose (holds
+-- anything). Backpack (0) and bank (-1) are always general. A specialty
+-- bag's family comes from the equipped bag item -- ClassicAPI derives it
+-- from the container subclass when the raw field is empty (Turtle leaves
+-- bags' m_bagFamily at 0), so quivers/soul/profession bags report properly.
+local function BagFamily(bag)
+  if bag == 0 or bag == -1 then return 0 end
+  local id = GetInventoryItemID("player", ContainerIDToInventoryID(bag))
+  return id and C_Item.GetItemFamily(id) or 0
+end
+
 local function BuildSortGrid()
   local bagList = libbagsort.bagList
   libbagsort.itemGrid = {}
   local normalItems = {}
   local poorItems   = {}
-  local bagCount    = 0
-  local bagSlots    = {}
+
+  -- Destination cells, split by the family they can accept. A specialty
+  -- bag's slots only take items of its own family; general slots take
+  -- anything. Cells are collected in forward order (bag order, slot 1..n).
+  local generalCells   = {}   -- { {bag=,slot=}, ... }
+  local specialtyCells = {}   -- family -> { {bag=,slot=}, ... }
 
   for _, bag in ipairs(bagList) do
-    bagCount = bagCount + 1
+    local fam = BagFamily(bag)
     local numSlots = GetContainerNumSlots(bag)
-    bagSlots[bagCount] = numSlots
     if numSlots > 0 then
       libbagsort.itemGrid[bag] = {}
       for slot = 1, numSlots do
+        if fam == 0 then
+          tinsert(generalCells, {bag=bag, slot=slot})
+        else
+          specialtyCells[fam] = specialtyCells[fam] or {}
+          tinsert(specialtyCells[fam], {bag=bag, slot=slot})
+        end
+
         local itemId = C_Container.GetContainerItemID(bag, slot)
         if itemId then
-          -- pfUI's compat layer shims GetItemInfo to the modern 10-field
-          -- signature (inserts nil for itemLevel between quality and
-          -- minlevel) — so itype/subtype sit at positions 6/7, not 5/6.
-          local name, _, quality, _, _, itype, subtype = GetItemInfo(itemId)
+          -- C_Item.GetItemInfo is the full 18-field tuple; classID/subClassID
+          -- sit at positions 12/13. We categorize on those numeric class IDs
+          -- rather than the localized itemType/itemSubType strings. (pfUI's
+          -- shimmed global GetItemInfo is only 10 fields and lacks them.)
+          local name, _, quality, _, _, _, _, _, _, _, _, classID, subClassID = C_Item.GetItemInfo(itemId)
           local _, count = GetContainerItemInfo(bag, slot)
           local item = {
-            key     = SortKey(itemId, name, itype, subtype, quality, count),
+            key     = SortKey(itemId, name, classID, subClassID, quality, count),
+            -- vanilla items carry at most one family bit, so equality
+            -- against a bag family suffices (no bit.band needed).
+            family  = C_Item.GetItemFamily(itemId) or 0,
             srcBag  = bag,
             srcSlot = slot,
             curBag  = bag,
             curSlot = slot,
           }
-          if quality == 0 then
+          if quality == ItemQuality.Poor then
             tinsert(poorItems, item)
           else
             tinsert(normalItems, item)
@@ -157,41 +186,38 @@ local function BuildSortGrid()
   -- back-to-front (last poor item lands on the last slot).
   table.sort(poorItems, function(a, b) return a.key > b.key end)
 
-  -- Forward pass: assign normal items from slot 1 of bag 1 onward
-  local bagIdx, destSlot = 1, 1
-  while bagIdx <= bagCount and bagSlots[bagIdx] == 0 do
-    bagIdx = bagIdx + 1
-  end
+  -- Forward pass: route each normal item into the next free cell that
+  -- accepts it -- a matching specialty bag first, overflowing to general.
+  local genIdx  = 1
+  local specIdx = {}   -- family -> next free index into specialtyCells[family]
   for _, item in ipairs(normalItems) do
-    while bagIdx <= bagCount do
-      if destSlot <= bagSlots[bagIdx] then break end
-      bagIdx   = bagIdx + 1
-      destSlot = 1
+    local cell
+    local fam = item.family
+    if fam ~= 0 and specialtyCells[fam] then
+      local i = specIdx[fam] or 1
+      if i <= table.getn(specialtyCells[fam]) then
+        cell = specialtyCells[fam][i]
+        specIdx[fam] = i + 1
+      end
     end
-    if bagIdx > bagCount then break end
-    local grid = libbagsort.itemGrid[item.srcBag][item.srcSlot]
-    grid.destBag  = bagList[bagIdx]
-    grid.destSlot = destSlot
-    destSlot = destSlot + 1
+    if not cell and genIdx <= table.getn(generalCells) then
+      cell = generalCells[genIdx]
+      genIdx = genIdx + 1
+    end
+    if not cell then break end
+    item.destBag  = cell.bag
+    item.destSlot = cell.slot
   end
 
-  -- Reverse pass: assign poor items from the last slot of the last bag backward
-  local rBagIdx  = bagCount
-  local rDestSlot = 0
-  while rBagIdx >= 1 do
-    if bagSlots[rBagIdx] > 0 then rDestSlot = bagSlots[rBagIdx]; break end
-    rBagIdx = rBagIdx - 1
-  end
+  -- Reverse pass: poor items are general; fill remaining general cells from
+  -- the back, stopping before the ones the forward pass already claimed.
+  local genBack = table.getn(generalCells)
   for _, item in ipairs(poorItems) do
-    while rBagIdx >= 1 and rDestSlot < 1 do
-      rBagIdx   = rBagIdx - 1
-      rDestSlot = rBagIdx >= 1 and bagSlots[rBagIdx] or 0
-    end
-    if rBagIdx < 1 then break end
-    local grid = libbagsort.itemGrid[item.srcBag][item.srcSlot]
-    grid.destBag  = bagList[rBagIdx]
-    grid.destSlot = rDestSlot
-    rDestSlot = rDestSlot - 1
+    if genBack < genIdx then break end
+    local cell = generalCells[genBack]
+    genBack = genBack - 1
+    item.destBag  = cell.bag
+    item.destSlot = cell.slot
   end
 end
 
