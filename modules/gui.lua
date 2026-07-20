@@ -2575,6 +2575,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(U["bars"], T["Switch Pages On Shift Key Press"], C.bars, "pagemastershift", "checkbox")
       CreateConfig(U["bars"], T["Switch Pages On Ctrl Key Press"], C.bars, "pagemasterctrl", "checkbox")
       CreateConfig(U["bars"], T["Switch Pages On Druid Stealth"], C.bars, "druidstealth", "checkbox")
+      CreateConfig(U["bars"], T["Switch Pages On Priest Shadowform"], C.bars, "priestshadow", "checkbox")
       CreateConfig(nil, T["Range Based Hunter Paging"], C.bars, "hunterbar", "checkbox", nil, nil, nil, nil)
     end)
 

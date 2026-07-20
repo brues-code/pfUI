@@ -853,14 +853,18 @@ pfUI:RegisterModule("actionbar", function ()
     end
   end
 
-  local cat, stealth
   local inCatForm = nil
   local prowlActive = nil
 
-  -- Cat Form ID per vanilla 1.12 SpellShapeshiftForm.dbc.
+  -- Form IDs per vanilla 1.12 SpellShapeshiftForm.dbc.
   local CAT_FORM = 1
+  local SHADOWFORM = 28
   local function HasCatForm()
     return GetShapeshiftFormID() == CAT_FORM and true or nil
+  end
+
+  local function InShadowform()
+    return GetShapeshiftFormID() == SHADOWFORM and true or nil
   end
 
   local function FullScan()
@@ -872,7 +876,7 @@ pfUI:RegisterModule("actionbar", function ()
 
   -- pagemaster / meta page switch
   do
-    local prowl, shift, ctrl, alt, default = 8, 6, 5, 3, 1
+    local formpage, shift, ctrl, alt, default = 8, 6, 5, 3, 1
 
     -- set temporary pagemaster bindings keybinds
     if C.bars.pagemaster == "1" then
@@ -890,8 +894,10 @@ pfUI:RegisterModule("actionbar", function ()
       end)
     end
 
-    -- setup page switch frame
-    local prowling = nil
+    -- setup page switch frame. `formpaging` is the shared "auto-page is
+    -- active" flag; druid prowl and priest shadowform each drive it, and
+    -- no character is ever both, so one flag covers both features.
+    local formpaging = nil
     local pageswitch = CreateFrame("Frame", "pfActionBarPageSwitch", UIParent)
     pageswitch:RegisterEvent("PLAYER_ENTERING_WORLD")
     pageswitch:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
@@ -905,10 +911,17 @@ pfUI:RegisterModule("actionbar", function ()
         return
       end
 
+      if class == "PRIEST" then
+        if event == "UPDATE_SHAPESHIFT_FORM" or event == "PLAYER_ENTERING_WORLD" then
+          formpaging = InShadowform()
+        end
+        return
+      end
+
       if class ~= "DRUID" then return end
 
       if event == "PLAYER_ENTERING_WORLD" then
-        prowling = FullScan()
+        formpaging = FullScan()
         return
       end
 
@@ -917,7 +930,7 @@ pfUI:RegisterModule("actionbar", function ()
         inCatForm = HasCatForm()
         if not inCatForm then
           prowlActive = nil
-          prowling = nil
+          formpaging = nil
         end
         return
       end
@@ -927,10 +940,10 @@ pfUI:RegisterModule("actionbar", function ()
       if inCatForm then
         if IsStealthed() then
           prowlActive = true
-          prowling = true
+          formpaging = true
         else
           prowlActive = nil
-          prowling = nil
+          formpaging = nil
         end
       end
     end)
@@ -946,7 +959,7 @@ pfUI:RegisterModule("actionbar", function ()
       if PROWL_IDS[spellId] then
         inCatForm = true
         prowlActive = true
-        prowling = true
+        formpaging = true
       end
     end
     pageswitch:SetScript("OnUpdate", function()
@@ -964,11 +977,12 @@ pfUI:RegisterModule("actionbar", function ()
         SwitchBar(default)
       end
 
-      -- switch actionbar page if druid stealth is detected
-      if C.bars.druidstealth == "1" then
-        if prowling and _G.CURRENT_ACTIONBAR_PAGE == 1 then
-          SwitchBar(prowl)
-        elseif not prowling and _G.CURRENT_ACTIONBAR_PAGE == 8 then
+      -- switch actionbar page while druid stealth / priest shadowform is active
+      if (class == "DRUID" and C.bars.druidstealth == "1")
+      or (class == "PRIEST" and C.bars.priestshadow == "1") then
+        if formpaging and _G.CURRENT_ACTIONBAR_PAGE == 1 then
+          SwitchBar(formpage)
+        elseif not formpaging and _G.CURRENT_ACTIONBAR_PAGE == 8 then
           SwitchBar(default)
         end
       end

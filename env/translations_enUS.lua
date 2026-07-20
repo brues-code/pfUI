@@ -788,6 +788,7 @@ pfUI_translation["enUS"] = {
   ["Switch Pages On Alt Key Press"] = nil,
   ["Switch Pages On Ctrl Key Press"] = nil,
   ["Switch Pages On Druid Stealth"] = nil,
+  ["Switch Pages On Priest Shadowform"] = nil,
   ["Switch Pages On Shift Key Press"] = nil,
   ["Systeminfo"] = nil,
   ["Target"] = nil,
