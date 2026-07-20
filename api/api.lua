@@ -102,11 +102,7 @@ end
 -- 'tbl'         [table]        the table that shall be checked
 -- return:      [boolean]       result of the check.
 function pfUI.api.isempty(tbl)
-  if not tbl then return true end
-  for k, v in pairs(tbl) do
-    return false
-  end
-  return true
+  return next(tbl or {}) == nil
 end
 
 -- [ checkversion ]
