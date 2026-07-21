@@ -876,7 +876,6 @@ pfUI_translation["frFR"] = {
   ["XP Percentage"] = "Pourcentage de la barre d'expérience",
   ["Yellow Border On Neutral Units"] = "Bordure jaune sur les unités neutres",
   ["Yes"] = "Oui",
-  ["You gain (.+) Mana from Totemic Recall"] = nil,
   ["You got"] = "Vous avez",
   ["Your interface is now set up.\n\nFor advanced configuration, just open the |cff33ffccpf|rUI settings via the escape menu or type \"|cffffffaa/pfui|r\" into the chat.\n\n Have a nice trip!\n\n|cffaaaaaa- Shagu"] = nil,
   ["Your items have been repaired for"] = "Vos objets ont été réparés pour",

@@ -876,7 +876,6 @@ pfUI_translation["ruRU"] = {
   ["XP Percentage"] = "Процент опыта",
   ["Yellow Border On Neutral Units"] = "Желтые границы на нейтральных юнитах",
   ["Yes"] = "Да",
-  ["You gain (.+) Mana from Totemic Recall"] = nil,
   ["You got"] = "Вы получили",
   ["Your interface is now set up.\n\nFor advanced configuration, just open the |cff33ffccpf|rUI settings via the escape menu or type \"|cffffffaa/pfui|r\" into the chat.\n\n Have a nice trip!\n\n|cffaaaaaa- Shagu"] = "Теперь ваш интерфейс настроен.\n\nДля расширенной настройки откройте \"Настройки |cff33ffccpf|rUI\" с помощью escape меню или введите \"|cffffffaa/pfui|r\" в чат.\n\nЖелаю хорошего путешествия!\n\n|cffaaaaaa- Shagu",
   ["Your items have been repaired for"] = "Ваши предметы были отремонтированы за",

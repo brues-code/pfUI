@@ -16,7 +16,7 @@ setfenv(1, pfUI:GetEnvironment())
 -- non-player expirationTime). What remains in libdebuff is the cast-event
 -- bookkeeping consumed by GetBestAuraCast (libpredict HoT tracking) and the
 -- libdebuff_*_hooks broadcast surface (subscribers in actionbar / swingtimer
--- / libtotem react to SPELL_GO and SPELL_FAILED).
+-- react to SPELL_GO and SPELL_FAILED).
 
 -- return instantly when another libdebuff is already active
 if pfUI.api.libdebuff then return end

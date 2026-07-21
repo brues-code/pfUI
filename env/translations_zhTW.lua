@@ -876,7 +876,6 @@ pfUI_translation["zhTW"] = {
   ["XP Percentage"] = "經驗百分比",
   ["Yellow Border On Neutral Units"] = nil,
   ["Yes"] = nil,
-  ["You gain (.+) Mana from Totemic Recall"] = nil,
   ["You got"] = nil,
   ["Your interface is now set up.\n\nFor advanced configuration, just open the |cff33ffccpf|rUI settings via the escape menu or type \"|cffffffaa/pfui|r\" into the chat.\n\n Have a nice trip!\n\n|cffaaaaaa- Shagu"] = "您的UI已經設置完畢.使用遊戲菜單或在聊天窗口輸入\"|cffffffaa/pfui|r\"開啟高級設置.祝您遊戲愉快！\n\n|cffaaaaaa- Shagu",
   ["Your items have been repaired for"] = "你的物品已經修好了",

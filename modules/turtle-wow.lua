@@ -86,18 +86,6 @@ pfUI:RegisterModule("turtle-wow", function ()
   L["debuffs"]['Moonfire'] = {[1]=9.0,[2]=18.0,[3]=18.0,[4]=18.0,[5]=18.0,[6]=18.0,[7]=18.0,[8]=18.0,[9]=18.0,[10]=18.0,[0]=18.0}
   L["debuffs"]['Deep Wound'] = {[0]=6.0}
 
-  -- turtle wow totemic recall clear totem indicators
-  local _, class = UnitClass("player")
-  if libtotem and class == "SHAMAN" then
-    local trecall = CreateFrame("Frame", "pfTotemsRecall", UIParent)
-    trecall:RegisterEvent("CHAT_MSG_SPELL_SELF_BUFF")
-    trecall:SetScript("OnEvent", function()
-      if arg1 and string.find(arg1, T["You gain (.+) Mana from Totemic Recall"]) then
-        for i = 1, 4 do libtotem:Clean(i) end
-      end
-    end)
-  end
-
   local delay = CreateFrame("Frame")
   delay:SetScript("OnUpdate", function()
     this:Hide()

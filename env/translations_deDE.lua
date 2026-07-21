@@ -876,7 +876,6 @@ pfUI_translation["deDE"] = {
   ["XP Percentage"] = nil,
   ["Yellow Border On Neutral Units"] = nil,
   ["Yes"] = nil,
-  ["You gain (.+) Mana from Totemic Recall"] = nil,
   ["You got"] = nil,
   ["Your interface is now set up.\n\nFor advanced configuration, just open the |cff33ffccpf|rUI settings via the escape menu or type \"|cffffffaa/pfui|r\" into the chat.\n\n Have a nice trip!\n\n|cffaaaaaa- Shagu"] = nil,
   ["Your items have been repaired for"] = nil,

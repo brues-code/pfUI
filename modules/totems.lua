@@ -1,6 +1,4 @@
 pfUI:RegisterModule("totems", function ()
-  local _, class = UnitClass("player")
-
   local slots = {
     [FIRE_TOTEM_SLOT]  = { r = .5, g = .2, b = .1 },
     [EARTH_TOTEM_SLOT] = { r = .2, g = .4, b = .1 },
@@ -15,43 +13,44 @@ pfUI:RegisterModule("totems", function ()
     totems:RefreshList()
   end)
 
-  if class == "SHAMAN" then
-    -- there's no totem event in vanilla using ticks instead
-    local eventemu = CreateFrame("Frame")
-    eventemu:SetScript("OnUpdate", function()
-      if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + .5 end
-      totems:RefreshList()
-    end)
-  end
-
   totems.OnEnter = function(self)
     if not this.id then return end
-    local active, name, start, duration, icon = GetTotemInfo(this.id)
-    if not name or not active then return end  -- Prüfen ob name gültig ist
+    -- native GetTotemInfo's 1st return is tool presence, not "summoned";
+    -- a live totem shows a non-empty name / non-zero start.
+    local _, name = GetTotemInfo(this.id)
+    if not name or name == "" then return end
     local color = slots[this.id]
     GameTooltip:SetOwner(this, "ANCHOR_LEFT")
     GameTooltip:SetText(name, color.r+.2, color.g+.2, color.b+.2)
+    local timeleft = GetTotemTimeLeft(this.id)
+    if timeleft and timeleft > 0 then
+      GameTooltip:AddLine(string.format("%d:%02d", floor(timeleft/60), floor(mod(timeleft, 60))), 1, 1, 1)
+    end
     GameTooltip:Show()
-end
+  end
 
   totems.OnLeave = function(self)
     GameTooltip:Hide()
   end
 
   totems.OnClick = function(self)
-    if this.id and arg1 and arg1 == "LeftButton" then
-      -- Try to recast totem on left click
-      local active, name, start, duration, icon = GetTotemInfo(this.id)
-      if name then CastSpellByName(name) end
+    if not this.id then return end
+    if arg1 == "LeftButton" then
+      -- recast the totem on left click
+      local _, name = GetTotemInfo(this.id)
+      if name and name ~= "" then CastSpellByName(name) end
+    elseif arg1 == "RightButton" then
+      -- target the totem on right click
+      TargetTotem(this.id)
     end
   end
 
   totems.RefreshList = function(self)
     local count = 0
     for i = 1, MAX_TOTEMS do
-      local active, name, start, duration, icon = GetTotemInfo(i)
+      local _, _, start, duration, icon = GetTotemInfo(i)
 
-      if active and icon and icon ~= "" then
+      if start and start > 0 and icon and icon ~= "" then
         count = count + 1
         local color = slots[i]
 
