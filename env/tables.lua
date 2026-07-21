@@ -1,20 +1,3 @@
--- this table is added in later expansions
-CLASS_SORT_ORDER = CLASS_SORT_ORDER or {
-  "WARRIOR",
-  "DEATHKNIGHT",
-  "PALADIN",
-  "MONK",
-  "PRIEST",
-  "SHAMAN",
-  "DRUID",
-  "ROGUE",
-  "MAGE",
-  "WARLOCK",
-  "HUNTER",
-  "DEMONHUNTER",
-  "UNKNOWN",
-}
-
 CLASS_ICON_TCOORDS = CLASS_ICON_TCOORDS or {
   ["WARRIOR"]     = {0, 0.25, 0, 0.25},
   ["MAGE"]        = {0.25, 0.49609375, 0, 0.25},
