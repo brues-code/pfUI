@@ -716,24 +716,15 @@ function pfUI.api.CopyTable(src)
 end
 
 -- [ Wipe Table ]
--- Empties a table and returns it
+-- Empties a table and returns it.
 -- 'src'      [table]         the table that should be emptied.
 -- return:    [table]         the emptied table.
+-- Delegates to ClassicAPI's table.wipe, which also resets the Lua 5.0 getn
+-- length (luaL_setn(t,0)) so table.insert on a wiped table resumes at [1].
+-- Append to wiped arrays with table.insert -- NOT the t[table.getn(t)+1]=v
+-- idiom, which needs an unmanaged length counter and won't work here.
 function pfUI.api.wipe(src)
-  -- notes: table.insert, table.remove will have undefined behavior
-  -- when used on tables emptied this way because Lua removes nil
-  -- entries from tables after an indeterminate time.
-  -- Instead of table.insert(t,v) use t[table.getn(t)+1]=v as table.getn collapses nil entries.
-  -- There are no issues with hash tables, t[k]=v where k is not a number behaves as expected.
-  local mt = getmetatable(src) or {}
-  if mt.__mode == nil or mt.__mode ~= "kv" then
-    mt.__mode = "kv"
-    src=setmetatable(src,mt)
-  end
-  for k in pairs(src) do
-    src[k] = nil
-  end
-  return src
+  return table.wipe(src)
 end
 
 -- [ Load Movable ]

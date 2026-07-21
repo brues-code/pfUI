@@ -236,7 +236,7 @@ pfUI:RegisterModule("loot", function ()
       if (candidate) then
         index_to_name[i] = candidate
         name_to_index[candidate] = i
-        randoms[table.getn(randoms)+1]=i
+        table.insert(randoms, i)
         if candidate == pfUI.loot.me then
           pfUI.loot.my_index = i
         end
@@ -693,7 +693,7 @@ pfUI:RegisterModule("loot", function ()
             else -- not an eligible candidate for that item
               pfUI.loot.rollers[who] = {roll=tonumber(roll),value="disabled"}
             end
-            pfUI.loot.rollers_sorted[table.getn(pfUI.loot.rollers_sorted)+1]={who=who,roll=tonumber(roll),value=pfUI.loot.rollers[who].value}
+            table.insert(pfUI.loot.rollers_sorted, {who=who,roll=tonumber(roll),value=pfUI.loot.rollers[who].value})
           end
         end
         table.sort(pfUI.loot.rollers_sorted,function(a,b)
