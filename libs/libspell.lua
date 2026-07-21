@@ -118,7 +118,9 @@ end
 local resetcache = CreateFrame("Frame")
 resetcache:RegisterEvent("LEARNED_SPELL_IN_TAB")
 resetcache:SetScript("OnEvent", function()
-  spellmaxrank, spellindex, spellinfo = {}, {}, {}
+  table.wipe(spellmaxrank)
+  table.wipe(spellindex)
+  table.wipe(spellinfo)
 end)
 
 -- add libspell to pfUI API
