@@ -14,34 +14,25 @@ pfUI:RegisterModule("totems", function ()
   end)
 
   totems.OnEnter = function(self)
-    if not this.id then return end
-    -- native GetTotemInfo's 1st return is tool presence, not "summoned";
-    -- a live totem shows a non-empty name / non-zero start.
-    local _, name = GetTotemInfo(this.id)
-    if not name or name == "" then return end
-    local color = slots[this.id]
+    local id = this:GetID()
+    local spellID = select(7, GetTotemInfo(id))
+    if not spellID or spellID == 0 then return end
     GameTooltip:SetOwner(this, "ANCHOR_LEFT")
-    GameTooltip:SetText(name, color.r+.2, color.g+.2, color.b+.2)
-    local timeleft = GetTotemTimeLeft(this.id)
-    if timeleft and timeleft > 0 then
-      GameTooltip:AddLine(string.format("%d:%02d", floor(timeleft/60), floor(mod(timeleft, 60))), 1, 1, 1)
-    end
+    GameTooltip:SetSpell(FindSpellBookSlotByID(spellID))
+    GameTooltip:AddDoubleLine(T["Left Click"], "|cffffffff" .. T["Recast Totem"])
+    GameTooltip:AddDoubleLine(T["Right Click"], "|cffffffff" .. T["Target Totem"])
     GameTooltip:Show()
   end
 
-  totems.OnLeave = function(self)
-    GameTooltip:Hide()
-  end
+  totems.OnLeave = GameTooltip_Hide
 
   totems.OnClick = function(self)
-    if not this.id then return end
+    local id = this:GetID()
     if arg1 == "LeftButton" then
-      -- recast the totem on left click
-      local _, name = GetTotemInfo(this.id)
+      local _, name = GetTotemInfo(id)
       if name and name ~= "" then CastSpellByName(name) end
     elseif arg1 == "RightButton" then
-      -- target the totem on right click
-      TargetTotem(this.id)
+      TargetTotem(id)
     end
   end
 
@@ -57,7 +48,7 @@ pfUI:RegisterModule("totems", function ()
         self.bar[count]:Show()
         self.bar[count]:SetBackdropBorderColor(color.r, color.g, color.b)
         self.bar[count].icon:SetTexture(icon)
-        self.bar[count].id = i
+        self.bar[count]:SetID(i)
 
         CooldownFrame_SetTimer(self.bar[count].cd, start, duration, 1)
       end
@@ -76,7 +67,7 @@ pfUI:RegisterModule("totems", function ()
       self:Show()
     end
 
-    local count = count and count > 0 and count or MAX_TOTEMS
+    count = count and count > 0 and count or MAX_TOTEMS
 
     if pfUI_config.totems.direction == "HORIZONTAL" then
       self:SetHeight(self.iconsize + self.spacing*2)
@@ -113,8 +104,7 @@ pfUI:RegisterModule("totems", function ()
         end
       end
 
-      self.bar[i]:SetHeight(self.iconsize)
-      self.bar[i]:SetWidth(self.iconsize)
+      self.bar[i]:SetSize(self.iconsize, self.iconsize)
       CreateBackdrop(self.bar[i], nil, true)
 
       self.bar[i].icon = self.bar[i].icon or self.bar[i]:CreateTexture(nil, "ARTWORK")
@@ -122,8 +112,7 @@ pfUI:RegisterModule("totems", function ()
       SetAllPointsOffset(self.bar[i].icon, self.bar[i], 2,-2)
 
       self.bar[i].cdbg = self.bar[i].cdbg or CreateFrame("Frame", nil, self.bar[i])
-      self.bar[i].cdbg:SetHeight(self.iconsize - 3)
-      self.bar[i].cdbg:SetWidth(self.iconsize - 3)
+      self.bar[i].cdbg:SetSize(self.iconsize - 3, self.iconsize - 3)
       self.bar[i].cdbg:SetPoint("CENTER", self.bar[i], "CENTER", 0, 0)
       self.bar[i].cd = self.bar[i].cd or CreateFrame(COOLDOWN_FRAME_TYPE, "pfTotemsBar"..i.."Cooldown", self.bar[i].cdbg, "CooldownFrameTemplate")
       self.bar[i].cd.pfCooldownStyleAnimation = 1
