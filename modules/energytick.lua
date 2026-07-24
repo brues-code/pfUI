@@ -32,10 +32,10 @@ pfUI:RegisterModule("energytick", function()
   energytick:RegisterEvent("CHAT_MSG_SPELL_PERIODIC_SELF_BUFFS")
 
   energytick:SetScript("OnEvent", function()
-    if UnitPowerType("player") == 0 and C.unitframes.player.manatick == "1" then
+    if UnitPowerType("player") == Enum.PowerType.Mana and C.unitframes.player.manatick == "1" then
       this.mode = "MANA"
       this:Show()
-    elseif UnitPowerType("player") == 3 and C.unitframes.player.energy == "1" then
+    elseif UnitPowerType("player") == Enum.PowerType.Energy and C.unitframes.player.energy == "1" then
       this.mode = "ENERGY"
       this:Show()
     else
@@ -51,11 +51,11 @@ pfUI:RegisterModule("energytick", function()
     end
 
     if event == "PLAYER_ENTERING_WORLD" then
-      this.lastMana = UnitMana("player")
+      this.lastMana = UnitPower("player")
     end
 
     if (event == "UNIT_MANA" or event == "UNIT_ENERGY") and arg1 == "player" then
-      this.currentMana = UnitMana("player")
+      this.currentMana = UnitPower("player")
       local diff = 0
       if this.lastMana then
         diff = this.currentMana - this.lastMana
@@ -64,7 +64,7 @@ pfUI:RegisterModule("energytick", function()
       if this.mode == "MANA" and diff < 0 then
         this.target = 5
       elseif this.mode == "MANA" and diff > 0 then
-        if UnitMana("player") >= UnitManaMax("player") then
+        if UnitPower("player") >= UnitPowerMax("player") then
           this.start = nil
           this.spark:SetAlpha(0)
           this:Hide()
@@ -105,7 +105,7 @@ pfUI:RegisterModule("energytick", function()
 
     if this.current > this.max then
       -- Don't restart tick timer if mana is full
-      if this.mode == "MANA" and UnitMana("player") >= UnitManaMax("player") then
+      if this.mode == "MANA" and UnitPower("player") >= UnitPowerMax("player") then
         this.start = nil
         this.spark:SetAlpha(0)
         return

@@ -15,8 +15,6 @@ pfUI:RegisterModule("nameplates", function ()
   local UnitCanAssist = UnitCanAssist
   local UnitHealth = UnitHealth
   local UnitHealthMax = UnitHealthMax
-  local UnitMana = UnitMana
-  local UnitManaMax = UnitManaMax
   local pairs = pairs
   local tonumber = tonumber
   local strlower = strlower

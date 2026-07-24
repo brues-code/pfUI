@@ -162,27 +162,27 @@ function pfUI.api.GetUnitStats(unitstr, trackStats)
         end
         
         -- Get power values based on type
-        if powerType == 1 then
+        if powerType == Enum.PowerType.Rage then
           -- Rage (Nampower stores rage * 10, maxPower2 stores maxRage * 10)
           local rage = GetUnitField(guid, "power2")
           local maxRage = GetUnitField(guid, "maxPower2")
-          power = rage and math.floor(rage / 10) or UnitMana(unitstr)
-          maxPower = maxRage and math.floor(maxRage / 10) or UnitManaMax(unitstr)
-        elseif powerType == 3 then
+          power = rage and math.floor(rage / 10) or UnitPower(unitstr)
+          maxPower = maxRage and math.floor(maxRage / 10) or UnitPowerMax(unitstr)
+        elseif powerType == Enum.PowerType.Energy then
           -- Energy
-          power = GetUnitField(guid, "power4") or UnitMana(unitstr)
+          power = GetUnitField(guid, "power4") or UnitPower(unitstr)
           if power then power = math.floor(power) end
-          maxPower = GetUnitField(guid, "maxPower4") or UnitManaMax(unitstr)
-        elseif powerType == 2 then
+          maxPower = GetUnitField(guid, "maxPower4") or UnitPowerMax(unitstr)
+        elseif powerType == Enum.PowerType.Focus then
           -- Focus (Hunter pets use power3)
-          power = GetUnitField(guid, "power3") or UnitMana(unitstr)
+          power = GetUnitField(guid, "power3") or UnitPower(unitstr)
           if power then power = math.floor(power) end
-          maxPower = GetUnitField(guid, "maxPower3") or UnitManaMax(unitstr)
+          maxPower = GetUnitField(guid, "maxPower3") or UnitPowerMax(unitstr)
           
         else
           -- Mana (default)
-          power = GetUnitField(guid, "power1") or UnitMana(unitstr)
-          maxPower = GetUnitField(guid, "maxPower1") or UnitManaMax(unitstr)
+          power = GetUnitField(guid, "power1") or UnitPower(unitstr)
+          maxPower = GetUnitField(guid, "maxPower1") or UnitPowerMax(unitstr)
         end
         
         -- Check if Nampower gave valid health data
@@ -214,8 +214,8 @@ function pfUI.api.GetUnitStats(unitstr, trackStats)
   hp = UnitHealth(unitstr) or 0
   maxHp = UnitHealthMax(unitstr) or 1
   powerType = UnitPowerType(unitstr) or 0
-  power = UnitMana(unitstr) or 0
-  maxPower = UnitManaMax(unitstr) or 1
+  power = UnitPower(unitstr) or 0
+  maxPower = UnitPowerMax(unitstr) or 1
   
   -- Track Fallback usage - NUR bei echten Änderungen
   if trackStats and not usedNampower then
@@ -565,7 +565,7 @@ function pfUI.uf:UpdateConfig()
       f.druidmana._hasbd = true
     end
 
-    local tr, tg, tb = ManaBarColor[0].r, ManaBarColor[0].g, ManaBarColor[0].b
+    local tr, tg, tb = ManaBarColor[Enum.PowerType.Mana].r, ManaBarColor[Enum.PowerType.Mana].g, ManaBarColor[Enum.PowerType.Mana].b
     if C.unitframes.pastel == "1" then
       tr, tg, tb = (tr + .75) * .5, (tg + .75) * .5, (tb + .75) * .5
     end
@@ -1689,8 +1689,9 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
   f.power.bar = CreateStatusBar(nil, f.power)
 
   -- Druid secondary mana bar: shows base mana (read via ClassicAPI
-  -- UnitPower(unit, 0), which works regardless of the active power) while
-  -- shapeshifted into a form that uses energy/rage. Player + target only;
+  -- UnitPower(unit, Enum.PowerType.Mana), which works regardless of the active
+  -- power) while shapeshifted into a form that uses energy/rage. Player +
+  -- target only;
   -- styled/positioned in UpdateConfig, driven in UpdateDruidMana.
   if C.unitframes.druidmanabar == "1" and (f.label == "player" or f.label == "target") then
     f.druidmana = CreateFrame("StatusBar", "pfDruidMana_" .. f.label .. f.id, f)
@@ -1910,8 +1911,8 @@ function pfUI.uf:RefreshIndicators(unit)
 end
 
 -- Druid secondary mana bar update. Reads base mana with ClassicAPI
--- UnitPower(unit, 0)/UnitPowerMax(unit, 0), which return the mana slot
--- regardless of the unit's active power -- so it works while shapeshifted,
+-- UnitPower/UnitPowerMax(unit, Enum.PowerType.Mana), which return the mana
+-- slot regardless of the unit's active power -- so it works while shapeshifted,
 -- with no nampower/GetUnitField dependency. Shown only while off mana
 -- (Cat=energy, Bear=rage); non-player frames only for druid units.
 function pfUI.uf:UpdateDruidMana(unit)
@@ -1922,8 +1923,8 @@ function pfUI.uf:UpdateDruidMana(unit)
     local _, cls = UnitClass(unitstr)
     if cls ~= "DRUID" then bar:Hide() return end
   end
-  if UnitPowerType(unitstr) == 0 then bar:Hide() return end
-  local mana, maxmana = UnitPower(unitstr, 0), UnitPowerMax(unitstr, 0)
+  if UnitPowerType(unitstr) == Enum.PowerType.Mana then bar:Hide() return end
+  local mana, maxmana = UnitPower(unitstr, Enum.PowerType.Mana), UnitPowerMax(unitstr, Enum.PowerType.Mana)
   if not maxmana or maxmana == 0 then bar:Hide() return end
   bar:SetMinMaxValues(0, maxmana)
   bar:SetValue(mana)
@@ -2439,13 +2440,13 @@ function pfUI.uf:RefreshUnit(unit, component)
 
     local r, g, b, a = .5, .5, .5, 1
     local utype = UnitPowerType(unitstr)
-    if utype == 0 then
+    if utype == Enum.PowerType.Mana then
       r, g, b, a = GetStringColor(mana)
-    elseif utype == 1 then
+    elseif utype == Enum.PowerType.Rage then
       r, g, b, a = GetStringColor(rage)
-    elseif utype == 2 then
+    elseif utype == Enum.PowerType.Focus then
       r, g, b, a = GetStringColor(focus)
-    elseif utype == 3 then
+    elseif utype == Enum.PowerType.Energy then
       r, g, b, a = GetStringColor(energy)
     end
 
@@ -3032,7 +3033,7 @@ function pfUI.uf:GetStatusValue(unit, pos)
   elseif config == "powermax" then
     return unit:GetColor("power") .. pfUI.api.Abbreviate(mpmax)
   elseif config == "powerperc" then
-    local perc = UnitManaMax(unitstr) > 0 and ceil(mp / mpmax * 100) or 0
+    local perc = UnitPowerMax(unitstr) > 0 and ceil(mp / mpmax * 100) or 0
     return unit:GetColor("power") .. perc
   elseif config == "powermiss" then
     local power = ceil(mp - mpmax)
@@ -3043,7 +3044,7 @@ function pfUI.uf:GetStatusValue(unit, pos)
     end
   elseif config == "powerdyn" then
     -- show percentage when only mana is less than 100%
-    if mp ~= mpmax and UnitPowerType(unitstr) == 0 then
+    if mp ~= mpmax and UnitPowerType(unitstr) == Enum.PowerType.Mana then
       return unit:GetColor("power") .. pfUI.api.Abbreviate(mp) .. " - " .. ceil(mp / mpmax * 100) .. "%"
     else
       return unit:GetColor("power") .. pfUI.api.Abbreviate(mp)
