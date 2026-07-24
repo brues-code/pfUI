@@ -1068,6 +1068,7 @@ pfUI:RegisterModule("gui", function ()
         "unitrev:" .. T["Unit String (Reverse)"],
         "name:" .. T["Name"],
         "nameshort:" .. T["Name (Short)"],
+        "ownername:" .. T["Owner Name"],
         "level:" .. T["Level"],
         "class:" .. T["Class"],
         "namehealth:" .. T["Name | Health Missing"],
@@ -2184,6 +2185,7 @@ pfUI:RegisterModule("gui", function ()
       [10] = { "grouptarget", T["Group-Target"]},
       [11] = { "grouppet",   T["Group-Pet"] },
       [12] = { "raid",       T["Raid"] },
+      [13] = { "raidpet",    T["Raid-Pet"] },
     }
 
     CreateGUIEntry(T["Unit Frames"], T["Click Casting"], function()
@@ -2233,6 +2235,7 @@ pfUI:RegisterModule("gui", function ()
         U.ptarget     = U["pettarget"]
         U.grouptarget = U["group"]
         U.grouppet    = U["group"]
+        U.raidpet     = U["raid"]
 
         -- build config entries
         CreateConfig(U[c], T["Display Frame"] .. ": " .. t, C.unitframes[c], "visible", "checkbox")
@@ -2277,6 +2280,13 @@ pfUI:RegisterModule("gui", function ()
           CreateConfig(U["raid"], T["Raid Padding"], C.unitframes[c], "raidpadding")
           CreateConfig(U["raid"], T["Raid Layout"], C.unitframes[c], "raidlayout", "dropdown", pfUI.gui.dropdowns.uf_raidlayout)
           CreateConfig(U["raid"], T["Raid Fill Direction"], C.unitframes[c], "raidfill", "dropdown", pfUI.gui.dropdowns.orientation)
+          CreateConfig(U["raid"], T["Collapse Empty Slots"], C.unitframes[c], "collapse", "checkbox")
+        elseif c == "raidpet" then
+          CreateConfig(U[c], T["Layout"], nil, nil, "header")
+          CreateConfig(U["raid"], T["Raid Padding"], C.unitframes[c], "raidpadding")
+          CreateConfig(U["raid"], T["Raid Layout"], C.unitframes[c], "raidlayout", "dropdown", pfUI.gui.dropdowns.uf_raidlayout)
+          CreateConfig(U["raid"], T["Raid Fill Direction"], C.unitframes[c], "raidfill", "dropdown", pfUI.gui.dropdowns.orientation)
+          CreateConfig(U["raid"], T["Collapse Empty Slots"], C.unitframes[c], "collapse", "checkbox")
         end
 
         CreateConfig(U[c], T["Healthbar"], nil, nil, "header")

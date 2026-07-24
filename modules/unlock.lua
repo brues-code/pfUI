@@ -6,6 +6,7 @@ pfUI:RegisterModule("unlock", function ()
     -- Name            Shift  Ctrl
     { "pfCombo",          5       },
     { "pfRaid",           40,   5 },
+    { "pfRaidPet",        40,   5 },
     { "pfGroup",          4       },
     { "pfLootRollFrame",  4       },
   }
@@ -35,6 +36,8 @@ pfUI:RegisterModule("unlock", function ()
     -- groupframes
     ["Raid%d"]        = { T["Group Frames"], T["Raid"] },
     ["Raid%d%d"]      = { T["Group Frames"], T["Raid"] },
+    ["RaidPet%d"]     = { T["Group Frames"], T["Raid-Pet"] },
+    ["RaidPet%d%d"]   = { T["Group Frames"], T["Raid-Pet"] },
     ["Group%d"]       = { T["Group Frames"], T["Group"] },
     ["Party%dTarget"] = { T["Group Frames"], T["Group-Target"] },
     ["PartyPet%d"]    = { T["Group Frames"], T["Group-Pet"] },
@@ -98,7 +101,8 @@ pfUI:RegisterModule("unlock", function ()
       -- search and add clustered frames
       for id, cluster in pairs(clusters) do
         local len = strlen(cluster[1])
-        if strsub(frame:GetName(),0,len) == cluster[1] then
+        local fid = tonumber(strsub(frame:GetName(),len+1,len+2))
+        if fid and strsub(frame:GetName(),0,len) == cluster[1] then
           if IsShiftKeyDown() and cluster[2] then
             for i = 1, cluster[2] do
               if _G[cluster[1] .. i] ~= frame then
@@ -106,7 +110,7 @@ pfUI:RegisterModule("unlock", function ()
               end
             end
           elseif IsControlKeyDown() and cluster[3] then
-            local id = tonumber(strsub(frame:GetName(),len+1,len+2))
+            local id = fid
 
             local b = 1
             for i = cluster[3]+1, cluster[2], cluster[3] do

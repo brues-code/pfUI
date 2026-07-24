@@ -382,6 +382,27 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("unitframes", "grouppet",    "glowcombat",       "0")
   pfUI:UpdateConfig("unitframes", "grouppet",    "txthpright",       "healthperc")
 
+  pfUI:UpdateConfig("unitframes", "raidpet",     "portrait",         "off")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "width",            "50")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "height",           "14")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "pheight",          "0")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "buffs",            "off")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "buffsize",         "16")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "debuffs",          "off")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "debuffsize",       "16")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "faderange",        "1")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "glowcombat",       "0")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "txthpright",       "healthperc")
+  -- off by default; mirrors the raid grid layout when enabled
+  pfUI:UpdateConfig("unitframes", "raidpet",     "visible",          "0")
+  -- collapse: pack only pets that exist (from the roster snapshot) instead
+  -- of mirroring every raid slot
+  pfUI:UpdateConfig("unitframes", "raidpet",     "collapse",         "1")
+  -- pet block has its own layout, independent of the raid grid
+  pfUI:UpdateConfig("unitframes", "raidpet",     "raidlayout",       "8x5")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "raidpadding",      "3")
+  pfUI:UpdateConfig("unitframes", "raidpet",     "raidfill",         "VERTICAL")
+
   pfUI:UpdateConfig("unitframes", "raid",        "portrait",         "off")
   pfUI:UpdateConfig("unitframes", "raid",        "width",            "50")
   pfUI:UpdateConfig("unitframes", "raid",        "height",           "26")
@@ -400,6 +421,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("unitframes", "raid",        "raidlayout",       "8x5")
   pfUI:UpdateConfig("unitframes", "raid",        "raidpadding",      "3")
   pfUI:UpdateConfig("unitframes", "raid",        "raidfill",         "VERTICAL")
+  pfUI:UpdateConfig("unitframes", "raid",        "collapse",         "0")
   pfUI:UpdateConfig("unitframes", "raid",        "raidgrouplabel",   "0")
   pfUI:UpdateConfig("unitframes", "raid",        "grouplabelxoff",   "0")
   pfUI:UpdateConfig("unitframes", "raid",        "grouplabelyoff",   "8")
@@ -455,7 +477,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("unitframes", "ptarget",     "txthpright",       "none")
   pfUI:UpdateConfig("unitframes", "ptarget",     "overhealperc",     "10")
 
-  local ufs = { "player", "target", "focus", "focustarget", "group", "grouptarget", "grouppet", "raid", "ttarget", "pet", "ptarget", "fallback", "tttarget" }
+  local ufs = { "player", "target", "focus", "focustarget", "group", "grouptarget", "grouppet", "raid", "raidpet", "ttarget", "pet", "ptarget", "fallback", "tttarget" }
   for _, unit in pairs(ufs) do
     pfUI:UpdateConfig("unitframes", unit,      "selfdebuff",       "0")
     pfUI:UpdateConfig("unitframes", unit,      "visible",          "1")

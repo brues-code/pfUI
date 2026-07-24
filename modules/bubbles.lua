@@ -17,12 +17,6 @@ pfUI:RegisterModule("bubbles", function ()
     RunNextFrame(function() pfUI.bubbles:ScanBubbles() end)
   end)
 
-  function pfUI.bubbles:IsBubble(f)
-      if f:GetName() then return end
-      if not f:GetRegions() then return end
-      return f:GetRegions().GetTexture and f:GetRegions():GetTexture() == "Interface\\Tooltips\\ChatBubble-Background"
-  end
-
   function pfUI.bubbles:ProcessBubble(f)
     f.text:Hide()
     f.text:SetFont(pfUI.font_default, tonumber(C.global.font_size) * UIParent:GetScale(), "OUTLINE")
@@ -34,9 +28,8 @@ pfUI:RegisterModule("bubbles", function ()
   end
 
   function pfUI.bubbles:ScanBubbles()
-    local childs = { WorldFrame:GetChildren() }
-    for _, f in pairs(childs) do
-        if not f.frame and pfUI.bubbles:IsBubble(f) then
+    for _, f in ipairs(C_ChatBubbles.GetAllChatBubbles()) do
+        if not f.frame then
           local textures = {f:GetRegions()}
           for _, object in pairs(textures) do
             if object:GetObjectType() == "Texture" then

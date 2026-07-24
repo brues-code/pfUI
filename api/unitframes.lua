@@ -293,7 +293,7 @@ function pfUI.uf:UpdateVisibility()
   -- cache result of strsub to avoid repeating calls
   if not self.cache_raid then
     if strsub(self:GetName(),0,6) == "pfRaid" then
-      self.cache_raid = tonumber(strsub(self:GetName(),7,8))
+      self.cache_raid = tonumber(strsub(self:GetName(),7,8)) or 0
     else
       self.cache_raid = 0
     end
@@ -369,6 +369,11 @@ function pfUI.uf:UpdateVisibility()
       -- hide existing but too far away pet and pets of old group members
       if self.label == "partypet" then
         if not UnitIsVisible(unitstr) or not UnitExists("party" .. self.id) then
+          self:Hide()
+          return
+        end
+      elseif self.label == "raidpet" then
+        if not UnitIsVisible(unitstr) or not UnitExists("raid" .. self.id) then
           self:Hide()
           return
         end
@@ -2864,6 +2869,19 @@ function pfUI.uf:GetStatusValue(unit, pos)
     else
       return ""
     end
+  elseif config == "ownername" then
+    local owner
+    if unit.label == "raidpet" then owner = "raid" .. unit.id
+    elseif unit.label == "partypet" then owner = "party" .. unit.id
+    elseif unit.label == "pet" then owner = "player" end
+    if not (owner and UnitExists(owner)) then return "" end
+    local color = ""
+    if unit.config["classcolor"] == "1" and UnitIsPlayer(owner) then
+      local _, r, g, b = GetUnitColor(owner)
+      if C.unitframes.pastel == "1" then r, g, b = (r+.75)*.5, (g+.75)*.5, (b+.75)*.5 end
+      color = rgbhex(r, g, b)
+    end
+    return color .. pfUI.uf:GetNameString(owner)
 
   -- health
   elseif config == "health" then
