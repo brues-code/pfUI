@@ -9,8 +9,8 @@ pfUI:RegisterModule("totems", function ()
   local totems = CreateFrame("Frame", "pfTotems", UIParent)
   totems:RegisterEvent("PLAYER_TOTEM_UPDATE")
   totems:RegisterEvent("PLAYER_ENTERING_WORLD")
-  totems:SetScript("OnEvent", function(self)
-    totems:RefreshList()
+  totems:SetScript("OnEvent", function()
+    this:RefreshList()
   end)
 
   totems.OnEnter = function(self)
@@ -18,7 +18,7 @@ pfUI:RegisterModule("totems", function ()
     local spellID = select(7, GetTotemInfo(id))
     if not spellID or spellID == 0 then return end
     GameTooltip:SetOwner(this, "ANCHOR_LEFT")
-    GameTooltip:SetSpell(FindSpellBookSlotByID(spellID))
+    GameTooltip:SetSpellByID(spellID)
     GameTooltip:AddDoubleLine(T["Left Click"], "|cffffffff" .. T["Recast Totem"])
     GameTooltip:AddDoubleLine(T["Right Click"], "|cffffffff" .. T["Target Totem"])
     GameTooltip:Show()
@@ -29,8 +29,8 @@ pfUI:RegisterModule("totems", function ()
   totems.OnClick = function(self)
     local id = this:GetID()
     if arg1 == "LeftButton" then
-      local _, name = GetTotemInfo(id)
-      if name and name ~= "" then CastSpellByName(name) end
+      local spellID = select(7, GetTotemInfo(id))
+      if spellID and spellID > 0 then CastSpell(FindSpellBookSlotByID(spellID)) end
     elseif arg1 == "RightButton" then
       TargetTotem(id)
     end
