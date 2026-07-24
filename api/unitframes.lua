@@ -138,8 +138,11 @@ pfUI.api.lastUnitStats = pfUI.api.lastUnitStats or {}
 function pfUI.api.GetUnitStats(unitstr, trackStats)
   local hp, maxHp, power, maxPower, powerType
   local usedNampower = false
-  
-  
+
+  powerType = UnitPowerType(unitstr) or 0
+  power = UnitPower(unitstr, powerType)
+  maxPower = UnitPowerMax(unitstr, powerType)
+
   -- Try GetUnitField first if available (for all units: players, pets, NPCs)
   if GetUnitField then
     -- Use the standard check first, then get guid separately
@@ -151,39 +154,6 @@ function pfUI.api.GetUnitStats(unitstr, trackStats)
       if guid then
         hp = GetUnitField(guid, "health")
         maxHp = GetUnitField(guid, "maxHealth")
-        
-        -- Get power type from bytes0
-        local bytes0 = GetUnitField(guid, "bytes0")
-        if bytes0 then
-          local temp = math.floor(bytes0 / 16777216)
-          powerType = temp - math.floor(temp / 256) * 256
-        else
-          powerType = UnitPowerType(unitstr) or 0
-        end
-        
-        -- Get power values based on type
-        if powerType == Enum.PowerType.Rage then
-          -- Rage (Nampower stores rage * 10, maxPower2 stores maxRage * 10)
-          local rage = GetUnitField(guid, "power2")
-          local maxRage = GetUnitField(guid, "maxPower2")
-          power = rage and math.floor(rage / 10) or UnitPower(unitstr)
-          maxPower = maxRage and math.floor(maxRage / 10) or UnitPowerMax(unitstr)
-        elseif powerType == Enum.PowerType.Energy then
-          -- Energy
-          power = GetUnitField(guid, "power4") or UnitPower(unitstr)
-          if power then power = math.floor(power) end
-          maxPower = GetUnitField(guid, "maxPower4") or UnitPowerMax(unitstr)
-        elseif powerType == Enum.PowerType.Focus then
-          -- Focus (Hunter pets use power3)
-          power = GetUnitField(guid, "power3") or UnitPower(unitstr)
-          if power then power = math.floor(power) end
-          maxPower = GetUnitField(guid, "maxPower3") or UnitPowerMax(unitstr)
-          
-        else
-          -- Mana (default)
-          power = GetUnitField(guid, "power1") or UnitPower(unitstr)
-          maxPower = GetUnitField(guid, "maxPower1") or UnitPowerMax(unitstr)
-        end
         
         -- Check if Nampower gave valid health data
         if hp and hp > 0 and maxHp and maxHp > 0 then
@@ -213,9 +183,6 @@ function pfUI.api.GetUnitStats(unitstr, trackStats)
   -- Fallback to standard API (for players when Nampower fails)
   hp = UnitHealth(unitstr) or 0
   maxHp = UnitHealthMax(unitstr) or 1
-  powerType = UnitPowerType(unitstr) or 0
-  power = UnitPower(unitstr) or 0
-  maxPower = UnitPowerMax(unitstr) or 1
   
   -- Track Fallback usage - NUR bei echten Änderungen
   if trackStats and not usedNampower then
