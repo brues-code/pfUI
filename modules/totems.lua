@@ -1,9 +1,9 @@
 pfUI:RegisterModule("totems", function ()
-  local slots = {
-    [FIRE_TOTEM_SLOT]  = { r = .5, g = .2, b = .1 },
-    [EARTH_TOTEM_SLOT] = { r = .2, g = .4, b = .1 },
-    [WATER_TOTEM_SLOT] = { r = .1, g = .4, b = .6 },
-    [AIR_TOTEM_SLOT]   = { r = .4, g = .1, b = .7 },
+  local slotColors = {
+    [FIRE_TOTEM_SLOT]  = CreateColor(.5, .2, .1),
+    [EARTH_TOTEM_SLOT] = CreateColor(.2, .4, .1),
+    [WATER_TOTEM_SLOT] = CreateColor(.1, .4, .6),
+    [AIR_TOTEM_SLOT]   = CreateColor(.4, .1, .7),
   }
 
   local totems = CreateFrame("Frame", "pfTotems", UIParent)
@@ -19,8 +19,8 @@ pfUI:RegisterModule("totems", function ()
     if not spellID or spellID == 0 then return end
     GameTooltip:SetOwner(this, "ANCHOR_LEFT")
     GameTooltip:SetSpellByID(spellID)
-    GameTooltip:AddDoubleLine(T["Left Click"], "|cffffffff" .. T["Recast Totem"])
-    GameTooltip:AddDoubleLine(T["Right Click"], "|cffffffff" .. T["Target Totem"])
+    GameTooltip:AddDoubleLine(T["Left Click"], T["Recast Totem"], nil, nil, nil, WHITE_FONT_COLOR:GetRGB())
+    GameTooltip:AddDoubleLine(T["Right Click"], T["Target Totem"], nil, nil, nil, WHITE_FONT_COLOR:GetRGB())
     GameTooltip:Show()
   end
 
@@ -43,10 +43,9 @@ pfUI:RegisterModule("totems", function ()
 
       if start and start > 0 and icon and icon ~= "" then
         count = count + 1
-        local color = slots[i]
 
         self.bar[count]:Show()
-        self.bar[count]:SetBackdropBorderColor(color.r, color.g, color.b)
+        self.bar[count]:SetBackdropBorderColor(slotColors[i]:GetRGB())
         self.bar[count].icon:SetTexture(icon)
         self.bar[count]:SetID(i)
 
