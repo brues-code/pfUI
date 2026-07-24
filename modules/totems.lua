@@ -68,12 +68,12 @@ pfUI:RegisterModule("totems", function ()
 
     count = count and count > 0 and count or MAX_TOTEMS
 
+    local thickness = self.iconsize + self.spacing*2
+    local length = thickness * count
     if pfUI_config.totems.direction == "HORIZONTAL" then
-      self:SetHeight(self.iconsize + self.spacing*2)
-      self:SetWidth(self.spacing*2 + self.iconsize + (count-1)*(self.iconsize + self.spacing*2))
+      self:SetSize(length, thickness)
     else
-      self:SetWidth(self.iconsize + self.spacing*2)
-      self:SetHeight(self.spacing*2 + self.iconsize + (count-1)*(self.iconsize + self.spacing*2))
+      self:SetSize(thickness, length)
     end
   end
 
