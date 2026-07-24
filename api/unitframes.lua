@@ -304,7 +304,7 @@ function pfUI.uf:UpdateVisibility()
     local id = self.cache_raid
 
     -- always show self in raidframes
-    if not IsInRaid() and IsInGroup() and C.unitframes.selfinraid == "1" and id == 1 then
+    if not IsInGroup() and C.unitframes.selfinraid == "1" and id == 1 then
       self.id = ""
       self.label = "player"
 
@@ -338,6 +338,12 @@ function pfUI.uf:UpdateVisibility()
   local unitstr = string.format("%s%s", self.label or "", self.id or "")
   local visibility = string.format("[target=%s,exists] show; hide", unitstr)
 
+  -- Group frames are redundant when the group is already shown as a raid grid:
+  -- either an actual raid, or a party promoted to the raid grid via
+  -- raidforgroup. hide_in_raid gates whether we hide them in that case.
+  local hide_group = C["unitframes"]["group"]["hide_in_raid"] == "1"
+    and (IsInRaid() or (C.unitframes.raidforgroup == "1" and IsInGroup()))
+
   if pfUI.unlock and pfUI.unlock:IsShown() then
     -- display during unlock mode
     visibility = "show"
@@ -346,13 +352,14 @@ function pfUI.uf:UpdateVisibility()
     -- frame shall not be visible
     visibility = "hide"
     self.visible = nil
-  elseif C["unitframes"]["group"]["hide_in_raid"] == "1" and self.label and strsub(self.label,0,5) == "party" and IsInRaid() then
-    -- hide group while in raid and option is set
+  elseif hide_group and self.cache_raid == 0 and self.label and strsub(self.label,0,5) == "party" then
+    -- hide group while shown as a raid grid and option is set (raid frames
+    -- carry label "party" under raidforgroup, so exclude them by cache_raid)
     visibility = "hide"
     self.visible = nil
   elseif ( self.fname == "Group0" or self.fname == "PartyPet0" or self.fname == "Party0Target" )
-  and (not IsInGroup() or (C["unitframes"]["group"]["hide_in_raid"] == "1" and IsInRaid())) then
-     -- hide self in group if solo or hide in raid is set
+  and (not IsInGroup() or hide_group) then
+     -- hide self in group if solo or shown as a raid grid
      visibility = "hide"
      self.visible = nil
   end
