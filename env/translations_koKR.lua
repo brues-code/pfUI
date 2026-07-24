@@ -704,6 +704,7 @@ pfUI_translation["koKR"] = {
   ["Show Description"] = nil,
   ["Show Dispel Indicators"] = nil,
   ["Show Druid Mana Bar"] = nil,
+  ["Show Druid Mana Bar Text"] = nil,
   ["Show Duration Inside Buff"] = nil,
   ["Show Empty Buttons"] = nil,
   ["Show FPS and Latency Colors"] = nil,

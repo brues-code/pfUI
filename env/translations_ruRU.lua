@@ -704,6 +704,7 @@ pfUI_translation["ruRU"] = {
   ["Show Description"] = "Показать описание",
   ["Show Dispel Indicators"] = "Показать индикаторы рассеивания",
   ["Show Druid Mana Bar"] = nil,
+  ["Show Druid Mana Bar Text"] = nil,
   ["Show Duration Inside Buff"] = "Показать продолжительность внутри баффа",
   ["Show Empty Buttons"] = "Показать пустые кнопки",
   ["Show FPS and Latency Colors"] = "Показать частоту кадров и задержку в цвете",

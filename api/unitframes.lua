@@ -529,6 +529,50 @@ function pfUI.uf:UpdateConfig()
     fontstyle = C.global.font_unit_style
   end
 
+  -- Druid secondary mana bar: texture/color/size/position below the power bar,
+  -- using its own C.unitframes.druidmana* config. Values are read in
+  -- UpdateDruidMana; here we only lay it out.
+  if f.druidmana then
+    local DC = C.unitframes
+    local dmTexture = DC.druidmanatexture or "Interface\\AddOns\\pfUI\\img\\bar"
+    f.druidmana:SetStatusBarTexture(pfUI.media[dmTexture] or dmTexture)
+    f.druidmana:SetFrameLevel(f:GetFrameLevel() + 5)
+
+    local manacolor = f.config.defcolor == "0" and f.config.manacolor or C.unitframes.manacolor
+    f.druidmana:SetStatusBarColor(GetStringColor(manacolor))
+
+    local dmHeight = tonumber(DC.druidmanaheight) or 10
+    local dmWidth  = DC.druidmanawidth or "-1"
+    local dmOffX   = tonumber(DC.druidmanaoffx) or 0
+    local dmOffY   = tonumber(DC.druidmanaoffy) or 0
+    local dmSpace  = tonumber(DC.druidmanaspace) or -3
+    local dmSpacing = -2 * default_border - dmSpace
+
+    f.druidmana:SetHeight(dmHeight)
+    f.druidmana:ClearAllPoints()
+    local w = dmWidth ~= "-1" and tonumber(dmWidth) or nil
+    if w then
+      f.druidmana:SetWidth(w)
+      f.druidmana:SetPoint("TOP", f.power, "BOTTOM", dmOffX, dmSpacing + dmOffY)
+    else
+      f.druidmana:SetPoint("TOPLEFT", f.power, "BOTTOMLEFT", dmOffX, dmSpacing + dmOffY)
+      f.druidmana:SetPoint("TOPRIGHT", f.power, "BOTTOMRIGHT", dmOffX, dmSpacing + dmOffY)
+    end
+
+    if not f.druidmana._hasbd then
+      CreateBackdrop(f.druidmana, default_border)
+      CreateBackdropShadow(f.druidmana)
+      f.druidmana._hasbd = true
+    end
+
+    local tr, tg, tb = ManaBarColor[0].r, ManaBarColor[0].g, ManaBarColor[0].b
+    if C.unitframes.pastel == "1" then
+      tr, tg, tb = (tr + .75) * .5, (tg + .75) * .5, (tb + .75) * .5
+    end
+    f.druidmana.text:SetFont(fontname, fontsize, fontstyle)
+    f.druidmana.text:SetTextColor(tr, tg, tb, 1)
+  end
+
   f.portrait.tex:SetAllPoints(f.portrait)
   f.portrait.tex:SetTexCoord(.1, .9, .1, .9)
   f.portrait.model:SetAllPoints(f.portrait)
@@ -1644,6 +1688,18 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
   f.power = CreateFrame("Frame",nil, f)
   f.power.bar = CreateStatusBar(nil, f.power)
 
+  -- Druid secondary mana bar: shows base mana (read via ClassicAPI
+  -- UnitPower(unit, 0), which works regardless of the active power) while
+  -- shapeshifted into a form that uses energy/rage. Player + target only;
+  -- styled/positioned in UpdateConfig, driven in UpdateDruidMana.
+  if C.unitframes.druidmanabar == "1" and (f.label == "player" or f.label == "target") then
+    f.druidmana = CreateFrame("StatusBar", "pfDruidMana_" .. f.label .. f.id, f)
+    f.druidmana.text = f.druidmana:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    f.druidmana.text:SetPoint("CENTER", f.druidmana, "CENTER", 0, 0)
+    f.druidmana.text:SetJustifyH("CENTER")
+    f.druidmana:Hide()
+  end
+
   f.glow = CreateFrame("Frame", nil, f)
   f.combat = CreateFrame("Frame", nil, f.hp.bar)
   f.combat.tex = f.combat:CreateTexture(nil, "OVERLAY")
@@ -1851,6 +1907,32 @@ function pfUI.uf:RefreshIndicators(unit)
       unit.raidIcon:Hide()
     end
   end
+end
+
+-- Druid secondary mana bar update. Reads base mana with ClassicAPI
+-- UnitPower(unit, 0)/UnitPowerMax(unit, 0), which return the mana slot
+-- regardless of the unit's active power -- so it works while shapeshifted,
+-- with no nampower/GetUnitField dependency. Shown only while off mana
+-- (Cat=energy, Bear=rage); non-player frames only for druid units.
+function pfUI.uf:UpdateDruidMana(unit)
+  local bar = unit.druidmana
+  local unitstr = unit.label .. unit.id
+  if not UnitExists(unitstr) then bar:Hide() return end
+  if unit.label ~= "player" then
+    local _, cls = UnitClass(unitstr)
+    if cls ~= "DRUID" then bar:Hide() return end
+  end
+  if UnitPowerType(unitstr) == 0 then bar:Hide() return end
+  local mana, maxmana = UnitPower(unitstr, 0), UnitPowerMax(unitstr, 0)
+  if not maxmana or maxmana == 0 then bar:Hide() return end
+  bar:SetMinMaxValues(0, maxmana)
+  bar:SetValue(mana)
+  if C.unitframes.druidmanatext == "1" then
+    bar.text:SetText(pfUI.api.Abbreviate(mana) .. "/" .. pfUI.api.Abbreviate(maxmana))
+  else
+    bar.text:SetText("")
+  end
+  bar:Show()
 end
 
 function pfUI.uf:RefreshUnit(unit, component)
@@ -2398,6 +2480,8 @@ function pfUI.uf:RefreshUnit(unit, component)
         unit.hp.bar:SetStatusBarColor(.5,.5,.5,.5)
       end
     end
+
+    if unit.druidmana then pfUI.uf:UpdateDruidMana(unit) end
 
     pfUI.uf:RefreshUnitState(unit)
   end

@@ -704,6 +704,7 @@ pfUI_translation["zhCN"] = {
   ["Show Description"] = "显示描述",
   ["Show Dispel Indicators"] = "显示驱散指示器",
   ["Show Druid Mana Bar"] = "显示德鲁伊法力条",
+  ["Show Druid Mana Bar Text"] = nil,
   ["Show Duration Inside Buff"] = "显示持续时间在Buff里面",
   ["Show Empty Buttons"] = "显示空按钮",
   ["Show FPS and Latency Colors"] = "显示帧数以及延迟颜色",

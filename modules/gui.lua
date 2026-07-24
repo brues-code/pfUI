@@ -2143,6 +2143,7 @@ pfUI:RegisterModule("gui", function ()
 
       CreateConfig(nil, T["Druid Settings"], nil, nil, "header")
       CreateConfig(nil, T["Show Druid Mana Bar"], C.unitframes, "druidmanabar", "checkbox", nil, nil, nil, nil)
+      CreateConfig(nil, T["Show Druid Mana Bar Text"], C.unitframes, "druidmanatext", "checkbox", nil, nil, nil, nil)
       CreateConfig(nil, T["Druid Mana Bar Height"], C.unitframes, "druidmanaheight", nil, nil, nil, nil, nil)
       CreateConfig(nil, T["Druid Mana Bar Width (-1 = auto)"], C.unitframes, "druidmanawidth", nil, nil, nil, nil, nil)
       CreateConfig(nil, T["Druid Mana Bar X-Offset"], C.unitframes, "druidmanaoffx", nil, nil, nil, nil, nil)

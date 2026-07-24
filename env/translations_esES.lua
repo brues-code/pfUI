@@ -704,6 +704,7 @@ pfUI_translation["esES"] = {
   ["Show Description"] = "Mostrar descripción",
   ["Show Dispel Indicators"] = "Mostrar indicadores para disipar",
   ["Show Druid Mana Bar"] = nil,
+  ["Show Druid Mana Bar Text"] = nil,
   ["Show Duration Inside Buff"] = "Mostrar la duración dentro del beneficios",
   ["Show Empty Buttons"] = "Mostrar botones vacíos",
   ["Show FPS and Latency Colors"] = "Mostrar FPS y colores de latencia",
