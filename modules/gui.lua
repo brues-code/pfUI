@@ -961,7 +961,7 @@ pfUI:RegisterModule("gui", function ()
         "16:" .. T["Very Slow"],
       },
       ["uf_rangecheck_mode"] = {
-        "vanilla:" .. T["Vanilla (Spellbook)"],
+        "vanilla:" .. T["ClassicAPI (UnitInRange)"],
         "unitxp:" .. T["UnitXP (Precise)"],
       },
       ["uf_raidlayout"] = {
