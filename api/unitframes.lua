@@ -148,42 +148,35 @@ function pfUI.api.GetUnitStats(unitstr, trackStats)
     -- Use the standard check first, then get guid separately
     local exists = _G.UnitExists(unitstr)
     if exists then
-      -- Get guid via the extended UnitExists for Nampower
-      local _, guid = _G.UnitExists(unitstr)
-      
-      if guid then
-        hp = GetUnitField(guid, "health")
-        maxHp = GetUnitField(guid, "maxHealth")
-        
-        -- Check if Nampower gave valid health data
-        if hp and hp > 0 and maxHp and maxHp > 0 then
-          usedNampower = true
-          
-          -- Track Nampower success - NUR bei echten Änderungen
-          if trackStats and pfUI.uf and pfUI.uf.stats and pfUI.uf.stats.enabled then
-            local lastStats = pfUI.api.lastUnitStats[unitstr]
-            if not lastStats or lastStats.hp ~= hp or lastStats.maxHp ~= maxHp or 
-               lastStats.power ~= power or lastStats.maxPower ~= maxPower then
-              pfUI.uf.stats.nampowerUsed = (pfUI.uf.stats.nampowerUsed or 0) + 1
-              pfUI.api.lastUnitStats[unitstr] = {
-                hp = hp,
-                maxHp = maxHp,
-                power = power,
-                maxPower = maxPower
-              }
-            end
+      local guid = _G.UnitGUID(unitstr)
+      hp = GetUnitField(guid, "health")
+      maxHp = GetUnitField(guid, "maxHealth")
+      -- Check if Nampower gave valid health data
+      if hp and hp > 0 and maxHp and maxHp > 0 then
+        usedNampower = true
+        -- Track Nampower success - NUR bei echten Änderungen
+        if trackStats and pfUI.uf and pfUI.uf.stats and pfUI.uf.stats.enabled then
+          local lastStats = pfUI.api.lastUnitStats[unitstr]
+          if not lastStats or lastStats.hp ~= hp or lastStats.maxHp ~= maxHp or 
+              lastStats.power ~= power or lastStats.maxPower ~= maxPower then
+            pfUI.uf.stats.nampowerUsed = (pfUI.uf.stats.nampowerUsed or 0) + 1
+            pfUI.api.lastUnitStats[unitstr] = {
+              hp = hp,
+              maxHp = maxHp,
+              power = power,
+              maxPower = maxPower
+            }
           end
-          
-          return hp, maxHp, power or 0, maxPower or 1, powerType
         end
+        return hp, maxHp, power or 0, maxPower or 1, powerType
       end
     end
   end
-  
+
   -- Fallback to standard API (for players when Nampower fails)
   hp = UnitHealth(unitstr) or 0
   maxHp = UnitHealthMax(unitstr) or 1
-  
+
   -- Track Fallback usage - NUR bei echten Änderungen
   if trackStats and not usedNampower then
     if pfUI.uf and pfUI.uf.stats and pfUI.uf.stats.enabled then
@@ -200,7 +193,7 @@ function pfUI.api.GetUnitStats(unitstr, trackStats)
       end
     end
   end
-  
+
   return hp, maxHp, power, maxPower, powerType
 end
 
