@@ -15,8 +15,7 @@ pfUI:RegisterModule("nampower", function ()
 
     pfUI.spellqueue = CreateFrame("Frame", "pfSpellQueue", UIParent)
     pfUI.spellqueue:SetFrameStrata("HIGH")
-    pfUI.spellqueue:SetWidth(size)
-    pfUI.spellqueue:SetHeight(size)
+    pfUI.spellqueue:SetSize(size, size)
     pfUI.spellqueue:Hide()
 
     -- Position near player castbar if available
@@ -74,7 +73,7 @@ pfUI:RegisterModule("nampower", function ()
   -- Shows when reactive abilities like Overpower, Revenge, Execute are usable
   if C.unitframes.reactive_indicator == "1" then
     local size = tonumber(C.unitframes.reactive_size) or 28
-    local _, class = UnitClass("player")
+    local class = UnitClassBase("player")
 
     -- Reactive spells by class
     local reactiveSpells = {
@@ -105,8 +104,7 @@ pfUI:RegisterModule("nampower", function ()
       pfUI.reactive.icons = {}
       for i, spell in ipairs(spells) do
         local icon = CreateFrame("Frame", nil, pfUI.reactive)
-        icon:SetWidth(size)
-        icon:SetHeight(size)
+        icon:SetSize(size, size)
         icon:SetPoint("LEFT", pfUI.reactive, "LEFT", (i-1) * (size + 4), 0)
 
         icon.texture = icon:CreateTexture(nil, "ARTWORK")
@@ -132,18 +130,10 @@ pfUI:RegisterModule("nampower", function ()
         local anyVisible = false
         for _, icon in ipairs(this.icons) do
           local usable = C_Spell.IsSpellUsable(icon.spellName)
-          if usable then
-            icon:Show()
-            anyVisible = true
-          else
-            icon:Hide()
-          end
+          icon:SetShown(usable)
+          anyVisible = anyVisible or usable
         end
-        if anyVisible then
-          this:Show()
-        else
-          this:Hide()
-        end
+        this:SetShown(anyVisible)
       end)
     end
   end
