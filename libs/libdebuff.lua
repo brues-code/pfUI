@@ -1125,7 +1125,7 @@ if hasNampower then
       
       -- Rank aus spellId ermitteln
       local rankNum = 0
-      local rankString = GetSpellRecField(spellId, "rank")
+      local rankString = C_Spell.GetSpellSubtext(spellId)
       if rankString and rankString ~= "" then
         rankNum = tonumber((string.gsub(rankString, "Rank ", ""))) or 0
       end

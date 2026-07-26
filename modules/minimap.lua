@@ -33,11 +33,9 @@ pfUI:RegisterModule("minimap", function ()
   pfUI.minimap.UpdateConfig = function(self)
     size = tonumber(C.appearance.minimap.size) or 140
 
-    pfUI.minimap:SetWidth(size)
-    pfUI.minimap:SetHeight(size)
+    pfUI.minimap:SetSize(size, size)
 
-    Minimap:SetWidth(size)
-    Minimap:SetHeight(size)
+    Minimap:SetSize(size, size)
 
     -- vanilla+tbc: do the best to detect the minimap arrow
     local arrowscale = tonumber(C.appearance.minimap.arrowscale)
@@ -158,8 +156,7 @@ pfUI:RegisterModule("minimap", function ()
     pfUI.minimapCoordinates:SetPoint("BOTTOMLEFT", 3, 3)
   end
 
-  pfUI.minimapCoordinates:SetHeight(C.global.font_size)
-  pfUI.minimapCoordinates:SetWidth(Minimap:GetWidth())
+  pfUI.minimapCoordinates:SetSize(Minimap:GetWidth(), C.global.font_size)
   pfUI.minimapCoordinates.text = pfUI.minimapCoordinates:CreateFontString("MinimapCoordinatesText", "LOW", "GameFontNormal")
   pfUI.minimapCoordinates.text:SetFont(pfUI.font_default, C.global.font_size, "OUTLINE")
   pfUI.minimapCoordinates.text:SetTextColor(1,1,1,1)
@@ -171,19 +168,14 @@ pfUI:RegisterModule("minimap", function ()
     pfUI.minimapCoordinates.text:SetJustifyH("LEFT")
   end
 
-  if C.appearance.minimap.coordstext ~= "on" then
-    pfUI.minimapCoordinates:Hide()
-  else
-    pfUI.minimapCoordinates:Show()
-  end
+  pfUI.minimapCoordinates:SetShown(C.appearance.minimap.coordstext == "on")
 
   -- Create zone text frame in top center of minimap
   pfUI.minimapZone = CreateFrame("Frame", "pfMinimapZone", pfUI.minimap)
   pfUI.minimapZone:RegisterEvent("MINIMAP_ZONE_CHANGED")
   pfUI.minimapZone:RegisterEvent("PLAYER_ENTERING_WORLD")
   pfUI.minimapZone:SetPoint("TOP", 0, -3)
-  pfUI.minimapZone:SetHeight(C.global.font_size + 2)
-  pfUI.minimapZone:SetWidth(Minimap:GetWidth())
+  pfUI.minimapZone:SetSize(Minimap:GetWidth(), C.global.font_size + 2)
   pfUI.minimapZone.text = pfUI.minimapZone:CreateFontString("minimapZoneText", "LOW", "GameFontNormal")
   pfUI.minimapZone.text:SetFont(pfUI.font_default, C.global.font_size + 2, "OUTLINE")
   pfUI.minimapZone.text:SetAllPoints(pfUI.minimapZone)
@@ -205,17 +197,13 @@ pfUI:RegisterModule("minimap", function ()
       elseif pvp == "contested" then
         pfUI.minimapZone.text:SetTextColor(1.0, 0.7, 0)
       else
-        pfUI.minimapZone.text:SetTextColor(1, 1, 1, 1)
+        pfUI.minimapZone.text:SetTextColor(WHITE_FONT_COLOR:GetRGBA())
       end
       pfUI.minimapZone.text:SetText(GetMinimapZoneText())
     end
   end)
 
-  if C.appearance.minimap.zonetext ~= "on" then
-    pfUI.minimapZone:Hide()
-  else
-    pfUI.minimapZone:Show()
-  end
+  pfUI.minimapZone:SetShown(C.appearance.minimap.zonetext == "on")
 
   -- Minimap hover event
   -- Update and toggle showing of coordinates and zone text on mouse enter/leave
@@ -241,8 +229,7 @@ pfUI:RegisterModule("minimap", function ()
   pfUI.minimap.pvpicon:RegisterEvent("UPDATE_FACTION")
   pfUI.minimap.pvpicon:RegisterEvent("UNIT_FACTION")
   pfUI.minimap.pvpicon:SetFrameStrata("HIGH")
-  pfUI.minimap.pvpicon:SetWidth(16)
-  pfUI.minimap.pvpicon:SetHeight(16)
+  pfUI.minimap.pvpicon:SetSize(16, 16)
   pfUI.minimap.pvpicon:SetAlpha(.5)
   pfUI.minimap.pvpicon:SetParent(pfUI.minimap)
   pfUI.minimap.pvpicon:SetPoint("BOTTOMRIGHT", pfUI.minimap, "BOTTOMRIGHT", -5, 5)
@@ -251,11 +238,7 @@ pfUI:RegisterModule("minimap", function ()
   pfUI.minimap.pvpicon.texture:SetAllPoints(pfUI.minimap.pvpicon)
 
   pfUI.minimap.pvpicon:SetScript("OnEvent", function()
-    if C.unitframes.player.showPVPMinimap == "1" and UnitIsPVP("player") then
-      pfUI.minimap.pvpicon:Show()
-    else
-      pfUI.minimap.pvpicon:Hide()
-    end
+    pfUI.minimap.pvpicon:SetShown(C.unitframes.player.showPVPMinimap == "1" and UnitIsPVP("player"))
   end)
 
 end)

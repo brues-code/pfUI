@@ -291,7 +291,7 @@ pfUI.libdebuff_spell_start_other_hooks["libpredict"] = function(spellId, casterG
   local targetName = resolveNameFromGuid(targetGuid)
   if not targetName then return end
 
-  local rankStr = GetSpellRecField and GetSpellRecField(spellId, "rank") or ""
+  local rankStr = C_Spell.GetSpellSubtext(spellId) or ""
   local spellKey = spellName .. (rankStr or "")
 
   local amount = foreignCache[casterName] and foreignCache[casterName][spellKey]
@@ -355,11 +355,9 @@ pfUI.libdebuff_spell_go_hooks["libpredict"] = function(spellId, a1, a2, a3, a4, 
       elseif hotType == "Renew" then duration = renewDuration or 15
       end
       local rank = 0
-      if GetSpellRecField then
-        local rankStr = GetSpellRecField(spellId, "rank")
-        if rankStr and rankStr ~= "" then
-          rank = tonumber((string.gsub(rankStr, "Rank ", ""))) or 0
-        end
+      local rankSub = C_Spell.GetSpellSubtext(spellId)
+      if rankSub and rankSub ~= "" then
+        rank = tonumber((string.gsub(rankSub, "Rank ", ""))) or 0
       end
       local playerName = UnitName("player")
       libpredict:Hot(playerName, targetName, hotType, duration, nil, "SPELL_GO_SELF", rank)

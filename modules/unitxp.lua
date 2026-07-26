@@ -331,26 +331,6 @@ pfUI:RegisterModule("unitxp", function ()
     return success and found
   end
 
-  pfUI.api.UnitInLineOfSight = function(unit1, unit2)
-    if not unit2 then
-      unit2 = unit1
-      unit1 = "player"
-    end
-    local success, inSight = pcall(UnitXP, "inSight", unit1, unit2)
-    if success then return inSight end
-    return nil
-  end
-
-  pfUI.api.UnitIsBehind = function(unit1, unit2)
-    if not unit2 then
-      unit2 = unit1
-      unit1 = "player"
-    end
-    local success, behind = pcall(UnitXP, "behind", unit1, unit2)
-    if success then return behind end
-    return nil
-  end
-
   -- Debug command to test UnitXP indicators
   pfUI.api.RegisterSlashCommand("PFUNITXP", { "/pfunitxp" }, function()
     local chat = DEFAULT_CHAT_FRAME

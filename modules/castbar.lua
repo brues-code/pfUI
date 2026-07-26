@@ -93,8 +93,8 @@ pfUI:RegisterModule("castbar", function ()
     cb.bar:SetStatusBarColor(strsplit(",", C.appearance.castbar[isChannel and "channelcolor" or "castbarcolor"]))
 
     local rank = ""
-    if spellID and GetSpellRecField then
-      rank = GetSpellRecField(spellID, "rank") or ""
+    if spellID then
+      rank = C_Spell.GetSpellSubtext(spellID) or ""
     end
     local spellname = (cb.showname and name) and (name .. " ") or ""
     local rankstr = (cb.showrank and rank ~= "") and string.format("|cffaaffcc[%s]|r", rank) or ""

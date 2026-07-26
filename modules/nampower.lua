@@ -52,8 +52,7 @@ pfUI:RegisterModule("nampower", function ()
         return
       end
       
-      local eventCode = arg1
-      local spellId = arg2
+      local eventCode, spellId = arg1, arg2
 
       if eventCode == NORMAL_QUEUED or eventCode == NON_GCD_QUEUED or eventCode == ON_SWING_QUEUED then
         local texture = C_Spell.GetSpellTexture(spellId)
@@ -78,16 +77,16 @@ pfUI:RegisterModule("nampower", function ()
     -- Reactive spells by class
     local reactiveSpells = {
       WARRIOR = {
-        { name = "Overpower", texture = "Interface\\Icons\\Ability_MeleeDamage" },
-        { name = "Revenge", texture = "Interface\\Icons\\Ability_Warrior_Revenge" },
-        { name = "Execute", texture = "Interface\\Icons\\INV_Sword_48" },
+        7384, -- Overpower
+        6572, -- Revenge
+        5283, -- Execute
       },
       ROGUE = {
-        { name = "Riposte", texture = "Interface\\Icons\\Ability_Warrior_Challange" },
+        76, -- Riposte
       },
       HUNTER = {
-        { name = "Mongoose Bite", texture = "Interface\\Icons\\Ability_Hunter_SwiftStrike" },
-        { name = "Counterattack", texture = "Interface\\Icons\\Ability_Warrior_Challange" },
+        1495, -- Mongoose Bite
+        19306, -- Counterattack
       },
     }
 
@@ -96,8 +95,7 @@ pfUI:RegisterModule("nampower", function ()
       pfUI.reactive = CreateFrame("Frame", "pfReactiveIndicator", UIParent)
       pfUI.reactive:SetFrameStrata("HIGH")
       local spellCount = table.getn(spells)
-      pfUI.reactive:SetWidth(size * spellCount + 4 * (spellCount - 1))
-      pfUI.reactive:SetHeight(size)
+      pfUI.reactive:SetSize(size * spellCount + 4 * (spellCount - 1), size)
       pfUI.reactive:SetPoint("CENTER", UIParent, "CENTER", 0, -200)
       pfUI.reactive:Hide()
 
@@ -109,7 +107,7 @@ pfUI:RegisterModule("nampower", function ()
 
         icon.texture = icon:CreateTexture(nil, "ARTWORK")
         icon.texture:SetAllPoints(icon)
-        icon.texture:SetTexture(spell.texture)
+        icon.texture:SetTexture(C_Spell.GetSpellTexture(spell))
         icon.texture:SetTexCoord(.08, .92, .08, .92)
 
         icon.glow = icon:CreateTexture(nil, "OVERLAY")
@@ -120,7 +118,7 @@ pfUI:RegisterModule("nampower", function ()
 
         CreateBackdrop(icon)
         icon:Hide()
-        icon.spellName = spell.name
+        icon.spellName = C_Spell.GetSpellName(spell)
         pfUI.reactive.icons[i] = icon
       end
 
@@ -148,7 +146,7 @@ pfUI:RegisterModule("nampower", function ()
       local arg = (msg and msg ~= "") and msg or "greens"
       local target = tonumber(arg) or arg
       DisenchantAll(target)
-      DEFAULT_CHAT_FRAME:AddMessage("|cff33ffccpfUI|r: DisenchantAll(" .. tostring(target) .. ")")
+      print("|cff33ffccpfUI|r: DisenchantAll(" .. tostring(target) .. ")")
     end, true)
   end
 

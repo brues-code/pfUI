@@ -25,11 +25,7 @@ pfUI:RegisterModule("map", function ()
   pfUI.map = { UpdateConfig = UpdateTooltipScale }
 
   function _G.ToggleWorldMap()
-    if WorldMapFrame:IsShown() then
-      WorldMapFrame:Hide()
-    else
-      WorldMapFrame:Show()
-    end
+    WorldMapFrame:SetShown(not WorldMapFrame:IsShown())
   end
 
   C.position["WorldMapFrame"] = C.position["WorldMapFrame"] or { alpha = 1.0, scale = 0.7 }

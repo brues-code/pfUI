@@ -2,20 +2,22 @@ pfUI:RegisterModule("focus", function ()
   -- do not go further on disabled UFs
   if C.unitframes.disable == "1" then return end
 
-  pfUI.uf.focus = pfUI.uf:CreateUnitFrame("Focus", nil, C.unitframes.focus, .2)
+  pfUI.uf.focus = pfUI.uf:CreateUnitFrame("Focus", nil, C.unitframes.focus)
   pfUI.uf.focus:UpdateFrameSize()
   pfUI.uf.focus:SetPoint("BOTTOMLEFT", UIParent, "BOTTOM", 220, 220)
   UpdateMovable(pfUI.uf.focus)
   pfUI.uf.focus:Hide()
 
-  pfUI.uf.focustarget = pfUI.uf:CreateUnitFrame("FocusTarget", nil, C.unitframes.focustarget, .2)
+  pfUI.uf.focustarget = pfUI.uf:CreateUnitFrame("FocusTarget", nil, C.unitframes.focustarget)
   pfUI.uf.focustarget:UpdateFrameSize()
   pfUI.uf.focustarget:SetPoint("BOTTOMLEFT", pfUI.uf.focus, "TOP", 0, 10)
   UpdateMovable(pfUI.uf.focustarget)
   pfUI.uf.focustarget:Hide()
 
   -- PLAYER_FOCUS_CHANGED drives immediate refresh on focus assign / clear.
-  -- The frame's 0.2s tick keeps health/power/aura data fresh between events.
+  -- Between events, ClassicAPI fires UNIT_* (health/mana/aura/...) with
+  -- arg1 == "focus" and arg1 == "focustarget", so both frames update
+  -- event-driven like target and need no polling tick.
   local refresher = CreateFrame("Frame")
   refresher:RegisterEvent("PLAYER_FOCUS_CHANGED")
   refresher:SetScript("OnEvent", function()

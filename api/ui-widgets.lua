@@ -21,8 +21,7 @@ do -- statusbars
 
   local handlers = {
     ["DisplayValue"] = function(self, val)
-      val = val > self.max and self.max or val
-      val = val < self.min and self.min or val
+      val = Clamp(val, self.min, self.max)
 
       -- remove animation queue
       if val == self.val_ then
@@ -38,8 +37,7 @@ do -- statusbars
         point = height / (self.max - self.min) * (val - self.min)
 
         -- keep values in limits
-        point = math.min(height, point)
-        point = math.max(0, point)
+        point = Clamp(point, 0, height)
 
         -- set point to zero if value and max is zero
         if val == 0 then point = 0 end
@@ -57,8 +55,7 @@ do -- statusbars
         point = width / (self.max - self.min) * (val - self.min)
 
         -- keep values in limits
-        point = math.min(width, point)
-        point = math.max(0, point)
+        point = Clamp(point, 0, width)
 
         -- set point to zero if value and max is zero
         if val == 0 then point = 0 end
@@ -138,15 +135,8 @@ do -- statusbars
 end
 
 do -- dropdown
-  local _, class = UnitClass("player")
-  local color = PFUI_CLASS_COLORS[class]
-
   local function ListEntryOnShow()
-    if this.parent.id == this.id then
-      this.icon:Show()
-    else
-      this.icon:Hide()
-    end
+    this.icon:SetShown(this.parent.id == this.id)
   end
 
   local function ListEntryOnClick()
@@ -288,8 +278,7 @@ do -- dropdown
 
         frame.icon = frame:CreateTexture(nil, "OVERLAY")
         frame.icon:SetPoint("RIGHT", frame, "RIGHT", -2, 0)
-        frame.icon:SetHeight(16)
-        frame.icon:SetWidth(16)
+        frame.icon:SetSize(16, 16)
         frame.icon:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
 
         frame.text = frame:CreateFontString(nil, "OVERLAY")
@@ -329,8 +318,7 @@ do -- dropdown
 
     local button = CreateFrame("Button", nil, frame)
     button:SetPoint("RIGHT", frame, "RIGHT", -2, 0)
-    button:SetWidth(16)
-    button:SetHeight(16)
+    button:SetSize(16, 16)
     button:SetScript("OnClick", ListButtonOnClick)
     SkinArrowButton(button, "down")
     button.icon:SetVertexColor(1,.9,.1)
@@ -380,8 +368,7 @@ function pfUI.api.CreateTabChild(self, title, bwidth, bheight, bottom, static)
   end
 
   -- set dimensions
-  b:SetHeight(button_height)
-  b:SetWidth(button_width)
+  b:SetSize(button_width, button_height)
   b:SetID(childcount)
 
   if not self.align or self.align == "LEFT" then
@@ -516,13 +503,7 @@ function pfUI.api.CreateScrollFrame(name, parent)
     local max = f:GetVerticalScrollRange()
     local new = current - step
 
-    if new >= max then
-      f:SetVerticalScroll(max)
-    elseif new <= 0 then
-      f:SetVerticalScroll(0)
-    else
-      f:SetVerticalScroll(new)
-    end
+    f:SetVerticalScroll(Clamp(new, 0, max))
 
     f:UpdateScrollState()
   end
@@ -539,8 +520,7 @@ function pfUI.api.CreateScrollChild(name, parent)
   local f = CreateFrame("Frame", name, parent)
 
   -- dummy values required
-  f:SetWidth(1)
-  f:SetHeight(1)
+  f:SetSize(1, 1)
   f:SetAllPoints(parent)
 
   parent:SetScrollChild(f)
@@ -607,8 +587,7 @@ end
 function pfUI.api.SetHighlight(frame, cr, cg, cb)
   if not frame then return end
   if not cr or not cg or not cb then
-    local _, class = UnitClass("player")
-    cr, cg, cb = GetClassColor(class)
+    cr, cg, cb = GetClassColor(UnitClassBase('player'))
   end
 
   frame.cr, frame.cg, frame.cb = cr, cg, cb, ca
@@ -653,8 +632,7 @@ function pfUI.api.SkinButton(button, cr, cg, cb, icon, disableHighlight)
   if not b then b = button end
   if not b then return end
   if not cr or not cg or not cb then
-    local _, class = UnitClass("player")
-    cr, cg, cb = GetClassColor(class)
+    cr, cg, cb = GetClassColor(UnitClassBase('player'))
   end
   pfUI.api.CreateBackdrop(b, nil, true)
   b:SetNormalTexture("")
@@ -702,8 +680,7 @@ function pfUI.api.SkinCollapseButton(button, all)
 
   b.icon = _G[name] or CreateFrame("Button", name, b)
   if all then size = 14 end
-  b.icon:SetWidth(size)
-  b.icon:SetHeight(size)
+  b.icon:SetSize(size, size)
   b.icon:SetPoint("LEFT", 2, 2)
   CreateBackdrop(b.icon)
   b.icon.text = b.icon:CreateFontString(nil, "OVERLAY")
@@ -732,12 +709,10 @@ end
 function pfUI.api.SkinRotateButton(button)
   pfUI.api.CreateBackdrop(button)
 
-  local _, class = UnitClass("player")
-  local color = PFUI_CLASS_COLORS[class]
-  local cr, cg, cb = color.r , color.g, color.b
+  local cr, cg, cb = GetClassColor(UnitClassBase('player'))
 
-  button:SetWidth(button:GetWidth() - 18)
-  button:SetHeight(button:GetHeight() - 18)
+  local btnW, btnH = button:GetSize()
+  button:SetSize(btnW - 18, btnH - 18)
 
   button:GetNormalTexture():SetTexCoord(0.3, 0.29, 0.3, 0.65, 0.69, 0.29, 0.69, 0.65)
   button:GetPushedTexture():SetTexCoord(0.3, 0.29, 0.3, 0.65, 0.69, 0.29, 0.69, 0.65)
@@ -759,8 +734,7 @@ function pfUI.api.SkinCloseButton(button, parentFrame, offsetX, offsetY)
 
   SkinButton(button, 1, .25, .25)
 
-  button:SetWidth(15)
-  button:SetHeight(15)
+  button:SetSize(15, 15)
 
   if parentFrame then
     button:ClearAllPoints()
@@ -787,8 +761,7 @@ function pfUI.api.SkinArrowButton(button, dir, size)
   button:SetDisabledTexture(nil)
 
   if size then
-    button:SetWidth(size)
-    button:SetHeight(size)
+    button:SetSize(size, size)
   end
 
   if not button.icon then
@@ -894,8 +867,7 @@ function pfUI.api.SkinCheckbox(frame, size)
   frame:SetPushedTexture("")
   frame:SetHighlightTexture("")
   if size then
-    frame:SetWidth(size)
-    frame:SetHeight(size)
+    frame:SetSize(size, size)
   end
   CreateBackdrop(frame)
   SetAllPointsOffset(frame.backdrop, frame, 4)
@@ -936,9 +908,7 @@ function pfUI.api.SkinDropDown(frame, cr, cg, cb, useSmall)
   end
 
   if not cr or not cg or not cb then
-    local _, class = UnitClass("player")
-    local color = PFUI_CLASS_COLORS[class]
-    cr, cg, cb = color.r , color.g, color.b
+    cr, cg, cb = GetClassColor(UnitClassBase('player'))
   end
 
   SetHighlight(button, cr, cg, cb)
@@ -1108,8 +1078,7 @@ function pfUI.api.CreateQuestionDialog(text, yes, no, editbox, onclose)
   -- buttons
   question.yes = CreateFrame("Button", "pfQuestionDialogYes", question, "UIPanelButtonTemplate")
   pfUI.api.SkinButton(question.yes)
-  question.yes:SetWidth(100)
-  question.yes:SetHeight(22)
+  question.yes:SetSize(100, 22)
   question.yes:SetText(yescap)
   question.yes:SetScript("OnClick", function()
     if yes then yes() end
@@ -1124,8 +1093,7 @@ function pfUI.api.CreateQuestionDialog(text, yes, no, editbox, onclose)
 
   question.no = CreateFrame("Button", "pfQuestionDialogNo", question, "UIPanelButtonTemplate")
   pfUI.api.SkinButton(question.no)
-  question.no:SetWidth(100)
-  question.no:SetHeight(22)
+  question.no:SetSize(100, 22)
   question.no:SetText(nocap)
   question.no:SetScript("OnClick", function()
     if no then no() end
@@ -1141,8 +1109,7 @@ function pfUI.api.CreateQuestionDialog(text, yes, no, editbox, onclose)
   question.close = CreateFrame("Button", "pfQuestionDialogClose", question)
   question.close:SetPoint("TOPRIGHT", -border, -border)
   pfUI.api.CreateBackdrop(question.close)
-  question.close:SetHeight(10)
-  question.close:SetWidth(10)
+  question.close:SetSize(10, 10)
   question.close.texture = question.close:CreateTexture("pfQuestionDialogCloseTex")
   question.close.texture:SetTexture(pfUI.media["img:close"])
   question.close.texture:ClearAllPoints()
@@ -1244,9 +1211,8 @@ function pfUI.api.CreateInfoBox(text, time, parent, height)
   infobox.duration = time
   infobox.lastshow = GetTime()
 
-  infobox:SetWidth(infobox.text:GetStringWidth() + 50)
+  infobox:SetSize(infobox.text:GetStringWidth() + 50, height)
   infobox:SetParent(parent)
-  infobox:SetHeight(height)
 
   infobox:SetFrameStrata("FULLSCREEN_DIALOG")
   infobox:Show()

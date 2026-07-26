@@ -6,8 +6,7 @@ pfUI:RegisterSkin("Battlefield Minimap", function ()
     CreateBackdrop(BattlefieldMinimap, nil, nil, 0)
     CreateBackdropShadow(BattlefieldMinimap)
 
-    BattlefieldMinimap:SetWidth(220)
-    BattlefieldMinimap:SetHeight(146)
+    BattlefieldMinimap:SetSize(220, 146)
 
     SkinCloseButton(BattlefieldMinimapCloseButton, BattlefieldMinimap, 0, 0)
 

@@ -448,7 +448,7 @@ pfUI:RegisterModule("bags", function ()
       end
     end
 
-    local _, _, q, _, _, _, itype = GetItemInfo(itemID)
+    local _, _, q, _, _, _, itype = C_Item.GetItemInfo(itemID)
 
     -- running advanced item color scan
     if C.appearance.bags.borderonlygear == "0" and texture and quality and quality < 1 then

@@ -47,7 +47,7 @@ pfUI:RegisterModule("player", function ()
     return string.format("%02X%02X%02X", r * 255, g * 255, b * 255)
   end
 
-  -- SP school colors indexed by GetSpellPower("net") return order
+  -- SP school colors indexed by GetSpellBonusDamage's 1-based school order
   -- (1=phys, 2=holy, 3=fire, 4=nature, 5=frost, 6=shadow, 7=arcane)
   local spColors = { "FFFFFF", "FFFF80", "FF8000", "4DFF4D", "80FFFF", "9482C9", "FFFFFF" }
 
@@ -60,16 +60,14 @@ pfUI:RegisterModule("player", function ()
 
   -- Compute and cache the haste/SP text; called from OnUpdate, throttled to 0.25s
   local function UpdateInfoText()
-    if not GetUnitField then return end -- do nothing for older nampower
-
     local cfg = playerFrame.config
     if not cfg then
       return
     end
-    -- display_haste: "0"=hidden, "1"=show modCastSpeed (gear haste). Talent-
-    -- side cast-time reductions show up in the actual cast bar via
-    -- C_Spell.UnitCastingInfo; double-folding them into this overlay was
-    -- mixing two different concepts into one number.
+    -- display_haste: "0"=hidden, "1"=show cast-speed haste (UnitSpellHaste,
+    -- from UNIT_MOD_CAST_SPEED). Talent/spell-specific cast-time reductions
+    -- show up in the actual cast bar via C_Spell.UnitCastingInfo; folding them
+    -- in here too was mixing two different concepts into one number.
     local showHaste = cfg.display_haste == "1"
     local showSP = cfg.display_spellpower == "1"
 
@@ -79,21 +77,20 @@ pfUI:RegisterModule("player", function ()
       return
     end
 
-    local haste = GetUnitField("player", "modCastSpeed")
+    local haste = UnitSpellHaste("player")
     local text = ""
 
     if showHaste and isSpellCaster and haste then
       local hasteHex = cfgColorToHex(cfg.display_haste_color) or "FFFFFF"
-      text = string.format("|cff%s%.1f%%|r", hasteHex, (1 / haste - 1) * 100)
+      text = string.format("|cff%s%.1f%%|r", hasteHex, haste)
     end
 
     if showSP and isSpellCaster then
-      local schools = { GetSpellPower("net") }
       local defSchool = spDefaultSchool[myclass] or 2
-      local maxSP = schools[defSchool] or 0
+      local maxSP = GetSpellBonusDamage(defSchool) or 0
       local maxColor = spColors[defSchool]
-      for i = 2, 7 do  -- skip physical (1)
-        local v = schools[i] or 0
+      for i = 2, 7 do  -- skip physical (1); default school seeds the tiebreak
+        local v = GetSpellBonusDamage(i) or 0
         if v > maxSP then
           maxSP = v
           maxColor = spColors[i]

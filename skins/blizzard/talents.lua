@@ -4,14 +4,7 @@ pfUI:RegisterSkin("Talents", function ()
 
   HookAddonOrVariable("Blizzard_TalentUI", function()
     -- Compatibility
-    local TALENT_FRAME, TALENT_FRAME_NAME
-    if PlayerTalentFrame then -- tbc
-      TALENT_FRAME = _G.PlayerTalentFrame
-    else -- vanilla
-      TALENT_FRAME = _G.TalentFrame
-    end
-    TALENT_FRAME_NAME = TALENT_FRAME:GetName()
-
+    local TALENT_FRAME, TALENT_FRAME_NAME = _G.TalentFrame, _G.TalentFrame:GetName()
 
     StripTextures(TALENT_FRAME)
     CreateBackdrop(TALENT_FRAME, nil, nil, .75)

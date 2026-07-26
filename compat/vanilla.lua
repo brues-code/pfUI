@@ -29,15 +29,6 @@ UNITFRAME_SECURE_TEMPLATE = nil
 
 --[[ Vanilla API Extensions ]]--
 
-do -- GetItemInfo
-  local name, link, rarity, minlevel, itype, isubtype, stack
-  function GetItemInfo(item)
-    if not item then return end
-    name, link, rarity, minlevel, itype, isubtype, stack = _G.GetItemInfo(item)
-    return name, link, rarity, nil, minlevel, itype, isubtype, stack
-  end
-end
-
 do -- RunMacroText
   local obj = { ["GetText"] = function(self) return self.text end }
   obj = setmetatable(obj, {__index = function(tab,key)

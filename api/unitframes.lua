@@ -21,6 +21,7 @@ end
 -- slash command to toggle unitframe test mode
 pfUI.api.RegisterSlashCommand("PFTEST", { "/pftest", "/pfuftest" }, function()
   pfUI.uf.showall = not pfUI.uf.showall
+  if pfUI.uf.raid and pfUI.uf.raid.LayoutPets then pfUI.uf.raid:LayoutPets() end
 end, true)
 
 -- HoT buff indicators that need name verification because their icons are
@@ -126,75 +127,16 @@ visibilityscan:SetScript("OnUpdate", function()
 end)
 
 -- ============================================================================
--- GetUnitStats - Nampower Integration for Health + Power
+-- GetUnitStats - health + power for a unit token.
 -- Returns: hp, maxHp, power, maxPower, powerType
--- IMPORTANT: Uses _G.UnitExists directly to avoid conflicts with Nampower's
---            use UnitGUID(unit) for GUID lookup (Nampower 3.0.0+)
 -- ============================================================================
-
--- Cache für Stats-Tracking (nur Änderungen zählen)
-pfUI.api.lastUnitStats = pfUI.api.lastUnitStats or {}
-
-function pfUI.api.GetUnitStats(unitstr, trackStats)
-  local hp, maxHp, power, maxPower, powerType
-  local usedNampower = false
-
-  powerType = UnitPowerType(unitstr) or 0
-  power = UnitPower(unitstr, powerType)
-  maxPower = UnitPowerMax(unitstr, powerType)
-
-  -- Try GetUnitField first if available (for all units: players, pets, NPCs)
-  if GetUnitField then
-    -- Use the standard check first, then get guid separately
-    local exists = _G.UnitExists(unitstr)
-    if exists then
-      local guid = _G.UnitGUID(unitstr)
-      hp = GetUnitField(guid, "health")
-      maxHp = GetUnitField(guid, "maxHealth")
-      -- Check if Nampower gave valid health data
-      if hp and hp > 0 and maxHp and maxHp > 0 then
-        usedNampower = true
-        -- Track Nampower success - NUR bei echten Änderungen
-        if trackStats and pfUI.uf and pfUI.uf.stats and pfUI.uf.stats.enabled then
-          local lastStats = pfUI.api.lastUnitStats[unitstr]
-          if not lastStats or lastStats.hp ~= hp or lastStats.maxHp ~= maxHp or 
-              lastStats.power ~= power or lastStats.maxPower ~= maxPower then
-            pfUI.uf.stats.nampowerUsed = (pfUI.uf.stats.nampowerUsed or 0) + 1
-            pfUI.api.lastUnitStats[unitstr] = {
-              hp = hp,
-              maxHp = maxHp,
-              power = power,
-              maxPower = maxPower
-            }
-          end
-        end
-        return hp, maxHp, power or 0, maxPower or 1, powerType
-      end
-    end
-  end
-
-  -- Fallback to standard API (for players when Nampower fails)
-  hp = UnitHealth(unitstr) or 0
-  maxHp = UnitHealthMax(unitstr) or 1
-
-  -- Track Fallback usage - NUR bei echten Änderungen
-  if trackStats and not usedNampower then
-    if pfUI.uf and pfUI.uf.stats and pfUI.uf.stats.enabled then
-      local lastStats = pfUI.api.lastUnitStats[unitstr]
-      if not lastStats or lastStats.hp ~= hp or lastStats.maxHp ~= maxHp or 
-         lastStats.power ~= power or lastStats.maxPower ~= maxPower then
-        pfUI.uf.stats.fallbackUsed = (pfUI.uf.stats.fallbackUsed or 0) + 1
-        pfUI.api.lastUnitStats[unitstr] = {
-          hp = hp,
-          maxHp = maxHp,
-          power = power,
-          maxPower = maxPower
-        }
-      end
-    end
-  end
-
-  return hp, maxHp, power, maxPower, powerType
+function pfUI.api.GetUnitStats(unitstr)
+  local powerType = UnitPowerType(unitstr) or 0
+  return UnitHealth(unitstr) or 0,
+         UnitHealthMax(unitstr) or 1,
+         UnitPower(unitstr, powerType) or 0,
+         UnitPowerMax(unitstr, powerType) or 1,
+         powerType
 end
 
 local aggrodata = { }
@@ -378,19 +320,16 @@ function pfUI.uf:UpdateFrameSize()
   if self.config.portrait == "left" or self.config.portrait == "right" then
     if ptwidth == "-1" and ptheight == "-1" then
       -- align portrait size to frame
-      self.portrait:SetWidth(real_height)
-      self.portrait:SetHeight(real_height)
+      self.portrait:SetSize(real_height, real_height)
       portrait = real_height + spacing + 2*default_border
     else
       -- use custom portrait size
-      self.portrait:SetWidth(ptwidth)
-      self.portrait:SetHeight(ptheight)
+      self.portrait:SetSize(ptwidth, ptheight)
       portrait = ptwidth + spacing + 2*default_border
     end
   end
 
-  self:SetWidth(width + portrait)
-  self:SetHeight(real_height)
+  self:SetSize(width + portrait, real_height)
 end
 
 function pfUI.uf:UpdateConfig()
@@ -427,8 +366,7 @@ function pfUI.uf:UpdateConfig()
   f.glow:SetScript("OnUpdate", pfUI.uf.glow.UpdateGlowAnimation)
   f.glow:Hide()
 
-  f.combat:SetWidth(tonumber(f.config.squaresize))
-  f.combat:SetHeight(tonumber(f.config.squaresize))
+  f.combat:SetSize(tonumber(f.config.squaresize), tonumber(f.config.squaresize))
   f.combat:ClearAllPoints()
   f.combat:SetPoint(f.config.squarepos, 0, 0)
   f.combat:Hide()
@@ -436,8 +374,7 @@ function pfUI.uf:UpdateConfig()
   f.hp:ClearAllPoints()
   f.hp:SetPoint("TOP", 0, 0)
 
-  f.hp:SetWidth(f.config.width)
-  f.hp:SetHeight(f.config.height)
+  f.hp:SetSize(f.config.width, f.config.height)
   if tonumber(f.config.height) < 0 then f.hp:Hide() end
   pfUI.api.CreateBackdrop(f.hp, default_border)
 
@@ -589,11 +526,7 @@ function pfUI.uf:UpdateConfig()
   end
 
   if f.group then
-    if f.config.raidgrouplabel == "1" then
-      f.group:Show()
-    else
-      f.group:Hide()
-    end
+    f.group:SetShown(f.config.raidgrouplabel == "1")
 
     local xoff = tonumber(f.config.grouplabelxoff) or 0
     local yoff = tonumber(f.config.grouplabelyoff) or 8
@@ -662,8 +595,7 @@ function pfUI.uf:UpdateConfig()
   f.powerCenterText:SetPoint("TOPLEFT",f.power.bar, "TOPLEFT", f.config.txtpowercenteroffx, 1 + tonumber(f.config.txtpowercenteroffy))
   f.powerCenterText:SetPoint("BOTTOMRIGHT",f.power.bar, "BOTTOMRIGHT", f.config.txtpowercenteroffx, f.config.txtpowercenteroffy)
 
-  f.incHeal:SetHeight(f.config.height)
-  f.incHeal:SetWidth(f.config.width)
+  f.incHeal:SetSize(f.config.width, f.config.height)
   f.incHeal.texture:SetTexture(pfUI.media["img:bar"])
   local cr, cg, cb, ca = GetStringColor(f.config.healcolor)
   cr, cg, cb, ca = tonumber(cr), tonumber(cg), tonumber(cb), tonumber(ca)
@@ -679,53 +611,46 @@ function pfUI.uf:UpdateConfig()
   end
 
   f.ressIcon:SetFrameLevel(16)
-  f.ressIcon:SetWidth(32)
-  f.ressIcon:SetHeight(32)
+  f.ressIcon:SetSize(32, 32)
   f.ressIcon:SetPoint("CENTER", f, "CENTER", 0, 4)
   f.ressIcon.texture:SetTexture(pfUI.media["img:ress"])
   f.ressIcon.texture:SetAllPoints(f.ressIcon)
   f.ressIcon:Hide()
 
-  f.leaderIcon:SetWidth(10)
-  f.leaderIcon:SetHeight(10)
+  f.leaderIcon:SetSize(10, 10)
   f.leaderIcon:SetPoint("CENTER", f, "TOPLEFT", 0, 0)
   f.leaderIcon.texture:SetTexture("Interface\\GROUPFRAME\\UI-Group-LeaderIcon")
   f.leaderIcon.texture:SetAllPoints(f.leaderIcon)
   f.leaderIcon:Hide()
 
-  f.lootIcon:SetWidth(10)
-  f.lootIcon:SetHeight(10)
+  f.lootIcon:SetSize(10, 10)
   f.lootIcon:SetPoint("CENTER", f, "LEFT", 0, 0)
   f.lootIcon.texture:SetTexture("Interface\\GROUPFRAME\\UI-Group-MasterLooter")
   f.lootIcon.texture:SetAllPoints(f.lootIcon)
   f.lootIcon:Hide()
 
-  f.pvpIcon:SetWidth(f.config.pvpiconsize)
-  f.pvpIcon:SetHeight(f.config.pvpiconsize)
+  f.pvpIcon:SetSize(f.config.pvpiconsize, f.config.pvpiconsize)
   f.pvpIcon:SetPoint(f.config.pvpiconalign, f, f.config.pvpiconalign, f.config.pvpiconoffx, f.config.pvpiconoffy)
   f.pvpIcon.texture:SetTexture(pfUI.media["img:pvp"])
   f.pvpIcon.texture:SetAllPoints(f.pvpIcon)
   f.pvpIcon.texture:SetVertexColor(1,1,1,.5)
   f.pvpIcon:Hide()
 
-  f.raidIcon:SetWidth(f.config.raidiconsize)
-  f.raidIcon:SetHeight(f.config.raidiconsize)
+  f.raidIcon:SetSize(f.config.raidiconsize, f.config.raidiconsize)
   f.raidIcon:SetPoint("CENTER", f, f.config.raidiconalign, f.config.raidiconoffx, f.config.raidiconoffy)
   local raidIconTex = C.unitframes.blizzard_raidicons == "1" and "Interface\\TargetingFrame\\UI-RaidTargetingIcons" or pfUI.media["img:raidicons"]
   f.raidIcon.texture:SetTexture(raidIconTex)
   f.raidIcon.texture:SetAllPoints(f.raidIcon)
   f.raidIcon:Hide()
 
-  f.restIcon:SetWidth(16)
-  f.restIcon:SetHeight(16)
+  f.restIcon:SetSize(16, 16)
   f.restIcon:SetPoint("TOP", f, "TOPLEFT", 0, -1)
   f.restIcon.texture:SetTexture("Interface\\CharacterFrame\\UI-StateIcon", true)
   f.restIcon.texture:SetTexCoord(0, .5, 0, .421875)
   f.restIcon.texture:SetAllPoints(f.restIcon)
   f.restIcon:Hide()
 
-  f.happinessIcon:SetWidth(tonumber(C.unitframes.pet.happinesssize))
-  f.happinessIcon:SetHeight(tonumber(C.unitframes.pet.happinesssize))
+  f.happinessIcon:SetSize(tonumber(C.unitframes.pet.happinesssize), tonumber(C.unitframes.pet.happinesssize))
   f.happinessIcon:SetPoint("CENTER", f, "TOPLEFT", default_border, -default_border)
   f.happinessIcon.texture:SetTexture(pfUI.media["img:neutral"])
   f.happinessIcon.texture:SetAllPoints(f.happinessIcon)
@@ -896,11 +821,7 @@ function pfUI.uf:UpdateConfig()
       
       -- immediately show/hide existing cooldown text
       if f.debuffs[i].cd.pfCooldownText then
-        if cooldown_text == 1 then
-          f.debuffs[i].cd.pfCooldownText:Show()
-        else
-          f.debuffs[i].cd.pfCooldownText:Hide()
-        end
+        f.debuffs[i].cd.pfCooldownText:SetShown(cooldown_text == 1)
       end
       
       f.debuffs[i].id = i
@@ -1030,8 +951,6 @@ function pfUI.uf.OnEvent()
     this.update_full = true
   -- UNIT_XXX Events
   elseif arg1 and (arg1 == this.label .. this.id or (UnitGUID and arg1 == UnitGUID(this.label .. this.id))) then
-    this.lastEventUpdate = GetTime()
-    
     if event == "UNIT_PORTRAIT_UPDATE" or event == "UNIT_MODEL_CHANGED" then
       this.update_portrait = true
     elseif event == "UNIT_AURA" then
@@ -1053,154 +972,19 @@ local _GetTime = GetTime
 pfUI.uf.now = 0
 
 -- ============================================================================
--- GLOBAL FALLBACK THROTTLE - Limits total fallback updates across ALL frames
--- ============================================================================
-pfUI.uf.fallbackThrottle = {
-  lastUpdate = 0,
-  interval = 0.1,  -- 10 updates per second total (not per frame!)
-  updatesThisInterval = 0,
-  maxUpdatesPerInterval = 5  -- Max 5 frames can update per interval
-}
-
--- ============================================================================
--- STATS SYSTEM - Performance tracking for Nampower vs Fallback
--- ============================================================================
-pfUI.uf.stats = {
-  eventUpdates = 0,
-  heartbeatUpdates = 0,
-  earlyReturns = 0,
-  nampowerUsed = 0,
-  fallbackUsed = 0,
-  throttledSkips = 0,
-  startTime = 0,
-  enabled = true
-}
-
--- Stats Frame (Live Display)
-pfUI.uf.statsFrame = CreateFrame("Frame", "pfUIStatsFrame", UIParent)
-pfUI.uf.statsFrame:SetWidth(200)
-pfUI.uf.statsFrame:SetHeight(220)
-pfUI.uf.statsFrame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -10, -200)
-pfUI.uf.statsFrame:SetBackdrop({
-  bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-  tile = true, tileSize = 16, edgeSize = 8,
-  insets = { left = 3, right = 3, top = 3, bottom = 3 }
-})
-pfUI.uf.statsFrame:SetBackdropColor(0, 0, 0, 0.8)
-pfUI.uf.statsFrame:EnableMouse(true)
-pfUI.uf.statsFrame:SetMovable(true)
-pfUI.uf.statsFrame:SetClampedToScreen(true)
-pfUI.uf.statsFrame:RegisterForDrag("LeftButton")
-pfUI.uf.statsFrame:SetScript("OnDragStart", function() this:StartMoving() end)
-pfUI.uf.statsFrame:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
-pfUI.uf.statsFrame:Hide()
-
--- Stats Title
-pfUI.uf.statsFrame.title = pfUI.uf.statsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-pfUI.uf.statsFrame.title:SetPoint("TOP", pfUI.uf.statsFrame, "TOP", 0, -8)
-pfUI.uf.statsFrame.title:SetText("Performance")
-
--- Stats Text (multi-line)
-pfUI.uf.statsFrame.text = pfUI.uf.statsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-pfUI.uf.statsFrame.text:SetPoint("TOPLEFT", pfUI.uf.statsFrame, "TOPLEFT", 10, -30)
-pfUI.uf.statsFrame.text:SetWidth(180)
-pfUI.uf.statsFrame.text:SetHeight(180)
-pfUI.uf.statsFrame.text:SetJustifyH("LEFT")
-pfUI.uf.statsFrame.text:SetJustifyV("TOP")
-pfUI.uf.statsFrame.text:SetText("Initializing...")
-
--- Update function for stats display
-pfUI.uf.UpdateStatsDisplay = function()
-  local elapsed = GetTime() - pfUI.uf.stats.startTime
-  if elapsed < 0.1 then return end
-  
-  local eventRate = pfUI.uf.stats.eventUpdates / elapsed
-  local heartbeatRate = pfUI.uf.stats.heartbeatUpdates / elapsed
-  local totalFrameUpdates = eventRate + heartbeatRate
-  
-  -- Calculate Nampower vs Fallback percentages (ONLY counts actual data changes!)
-  local totalDataChanges = pfUI.uf.stats.nampowerUsed + pfUI.uf.stats.fallbackUsed
-  local nampowerPct = totalDataChanges > 0 and math.floor((pfUI.uf.stats.nampowerUsed / totalDataChanges) * 100) or 0
-  local fallbackPct = totalDataChanges > 0 and math.floor((pfUI.uf.stats.fallbackUsed / totalDataChanges) * 100) or 0
-  
-  -- Calculate data change rate (how often HP/Mana actually changes)
-  local dataChangeRate = totalDataChanges / elapsed
-  
-  local statsText = string.format(
-    "Time: %.1fs\n" ..
-    "|cffaaaaaa--- Frame Updates ---|r\n" ..
-    "Event: %.1f/s (%d)\n" ..
-    "Heartbeat: %.1f/s (%d)\n" ..
-    "Total: %.1f/s\n" ..
-    "\n" ..
-    "|cffaaaaaa--- Data Changes ---|r\n" ..
-    "Rate: %.1f/s (%d)\n" ..
-    "|cff00ff00NP: %d%% (%d)|r\n" ..
-    "|cffff8800FB: %d%% (%d)|r",
-    elapsed,
-    eventRate,
-    pfUI.uf.stats.eventUpdates,
-    heartbeatRate,
-    pfUI.uf.stats.heartbeatUpdates,
-    totalFrameUpdates,
-    dataChangeRate,
-    totalDataChanges,
-    nampowerPct,
-    pfUI.uf.stats.nampowerUsed,
-    fallbackPct,
-    pfUI.uf.stats.fallbackUsed
-  )
-  
-  pfUI.uf.statsFrame.text:SetText(statsText)
-end
-
--- Stats update timer
-pfUI.uf.statsUpdateTimer = 0
-
--- Cache cleanup timer (clean lastUnitStats every 30s to prevent memory leak)
-pfUI.uf.cacheCleanupTimer = 0
-
--- ============================================================================
--- OnUpdate with Heartbeat Polling and Fallback
+-- OnUpdate - eventless per-frame work (range check, aggro glow) and draining
+-- the event-set update flags. Frames refresh on events only; no polling.
 -- ============================================================================
 function pfUI.uf.OnUpdate()
   local now = _GetTime()
   pfUI.uf.now = now
-  
-  -- Update stats display (throttled to 0.2s)
-  if pfUI.uf.statsFrame and pfUI.uf.statsFrame:IsShown() then
-    if (pfUI.uf.statsUpdateTimer or 0) <= now then
-      pfUI.uf.statsUpdateTimer = now + 0.2
-      if pfUI.uf.stats.startTime > 0 then
-        pfUI.uf.UpdateStatsDisplay()
-      end
-    end
-  end
-  
-  -- Cleanup lastUnitStats cache every 30 seconds to prevent memory leak
-  if (pfUI.uf.cacheCleanupTimer or 0) <= now then
-    pfUI.uf.cacheCleanupTimer = now + 30
-    
-    -- Only keep cache for units that currently exist
-    if pfUI.api.lastUnitStats then
-      for unitstr in pairs(pfUI.api.lastUnitStats) do
-        if not _G.UnitExists(unitstr) then
-          pfUI.api.lastUnitStats[unitstr] = nil
-        end
-      end
-    end
-  end
-  
+      
   -- update combat feedback (no throttle - needs immediate feedback)
   if this.feedbackText then CombatFeedback_OnUpdate(arg1) end
 
   -- Throttle raid/party frames for performance
   if this.label == "raid" or this.label == "party" then
     if (this.throttleTick or 0) > now then
-      if pfUI.uf.stats and pfUI.uf.stats.enabled then
-        pfUI.uf.stats.throttledSkips = pfUI.uf.stats.throttledSkips + 1
-      end
       return
     end
     this.throttleTick = now + 0.1  -- Default: 10 FPS
@@ -1284,19 +1068,7 @@ function pfUI.uf.OnUpdate()
         local unit = this.label .. this.id
         local heal = libpredict:UnitGetIncomingHeals(unit)
         
-        -- O(1) Nampower lookup via GUID (same pattern as nameplates.lua)
-        local health, maxHealth
-        if GetUnitField then
-          local guid = UnitGUID(unit)
-          if guid then
-            health = GetUnitField(guid, "health")
-            maxHealth = GetUnitField(guid, "maxHealth")
-          end
-        end
-        -- Fallback to standard API
-        if not health or not maxHealth or maxHealth == 0 then
-          health, maxHealth = UnitHealth(unit), UnitHealthMax(unit)
-        end
+        local health, maxHealth = UnitHealth(unit), UnitHealthMax(unit)
 
         if heal - health - maxHealth ~= this.predictstate then
           local overhealperc = tonumber(this.config.overhealperc)
@@ -1353,86 +1125,6 @@ function pfUI.uf.OnUpdate()
   -- EVENT-BASED UPDATES (Health, Mana, Auras, etc.)
   -- ============================================================================
   
-  -- Check if we have pending updates from events
-  local hasUpdates = this.update_full or this.update_base or 
-                     this.update_aura or this.update_portrait or 
-                     this.update_pvp or this.update_indicators
-  
-  -- Track event-triggered updates (not API calls, just frame updates)
-  if hasUpdates and pfUI.uf.stats and pfUI.uf.stats.enabled then
-    pfUI.uf.stats.eventUpdates = pfUI.uf.stats.eventUpdates + 1
-  end
-  
-  -- Heartbeat Polling: If no events pending, check if we need fallback
-  if not hasUpdates then
-    local timeSinceEvent = this.lastEventUpdate and (now - this.lastEventUpdate) or 999
-    
-    -- If >0.5s since last event and unit exists, try heartbeat
-    if timeSinceEvent > 0.5 and this.label and _G.UnitExists(this.label .. this.id) then
-      local needsFallback = false
-      
-      -- Check if Nampower can provide data
-      if GetUnitField then
-        -- Use _G.UnitExists to avoid conflicts with range checking
-        local unitstr = this.label .. this.id
-        local exists = _G.UnitExists(unitstr)
-        if exists then
-          local _, guid = _G.UnitExists(unitstr)
-          if guid then
-            local hp = GetUnitField(guid, "health")
-            if not hp or hp == 0 then
-              needsFallback = true
-            end
-          else
-            needsFallback = true
-          end
-        else
-          needsFallback = true
-        end
-      else
-        needsFallback = true
-      end
-      
-      if needsFallback then
-        -- GLOBAL Throttle: Limit fallback updates across ALL frames
-        local throttle = pfUI.uf.fallbackThrottle
-        
-        -- Reset counter each interval
-        if now - throttle.lastUpdate > throttle.interval then
-          throttle.lastUpdate = now
-          throttle.updatesThisInterval = 0
-        end
-        
-        -- Check if we've exceeded max updates this interval
-        if throttle.updatesThisInterval >= throttle.maxUpdatesPerInterval then
-          if pfUI.uf.stats and pfUI.uf.stats.enabled then
-            pfUI.uf.stats.earlyReturns = pfUI.uf.stats.earlyReturns + 1
-          end
-          return
-        end
-        
-        throttle.updatesThisInterval = throttle.updatesThisInterval + 1
-        
-        -- Nampower not available or no data - trigger fallback update
-        this.update_base = true
-        if pfUI.uf.stats and pfUI.uf.stats.enabled then
-          pfUI.uf.stats.heartbeatUpdates = pfUI.uf.stats.heartbeatUpdates + 1
-        end
-      else
-        -- Nampower working fine, no update needed
-        if pfUI.uf.stats and pfUI.uf.stats.enabled then
-          pfUI.uf.stats.earlyReturns = pfUI.uf.stats.earlyReturns + 1
-        end
-        return
-      end
-    else
-      -- Too soon or unit doesn't exist
-      if pfUI.uf.stats and pfUI.uf.stats.enabled then
-        pfUI.uf.stats.earlyReturns = pfUI.uf.stats.earlyReturns + 1
-      end
-      return
-    end
-  end
 
   -- process indicator update events
   if this.update_indicators then
@@ -2316,7 +2008,7 @@ function pfUI.uf:RefreshUnit(unit, component)
   -- base frame
   if component == "all" or component == "base" then
     -- Unit HP/MP with Nampower Integration
-    local hp, hpmax, power, powermax, powerType = pfUI.api.GetUnitStats(unitstr, true)
+    local hp, hpmax, power, powermax, powerType = pfUI.api.GetUnitStats(unitstr)
     
     -- Store original values for color calculations (before invert_healthbar modifies hp)
     local hp_orig, hpmax_orig = hp, hpmax
@@ -2891,7 +2583,7 @@ function pfUI.uf:GetStatusValue(unit, pos)
   end
 
   -- Get stats with Nampower Integration
-  local hp, hpmax, mp, mpmax, powerType = pfUI.api.GetUnitStats(unitstr, true)
+  local hp, hpmax, mp, mpmax, powerType = pfUI.api.GetUnitStats(unitstr)
   local rhp, rhpmax = hp, hpmax
 
   -- Use libhealth for mob health estimation (overrides Nampower/Standard)
@@ -3047,19 +2739,7 @@ function pfUI.uf.GetColor(self, preset)
     r, g, b = color.r, color.g, color.b
 
   elseif preset == "health" and config["healthcolor"] == "1" then
-    -- O(1) Nampower lookup for health gradient color
-    local hp, hpmax
-    if GetUnitField then
-      local guid = UnitGUID(unitstr)
-      if guid then
-        hp = GetUnitField(guid, "health")
-        hpmax = GetUnitField(guid, "maxHealth")
-      end
-    end
-    -- Fallback to standard API
-    if not hp or not hpmax then
-      hp, hpmax = UnitHealth(unitstr), UnitHealthMax(unitstr)
-    end
+    local hp, hpmax = UnitHealth(unitstr), UnitHealthMax(unitstr)
     if hpmax and hpmax > 0 then
       r, g, b = GetColorGradient(hp / hpmax)
     else
@@ -3081,59 +2761,3 @@ function pfUI.uf.GetColor(self, preset)
   return rgbhex(r,g,b)
 end
 
--- ============================================================================
--- Slash Commands for Stats Frame
--- ============================================================================
-pfUI.api.RegisterSlashCommand("PFUISTATS", { "/pfuistats", "/ufstats" }, function(msg)
-  msg = string.lower(msg or "")
-  
-  if not pfUI.uf.stats then
-    DEFAULT_CHAT_FRAME:AddMessage("|cffff0000ERROR:|r Stats not initialized!")
-    return
-  end
-  
-  -- Initialize startTime on first use
-  if pfUI.uf.stats.startTime == 0 then
-    pfUI.uf.stats.startTime = GetTime()
-  end
-  
-  if msg == "reset" then
-    pfUI.uf.stats.eventUpdates = 0
-    pfUI.uf.stats.heartbeatUpdates = 0
-    pfUI.uf.stats.earlyReturns = 0
-    pfUI.uf.stats.nampowerUsed = 0
-    pfUI.uf.stats.fallbackUsed = 0
-    pfUI.uf.stats.throttledSkips = 0
-    pfUI.uf.stats.startTime = GetTime()
-    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00pfUI Stats:|r Reset!")
-    
-  elseif msg == "toggle" then
-    pfUI.uf.stats.enabled = not pfUI.uf.stats.enabled
-    local status = pfUI.uf.stats.enabled and "|cff00ff00ON|r" or "|cffff0000OFF|r"
-    DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00pfUI Stats:|r Tracking: " .. status)
-    
-  elseif msg == "show" then
-    if pfUI.uf.statsFrame then
-      pfUI.uf.statsFrame:Show()
-      DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00pfUI Stats:|r Frame shown")
-    end
-    
-  elseif msg == "hide" then
-    if pfUI.uf.statsFrame then
-      pfUI.uf.statsFrame:Hide()
-      DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00pfUI Stats:|r Frame hidden")
-    end
-    
-  else
-    -- Toggle frame (default action)
-    if pfUI.uf.statsFrame then
-      if pfUI.uf.statsFrame:IsShown() then
-        pfUI.uf.statsFrame:Hide()
-        DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00pfUI Stats:|r Frame hidden")
-      else
-        pfUI.uf.statsFrame:Show()
-        DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00pfUI Stats:|r Frame shown")
-      end
-    end
-  end
-end, true)

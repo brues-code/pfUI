@@ -1,13 +1,5 @@
 pfUI:RegisterSkin("Readycheck", function ()
   HookAddonOrVariable("Blizzard_RaidUI", function()
-    -- Compatibility
-    local update_func
-    if ReadyCheckFrame_OnUpdate then -- tbc
-      update_func = "ReadyCheckFrame_OnUpdate"
-    else -- vanilla
-      update_func = "ReadyCheck_OnUpdate"
-    end
-
     StripTextures(ReadyCheckFrame, true)
     CreateBackdrop(ReadyCheckFrame, nil, nil, .75)
     CreateBackdropShadow(ReadyCheckFrame)
@@ -25,8 +17,7 @@ pfUI:RegisterSkin("Readycheck", function ()
 
     local frame = CreateFrame("Button", nil, ReadyCheckFrame)
     frame:SetPoint("TOP", ReadyCheckFrameText, "BOTTOM", 0, -6)
-    frame:SetWidth(220)
-    frame:SetHeight(10)
+    frame:SetSize(220, 10)
 
     frame.bar = CreateFrame("StatusBar", "ReadyCheckFrameStatusBar", ReadyCheckFrame)
     frame.bar:SetStatusBarTexture(pfUI.media["img:bar"])
@@ -35,7 +26,7 @@ pfUI:RegisterSkin("Readycheck", function ()
     frame.bar.text = frame.bar:CreateFontString("Status", "DIALOG", "GameFontNormal")
     frame.bar.text:SetFontObject(GameFontWhite)
     frame.bar.text:SetFont(pfUI.font_default, 12, "OUTLINE")
-    frame.bar.text:SetPoint("CENTER", 0, 0)
+    frame.bar.text:SetPoint("CENTER")
 
     local max
     hooksecurefunc("ShowReadyCheck", function()
@@ -43,7 +34,7 @@ pfUI:RegisterSkin("Readycheck", function ()
       frame.bar:SetMinMaxValues(0, max)
     end)
 
-    hooksecurefunc(update_func, function()
+    hooksecurefunc("ReadyCheck_OnUpdate", function()
       if not ReadyCheckFrame.timer then return end
 
       local perc = ReadyCheckFrame.timer/max

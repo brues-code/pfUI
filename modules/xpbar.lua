@@ -183,11 +183,7 @@ end
     local self = self or this
 
     if self.text_mouse == "1" then
-      if MouseIsOver(self) then
-        self.bar.text:Show()
-      else
-        self.bar.text:Hide()
-      end
+      self.bar.text:SetShown(MouseIsOver(self))
     end
 
     if self.always then return end
@@ -352,11 +348,7 @@ end
     b.bar.text:SetJustifyH("CENTER")
     b.bar.text:SetFont(pfUI.font_default, C.global.font_size, "OUTLINE")
 
-    if b.text == "1" then
-      b.bar.text:Show()
-    else
-      b.bar.text:Hide()
-    end
+    b.bar.text:SetShown(b.text == "1")
 
     b.restedbar = b.restedbar or CreateFrame("StatusBar", nil, b)
     b.restedbar:SetStatusBarTexture(pfUI.media[C.panel.xp.texture])

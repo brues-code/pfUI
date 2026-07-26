@@ -131,6 +131,13 @@ pfUI:RegisterModule("raid", function ()
       pet:UpdateVisibility()
     end
 
+    if pfUI.uf.showall then
+      for id = 1, maxraid do
+        if self.pets[id] then place(self.pets[id], id, id) end
+      end
+      return
+    end
+
     if C.unitframes.raidpet.collapse == "1" then
       -- Pack the pets that exist into the leading cells, no gaps.
       local k = 0

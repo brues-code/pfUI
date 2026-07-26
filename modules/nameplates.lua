@@ -61,13 +61,11 @@ pfUI:RegisterModule("nameplates", function ()
 
   local raidGuidCache = {}  -- guid -> name (rebuilt on RAID_ROSTER_UPDATE/PARTY_MEMBERS_CHANGED)
   
-  -- Resolve a plate GUID to its cast/channel info via C_Spell. Returns a
+  -- Resolve a unit token to its cast/channel info via C_Spell. Returns a
   -- compact struct (spellName / icon / startTime / endTime / duration /
-  -- isChannel) or nil when the unit isn't casting / the GUID can't map to a
-  -- live token.
-  local function GetCastInfo(guid)
-    if not guid then return nil end
-    local unit = UnitTokenFromGUID(guid)
+  -- isChannel) or nil when the unit isn't casting. Callers already hold the
+  -- nameplate token, so there's no GUID->token round-trip.
+  local function GetCastInfo(unit)
     if not unit then return nil end
     local name, _, texture, startMs, endMs, _, _, _, spellID = C_Spell.UnitCastingInfo(unit)
     local isChannel
@@ -87,7 +85,6 @@ pfUI:RegisterModule("nameplates", function ()
     }
   end
   
-  local guidTargetTokenCache = {}  -- guid -> "<guid>target" interned string
   local debuffCache = {}    -- guid -> { [spellID] = { start, duration } }
   -- Reusable per-plate debuff display buffer (avoid GC churn from per-call table creation)
   local debuffDisplayBuf = {}  -- [i] = { effect, texture, stacks, dtype, duration, timeleft }
@@ -165,12 +162,6 @@ pfUI:RegisterModule("nameplates", function ()
   -- cache default border color
   local er, eg, eb, ea = GetStringColor(pfUI_config.appearance.border.color)
 
-  -- Vanilla Lua 5.0 bitwise check: math.mod(math.floor(value / flag), 2) ~= 0
-  local function HasFlag(flags, flag)
-    return math.mod(math.floor(flags / flag), 2) ~= 0
-  end
-
-  local UNIT_FLAG_IN_COMBAT = 524288  -- 0x00080000
   local NULL_GUID           = "0x0000000000000000"
 
   local function RebuildRaidGuidCache()
@@ -189,10 +180,11 @@ pfUI:RegisterModule("nameplates", function ()
 
   local combatColorCache = {}  -- guid -> { color, expires }
 
-  local function GetCombatStateColor(guid)
+  local function GetCombatStateColor(guid, token)
     -- PERF: Quick exit if player not in combat
     if not UnitAffectingCombat("player") then return false end
-    if UnitCanAssist("player", guid) then return false end
+    if not token then return false end
+    if UnitCanAssist("player", token) then return false end
 
     -- PERF: 0.2s throttle per guid - color changes are not time-critical
     local now = frameState.now
@@ -201,24 +193,17 @@ pfUI:RegisterModule("nameplates", function ()
       return cached.color
     end
 
-    local flags = GetUnitField and GetUnitField(guid, "flags")
-    if not flags then return false end
-    if not HasFlag(flags, UNIT_FLAG_IN_COMBAT) then return false end
+    if not UnitAffectingCombat(token) then return false end
 
-    local mobTargetGuid = GetUnitField and GetUnitField(guid, "target")
+    -- The mob's current target via the nameplate token chain (ClassicAPI):
+    -- "nameplateNtarget" resolves to whatever this plate's unit is targeting,
+    -- so no GetUnitField("target") or SuperWoW "<guid>target" token needed.
+    local target = token .. "target"
+    local mobTargetGuid = UnitGUID(target)
     local hasTarget = mobTargetGuid and mobTargetGuid ~= NULL_GUID
-
-    -- PERF: cache the SuperWoW-style "<guid>target" unit token. The concat
-    -- intern-hits Lua's string pool every call; caching once per guid
-    -- saves the hash+lookup. Cleared in NAME_PLATE_UNIT_REMOVED.
-    local target = guidTargetTokenCache[guid]
-    if not target then
-      target = guid .. "target"
-      guidTargetTokenCache[guid] = target
-    end
     local color = false
 
-    local castInfo = GetCastInfo(guid)
+    local castInfo = GetCastInfo(token)
     local isCasting = castInfo and castInfo.endTime and now < castInfo.endTime
     local targetingPlayer = hasTarget and UnitIsUnit(target, "player")
 
@@ -466,10 +451,8 @@ nameplates:RegisterEvent("PARTY_MEMBERS_CHANGED")
 nameplates:RegisterEvent("NAME_PLATE_CREATED")
 nameplates:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 nameplates:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
-if GetUnitField then
-  nameplates:RegisterEvent("UNIT_FLAGS_GUID")
-  nameplates:RegisterEvent("UNIT_AURA_GUID")
-end
+nameplates:RegisterEvent("UNIT_AURA")
+nameplates:RegisterEvent("UNIT_FLAGS")
   
   nameplates:SetScript("OnEvent", function()
     -- Stop event handling during logout to prevent crash 132
@@ -542,10 +525,12 @@ end
       end
 
     elseif event == "NAME_PLATE_UNIT_ADDED" then
-      -- arg1 = "nameplateN" unit token; resolve to GUID for cache keys
+      -- arg1 = "nameplateN" unit token. Cache the GUID for cache keys and the
+      -- token itself for token-based UnitX reads (stable per plate lifetime).
       local plate = C_NamePlate.GetNamePlateForUnit(arg1)
       if plate and plate.nameplate then
         plate.nameplate.cachedGuid = UnitGUID(arg1)
+        plate.nameplate.unit = arg1
         nameplates.OnShow(plate)
       end
       visiblePlateCount = visiblePlateCount + 1
@@ -558,53 +543,54 @@ end
       if guid then
         if debuffCache[guid] then debuffCache[guid] = nil end
         if threatMemory[guid] then threatMemory[guid] = nil end
-        if guidTargetTokenCache[guid] then guidTargetTokenCache[guid] = nil end
         if combatColorCache[guid] then combatColorCache[guid] = nil end
         local plate = C_NamePlate.GetNamePlateForUnit(arg1)
         if plate and plate.nameplate and plate.nameplate.cachedGuid == guid then
           plate.nameplate.cachedGuid = nil
+          plate.nameplate.unit = nil
         end
       end
 
-    elseif event == "UNIT_FLAGS_GUID" then
-      -- Nampower: fires instantly when any unit's flags change (e.g. stun, combat enter/leave)
-      -- arg1 = guid — directly flag that nameplate for immediate update, bypassing throttle
-      local plate = C_NamePlate.GetNamePlateForGUID(arg1)
-      if plate and plate.nameplate then
-        plate.nameplate.eventcache = true
+    elseif event == "UNIT_FLAGS" then
+      -- ClassicAPI: fires with arg1 == "nameplateN" when a unit's flags change
+      -- (stun, combat enter/leave). Flag that plate for an immediate update,
+      -- bypassing the throttle. Guard on the token prefix -- UNIT_FLAGS also
+      -- fires for target/party/raid, which aren't ours to handle here.
+      if arg1 and strfind(arg1, "^nameplate") then
+        local plate = C_NamePlate.GetNamePlateForUnit(arg1)
+        if plate and plate.nameplate then
+          plate.nameplate.eventcache = true
+        end
       end
 
-    elseif event == "UNIT_AURA_GUID" then
-      -- Nampower: fires when a unit's aura set changes (add/remove/modify).
-      -- arg1 = guid. Flag the matching plate so OnUpdate triggers a fresh
-      -- C_UnitAuras read on the next tick instead of waiting on the 0.5s
-      -- throttle — covers expirations, dispels, refreshes, and stack changes
-      -- in one event.
-      local plate = C_NamePlate.GetNamePlateForGUID(arg1)
-      if plate and plate.nameplate then
-        plate.nameplate.auraUpdate = true
+    elseif event == "UNIT_AURA" then
+      -- ClassicAPI: fires with arg1 == "nameplateN" when a unit's aura set
+      -- changes (add/remove/modify). Flag the matching plate so OnUpdate does a
+      -- fresh C_UnitAuras read next tick instead of waiting on the 0.5s
+      -- throttle -- covers expirations, dispels, refreshes, and stack changes
+      -- in one event. Guard on the token prefix (UNIT_AURA also fires for
+      -- target/party/raid).
+      if arg1 and strfind(arg1, "^nameplate") then
+        local plate = C_NamePlate.GetNamePlateForUnit(arg1)
+        if plate and plate.nameplate then
+          plate.nameplate.auraUpdate = true
+        end
       end
 
     elseif event == "PLAYER_TARGET_CHANGED" then
-      -- Flag target plate for update via GUID registry
-      local targetGuid = UnitGUID("target")
-      if targetGuid then
-        local plate = C_NamePlate.GetNamePlateForGUID(targetGuid)
-        if plate and plate.nameplate then
-          plate.nameplate.targetUpdate = true
-        end
+      -- Flag the target's plate for update
+      local plate = C_NamePlate.GetNamePlateForUnit("target")
+      if plate and plate.nameplate then
+        plate.nameplate.targetUpdate = true
       end
       -- Also propagate to all plates for alpha/strata updates
       this.eventcache = true
 
     elseif event == "PLAYER_COMBO_POINTS" or event == "UNIT_COMBO_POINTS" then
-      -- Only flag the target plate for combo point update
-      local targetGuid = UnitGUID("target")
-      if targetGuid then
-        local plate = C_NamePlate.GetNamePlateForGUID(targetGuid)
-        if plate and plate.nameplate then
-          plate.nameplate.comboUpdate = true
-        end
+      -- Only flag the target's plate for combo point update
+      local plate = C_NamePlate.GetNamePlateForUnit("target")
+      if plate and plate.nameplate then
+        plate.nameplate.comboUpdate = true
       end
     else
       this.eventcache = true
@@ -986,16 +972,14 @@ end
     -- always make sure to keep plate visible
     plate:Show()
 
-    if target and cfg.targetglow then
-      plate.glow:Show() else plate.glow:Hide()
-    end
+    plate.glow:SetShown(target and cfg.targetglow)
 
     -- target indicator
     if cfg.outcombatstate then
       local guid = plate.cachedGuid or ""
 
       -- determine color based on combat state
-      local color = GetCombatStateColor(guid)
+      local color = GetCombatStateColor(guid, plate.unit)
       if not color then color = combatstate.NONE end
 
       -- set border color
@@ -1070,7 +1054,7 @@ end
 
     if guild and C.nameplates.showguildname == "1" then
       plate.guild:SetText(guild)
-      if guild == GetGuildInfo("player") then
+      if UnitIsInMyGuild(plate.unit) then
         plate.guild:SetTextColor(0, 0.9, 0, 1)
       else
         plate.guild:SetTextColor(0.8, 0.8, 0.8, 1)
@@ -1089,15 +1073,15 @@ end
 
     if cfg.showhp then
       local rhp, rhpmax, estimated
-      local guid = plate.cachedGuid
-      if guid and GetUnitField then
-        local npHp = GetUnitField(guid, "health")
-        local npMaxHp = GetUnitField(guid, "maxHealth")
+      local unit = plate.unit
+      if unit then
+        local npHp = UnitHealth(unit)
+        local npMaxHp = UnitHealthMax(unit)
         if npHp and npHp > 0 and npMaxHp and npMaxHp > 0 and npMaxHp ~= 100 then
           rhp, rhpmax = npHp, npMaxHp
         end
       end
-      
+
       -- Fallback to existing methods
       if not rhp then
         if hpmax > 100 or (round(hpmax/100*hp) ~= hp) then
@@ -1148,7 +1132,7 @@ end
 
     if cfg.barcombatstate then
       local guid = plate.cachedGuid or ""
-      local color = GetCombatStateColor(guid)
+      local color = GetCombatStateColor(guid, plate.unit)
 
       if color then
         r, g, b, a = color.r, color.g, color.b, color.a
@@ -1268,19 +1252,7 @@ end
   end
 
   nameplates.OnShow = function(frame)
-    local frame = frame or this
-    local nameplate = frame.nameplate
-
-    -- cachedGuid is set by NAME_PLATE_UNIT_ADDED before this fires
-    local guid = nameplate.cachedGuid
-    if guid and pfUI.api.libunitscan and pfUI.api.libunitscan.ScanGuid then
-      -- notify libunitscan so it can cache unit data without mouseover
-      local name = nameplate.original.name:GetText()
-      local npcFlags = GetUnitField(guid, "npcFlags") or 0
-      pfUI.api.libunitscan.ScanGuid(guid, name, npcFlags == 0)
-    end
-
-    nameplates:OnDataChanged(nameplate)
+    nameplates:OnDataChanged((frame or this).nameplate)
   end
 
   nameplates.OnUpdate = function(frame, state)
@@ -1300,7 +1272,7 @@ end
     -- smooth animation without overloading the central loop.
     local isCastingNonTarget = not target and nameplate.castbar and nameplate.castbar:IsShown()
     if not isCastingNonTarget and not target and cfg.showcastbar and nameplate.cachedGuid then
-      local castInfo = GetCastInfo(nameplate.cachedGuid)
+      local castInfo = GetCastInfo(nameplate.unit)
       if castInfo and castInfo.endTime > now then
         isCastingNonTarget = true
       end
@@ -1372,8 +1344,7 @@ end
 
     if C.nameplates["overlap"] == "1" then
       if frame:GetWidth() > 1 then
-        frame:SetWidth(1)
-        frame:SetHeight(1)
+        frame:SetSize(1, 1)
       end
     else
       if not nameplate.dwidth then
@@ -1381,8 +1352,9 @@ end
       end
 
       if floor(frame:GetWidth()) ~= nameplate.dwidth then
-        frame:SetWidth(nameplate:GetWidth() * UIParent:GetScale())
-        frame:SetHeight(nameplate:GetHeight() * UIParent:GetScale())
+        local nameW, nameH = nameplate:GetSize()
+        local uiScale = UIParent:GetScale()
+        frame:SetSize(nameW * uiScale, nameH * uiScale)
       end
     end
 
@@ -1439,13 +1411,7 @@ end
 
     -- trigger update when name color changed (includes combat state check)
     local r, g, b = original.name:GetTextColor()
-    local inCombatWithPlayer = false
-    if cfg.namefightcolor then
-      local guid = nameplate.cachedGuid
-      if guid then
-        inCombatWithPlayer = UnitAffectingCombat(guid) and UnitAffectingCombat("player")
-      end
-    end
+    local inCombatWithPlayer = cfg.namefightcolor and UnitAffectingCombat(nameplate.unit) and UnitAffectingCombat("player")
     
     if r + g + b ~= nameplate.cache.namecolor or (cfg.namefightcolor and nameplate.cache.inCombat ~= inCombatWithPlayer) then
       nameplate.cache.namecolor = r + g + b
@@ -1493,7 +1459,7 @@ end
         nameplate.health.targetHeight = hc
       end
       
-      local w, h = nameplate.health:GetWidth(), nameplate.health:GetHeight()
+      local w, h = nameplate.health:GetSize()
       local wc, hc = nameplate.health.targetWidth, nameplate.health.targetHeight
       
       if wc and hc then
@@ -1513,7 +1479,7 @@ end
         end
       end
     elseif nameplate.health.zoomed or nameplate.health.zoomTransition then
-      local w, h = nameplate.health:GetWidth(), nameplate.health:GetHeight()
+      local w, h = nameplate.health:GetSize()
       local wc = cfg.width
       local hc = cfg.heighthealth
 
@@ -1522,8 +1488,7 @@ end
       elseif h > hc + 0.5 then
         nameplate.health:SetHeight(h*0.95)
       else
-        nameplate.health:SetWidth(wc)
-        nameplate.health:SetHeight(hc)
+        nameplate.health:SetSize(wc, hc)
         nameplate.health.zoomTransition = nil
         nameplate.health.zoomed = nil
         nameplate.health.targetWidth = nil
@@ -1589,7 +1554,7 @@ end
   -- Shared castbar update logic (used by both dedicated frame and central loop)
   nameplates.UpdateCastbar = function(nameplate, now)
     if not nameplate or not nameplate.castbar then return end
-    local castInfo = GetCastInfo(nameplate.cachedGuid)
+    local castInfo = GetCastInfo(nameplate.unit)
     if not castInfo or castInfo.endTime < now then
       nameplate.castbar.isShown = nil
       nameplate.castbar.lastEndTime = nil
@@ -1635,10 +1600,7 @@ end
     if (this.tick or 0) > now then return end
     this.tick = now + throttle
 
-    local targetGuid = UnitExists("target") and UnitGUID("target")
-    if not targetGuid then return end
-
-    local frame = C_NamePlate.GetNamePlateForGUID(targetGuid)
+    local frame = C_NamePlate.GetNamePlateForUnit("target")
     if not frame or not frame.nameplate then return end
 
     nameplates.UpdateCastbar(frame.nameplate, now)

@@ -6,31 +6,15 @@ pfUI:RegisterSkin("Quest Log", function ()
   _G.MAX_WATCHABLE_QUESTS = 20 -- TODO
 
   do -- quest log frame
-    -- Compatibility
-    local QUEST_COUNT
-    if QuestLogCount then -- tbc
-      QUEST_COUNT = QuestLogCount
-
-      StripTextures(QUEST_COUNT)
-      QUEST_COUNT:ClearAllPoints()
-      hooksecurefunc("QuestLogUpdateQuestCount", function(numQuests)
-        QUEST_COUNT:ClearAllPoints()
-        QUEST_COUNT:SetPoint("BOTTOMRIGHT", QuestLogFrame, "TOPRIGHT", 0, -50)
-      end)
-    else -- vanilla
-      QUEST_COUNT = QuestLogQuestCount
-
-      QUEST_COUNT:ClearAllPoints()
-      QUEST_COUNT:SetPoint("TOPRIGHT", -10, -30)
-    end
+    QuestLogQuestCount:ClearAllPoints()
+    QuestLogQuestCount:SetPoint("TOPRIGHT", -10, -30)
 
     hooksecurefunc("QuestLog_OnShow", function()
       QuestLogFrame:ClearAllPoints()
       QuestLogFrame:SetPoint("TOPLEFT", 10, -104)
     end)
 
-    QuestLogFrame:SetWidth(676)
-    QuestLogFrame:SetHeight(440)
+    QuestLogFrame:SetSize(676, 440)
     QuestLogFrame:DisableDrawLayer("BACKGROUND")
 
     StripTextures(QuestLogFrame, true)
@@ -64,10 +48,9 @@ pfUI:RegisterSkin("Quest Log", function ()
     QuestLogFrameLevelsCheckButtonText:SetText(T["Quest Levels"])
 
     CreateBackdrop(QuestLogTrack)
-    QuestLogTrack:SetHeight(8)
-    QuestLogTrack:SetWidth(8)
+    QuestLogTrack:SetSize(8, 8)
     QuestLogTrack:ClearAllPoints()
-    QuestLogTrack:SetPoint("RIGHT", QUEST_COUNT, "LEFT", -5, 0)
+    QuestLogTrack:SetPoint("RIGHT", QuestLogQuestCount, "LEFT", -5, 0)
 
     StripTextures(QuestLogTrack)
     QuestLogTrackTracking:SetTexture(.8,.8,.8,1)
@@ -228,8 +211,7 @@ pfUI:RegisterSkin("Quest Log", function ()
       SetAllPointsOffset(item.backdrop, item, 4)
       SetHighlight(item)
 
-      icon:SetWidth(ysize)
-      icon:SetHeight(ysize)
+      icon:SetSize(ysize, ysize)
       icon:ClearAllPoints()
       icon:SetPoint("LEFT", 6, 0)
       icon:SetTexCoord(.08, .92, .08, .92)

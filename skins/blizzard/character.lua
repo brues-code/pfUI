@@ -131,7 +131,7 @@ pfUI:RegisterSkin("Character", function ()
 
         if ShaguScore and itemID then
           local itemLevel = C_Item.GetCurrentItemLevel({ equipmentSlotIndex = slotId })
-          local _, _, quality, _, _, _, _, _, itemSlot, _ = GetItemInfo(itemID)
+          local _, _, quality, _, _, _, _, _, itemSlot, _ = C_Item.GetItemInfo(itemID)
           local score = ShaguScore:Calculate(itemSlot, quality, itemLevel)
           if score and score > 0 and quality and quality > 0 then
             local r,g,b = GetItemQualityColor(quality)
@@ -177,8 +177,7 @@ pfUI:RegisterSkin("Character", function ()
 
     for i,c in pairs(magicResTextureCords) do
       local magicResFrame = _G["MagicResFrame"..i]
-      magicResFrame:SetWidth(26)
-      magicResFrame:SetHeight(26)
+      magicResFrame:SetSize(26, 26)
       CreateBackdrop(magicResFrame)
       SetAllPointsOffset(magicResFrame.backdrop, magicResFrame, 2)
       local icon = GetNoNameObject(magicResFrame, "Texture", "BACKGROUND", "ResistanceIcons")
@@ -236,8 +235,7 @@ pfUI:RegisterSkin("Character", function ()
 
     for i,c in pairs(magicResTextureCords) do
       local magicResFrame = _G["PetMagicResFrame"..i]
-      magicResFrame:SetWidth(26)
-      magicResFrame:SetHeight(26)
+      magicResFrame:SetSize(26, 26)
       CreateBackdrop(magicResFrame)
       SetAllPointsOffset(magicResFrame.backdrop, magicResFrame, 2)
       local icon = GetNoNameObject(magicResFrame, "Texture", "BACKGROUND", "ResistanceIcons")
@@ -257,8 +255,7 @@ pfUI:RegisterSkin("Character", function ()
 
       local war = _G["ReputationBar"..i.."AtWarCheck"]
       StripTextures(war)
-      war:SetWidth(13)
-      war:SetHeight(13)
+      war:SetSize(13, 13)
       war:ClearAllPoints()
       war:SetPoint("LEFT", bar.backdrop, "RIGHT", 6, 0)
       war.icon = war:CreateTexture(nil, "OVERLAY")
@@ -356,8 +353,7 @@ pfUI:RegisterSkin("Character", function ()
     SkillDetailStatusBar:SetParent(SkillDetailScrollFrame)
 
     StripTextures(SkillDetailStatusBarUnlearnButton)
-    SkillDetailStatusBarUnlearnButton:SetWidth(20)
-    SkillDetailStatusBarUnlearnButton:SetHeight(20)
+    SkillDetailStatusBarUnlearnButton:SetSize(20, 20)
     SkillDetailStatusBarUnlearnButton:SetHitRectInsets(0,0,0,0)
     SkillDetailStatusBarUnlearnButton:ClearAllPoints()
     SkillDetailStatusBarUnlearnButton:SetPoint("LEFT", SkillDetailStatusBar, "RIGHT", 6, 0)
