@@ -104,7 +104,14 @@ mod = math.mod or mod
 local stringsplit = _G.string.split
 function pfUI.api.strsplit(delimiter, subject)
   if not subject then return nil end
-  return stringsplit(delimiter or ":", subject)
+  delimiter = delimiter or ":"
+  if stringsplit then
+    return stringsplit(delimiter, subject)
+  end
+  local fields = {}
+  local pattern = string.format("([^%s]+)", delimiter)
+  string.gsub(subject, pattern, function(c) fields[table.getn(fields)+1] = c end)
+  return unpack(fields)
 end
 
 -- [ isempty ]
