@@ -8,6 +8,13 @@ pfUI:RegisterModule("bags", function ()
 
   local scanner = libtipscan:GetScanner("input_search")
 
+  local function BagSortOpts()
+    return {
+      reverse     = C.appearance.bags.sortreverse == "1",
+      reversePrio = C.appearance.bags.sortprioreverse == "1",
+    }
+  end
+
   -- function to detect openable items in inventory
   local openable = { bag = nil, slot = nil, icon = nil }
   local function GetNextOpenable()
@@ -343,7 +350,7 @@ pfUI:RegisterModule("bags", function ()
         chat:Hide()
       end
       if C.appearance.bags.autoSortOnOpen == "1" then
-        libbagsort:Sort({0, 1, 2, 3, 4})
+        libbagsort:Sort({0, 1, 2, 3, 4}, BagSortOpts())
       end
       pfUI.bag:CreateBags(object)
       PlaySound("INTERFACESOUND_BACKPACKOPEN")
@@ -993,7 +1000,7 @@ pfUI:RegisterModule("bags", function ()
         end)
 
         frame.sort:SetScript("OnClick", function()
-          libbagsort:Sort({0, 1, 2, 3, 4})
+          libbagsort:Sort({0, 1, 2, 3, 4}, BagSortOpts())
         end)
       end
 
@@ -1231,7 +1238,7 @@ pfUI:RegisterModule("bags", function ()
         end)
 
         frame.sort:SetScript("OnClick", function()
-          libbagsort:Sort({-1, 5, 6, 7, 8, 9, 10})
+          libbagsort:Sort({-1, 5, 6, 7, 8, 9, 10}, BagSortOpts())
         end)
       end
     end

@@ -2435,6 +2435,8 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Auto Sell Grey Items"], C.global, "autosell", "checkbox")
       CreateConfig(nil, T["Auto Repair Items"], C.global, "autorepair", "checkbox")
       CreateConfig(nil, T["Auto Sort When Opening Bags"], C.appearance.bags, "autoSortOnOpen", "checkbox")
+      CreateConfig(nil, T["Reverse Sort Direction (Last Bag First)"], C.appearance.bags, "sortreverse", "checkbox")
+      CreateConfig(nil, T["Reverse Sort Priority (Hearthstone Last)"], C.appearance.bags, "sortprioreverse", "checkbox")
     end)
 
     CreateGUIEntry(T["Loot"], nil, function()

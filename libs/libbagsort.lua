@@ -53,8 +53,18 @@ end
 local function ClearSortData()
   libbagsort.itemGrid = {}
   libbagsort.bagList  = nil
+  libbagsort.opts     = nil
   libbagsort:UnregisterEvent("BAG_UPDATE_DELAYED")
   libbagsort:SetScript("OnEvent", nil)
+end
+
+local function ReverseArray(t)
+  local i, j = 1, table.getn(t)
+  while i < j do
+    t[i], t[j] = t[j], t[i]
+    i = i + 1
+    j = j - 1
+  end
 end
 
 -- Two-pointer consolidation: sorts stacks largest-first, then merges from
@@ -181,10 +191,28 @@ local function BuildSortGrid()
     end
   end
 
-  table.sort(normalItems, function(a, b) return a.key < b.key end)
-  -- Sort poor items descending so they read in ascending order when placed
-  -- back-to-front (last poor item lands on the last slot).
-  table.sort(poorItems, function(a, b) return a.key > b.key end)
+  local opts        = libbagsort.opts or {}
+  local reverse     = opts.reverse
+  local reversePrio = opts.reversePrio
+
+  if reverse then
+    ReverseArray(generalCells)
+    for _, cells in pairs(specialtyCells) do
+      ReverseArray(cells)
+    end
+  end
+
+  if reversePrio then
+    table.sort(normalItems, function(a, b) return a.key > b.key end)
+  else
+    table.sort(normalItems, function(a, b) return a.key < b.key end)
+  end
+
+  if reverse then
+    table.sort(poorItems, function(a, b) return a.key < b.key end)
+  else
+    table.sort(poorItems, function(a, b) return a.key > b.key end)
+  end
 
   -- Forward pass: route each normal item into the next free cell that
   -- accepts it -- a matching specialty bag first, overflowing to general.
@@ -274,9 +302,15 @@ end
 -- BAG_UPDATE_DELAYED cycle), then place items by category/name/quality.
 -- e.g. `libbagsort:Sort({0, 1, 2, 3, 4})` for the main bags;
 -- `{-1, 5, 6, 7, 8, 9, 10}` for the bank.
-function libbagsort:Sort(bagList)
+--
+-- opts (optional): { reverse = bool, reversePrio = bool }
+--   reverse     - place the first-ranked item into the last slot of the last
+--                 bag (junk fills from the opposite end).
+--   reversePrio - flip the category ranking (e.g. hearthstone sorts last).
+function libbagsort:Sort(bagList, opts)
   ClearSortData()
   self.bagList = bagList
+  self.opts    = opts
 
   -- Phase 1: fire every consolidation op in a single batch.
   local ops = BuildConsolidateOps(bagList)
