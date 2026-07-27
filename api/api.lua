@@ -101,9 +101,10 @@ mod = math.mod or mod
 --                              characters (bytes) in the string.
 -- 'subject'    [string]        String to split.
 -- return:      [list]          a list of strings.
+local stringsplit = _G.string.split
 function pfUI.api.strsplit(delimiter, subject)
   if not subject then return nil end
-  return _G.strsplit(delimiter or ":", subject)
+  return stringsplit(delimiter or ":", subject)
 end
 
 -- [ isempty ]
