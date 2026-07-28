@@ -11,12 +11,14 @@ setfenv(1, pfUI:GetEnvironment())
 -- This eliminates ~400 lines of error-prone shift logic while maintaining full
 -- multi-caster tracking support.
 --
--- The public per-aura readers (UnitDebuff, UnitOwnDebuff) were retired in favor
--- of ClassicAPI's C_UnitAuras (which now provides sourceUnit/sourceGUID and
--- non-player expirationTime). What remains in libdebuff is the cast-event
--- bookkeeping consumed by GetBestAuraCast (libpredict HoT tracking) and the
--- libdebuff_*_hooks broadcast surface (subscribers in actionbar / swingtimer
--- react to SPELL_GO and SPELL_FAILED).
+-- The internal debuff plumbing now runs on ClassicAPI's C_UnitAuras (which
+-- provides sourceUnit/sourceGUID and non-player expirationTime). The public
+-- per-aura readers (UnitDebuff, UnitOwnDebuff) survive only as thin adapters
+-- over C_UnitAuras for third-party addons (e.g. pfUI-WeakIcons) that still
+-- expect the legacy multi-return signature. The rest of libdebuff is the
+-- cast-event bookkeeping consumed by GetBestAuraCast (libpredict HoT tracking)
+-- and the libdebuff_*_hooks broadcast surface (subscribers in actionbar /
+-- swingtimer react to SPELL_GO and SPELL_FAILED).
 
 -- return instantly when another libdebuff is already active
 if pfUI.api.libdebuff then return end
@@ -760,6 +762,55 @@ function libdebuff:GetBestAuraCast(guid, spellName)
   end
   
   return nil
+end
+
+-- ============================================================================
+-- API: UnitDebuff / UnitOwnDebuff (C_UnitAuras adapters)
+-- ============================================================================
+-- Thin readers kept for third-party addons (e.g. pfUI-WeakIcons) that still
+-- expect libdebuff's legacy multi-return signature:
+--   effect, rank, texture, stacks, dtype, duration, timeleft, caster
+-- ClassicAPI's C_UnitAuras already resolves source and expiration, so these
+-- just remap its AuraData onto that tuple -- no cast-tracking tables
+-- (ownDebuffs/allAuraCasts) or GetUnitField slot mapping involved.
+
+local function AuraToLegacy(aura)
+  if not aura then return nil end
+
+  local duration = aura.duration or 0
+  local timeleft = -1
+  -- Only report a timer for genuinely timed auras. ClassicAPI can leave a
+  -- stale expirationTime on permanent (duration 0) auras, so gate on duration.
+  if duration > 0 and aura.expirationTime and aura.expirationTime > 0 then
+    timeleft = aura.expirationTime - GetTime()
+    if timeleft < 0 then timeleft = 0 end
+  end
+
+  -- Aura spellId is the specific cast rank, so its subtext is the active rank.
+  local rank
+  local subtext = aura.spellId and C_Spell.GetSpellSubtext(aura.spellId)
+  if subtext and subtext ~= "" then
+    rank = tonumber((string.gsub(subtext, "Rank ", "")))
+  end
+
+  local dtype = aura.dispelName
+  if dtype == "" then dtype = nil end
+
+  local caster = aura.isFromPlayerOrPlayerPet and "player" or "other"
+
+  return aura.name, rank, aura.icon, aura.applications or 0, dtype, duration, timeleft, caster
+end
+
+-- id is a 1-based harmful-aura index, matching C_UnitAuras / Blizzard's
+-- compacted debuff slots.
+function libdebuff:UnitDebuff(unit, id)
+  return AuraToLegacy(C_UnitAuras.GetAuraDataByIndex(unit, id, "HARMFUL"))
+end
+
+-- Player-cast harmful auras only, via the PLAYER filter -- no manual
+-- caster-GUID bookkeeping needed.
+function libdebuff:UnitOwnDebuff(unit, id)
+  return AuraToLegacy(C_UnitAuras.GetAuraDataByIndex(unit, id, "HARMFUL|PLAYER"))
 end
 
 -- ============================================================================
