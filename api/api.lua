@@ -997,14 +997,34 @@ end
 
 -- [ GetStringColor ]
 -- Queries the pfUI setting strings and extract its color codes
--- returns r,g,b,a
-local color_cache = {}
-function pfUI.api.GetStringColor(colorstr)
-  if not color_cache[colorstr] then
-    local r, g, b, a = pfUI.api.strsplit(",", colorstr)
-    color_cache[colorstr] = { r, g, b, a }
+-- returns r,g,b,a as numbers
+local color_cache = setmetatable({}, {
+  __index = function(t, k)
+    local color = { pfUI.api.strsplit(",", k) }
+    for i = 1, table.getn(color) do
+      color[i] = tonumber(color[i])
+    end
+    rawset(t, k, color)
+    return color
   end
+})
+function pfUI.api.GetStringColor(colorstr)
   return unpack(color_cache[colorstr])
+end
+
+-- [ GetStringColorObject ]
+-- Like GetStringColor, but returns a cached ColorMixin instead of raw values.
+-- The object is a shared per-string singleton, so treat it as read-only.
+-- returns a ColorMixin
+local color_object_cache = setmetatable({}, {
+  __index = function(t, k)
+    local color = CreateColor(pfUI.api.GetStringColor(k))
+    rawset(t, k, color)
+    return color
+  end
+})
+function pfUI.api.GetStringColorObject(colorstr)
+  return color_object_cache[colorstr]
 end
 
 -- [ rgbhex ]
@@ -1014,8 +1034,9 @@ end
 -- 'b'          [number]          optional b color component
 -- 'a'          [number]          optional alpha component
 -- returns color string in the form of '|caarrggbb'
-local _r, _g, _b, _a
+local rgbhex_cache = {}
 function pfUI.api.rgbhex(r, g, b, a)
+  local _r, _g, _b, _a
   if type(r) == "table" then
     if r.r then
       _r, _g, _b, _a = r.r, r.g, r.b, (r.a or 1)
@@ -1027,7 +1048,13 @@ function pfUI.api.rgbhex(r, g, b, a)
   end
 
   if _r and _g and _b and _a then
-    return CreateColor(_r, _g, _b, _a):GenerateHexColorMarkup()
+    local key = ((Round(_r*255)*256 + Round(_g*255))*256 + Round(_b*255))*256 + Round(_a*255)
+    local hex = rgbhex_cache[key]
+    if not hex then
+      hex = "|c" .. C_ColorUtil.GenerateTextColorCode({ r = _r, g = _g, b = _b, a = _a })
+      rgbhex_cache[key] = hex
+    end
+    return hex
   end
 
   return ""
