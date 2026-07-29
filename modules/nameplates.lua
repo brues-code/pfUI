@@ -69,6 +69,7 @@ pfUI:RegisterModule("nameplates", function ()
   -- guid -> nameplate, maintained on NAME_PLATE_UNIT_ADDED/_REMOVED so a cast
   -- event can find its plate in O(1) and only cache casts we actually show.
   local plateByGuid = {}
+  local targetPlateGuid = nil
 
   -- One-shot C_Spell poll. Only used to seed a plate that spawns while its
   -- unit is already mid-cast (its SPELL_START_OTHER fired before the plate
@@ -497,6 +498,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
         CacheConfig()
         this:SetGameVariables()
         RebuildRaidGuidCache()
+        targetPlateGuid = UnitExists("target") and UnitGUID("target") or nil
       end
       
       -- Handle friendly zone nameplate disable feature
@@ -650,6 +652,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
       end
 
     elseif event == "PLAYER_TARGET_CHANGED" then
+      targetPlateGuid = UnitExists("target") and UnitGUID("target") or nil
       -- Flag the target's plate for update
       local plate = C_NamePlate.GetNamePlateForUnit("target")
       if plate and plate.nameplate then
@@ -1669,10 +1672,10 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
   -- loop's nameplates_castbar gate.)
   nameplates.castbarFrame = CreateFrame("Frame", nil, UIParent)
   nameplates.castbarFrame:SetScript("OnUpdate", function()
-    if not cfg.showcastbar then return end
-    local frame = C_NamePlate.GetNamePlateForUnit("target")
-    if not frame or not frame.nameplate then return end
-    nameplates.UpdateCastbar(frame.nameplate, GetTime())
+    if not cfg.showcastbar or not targetPlateGuid then return end
+    local nameplate = plateByGuid[targetPlateGuid]
+    if not nameplate then return end
+    nameplates.UpdateCastbar(nameplate, GetTime())
   end)
 
   -- set nameplate game settings
