@@ -1040,7 +1040,7 @@ function pfUI.api.rgbhex(r, g, b, a)
   if type(r) == "table" then
     if r.r then
       _r, _g, _b, _a = r.r, r.g, r.b, (r.a or 1)
-    elseif table.getn(r) >= 3 then
+    elseif r[3] ~= nil then
       _r, _g, _b, _a = r[1], r[2], r[3], (r[4] or 1)
     end
   elseif tonumber(r) then
