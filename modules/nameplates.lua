@@ -61,11 +61,19 @@ pfUI:RegisterModule("nameplates", function ()
 
   local raidGuidCache = {}  -- guid -> name (rebuilt on RAID_ROSTER_UPDATE/PARTY_MEMBERS_CHANGED)
   
-  -- Resolve a unit token to its cast/channel info via C_Spell. Returns a
-  -- compact struct (spellName / icon / startTime / endTime / duration /
-  -- isChannel) or nil when the unit isn't casting. Callers already hold the
-  -- nameplate token, so there's no GUID->token round-trip.
-  local function GetCastInfo(unit)
+  -- Per-GUID cast state, populated by nampower's SPELL_START_OTHER events and
+  -- cleared on SPELL_FAILED_OTHER / plate removal / expiry. This replaces the
+  -- old per-tick C_Spell poll on every visible plate: cast detection is now
+  -- event driven, and GetCastInfo just reads this cache.
+  local castState = {}
+  -- guid -> nameplate, maintained on NAME_PLATE_UNIT_ADDED/_REMOVED so a cast
+  -- event can find its plate in O(1) and only cache casts we actually show.
+  local plateByGuid = {}
+
+  -- One-shot C_Spell poll. Only used to seed a plate that spawns while its
+  -- unit is already mid-cast (its SPELL_START_OTHER fired before the plate
+  -- existed). Never called per frame.
+  local function PollCastInfo(unit)
     if not unit then return nil end
     local name, _, texture, startMs, endMs, _, _, _, spellID = C_Spell.UnitCastingInfo(unit)
     local isChannel
@@ -83,6 +91,20 @@ pfUI:RegisterModule("nameplates", function ()
       duration  = (endMs - startMs) / 1000,
       isChannel = isChannel,
     }
+  end
+
+  -- Read a unit's current cast from the event-driven cache (keyed by GUID).
+  -- Returns the cached struct while the cast is still active, else nil (and
+  -- prunes the expired entry). Same struct shape and callers as before, minus
+  -- the per-tick poll.
+  local function GetCastInfo(unit)
+    if not unit then return nil end
+    local guid = UnitGUID(unit)
+    if not guid then return nil end
+    local info = castState[guid]
+    if info and info.endTime > GetTime() then return info end
+    if info then castState[guid] = nil end
+    return nil
   end
   
   local debuffCache = {}    -- guid -> { [spellID] = { start, duration } }
@@ -453,6 +475,11 @@ nameplates:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 nameplates:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 nameplates:RegisterEvent("UNIT_AURA")
 nameplates:RegisterEvent("UNIT_FLAGS")
+-- nampower cast lifecycle for other units (gated by NP_EnableSpell{Start,Go}
+-- Events, enabled by libdebuff). Drives castbars event-first instead of
+-- polling C_Spell on every plate each tick. Mirrors castbar.lua's target bar.
+nameplates:RegisterEvent("SPELL_START_OTHER")
+nameplates:RegisterEvent("SPELL_FAILED_OTHER")
   
   nameplates:SetScript("OnEvent", function()
     -- Stop event handling during logout to prevent crash 132
@@ -529,8 +556,16 @@ nameplates:RegisterEvent("UNIT_FLAGS")
       -- token itself for token-based UnitX reads (stable per plate lifetime).
       local plate = C_NamePlate.GetNamePlateForUnit(arg1)
       if plate and plate.nameplate then
-        plate.nameplate.cachedGuid = UnitGUID(arg1)
+        local guid = UnitGUID(arg1)
+        plate.nameplate.cachedGuid = guid
         plate.nameplate.unit = arg1
+        if guid then
+          plateByGuid[guid] = plate.nameplate
+          -- Seed: the unit may already be mid-cast (its SPELL_START_OTHER fired
+          -- before this plate existed). One poll here catches that; ongoing
+          -- casts arrive via the event.
+          castState[guid] = PollCastInfo(arg1)
+        end
         nameplates.OnShow(plate)
       end
       visiblePlateCount = visiblePlateCount + 1
@@ -544,6 +579,8 @@ nameplates:RegisterEvent("UNIT_FLAGS")
         if debuffCache[guid] then debuffCache[guid] = nil end
         if threatMemory[guid] then threatMemory[guid] = nil end
         if combatColorCache[guid] then combatColorCache[guid] = nil end
+        if castState[guid] then castState[guid] = nil end
+        if plateByGuid[guid] then plateByGuid[guid] = nil end
         local plate = C_NamePlate.GetNamePlateForUnit(arg1)
         if plate and plate.nameplate and plate.nameplate.cachedGuid == guid then
           plate.nameplate.cachedGuid = nil
@@ -561,6 +598,41 @@ nameplates:RegisterEvent("UNIT_FLAGS")
         if plate and plate.nameplate then
           plate.nameplate.eventcache = true
         end
+      end
+
+    elseif event == "SPELL_START_OTHER" then
+      -- nampower: arg2=spellId, arg3=casterGuid, arg6=castTime(ms),
+      -- arg7=channel duration(ms, 0 if not a channel), arg8=spellType
+      -- (1 = channel). Cache the cast only for a unit we have a plate for, so
+      -- the table stays bounded to on-screen casters.
+      local casterGuid = arg3
+      local plate = casterGuid and plateByGuid[casterGuid]
+      if plate then
+        local isChannel = arg8 == 1
+        local durationMs = isChannel and arg7 or arg6
+        if durationMs and durationMs > 0 then
+          local spellId = arg2
+          local now = GetTime()
+          castState[casterGuid] = {
+            spellName = C_Spell.GetSpellName(spellId),
+            spellID   = spellId,
+            icon      = C_Spell.GetSpellTexture(spellId),
+            startTime = now,
+            endTime   = now + durationMs / 1000,
+            duration  = durationMs / 1000,
+            isChannel = isChannel,
+          }
+          plate.castUpdate = true  -- bypass the throttle so the bar shows now
+        end
+      end
+
+    elseif event == "SPELL_FAILED_OTHER" then
+      -- nampower: arg1=casterGuid, arg2=spellId. Clear on interrupt/failure.
+      local casterGuid = arg1
+      if casterGuid and castState[casterGuid] then
+        castState[casterGuid] = nil
+        local plate = plateByGuid[casterGuid]
+        if plate then plate.castUpdate = true end
       end
 
     elseif event == "UNIT_AURA" then
@@ -1590,20 +1662,17 @@ nameplates:RegisterEvent("UNIT_FLAGS")
     if not nameplate.castbar.isShown then nameplate.castbar.isShown = true; nameplate.castbar:Show() end
   end
 
-  -- Dedicated frame that updates ONLY the target plate castbar.
-  -- Uses nameplates_castbar throttle from libthrottle.
+  -- Dedicated frame that updates ONLY the target plate castbar. Unthrottled:
+  -- now that casts are event-driven, this just reads the cache + SetValue, so
+  -- it animates the fill every frame for the smoothest sweep on the bar the
+  -- player watches most. (Non-target plates stay throttled via the central
+  -- loop's nameplates_castbar gate.)
   nameplates.castbarFrame = CreateFrame("Frame", nil, UIParent)
   nameplates.castbarFrame:SetScript("OnUpdate", function()
     if not cfg.showcastbar then return end
-    local now = GetTime()
-    local throttle = pfUI.throttle:Get("nameplates_castbar")
-    if (this.tick or 0) > now then return end
-    this.tick = now + throttle
-
     local frame = C_NamePlate.GetNamePlateForUnit("target")
     if not frame or not frame.nameplate then return end
-
-    nameplates.UpdateCastbar(frame.nameplate, now)
+    nameplates.UpdateCastbar(frame.nameplate, GetTime())
   end)
 
   -- set nameplate game settings
