@@ -179,7 +179,7 @@ pfUI:RegisterModule("nameplates", function ()
     now = 0,
     hasTarget = false,
     targetGuid = nil,
-    hasMouseover = false,
+    mouseoverGuid = nil,
   }
 
   -- cache default border color
@@ -682,7 +682,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
     -- PERF: Cache GetTime() once per frame
     frameState.now = now
     frameState.hasTarget, frameState.targetGuid = UnitExists("target")
-    frameState.hasMouseover = UnitExists("mouseover")
+    frameState.mouseoverGuid = UnitGUID("mouseover")
 
     -- propagate events to all nameplates
     if this.eventcache then
@@ -899,8 +899,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
 
     RebuildOfftanks()
 
-    nameplate:SetWidth(plate_width)
-    nameplate:SetHeight(plate_height)
+    nameplate:SetSize(plate_width, plate_height)
     nameplate:SetPoint("TOP", parent, "TOP", 0, 0)
 
     nameplate.name:SetFont(font, font_size, font_style)
@@ -929,23 +928,20 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
 
     nameplate.guild:SetFont(font, font_size, font_style)
 
-    nameplate.glow:SetWidth(C.nameplates.width + 60)
-    nameplate.glow:SetHeight(C.nameplates.heighthealth + 30)
+    nameplate.glow:SetSize(C.nameplates.width + 60, C.nameplates.heighthealth + 30)
     nameplate.glow:SetVertexColor(glowr, glowg, glowb, glowa)
 
     nameplate.raidicon:ClearAllPoints()
     nameplate.raidicon:SetPoint("BOTTOM", nameplate.health, "TOP", C.nameplates.raidiconoffx, C.nameplates.raidiconoffy)
     nameplate.level:SetFont(font, font_size, font_style)
-    nameplate.raidicon:SetWidth(C.nameplates.raidiconsize)
-    nameplate.raidicon:SetHeight(C.nameplates.raidiconsize)
+    nameplate.raidicon:SetSize(C.nameplates.raidiconsize, C.nameplates.raidiconsize)
 
     for i=1,16 do
       UpdateDebuffConfig(nameplate, i)
     end
 
     for i=1,5 do
-      nameplate.combopoints[i]:SetWidth(combo_size)
-      nameplate.combopoints[i]:SetHeight(combo_size)
+      nameplate.combopoints[i]:SetSize(combo_size, combo_size)
       nameplate.combopoints[i]:SetPoint("TOPRIGHT", nameplate.health, "BOTTOMRIGHT", -(i-1)*(combo_size+default_border*3), -default_border*3)
       CreateBackdrop(nameplate.combopoints[i], default_border)
     end
@@ -1003,7 +999,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
     end
 
     local target = plate.istarget
-    local mouseover = UnitExists("mouseover") and plate.original.glow:IsShown() or nil
+    local mouseover = plate.cachedGuid and plate.cachedGuid == frameState.mouseoverGuid or nil
     local unitstr = target and "target" or mouseover and "mouseover" or plate.cachedGuid or nil
 
     -- resolve player vs npc from plate's own unit so libunitscan can't return
@@ -1391,7 +1387,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
     local update
     local original = nameplate.original
     local name = original.name:GetText()
-    local mouseover = state and state.hasMouseover and original.glow:IsShown() or nil
+    local mouseover = nameplate.cachedGuid and nameplate.cachedGuid == frameState.mouseoverGuid or nil
 
     -- trigger queued event update
     if hasEventUpdate then
