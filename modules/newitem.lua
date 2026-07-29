@@ -4,7 +4,7 @@ pfUI:RegisterModule("newitem", function ()
 
   pfUI.newitem = {}
 
-  local color = CreateColor(strsplit(",", C.appearance.bags.newitem_color))
+  local r, g, b, a = pfUI.api.GetStringColor(C.appearance.bags.newitem_color)
 
   function pfUI.newitem:UpdateSlot(bag, slot)
     if bag < 0 or bag > 4 then return end
@@ -18,7 +18,7 @@ pfUI:RegisterModule("newitem", function ()
         local glow = frame:CreateTexture(nil, "OVERLAY")
         glow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
         glow:SetBlendMode("ADD")
-        glow:SetVertexColor(color:GetRGBA())
+        glow:SetVertexColor(r, g, b, a)
         glow:SetPoint("CENTER", frame, "CENTER")
         glow:Hide()
         glow.RefreshSize = function(g)
