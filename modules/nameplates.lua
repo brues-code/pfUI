@@ -1570,7 +1570,7 @@ nameplates:RegisterEvent("UNIT_FLAGS")
       -- Relative 0..duration range to avoid float precision loss with large
       -- absolute timestamps.
       nameplate.castbar:SetMinMaxValues(0, duration)
-      nameplate.castbar:SetStatusBarColor(strsplit(",", C.appearance.castbar[(isChannel and "channelcolor" or "castbarcolor")]))
+      nameplate.castbar:SetStatusBarColor(GetStringColor(C.appearance.castbar[(isChannel and "channelcolor" or "castbarcolor")]))
       if castInfo.icon then
         nameplate.castbar.icon.tex:SetTexture(castInfo.icon)
         nameplate.castbar.icon.tex:SetTexCoord(.1,.9,.1,.9)

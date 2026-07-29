@@ -90,7 +90,7 @@ pfUI:RegisterModule("castbar", function ()
     cb:SetAlpha(1)
     cb.fadeout = nil
 
-    cb.bar:SetStatusBarColor(strsplit(",", C.appearance.castbar[isChannel and "channelcolor" or "castbarcolor"]))
+    cb.bar:SetStatusBarColor(GetStringColor(C.appearance.castbar[isChannel and "channelcolor" or "castbarcolor"]))
 
     local rank = ""
     if spellID then
@@ -103,8 +103,7 @@ pfUI:RegisterModule("castbar", function ()
     if tex and cb.showicon then
       local size = cb:GetHeight()
       cb.icon:Show()
-      cb.icon:SetHeight(size)
-      cb.icon:SetWidth(size)
+      cb.icon:SetSize(size, size)
       cb.icon.texture:SetTexture(tex)
       cb.bar:SetPoint("TOPLEFT", cb.icon, "TOPRIGHT", cb.spacing, 0)
     else
@@ -169,8 +168,7 @@ pfUI:RegisterModule("castbar", function ()
     -- icon
     cb.icon = CreateFrame("Frame", nil, cb)
     cb.icon:SetPoint("TOPLEFT", 0, 0)
-    cb.icon:SetHeight(16)
-    cb.icon:SetWidth(16)
+    cb.icon:SetSize(16, 16)
 
     cb.icon.texture = cb.icon:CreateTexture(nil, "OVERLAY")
     cb.icon.texture:SetAllPoints()

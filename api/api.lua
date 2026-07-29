@@ -92,25 +92,24 @@ gfind = string.gmatch or string.gfind
 mod = math.mod or mod
 
 -- [ strsplit ]
--- Splits a string using a delimiter. Thin wrapper that delegates to
--- ClassicAPI's C-level strsplit, kept as a pfUI.api entry point for
--- backwards compatibility with addons that call pfUI.api.strsplit.
--- Note: unlike the old Lua implementation, empty fields are preserved
--- (e.g. "a,,b" -> "a", "", "b"), matching real strsplit semantics.
+-- Splits a string using a delimiter. Self-contained on purpose: it does NOT
+-- delegate to the global strsplit / string.split, because third-party addons
+-- clobber those (e.g. BigWigs' SpellRequests redefines string:split to return
+-- a table, which would make this return a single table instead of r,g,b,a and
+-- break color/version parsing depending on load order). Delimiter chars are
+-- treated as a set (any one char splits), and empty fields are preserved
+-- ("a,,b" -> "a", "", "b"), matching real strsplit semantics.
 -- 'delimiter'  [string]        characters that will be interpreted as delimiter
 --                              characters (bytes) in the string.
 -- 'subject'    [string]        String to split.
 -- return:      [list]          a list of strings.
-local stringsplit = _G.string.split
+local format, sgsub = string.format, string.gsub
 function pfUI.api.strsplit(delimiter, subject)
   if not subject then return nil end
-  delimiter = delimiter or ":"
-  if stringsplit then
-    return stringsplit(delimiter, subject)
-  end
   local fields = {}
-  local pattern = string.format("([^%s]+)", delimiter)
-  string.gsub(subject, pattern, function(c) fields[table.getn(fields)+1] = c end)
+  delimiter = delimiter or ":"
+  local pattern = format("([^%s]+)", delimiter)
+  sgsub(subject, pattern, function(c) fields[table.getn(fields)+1] = c end)
   return unpack(fields)
 end
 
