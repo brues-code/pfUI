@@ -23,36 +23,54 @@ pfUI:RegisterModule("tooltip", function ()
   end
 
   if C.tooltip.position == "cursor" then
+    -- Cursor mode makes the tooltip follow the mouse. The client has no
+    -- mouse-move event, so following means polling GetCursorPosition() via an
+    -- invisible follower frame that the tooltip anchors to. The follower is
+    -- only shown while a tooltip is visible -- an OnUpdate fires only while its
+    -- frame is shown, so the poll stops the moment the tooltip hides instead
+    -- of running forever.
+    local follower, Reposition
+    if C.tooltip.cursoralign ~= "native" then
+      local size = tonumber(C.tooltip.cursoroffset) * 2
+      follower = CreateFrame("Frame", nil, UIParent)
+      follower:SetSize(size, size)
+      follower:Hide()
+
+      Reposition = function()
+        local scale = UIParent:GetScale()
+        local x, y = GetCursorPosition()
+        follower:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x/scale, y/scale)
+        if C.tooltip.cursoralign == "top" then
+          follower:SetWidth(GameTooltip:GetWidth())
+        end
+      end
+
+      follower:SetScript("OnUpdate", function()
+        -- throttle - cursor following doesn't need to be every frame
+        if (this.tick or 0) > GetTime() then return end
+        this.tick = GetTime() + (pfUI.throttle and pfUI.throttle:Get("tooltip_cursor") or 0.1)
+        Reposition()
+      end)
+
+      -- stop polling as soon as the tooltip is gone
+      pfUI.tooltip:SetScript("OnHide", function() follower:Hide() end)
+    end
+
     function _G.GameTooltip_SetDefaultAnchor(tooltip, parent)
       tooltip:SetOwner(parent, "ANCHOR_CURSOR")
-      if C.tooltip.cursoralign ~= "native" then
-        -- create mouse follow frame
-        if not tooltip.cursor then
-          tooltip.cursor = CreateFrame("Frame", nil, UIParent)
-          local size = tonumber(C.tooltip.cursoroffset) * 2
-          tooltip.cursor:SetSize(size, size)
-          tooltip.cursor:SetScript("OnUpdate", function()
-            -- throttle - cursor following doesn't need to be every frame
-            if (this.tick or 0) > GetTime() then return end
-            this.tick = GetTime() + (pfUI.throttle and pfUI.throttle:Get("tooltip_cursor") or 0.1)
+      if not follower then return end
 
-            local scale = UIParent:GetScale()
-            local x, y = GetCursorPosition()
-            this:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x/scale, y/scale)
-            if C.tooltip.cursoralign == "top" then
-              tooltip.cursor:SetWidth(tooltip:GetWidth())
-            end
-          end)
-        end
+      -- position the follower right away so the tooltip doesn't flash at a
+      -- stale spot before the first OnUpdate tick
+      follower:Show()
+      Reposition()
 
-        -- adjust tooltip to mouse frame
-        if C.tooltip.cursoralign == "top" then
-          tooltip:SetPoint("BOTTOMLEFT", tooltip.cursor, "TOPLEFT", 0, 0)
-        elseif C.tooltip.cursoralign == "left" then
-          tooltip:SetPoint("BOTTOMRIGHT", tooltip.cursor, "LEFT", 0, 0)
-        elseif C.tooltip.cursoralign == "right" then
-          tooltip:SetPoint("BOTTOMLEFT", tooltip.cursor, "RIGHT", 0, 0)
-        end
+      if C.tooltip.cursoralign == "top" then
+        tooltip:SetPoint("BOTTOMLEFT", follower, "TOPLEFT", 0, 0)
+      elseif C.tooltip.cursoralign == "left" then
+        tooltip:SetPoint("BOTTOMRIGHT", follower, "LEFT", 0, 0)
+      elseif C.tooltip.cursoralign == "right" then
+        tooltip:SetPoint("BOTTOMLEFT", follower, "RIGHT", 0, 0)
       end
     end
   end

@@ -35,7 +35,7 @@ libthrottle.defaults = {
   nameplates_target    = "custom",
   nameplates_castbar   = "custom",
   nameplates_mass      = "custom",
-  tooltip_cursor       = "custom",
+  tooltip_cursor       = "fastest",
   chat_tab             = "custom",
   swingtimer           = "custom",
 }
