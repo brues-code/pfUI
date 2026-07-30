@@ -419,9 +419,9 @@ pfUI:RegisterModule("buffwatch", function ()
   if pfUI.uf.player and C.buffbar.pbuff.enable == "1" then
     pfUI.uf.player.buffbar = CreateBuffBarFrame("Player", "HELPFUL")
     local config = C.buffbar.pbuff
-    local r, g, b, a = strsplit(",", config.color)
-    local br, bg, bb, ba = strsplit(",", config.bordercolor)
-    local tr, tg, tb, ta = strsplit(",", config.textcolor)
+    local r, g, b, a = GetStringColor(config.color)
+    local br, bg, bb, ba = GetStringColor(config.bordercolor)
+    local tr, tg, tb, ta = GetStringColor(config.textcolor)
 
     pfUI.uf.player.buffbar:SetWidth(config.width == "-1" and pfUI.uf.player:GetWidth() or config.width)
     pfUI.uf.player.buffbar:SetHeight(config.height)
@@ -445,9 +445,9 @@ pfUI:RegisterModule("buffwatch", function ()
   -- create player debuffbars
   if pfUI.uf.player and C.buffbar.pdebuff.enable == "1" then
     local config = C.buffbar.pdebuff
-    local r, g, b, a = strsplit(",", config.color)
-    local br, bg, bb, ba = strsplit(",", config.bordercolor)
-    local tr, tg, tb, ta = strsplit(",", config.textcolor)
+    local r, g, b, a = GetStringColor(config.color)
+    local br, bg, bb, ba = GetStringColor(config.bordercolor)
+    local tr, tg, tb, ta = GetStringColor(config.textcolor)
 
     pfUI.uf.player.debuffbar = CreateBuffBarFrame("Player", "HARMFUL")
     pfUI.uf.player.debuffbar:SetWidth(config.width == "-1" and pfUI.uf.player:GetWidth() or config.width)
@@ -473,9 +473,9 @@ pfUI:RegisterModule("buffwatch", function ()
   -- create target debuffbars
   if pfUI.uf.target and C.buffbar.tdebuff.enable == "1" then
     local config = C.buffbar.tdebuff
-    local r, g, b, a = strsplit(",", config.color)
-    local br, bg, bb, ba = strsplit(",", config.bordercolor)
-    local tr, tg, tb, ta = strsplit(",", config.textcolor)
+    local r, g, b, a = GetStringColor(config.color)
+    local br, bg, bb, ba = GetStringColor(config.bordercolor)
+    local tr, tg, tb, ta = GetStringColor(config.textcolor)
 
     pfUI.uf.target.debuffbar = CreateBuffBarFrame("Target", "HARMFUL")
     pfUI.uf.target.debuffbar:SetWidth(config.width == "-1" and pfUI.uf.target:GetWidth() or config.width)
