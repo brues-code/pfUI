@@ -4,7 +4,6 @@ pfUI:RegisterModule("nameplates", function ()
 
   -- Local function references for performance
   local GetTime = GetTime
-  local UnitExists = UnitExists
   local UnitName = UnitName
   local UnitClass = UnitClass
   local UnitLevel = UnitLevel
@@ -180,7 +179,6 @@ pfUI:RegisterModule("nameplates", function ()
   -- ============================================================================
   local frameState = {
     now = 0,
-    hasTarget = false,
     targetGuid = nil,
     mouseoverGuid = nil,
   }
@@ -498,7 +496,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
         CacheConfig()
         this:SetGameVariables()
         RebuildRaidGuidCache()
-        frameState.hasTarget, frameState.targetGuid = UnitExists("target"), UnitGUID("target")
+        frameState.targetGuid = UnitGUID("target")
       end
       
       -- Handle friendly zone nameplate disable feature
@@ -661,7 +659,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
       end
 
     elseif event == "PLAYER_TARGET_CHANGED" then
-      frameState.hasTarget, frameState.targetGuid = UnitExists("target"), UnitGUID('target')
+      frameState.targetGuid = UnitGUID('target')
       -- Flag the target's plate for update
       local plate = C_NamePlate.GetNamePlateForUnit("target")
       if plate and plate.nameplate then
@@ -1339,7 +1337,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
     -- and immediately correct on de-target (unlike istarget which updates one tick later)
     local targetGuid = state and state.targetGuid
     local target = (targetGuid and nameplate.cachedGuid and targetGuid == nameplate.cachedGuid) or
-                   (state and state.hasTarget and frame:GetAlpha() >= 0.99) or nil
+                   (state and state.targetGuid and frame:GetAlpha() >= 0.99) or nil
     -- Target plate castbar runs on its own dedicated frame (nameplates.castbarFrame).
     -- For non-target plates with castbar active, use castbar throttle to ensure
     -- smooth animation without overloading the central loop.
@@ -1453,7 +1451,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
 
     -- Set non-target plate alpha
     local configAlpha = cfg.notargalpha or 0.5
-    local desiredAlpha = (target or not state.hasTarget) and 1 or configAlpha
+    local desiredAlpha = (target or not state.targetGuid) and 1 or configAlpha
 
     if nameplate.cachedAlpha ~= desiredAlpha then
       nameplate:SetAlpha(desiredAlpha)
