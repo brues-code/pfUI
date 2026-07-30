@@ -377,22 +377,20 @@ end
 -- 'str'        [string]         input string that should be matched
 -- 'pat'        [string]         unformatted pattern
 -- returns:     [strings]        matched string in capture order
-local a, b, c, d, e
-local _, va, vb, vc, vd, ve
-local ra, rb, rc, rd, re
 function pfUI.api.cmatch(str, pat)
-  -- read capture indexes
-  a, b, c, d, e = GetCaptures(pat)
-  _, _, va, vb, vc, vd, ve = string.find(str, pfUI.api.SanitizePattern(pat))
+  -- idx* = the logical %N index of each physical capture slot (nil when the
+  -- pattern has no %N$ markers); val* = the matched values in physical order.
+  local idx1, idx2, idx3, idx4, idx5 = GetCaptures(pat)
+  local _, _, val1, val2, val3, val4, val5 = string.find(str, pfUI.api.SanitizePattern(pat))
 
-  -- put entries into the proper return values
-  ra = e == 1 and ve or d == 1 and vd or c == 1 and vc or b == 1 and vb or va
-  rb = e == 2 and ve or d == 2 and vd or c == 2 and vc or a == 2 and va or vb
-  rc = e == 3 and ve or d == 3 and vd or a == 3 and va or b == 3 and vb or vc
-  rd = e == 4 and ve or a == 4 and va or c == 4 and vc or b == 4 and vb or vd
-  re = a == 5 and va or d == 5 and vd or c == 5 and vc or b == 5 and vb or ve
+  -- reorder the physical matches into logical (%1..%5) order
+  local out1 = idx5 == 1 and val5 or idx4 == 1 and val4 or idx3 == 1 and val3 or idx2 == 1 and val2 or val1
+  local out2 = idx5 == 2 and val5 or idx4 == 2 and val4 or idx3 == 2 and val3 or idx1 == 2 and val1 or val2
+  local out3 = idx5 == 3 and val5 or idx4 == 3 and val4 or idx1 == 3 and val1 or idx2 == 3 and val2 or val3
+  local out4 = idx5 == 4 and val5 or idx1 == 4 and val1 or idx3 == 4 and val3 or idx2 == 4 and val2 or val4
+  local out5 = idx1 == 5 and val1 or idx4 == 5 and val4 or idx3 == 5 and val3 or idx2 == 5 and val2 or val5
 
-  return ra, rb, rc, rd, re
+  return out1, out2, out3, out4, out5
 end
 
 -- [ GetItemLinkByName ]
@@ -997,13 +995,10 @@ end
 
 -- [ GetStringColor ]
 -- Queries the pfUI setting strings and extract its color codes
--- returns r,g,b,a as numbers
+-- returns r,g,b,a as strings
 local color_cache = setmetatable({}, {
   __index = function(t, k)
     local color = { pfUI.api.strsplit(",", k) }
-    for i = 1, table.getn(color) do
-      color[i] = tonumber(color[i])
-    end
     rawset(t, k, color)
     return color
   end
@@ -1018,7 +1013,8 @@ end
 -- returns a ColorMixin
 local color_object_cache = setmetatable({}, {
   __index = function(t, k)
-    local color = CreateColor(pfUI.api.GetStringColor(k))
+    local r,g,b,a = pfUI.api.GetStringColor(k)
+    local color = CreateColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
     rawset(t, k, color)
     return color
   end
