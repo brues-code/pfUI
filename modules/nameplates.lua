@@ -58,6 +58,10 @@ pfUI:RegisterModule("nameplates", function ()
   local inFriendlyZone = false
   local platecount = 0
   local registry = {}
+  -- Subset of registry that currently has a unit assigned (between
+  -- NAME_PLATE_UNIT_ADDED and _REMOVED). The central loop iterates this instead
+  -- of the full pool so hidden pool slots aren't touched every tick.
+  local visiblePlates = {}
 
   local raidGuidCache = {}  -- guid -> name (rebuilt on RAID_ROSTER_UPDATE/PARTY_MEMBERS_CHANGED)
   
@@ -113,7 +117,7 @@ pfUI:RegisterModule("nameplates", function ()
   local debuffDisplayBuf = {}  -- [i] = { effect, texture, stacks, dtype, duration, timeleft }
   for i = 1, 16 do debuffDisplayBuf[i] = {} end
   local threatMemory = {}   -- guid -> true if mob had player targeted
-  local debuffSeen = {}     -- reusable table for debuff tracking (avoid GC churn)
+  -- local debuffSeen = {}     -- reusable table for debuff tracking (avoid GC churn)
 
   -- PERF: visiblePlateCount maintained event-driven (NAME_PLATE_UNIT_ADDED/_REMOVED)
   local visiblePlateCount = 0
@@ -448,8 +452,7 @@ pfUI:RegisterModule("nameplates", function ()
       nameplate.debuffs[i]:SetPoint(aligna, nameplate.debuffs[i-limit], alignb, 0, space)
     end
 
-    nameplate.debuffs[i]:SetWidth(tonumber(C.nameplates.debuffsize))
-    nameplate.debuffs[i]:SetHeight(tonumber(C.nameplates.debuffsize))
+    nameplate.debuffs[i]:SetSize(debuffsize, debuffsize)
     
     -- Update cooldown display settings
     if nameplate.debuffs[i].cd then
@@ -558,6 +561,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
       -- token itself for token-based UnitX reads (stable per plate lifetime).
       local plate = C_NamePlate.GetNamePlateForUnit(arg1)
       if plate and plate.nameplate then
+        visiblePlates[plate] = plate
         local guid = UnitGUID(arg1)
         plate.nameplate.cachedGuid = guid
         plate.nameplate.unit = arg1
@@ -576,6 +580,8 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
       visiblePlateCount = visiblePlateCount > 0 and visiblePlateCount - 1 or 0
       -- arg1 = "nameplateN" unit token; UnitGUID still resolves inside the
       -- handler (the slot is freed after dispatch returns)
+      local plate = C_NamePlate.GetNamePlateForUnit(arg1)
+      if plate then visiblePlates[plate] = nil end
       local guid = UnitGUID(arg1)
       if guid then
         if debuffCache[guid] then debuffCache[guid] = nil end
@@ -583,7 +589,6 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
         if combatColorCache[guid] then combatColorCache[guid] = nil end
         if castState[guid] then castState[guid] = nil end
         if plateByGuid[guid] then plateByGuid[guid] = nil end
-        local plate = C_NamePlate.GetNamePlateForUnit(arg1)
         if plate and plate.nameplate and plate.nameplate.cachedGuid == guid then
           plate.nameplate.cachedGuid = nil
           plate.nameplate.unit = nil
@@ -684,18 +689,23 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
     frameState.hasTarget, frameState.targetGuid = UnitExists("target")
     frameState.mouseoverGuid = UnitGUID("mouseover")
 
-    -- propagate events to all nameplates
+    -- propagate a global refresh to all active plates. Set the flag on the
+    -- overlay (nameplate) -- that's what OnUpdate reads for hasEventUpdate; the
+    -- base frame's .eventcache is never read. Only visible plates need it
+    -- (hidden pool slots refresh on OnShow), matching the OnUpdate loop.
     if this.eventcache then
       this.eventcache = nil
-      for plate in pairs(registry) do
-        plate.eventcache = true
+      for plate in pairs(visiblePlates) do
+        plate.nameplate.eventcache = true
       end
     end
 
     -- visiblePlateCount is maintained event-driven via NAME_PLATE_UNIT_ADDED/_REMOVED.
 
-    -- Central OnUpdate for all visible plates
-    for plate in pairs(registry) do
+    -- Central OnUpdate for active plates only. visiblePlates is maintained by
+    -- NAME_PLATE_UNIT_ADDED/_REMOVED, so hidden pool slots aren't iterated; the
+    -- IsVisible guard stays as a cheap safety net for transient hides.
+    for plate in pairs(visiblePlates) do
       if plate:IsVisible() then
         nameplates.OnUpdate(plate, frameState)
       end
@@ -728,7 +738,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
   nameplates.OnCreate = function(frame)
     local parent = frame or this
     platecount = platecount + 1
-    platename = "pfNamePlate" .. platecount
+    local platename = "pfNamePlate" .. platecount
 
     -- create pfUI nameplate overlay
     local nameplate = CreateFrame("Button", platename, parent)
@@ -793,8 +803,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
 
     nameplate.totem = CreateFrame("Frame", nil, nameplate)
     nameplate.totem:SetPoint("CENTER", nameplate, "CENTER", 0, 0)
-    nameplate.totem:SetHeight(32)
-    nameplate.totem:SetWidth(32)
+    nameplate.totem:SetSize(32, 32)
     nameplate.totem.icon = nameplate.totem:CreateTexture(nil, "OVERLAY")
     nameplate.totem.icon:SetTexCoord(.078, .92, .079, .937)
     nameplate.totem.icon:SetAllPoints()
@@ -882,11 +891,11 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
 
     local plate_width = C.nameplates.width + 50
     local plate_height = C.nameplates.heighthealth + font_size + 5
-    local plate_height_cast = C.nameplates.heighthealth + font_size + 5 + C.nameplates.heightcast + 5
+    -- local plate_height_cast = C.nameplates.heighthealth + font_size + 5 + C.nameplates.heightcast + 5
     local combo_size = 5
 
-    local width = tonumber(C.nameplates.width)
-    local debuffsize = tonumber(C.nameplates.debuffsize)
+    -- local width = tonumber(C.nameplates.width)
+    -- local debuffsize = tonumber(C.nameplates.debuffsize)
     local healthoffset = tonumber(C.nameplates.health.offset)
     local orientation = C.nameplates.verticalhealth == "1" and "VERTICAL" or "HORIZONTAL"
 
