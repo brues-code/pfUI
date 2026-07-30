@@ -89,7 +89,7 @@ libunitscan:SetScript("OnEvent", function()
 
     -- update own character details
     local name = UnitName("player")
-    local _, class = UnitClass("player")
+    local class = UnitClassBase("player")
     local level = UnitLevel("player")
     local guild = GetGuildInfo("player")
     AddData("players", name, class, level, nil, guild)
@@ -128,7 +128,7 @@ libunitscan:SetScript("OnEvent", function()
     local name, class, level, unit, _, guild
     for i = 1, GetNumPartyMembers() do
       unit = "party" .. i
-      _, class = UnitClass(unit)
+      class = UnitClassBase(unit)
       name = UnitName(unit)
       level = UnitLevel(unit)
       guild = GetGuildInfo(unit)
@@ -149,24 +149,26 @@ libunitscan:SetScript("OnEvent", function()
               or event == "NAME_PLATE_UNIT_ADDED" and arg1
               or "mouseover"
     local name, class, level, elite, guild, _
-    if UnitIsPlayer(scan) then
-      _, class = UnitClass(scan)
-      level = UnitLevel(scan)
-      -- UnitLevel returns -1 for unknown levels, don't overwrite known values
-      level = level > 0 and level or nil
-      name = UnitName(scan)
-      guild = GetGuildInfo(scan)
-      AddData("players", name, class, level, nil, guild)
-      RememberByUnit(scan, name, class)
-    else
-      _, class = UnitClass(scan)
-      elite = UnitClassification(scan)
-      level = UnitLevel(scan)
-      -- UnitLevel returns -1 for unknown levels, don't overwrite known values
-      level = level > 0 and level or nil
-      name = UnitName(scan)
-      guild = UnitSubName(scan)
-      AddData("mobs", name, class, level, elite, guild)
+    if UnitExists(scan) then
+      if UnitIsPlayer(scan) then
+        class = UnitClassBase(scan)
+        level = UnitLevel(scan)
+        -- UnitLevel returns -1 for unknown levels, don't overwrite known values
+        level = level > 0 and level or nil
+        name = UnitName(scan)
+        guild = GetGuildInfo(scan)
+        AddData("players", name, class, level, nil, guild)
+        RememberByUnit(scan, name, class)
+      else
+        class = UnitClassBase(scan)
+        elite = UnitClassification(scan)
+        level = UnitLevel(scan)
+        -- UnitLevel returns -1 for unknown levels, don't overwrite known values
+        level = level > 0 and level or nil
+        name = UnitName(scan)
+        guild = UnitSubName(scan)
+        AddData("mobs", name, class, level, elite, guild)
+      end
     end
   end
 end)
