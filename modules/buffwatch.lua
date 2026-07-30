@@ -222,7 +222,7 @@ pfUI:RegisterModule("buffwatch", function ()
 
     CreateBackdrop(frame)
     CreateBackdropShadow(frame)
-    if bordercolor.r ~= "0" and bordercolor.g ~= "0" and bordercolor.b ~= "0" and bordercolor.a ~= "0" then
+    if bordercolor.r ~= 0 and bordercolor.g ~= 0 and bordercolor.b ~= 0 and bordercolor.a ~= 0 then
       frame.backdrop:SetBackdropBorderColor(bordercolor.r,bordercolor.g,bordercolor.b,1)
     end
 
@@ -419,18 +419,15 @@ pfUI:RegisterModule("buffwatch", function ()
   if pfUI.uf.player and C.buffbar.pbuff.enable == "1" then
     pfUI.uf.player.buffbar = CreateBuffBarFrame("Player", "HELPFUL")
     local config = C.buffbar.pbuff
-    local r, g, b, a = GetStringColor(config.color)
-    local br, bg, bb, ba = GetStringColor(config.bordercolor)
-    local tr, tg, tb, ta = GetStringColor(config.textcolor)
 
     pfUI.uf.player.buffbar:SetWidth(config.width == "-1" and pfUI.uf.player:GetWidth() or config.width)
     pfUI.uf.player.buffbar:SetHeight(config.height)
     pfUI.uf.player.buffbar.threshold = tonumber(config.threshold)
     pfUI.uf.player.buffbar.config = config
     pfUI.uf.player.buffbar.buffcmp = config.sort == "asc" and asc or desc
-    pfUI.uf.player.buffbar.color = { r = r, g = g, b = b, a = a }
-    pfUI.uf.player.buffbar.bordercolor = { r = br, g = bg, b = bb, a = ba }
-    pfUI.uf.player.buffbar.textcolor = { r = tr, g = tg, b = tb, a = ta }
+    pfUI.uf.player.buffbar.color = GetStringColorObject(config.color)
+    pfUI.uf.player.buffbar.bordercolor = GetStringColorObject(config.bordercolor)
+    pfUI.uf.player.buffbar.textcolor = GetStringColorObject(config.textcolor)
     pfUI.uf.player.buffbar.anchors = {
       pfUI.uf.player,
       pfUI.uf.player and pfUI.uf.player.debuffs,
@@ -445,9 +442,6 @@ pfUI:RegisterModule("buffwatch", function ()
   -- create player debuffbars
   if pfUI.uf.player and C.buffbar.pdebuff.enable == "1" then
     local config = C.buffbar.pdebuff
-    local r, g, b, a = GetStringColor(config.color)
-    local br, bg, bb, ba = GetStringColor(config.bordercolor)
-    local tr, tg, tb, ta = GetStringColor(config.textcolor)
 
     pfUI.uf.player.debuffbar = CreateBuffBarFrame("Player", "HARMFUL")
     pfUI.uf.player.debuffbar:SetWidth(config.width == "-1" and pfUI.uf.player:GetWidth() or config.width)
@@ -455,9 +449,9 @@ pfUI:RegisterModule("buffwatch", function ()
     pfUI.uf.player.debuffbar.threshold = tonumber(config.threshold)
     pfUI.uf.player.debuffbar.config = config
     pfUI.uf.player.debuffbar.buffcmp = config.sort == "asc" and asc or desc
-    pfUI.uf.player.debuffbar.color = { r = r, g = g, b = b, a = a }
-    pfUI.uf.player.debuffbar.bordercolor = { r = br, g = bg, b = bb, a = ba }
-    pfUI.uf.player.debuffbar.textcolor = { r = tr, g = tg, b = tb, a = ta }
+    pfUI.uf.player.debuffbar.color = GetStringColorObject(config.color)
+    pfUI.uf.player.debuffbar.bordercolor = GetStringColorObject(config.bordercolor)
+    pfUI.uf.player.debuffbar.textcolor = GetStringColorObject(config.textcolor)
     pfUI.uf.player.debuffbar.anchors = {
       pfUI.uf.player,
       pfUI.uf.player and pfUI.uf.player.buffbar and pfUI.uf.player.buffbar.bars,
@@ -473,18 +467,15 @@ pfUI:RegisterModule("buffwatch", function ()
   -- create target debuffbars
   if pfUI.uf.target and C.buffbar.tdebuff.enable == "1" then
     local config = C.buffbar.tdebuff
-    local r, g, b, a = GetStringColor(config.color)
-    local br, bg, bb, ba = GetStringColor(config.bordercolor)
-    local tr, tg, tb, ta = GetStringColor(config.textcolor)
 
     pfUI.uf.target.debuffbar = CreateBuffBarFrame("Target", "HARMFUL")
     pfUI.uf.target.debuffbar:SetWidth(config.width == "-1" and pfUI.uf.target:GetWidth() or config.width)
     pfUI.uf.target.debuffbar:SetHeight(config.height)
     pfUI.uf.target.debuffbar.config = config
     pfUI.uf.target.debuffbar.buffcmp = config.sort == "asc" and asc or desc
-    pfUI.uf.target.debuffbar.color = { r = r, g = g, b = b, a = a }
-    pfUI.uf.target.debuffbar.bordercolor = { r = br, g = bg, b = bb, a = ba }
-    pfUI.uf.target.debuffbar.textcolor = { r = tr, g = tg, b = tb, a = ta }
+    pfUI.uf.target.debuffbar.color = GetStringColorObject(config.color)
+    pfUI.uf.target.debuffbar.bordercolor = GetStringColorObject(config.bordercolor)
+    pfUI.uf.target.debuffbar.textcolor = GetStringColorObject(config.textcolor)
     pfUI.uf.target.debuffbar.threshold = tonumber(config.threshold)
     pfUI.uf.target.debuffbar.anchors = {
       pfUI.uf.target,
