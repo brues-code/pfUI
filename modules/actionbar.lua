@@ -1,5 +1,5 @@
 pfUI:RegisterModule("actionbar", function ()
-  local _, class = UnitClass("player")
+  local class = UnitClassBase("player")
   local _, cr, cg, cb = GetUnitColor('player')
   local er, eg, eb, ea = GetStringColor(pfUI_config.appearance.border.color)
 

@@ -309,7 +309,7 @@ function pfUI:CheckNewModules()
   pfUI_init.seen_modules = pfUI_init.seen_modules or {}
 
   local pending = 0
-  local _, playerClass = UnitClass("player")
+  local playerClass = UnitClassBase("player")
   for _, entry in pairs(pfUI.new_modules) do
     if not pfUI_init.seen_modules[entry.name] and pfUI_init["finalize"] then
       if not entry.class or entry.class == playerClass then

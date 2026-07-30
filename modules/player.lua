@@ -34,7 +34,7 @@ pfUI:RegisterModule("player", function ()
     playerFrame.infoTopCenterText:SetHeight(14)
   end
 
-  local _, myclass = UnitClass("player")
+  local myclass = UnitClassBase("player")
   playerFrame.myclass = myclass
   playerFrame.isSpellCaster = myclass ~= "WARRIOR" and myclass ~= "ROGUE" and myclass ~= "HUNTER"
 

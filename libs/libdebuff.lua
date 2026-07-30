@@ -29,8 +29,7 @@ if GetLocale() == "ruRU" then
 end
 
 local libdebuff = CreateFrame("Frame", "pfdebuffsScanner", UIParent)
-local _, class = UnitClass("player")
-local lastspell
+local class = UnitClassBase("player")
 
 -- Nampower Support
 local hasNampower = false

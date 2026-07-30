@@ -82,7 +82,7 @@ pfUI:RegisterModule("swingtimer", function ()
   local ohR, ohG, ohB, ohA = ParseColor(C.unitframes.swingtimerohcolor, 0.3, 0.8, 0.3, 1)
   local raR, raG, raB, raA = ParseColor(C.unitframes.swingtimerrangedcolor, 0.3, 0.6, 1.0, 1)
   local rwR, rwG, rwB, rwA = ParseColor(C.unitframes.swingtimerrangedwarncolor, 0.9, 0.0, 0.0, 1)
-  local isHunter = UnitClass("player") == "Hunter"
+  local isHunter = UnitClassBase("player") == "HUNTER"
   local mhDefaultR, mhDefaultG, mhDefaultB = mhR, mhG, mhB
 
 
@@ -908,7 +908,7 @@ pfUI:RegisterModule("swingtimer", function ()
       S.autoAttackActive = false
 
     elseif event == "PLAYER_ENTERING_WORLD" then
-      local _, class = UnitClass("player")
+      local class = UnitClassBase("player")
       S.isWarrior  = (class == "WARRIOR")
       S.isDruid    = (class == "DRUID")
       UpdateWeaponSpeeds()

@@ -1,5 +1,5 @@
 pfUI:RegisterModule("hunterbar", function ()
-  local _,class = UnitClass("player")
+  local class = UnitClassBase("player")
   if class ~= "HUNTER" or C.bars.hunterbar == "0" then return end
 
   -- Wing Clip (any rank) and Arcane Shot (any rank) spell IDs.

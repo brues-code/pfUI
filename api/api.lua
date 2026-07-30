@@ -231,7 +231,7 @@ end
 -- unit         [string]        the unitstring
 -- return:      [table]         string, r, g, b
 function pfUI.api.GetUnitColor(unitstr)
-  local _, class = UnitClass(unitstr)
+  local class = UnitClassBase(unitstr)
   local classColor = PFUI_CLASS_COLORS[class]
   return classColor:GenerateHexColorMarkup(), classColor:GetRGB()
 end

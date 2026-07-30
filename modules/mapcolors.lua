@@ -85,7 +85,7 @@ pfUI:RegisterModule("mapcolors", function ()
   end
 
   local function ColorizeName(frame)
-    local _, class = UnitClass(frame.unit)
+    local class = UnitClassBase(frame.unit)
     local color = PFUI_CLASS_COLORS[class]
     frame.name = frame.name or UnitName(frame.unit)
     frame.name = '|c'..color.colorStr..frame.name..'|r'

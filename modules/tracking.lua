@@ -128,7 +128,7 @@ pfUI:RegisterModule("tracking", function ()
   end)
 
   function pfUI.tracking:RefreshSpells()
-    local _, playerClass = UnitClass("player")
+    local playerClass = UnitClassBase("player")
     local isCatForm = pfUI.tracking:PlayerIsDruidInCatForm(playerClass)
 
     -- Build set of valid SpellIDs for this class

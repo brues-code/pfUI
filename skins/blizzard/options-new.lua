@@ -105,7 +105,7 @@ pfUI:RegisterSkin("Options - New", function ()
         local er, eg, eb = pfUI.api.GetStringColor(pfUI_config.appearance.border.color)
         btn:SetBackdropColor(br, bg, bb, 0.75)
         btn:SetBackdropBorderColor(er, eg, eb, 1)
-        local _, class = UnitClass("player")
+        local class = UnitClassBase("player")
         local color = PFUI_CLASS_COLORS[class]
         SetHighlight(btn, color.r, color.g, color.b)
         btn:SetFont(pfUI.font_default, pfUI_config.global.font_size, "OUTLINE")

@@ -429,7 +429,7 @@ pfUI:RegisterModule("chat", function ()
         _G["ChatFrame" .. i .. "TabFlash"].Show = function() return end
       end
 
-      local _, class = UnitClass("player")
+      local class = UnitClassBase("player")
       local classColor = PFUI_CLASS_COLORS[class]
       _G["ChatFrame" .. i .. "TabText"]:SetTextColor((classColor.r + .3) * .5, (classColor.g + .3) * .5, (classColor.b + .3) * .5, 1)
       _G["ChatFrame" .. i .. "TabText"]:SetFont(panelfont,panelfont_size, "OUTLINE")

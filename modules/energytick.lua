@@ -2,7 +2,7 @@ local function getAdjustedTickTimer()
   local adjustedEnergyTick = 2
 
   -- Check rogue talents and compute energy tick timing reduction for Combat spec (1.18.0 Blade Rush Talent)
-  if UnitClass("player") == "Rogue" then
+  if UnitClassBase("player") == "ROGUE" then
     local _, _, _, _, currRank = GetTalentInfo(2, 16)
     local bladeRushRank = currRank or 0
 

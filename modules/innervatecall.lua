@@ -7,8 +7,7 @@ pfUI:RegisterModule("innervatecall", function ()
   if not GetNampowerVersion then return end
 
   -- Only load for druids
-  local _, playerClass = UnitClass("player")
-  if playerClass ~= "DRUID" then return end
+  if UnitClassBase("player") ~= "DRUID" then return end
 
   local INNERVATE_SPELLID = 29166
 

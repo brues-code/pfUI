@@ -5,7 +5,7 @@ pfUI:RegisterModule("combopoints", function ()
   ComboFrame:Hide()
   ComboFrame:UnregisterAllEvents()
 
-  local _, class = UnitClass("player")
+  local class = UnitClassBase("player")
   local combo_width = C["unitframes"]["combowidth"]
   local combo_height = C["unitframes"]["comboheight"]
   pfUI.combopoints = {}

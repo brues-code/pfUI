@@ -201,7 +201,7 @@ pfUI:RegisterModule("tooltip", function ()
       local pvpname = UnitPVPName(unit)
       local name = UnitName(unit)
       local validTarget, target = pcall(UnitName, unit .. 'target')
-      local _, class = UnitClass(unit)
+      local class = UnitClassBase(unit)
       local guild, rankstr, rankid = GetGuildInfo(unit)
       local reaction = UnitReaction(unit, "player")
       local pvptitle = gsub(gsub(pvpname or name, name, "", 1), "^%s*(.-)%s*$", "%1")
@@ -236,7 +236,7 @@ pfUI:RegisterModule("tooltip", function ()
       end
 
       if validTarget and target then
-        local _, targetClass = UnitClass(unit .. "target")
+        local targetClass = UnitClassBase(unit .. "target")
         local targetReaction = UnitReaction("player",unit .. "target")
         if UnitIsPlayer(unit .. "target") and targetClass then
           local color = PFUI_CLASS_COLORS[targetClass]
