@@ -41,8 +41,9 @@ pfUI:RegisterModule("farmmode", function ()
   pfUI.farmmap:RegisterForDrag("LeftButton")
   pfUI.farmmap:SetScript("OnMouseWheel", function()
     if IsControlKeyDown() then
-      this:SetWidth(this:GetWidth() + (arg1 > 0 and 10 or -10))
-      this:SetHeight(this:GetHeight() + (arg1 > 0 and 10 or -10))
+      local adjust = (arg1 > 0 and 10 or -10)
+      local width, height = this:GetSize()
+      this:SetSize(width + adjust, height + adjust)
       Minimap_ZoomIn()
       Minimap_ZoomOut()
     elseif IsShiftKeyDown() then

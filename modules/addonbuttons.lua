@@ -224,7 +224,7 @@ pfUI:RegisterModule("addonbuttons", function ()
       frame.backup.is_clamped_to_screen = frame:IsClampedToScreen()
       frame.backup.is_movable = frame:IsMovable()
       frame.backup.point = {frame:GetPoint()}
-      frame.backup.size = {frame:GetHeight(), frame:GetWidth()}
+      frame.backup.size = {frame:GetSize()}
       frame.backup.scale = frame:GetScale()
       if frame:HasScript("OnDragStart") then
         frame.backup.on_drag_start = frame:GetScript("OnDragStart")

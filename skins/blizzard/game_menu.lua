@@ -3,8 +3,8 @@ pfUI:RegisterSkin("Game Menu", function ()
   CreateBackdrop(GameMenuFrame, nil, true, .75)
   CreateBackdropShadow(GameMenuFrame)
 
-  GameMenuFrame:SetWidth(GameMenuFrame:GetWidth() - 30)
-  GameMenuFrame:SetHeight(GameMenuFrame:GetHeight() + 6)
+  local menuWidth, menuHeight = GameMenuFrame:GetSize()
+  GameMenuFrame:SetSize(menuWidth - 30, menuHeight + 6)
 
   local title = GetNoNameObject(GameMenuFrame, "FontString", "ARTWORK", MAIN_MENU)
   title:SetTextColor(1,1,1,1)
