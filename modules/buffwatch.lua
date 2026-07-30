@@ -162,8 +162,7 @@ pfUI:RegisterModule("buffwatch", function ()
     local color = parent.color
     local bordercolor = parent.bordercolor
     local textcolor = parent.textcolor
-    local width = parent:GetWidth()
-    local height = parent:GetHeight()
+    local width, height = parent:GetSize()
     local framename = "pf" .. parent.unit .. ( parent.type == "HARMFUL" and "Debuff" or "Buff" ) .. "Bar" .. bar
 
     local font = parent.config.use_unitfonts == "1" and pfUI.font_unit or pfUI.font_default
@@ -172,8 +171,7 @@ pfUI:RegisterModule("buffwatch", function ()
     frame:EnableMouse(1)
     frame:Hide()
     frame:SetPoint("BOTTOM", 0, (bar-1)*(height+2*border+1))
-    frame:SetWidth(width)
-    frame:SetHeight(height)
+    frame:SetSize(width, height)
 
     frame.bar = CreateFrame("StatusBar", "pfBuffBar" .. bar, frame)
     frame.bar:SetPoint("TOPLEFT", frame, "TOPLEFT", height+1, 0)
@@ -202,8 +200,7 @@ pfUI:RegisterModule("buffwatch", function ()
     frame.time:SetJustifyH("RIGHT")
 
     frame.icon = frame:CreateTexture(nil, "OVERLAY")
-    frame.icon:SetWidth(height)
-    frame.icon:SetHeight(height)
+    frame.icon:SetSize(height, height)
     frame.icon:SetPoint("LEFT", frame, "LEFT", 0, 0)
     frame.icon:SetTexCoord(.07,.93,.07,.93)
 

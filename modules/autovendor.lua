@@ -56,8 +56,7 @@ pfUI:RegisterModule("autovendor", function ()
 
   -- Setup Autosell button
   autovendor.button = CreateFrame("Button", "pfMerchantAutoVendorButton", MerchantFrame)
-  autovendor.button:SetWidth(36)
-  autovendor.button:SetHeight(36)
+  autovendor.button:SetSize(36, 36)
   autovendor.button.icon = autovendor.button:CreateTexture("ARTWORK")
   autovendor.button.icon:SetTexture("Interface\\Icons\\Spell_Shadow_SacrificialShield")
   autovendor.button:SetScript("OnEnter", function()

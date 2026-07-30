@@ -397,8 +397,7 @@ function pfUI.uf:UpdateConfig()
 
   f.power:ClearAllPoints()
   f.power:SetPoint(f.config.panchor, f.hp, relative_point, f.config.poffx, -2 * default_border - spacing + f.config.poffy * GetPerfectPixel())
-  f.power:SetWidth((f.config.pwidth ~= "-1" and f.config.pwidth or f.config.width))
-  f.power:SetHeight(f.config.pheight)
+  f.power:SetSize((f.config.pwidth ~= "-1" and f.config.pwidth or f.config.width), f.config.pheight)
   if tonumber(f.config.pheight) < 0 then f.power:Hide() end
 
   pfUI.api.CreateBackdrop(f.power, default_border)
@@ -790,8 +789,7 @@ function pfUI.uf:UpdateConfig()
       f.debuffs[i]:SetFrameLevel(12)
       f.debuffs[i]:RegisterForClicks("RightButtonUp")
       f.debuffs[i]:ClearAllPoints()
-      f.debuffs[i]:SetWidth(f.config.debuffsize)
-      f.debuffs[i]:SetHeight(f.config.debuffsize)
+      f.debuffs[i]:SetSize(f.config.debuffsize, f.config.debuffsize)
       f.debuffs[i]:SetNormalTexture(nil)
       
       -- Create CD frame if it doesn't exist
@@ -1782,8 +1780,7 @@ function pfUI.uf:RefreshUnit(unit, component)
         if size ~= indicator.size or disptype ~= indicator.disp or indipos ~= indicator.ipos then
           indicator:ClearAllPoints()
           indicator:SetPoint(indipos, 0, 0)
-          indicator:SetHeight(size)
-          indicator:SetWidth(size)
+          indicator:SetSize(size, size)
           indicator.size = size
           indicator.disp = disptype
           indicator.ipos  = indipos
@@ -1812,16 +1809,14 @@ function pfUI.uf:RefreshUnit(unit, component)
             indicator[debuff].tex:SetVertexColor(dispelColor:GetRGBA())
             indicator[debuff].tex:Show()
             indicator[debuff]:ClearAllPoints()
-            indicator[debuff]:SetHeight(size)
-            indicator[debuff]:SetWidth(size)
+            indicator[debuff]:SetSize(size, size)
             indicator[debuff]:SetBackdrop(nil)
           elseif disptype == "3" then
             indicator[debuff].tex:SetTexture(dispelColor:GetRGBA())
             indicator[debuff].tex:SetVertexColor(1,1,1,1)
             indicator[debuff].tex:Show()
             indicator[debuff]:ClearAllPoints()
-            indicator[debuff]:SetHeight(size)
-            indicator[debuff]:SetWidth(size)
+            indicator[debuff]:SetSize(size, size)
             indicator[debuff]:SetBackdrop(nil)
           elseif disptype == "2" then
             indicator[debuff].tex:Hide()
@@ -2270,8 +2265,7 @@ function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
 
   -- update icon configuration
   if frame.icon[pos].iconsize ~= iconsize or frame.icon[pos].spacing ~= spacing then
-    frame.icon[pos]:SetWidth(iconsize)
-    frame.icon[pos]:SetHeight(iconsize)
+    frame.icon[pos]:SetSize(iconsize, iconsize)
     frame.icon[pos]:SetPoint("TOPLEFT", frame.icon, "TOPLEFT", (pos-1)*(iconsize + spacing), 0)
     frame.icon[pos].stacks:SetFont(pfUI.font_unit, math.max(iconsize/3, 10), "OUTLINE")
     frame.icon[pos].iconsize = iconsize

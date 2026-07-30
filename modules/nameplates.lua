@@ -1546,8 +1546,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
           nameplate.health.zoomTransition = true
         else
           if nameplate.health.zoomTransition then
-            nameplate.health:SetWidth(wc)
-            nameplate.health:SetHeight(hc)
+            nameplate.health:SetSize(wc, hc)
             nameplate.health.zoomTransition = nil
           end
           nameplate.health.zoomed = true

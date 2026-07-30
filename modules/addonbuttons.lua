@@ -37,15 +37,10 @@ pfUI:RegisterModule("addonbuttons", function ()
 
   pfUI.addonbuttons.minimapbutton = CreateFrame("Button", "pfMinimapButton", pfUI.minimap or UIParent)
   pfUI.addonbuttons.minimapbutton:SetFrameLevel(24)
-  pfUI.addonbuttons.minimapbutton:SetWidth(12)
-  pfUI.addonbuttons.minimapbutton:SetHeight(12)
+  pfUI.addonbuttons.minimapbutton:SetSize(12, 12)
 
   pfUI.addonbuttons.minimapbutton:SetScript("OnClick", function()
-    if pfUI.addonbuttons:IsShown() then
-      pfUI.addonbuttons:Hide()
-    else
-      pfUI.addonbuttons:Show()
-    end
+    pfUI.addonbuttons:SetShown(not pfUI.addonbuttons:IsShown())
   end)
 
   pfUI.addonbuttons.buttons = {}
@@ -163,27 +158,25 @@ pfUI:RegisterModule("addonbuttons", function ()
     pfUI.addonbuttons:SetScale(pfUI.minimap:GetScale())
 
     pfUI.addonbuttons.minimapbutton:ClearAllPoints()
+    local mbtnWidth, mbtnHeight = pfUI.minimap:GetSize()
+    local dynamicSize = ceil((GetNumButtons() > 0 and GetNumButtons() or 1) / tonumber(C.abuttons.rowsize)) * GetStringSize() + tonumber(C.abuttons.spacing)
     if C.abuttons.position == "bottom" then
-      pfUI.addonbuttons:SetWidth(pfUI.minimap:GetWidth())
-      pfUI.addonbuttons:SetHeight(ceil((GetNumButtons() > 0 and GetNumButtons() or 1) / tonumber(C.abuttons.rowsize)) * GetStringSize() + tonumber(C.abuttons.spacing))
+      pfUI.addonbuttons:SetSize(mbtnWidth, dynamicSize)
       pfUI.addonbuttons:SetPoint("TOP", pfUI.minimap, "BOTTOM", 0 , -default_border * 3)
       SkinArrowButton(pfUI.addonbuttons.minimapbutton, "down")
       pfUI.addonbuttons.minimapbutton:SetPoint("BOTTOM", pfUI.minimap, "BOTTOM", 0, 4)
     elseif C.abuttons.position == "left" then
-      pfUI.addonbuttons:SetWidth(ceil((GetNumButtons() > 0 and GetNumButtons() or 1) / tonumber(C.abuttons.rowsize)) * GetStringSize() + tonumber(C.abuttons.spacing))
-      pfUI.addonbuttons:SetHeight(pfUI.minimap:GetHeight())
+      pfUI.addonbuttons:SetSize(dynamicSize, mbtnHeight)
       pfUI.addonbuttons:SetPoint("TOPRIGHT", pfUI.minimap, "TOPLEFT", -default_border * 3, 0)
       SkinArrowButton(pfUI.addonbuttons.minimapbutton, "left")
       pfUI.addonbuttons.minimapbutton:SetPoint("LEFT", pfUI.minimap, "LEFT", 4, 0)
     elseif C.abuttons.position == "top" then
-      pfUI.addonbuttons:SetWidth(pfUI.minimap:GetWidth())
-      pfUI.addonbuttons:SetHeight(ceil((GetNumButtons() > 0 and GetNumButtons() or 1) / tonumber(C.abuttons.rowsize)) * GetStringSize() + tonumber(C.abuttons.spacing))
+      pfUI.addonbuttons:SetSize(mbtnWidth, dynamicSize)
       pfUI.addonbuttons:SetPoint("BOTTOM", pfUI.minimap, "TOP", 0 , default_border * 3)
       SkinArrowButton(pfUI.addonbuttons.minimapbutton, "up")
       pfUI.addonbuttons.minimapbutton:SetPoint("TOP", pfUI.minimap, "TOP", 0, -4)
     elseif C.abuttons.position == "right" then
-      pfUI.addonbuttons:SetWidth(ceil((GetNumButtons() > 0 and GetNumButtons() or 1) / tonumber(C.abuttons.rowsize)) * GetStringSize() + tonumber(C.abuttons.spacing))
-      pfUI.addonbuttons:SetHeight(pfUI.minimap:GetHeight())
+      pfUI.addonbuttons:SetSize(dynamicSize, mbtnHeight)
       pfUI.addonbuttons:SetPoint("TOPLEFT", pfUI.minimap, "TOPRIGHT", default_border * 3, 0)
       SkinArrowButton(pfUI.addonbuttons.minimapbutton, "right")
       pfUI.addonbuttons.minimapbutton:SetPoint("RIGHT", pfUI.minimap, "RIGHT", -4, 0)
@@ -256,8 +249,7 @@ pfUI:RegisterModule("addonbuttons", function ()
       frame:SetClampedToScreen(frame.backup.is_clamped_to_screen)
       frame:SetMovable(frame.backup.is_movable)
       frame:SetScale(frame.backup.scale)
-      frame:SetHeight(frame.backup.size[1])
-      frame:SetWidth(frame.backup.size[2])
+      frame:SetSize(frame.backup.size[2], frame.backup.size[1])
       frame:ClearAllPoints()
       frame:SetPoint(frame.backup.point[1], frame.backup.point[2], frame.backup.point[3], frame.backup.point[4], frame.backup.point[5])
       if frame.backup.on_drag_start ~= nil then

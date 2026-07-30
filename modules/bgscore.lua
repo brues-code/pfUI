@@ -2,14 +2,12 @@ pfUI:RegisterModule("bgscore", function ()
   local bgframe = WorldStateAlwaysUpFrame
   if not bgframe then
     bgframe = CreateFrame("Frame", "WorldStateAlwaysUpFrame", UIParent)
-    bgframe:SetWidth(200)
-    bgframe:SetHeight(25)
+    bgframe:SetSize(200, 25)
     bgframe:SetPoint("TOP", UIParent, "TOP", 0, -100)
   end
 
   local mover = CreateFrame("Frame", "pfUIBGScoreMover", UIParent)
-  mover:SetWidth(220)
-  mover:SetHeight(30)
+  mover:SetSize(220, 30)
   mover:SetPoint("TOP", UIParent, "TOP", 0, -100)
   mover:SetFrameStrata("DIALOG")
   mover:SetMovable(true)

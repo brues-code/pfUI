@@ -277,28 +277,27 @@ pfUI:RegisterModule("buff", function ()
   -- config loading
   function pfUI.buff:UpdateConfigBuffButton(buff)
     local fontsize = C.buffs.fontsize == "-1" and C.global.font_size or C.buffs.fontsize
+    local buffSize, buffSpacing = tonumber(C.buffs.size), tonumber(C.buffs.spacing)
     local rowcount, relFrame, offsetX, offsetY
     if buff.btype == "HELPFUL" then
       if buff.weapon == 1 and C.buffs.separateweapons == "1" then
         rowcount = floor((buff.gid-1) / tonumber(C.buffs.wepbuffrowsize))
         relFrame = pfUI.buff.wepbuffs
-        offsetX = -(buff.gid-1-rowcount*tonumber(C.buffs.wepbuffrowsize))*(tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing))
-        offsetY = -(rowcount) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing))
+        offsetX = -(buff.gid-1-rowcount*tonumber(C.buffs.wepbuffrowsize))*(buffSize+2*buffSpacing)
+        offsetY = -(rowcount) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+buffSize+2*buffSpacing)
       else
         rowcount = floor((buff.gid-1) / tonumber(C.buffs.buffrowsize))
         relFrame = pfUI.buff.buffs
-        offsetX = -(buff.gid-1-rowcount*tonumber(C.buffs.buffrowsize))*(tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing))
-        offsetY = -(rowcount) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing))
+        offsetX = -(buff.gid-1-rowcount*tonumber(C.buffs.buffrowsize))*(buffSize+2*buffSpacing)
+        offsetY = -(rowcount) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+buffSize+2*buffSpacing)
       end
     else
       rowcount = floor((buff.gid-1) / tonumber(C.buffs.debuffrowsize))
       relFrame = pfUI.buff.debuffs
-      offsetX = -(buff.gid-1-rowcount*tonumber(C.buffs.debuffrowsize))*(tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing))
-      offsetY = -(rowcount) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing))
+      offsetX = -(buff.gid-1-rowcount*tonumber(C.buffs.debuffrowsize))*(buffSize+2*buffSpacing)
+      offsetY = -(rowcount) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+buffSize+2*buffSpacing)
     end
-
-    buff:SetWidth(tonumber(C.buffs.size))
-    buff:SetHeight(tonumber(C.buffs.size))
+    buff:SetSize(buffSize, buffSize)
     buff:ClearAllPoints()
     buff:SetPoint("TOPRIGHT", relFrame, "TOPRIGHT",offsetX, offsetY)
 
@@ -318,20 +317,26 @@ pfUI:RegisterModule("buff", function ()
   function pfUI.buff:UpdateConfig()
     local fontsize = C.buffs.fontsize == "-1" and C.global.font_size or C.buffs.fontsize
 
-    pfUI.buff.buffs:SetWidth(tonumber(C.buffs.buffrowsize) * (tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing)))
-    pfUI.buff.buffs:SetHeight(ceil(32/tonumber(C.buffs.buffrowsize)) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing)))
-    pfUI.buff.buffs:SetPoint("TOPRIGHT", pfUI.minimap or UIParent, "TOPLEFT", -4*tonumber(C.buffs.spacing), 0)
+    local spacing  = tonumber(C.buffs.spacing)
+    local cell     = tonumber(C.buffs.size) + 2 * spacing
+    local rowextra = C.buffs.textinside == "1" and 0 or (fontsize * 1.5)
+
+    local function SizeBuffFrame(frame, rowsize, count)
+      rowsize = tonumber(rowsize)
+      frame:SetSize(rowsize * cell, ceil(count / rowsize) * (rowextra + cell))
+    end
+
+    SizeBuffFrame(pfUI.buff.buffs, C.buffs.buffrowsize, 32)
+    pfUI.buff.buffs:SetPoint("TOPRIGHT", pfUI.minimap or UIParent, "TOPLEFT", -4 * spacing, 0)
     UpdateMovable(pfUI.buff.buffs)
 
-    pfUI.buff.debuffs:SetWidth(tonumber(C.buffs.debuffrowsize) * (tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing)))
-    pfUI.buff.debuffs:SetHeight(ceil(16/tonumber(C.buffs.debuffrowsize)) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing)))
+    SizeBuffFrame(pfUI.buff.debuffs, C.buffs.debuffrowsize, 16)
     pfUI.buff.debuffs:SetPoint("TOPRIGHT", pfUI.buff.buffs, "BOTTOMRIGHT", 0, 0)
     UpdateMovable(pfUI.buff.debuffs)
 
     if C.buffs.separateweapons == "1" then
       pfUI.buff.wepbuffs:ClearAllPoints()
-      pfUI.buff.wepbuffs:SetWidth(tonumber(C.buffs.wepbuffrowsize) * (tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing)))
-      pfUI.buff.wepbuffs:SetHeight(ceil(2/tonumber(C.buffs.wepbuffrowsize)) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+tonumber(C.buffs.size)+2*tonumber(C.buffs.spacing)))
+      SizeBuffFrame(pfUI.buff.wepbuffs, C.buffs.wepbuffrowsize, 2)
       pfUI.buff.wepbuffs:SetPoint("TOPRIGHT", pfUI.buff.debuffs, "BOTTOMRIGHT", 0, 0)
       pfUI.buff.wepbuffs:Show()
       UpdateMovable(pfUI.buff.wepbuffs)

@@ -168,8 +168,7 @@ pfUI:RegisterModule("actionbar", function ()
     ["zoomfade"] = function()
       if this.active == 0 then
         -- init animation
-        this:SetWidth(this.parent:GetWidth())
-        this:SetHeight(this.parent:GetHeight())
+        this:SetSize(this.parent:GetSize())
         this:SetScale(this.parent:GetScale())
         this.tex:SetTexture(this.parent.icon:GetTexture())
         this.tex:SetVertexColor(this.parent.icon:GetVertexColor())
@@ -191,8 +190,7 @@ pfUI:RegisterModule("actionbar", function ()
     ["shrinkreturn"] = function()
       if this.active == 0 then
         -- init animation
-        this:SetWidth(this.parent:GetWidth())
-        this:SetHeight(this.parent:GetHeight())
+        this:SetSize(this.parent:GetSize())
         this:SetScale(this.parent:GetScale())
         this.tex:SetTexture(this.parent.icon:GetTexture())
         this.tex:SetVertexColor(this.parent.icon:GetVertexColor())
@@ -218,8 +216,7 @@ pfUI:RegisterModule("actionbar", function ()
     ["elasticzoom"] = function()
       if this.active == 0 then
         -- init animation
-        this:SetWidth(this.parent:GetWidth())
-        this:SetHeight(this.parent:GetHeight())
+        this:SetSize(this.parent:GetSize())
         this:SetScale(this.parent:GetScale())
         this.tex:SetTexture(this.parent.icon:GetTexture())
         this.tex:SetVertexColor(this.parent.icon:GetVertexColor())
@@ -245,8 +242,7 @@ pfUI:RegisterModule("actionbar", function ()
     ["wobblezoom"] = function()
       if this.active == 0 then
         -- init animation
-        this:SetWidth(this.parent:GetWidth())
-        this:SetHeight(this.parent:GetHeight())
+        this:SetSize(this.parent:GetSize())
         this:SetScale(this.parent:GetScale())
         this.tex:SetTexture(this.parent.icon:GetTexture())
         this.tex:SetVertexColor(this.parent.icon:GetVertexColor())
@@ -1176,8 +1172,7 @@ pfUI:RegisterModule("actionbar", function ()
 
     -- general appearance
     f.showempty = showempty == "1" and true or nil
-    f:SetHeight(size)
-    f:SetWidth(size)
+    f:SetSize(size, size)
     CreateBackdrop(f, border)
 
     return f
@@ -1349,8 +1344,7 @@ pfUI:RegisterModule("actionbar", function ()
 
     -- adjust actionbar size
     BarLayoutSize(bars[i], buttons, formfactor, size, border, spacing, uneven, fillmode)
-    bars[i]:SetWidth(bars[i]._size[1])
-    bars[i]:SetHeight(bars[i]._size[2])
+    bars[i]:SetSize(bars[i]._size[1], bars[i]._size[2])
     bars[i]:ClearAllPoints()
     if i == 1 then -- main
       bars[i]:SetPoint("BOTTOM", 0, 2*border)

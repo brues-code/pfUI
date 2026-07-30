@@ -895,8 +895,7 @@ function pfUI.api.SkinDropDown(frame, cr, cg, cb, useSmall)
   CreateBackdrop(button)
 
   button.backdrop:ClearAllPoints()
-  button.backdrop:SetWidth(18)
-  button.backdrop:SetHeight(18)
+  button.backdrop:SetSize(18, 18)
   button.backdrop:SetPoint("RIGHT", frame.backdrop, "RIGHT", -2, 0)
 
   if not button.icon then
