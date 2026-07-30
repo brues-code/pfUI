@@ -479,9 +479,7 @@ nameplates:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 nameplates:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 nameplates:RegisterEvent("UNIT_AURA")
 nameplates:RegisterEvent("UNIT_FLAGS")
--- nampower cast lifecycle for other units (gated by NP_EnableSpell{Start,Go}
--- Events, enabled by libdebuff). Drives castbars event-first instead of
--- polling C_Spell on every plate each tick. Mirrors castbar.lua's target bar.
+nameplates:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
 nameplates:RegisterEvent("SPELL_START_OTHER")
 nameplates:RegisterEvent("SPELL_FAILED_OTHER")
   
@@ -596,15 +594,22 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
       end
 
     elseif event == "UNIT_FLAGS" then
-      -- ClassicAPI: fires with arg1 == "nameplateN" when a unit's flags change
-      -- (stun, combat enter/leave). Flag that plate for an immediate update,
-      -- bypassing the throttle. Guard on the token prefix -- UNIT_FLAGS also
-      -- fires for target/party/raid, which aren't ours to handle here.
       if arg1 and strfind(arg1, "^nameplate") then
         local plate = C_NamePlate.GetNamePlateForUnit(arg1)
         if plate and plate.nameplate then
           plate.nameplate.eventcache = true
         end
+      end
+
+    elseif event == "UPDATE_MOUSEOVER_UNIT" then
+      local new = UnitGUID("mouseover")
+      local old = frameState.mouseoverGuid
+      if new ~= old then
+        frameState.mouseoverGuid = new
+        local po = old and plateByGuid[old]
+        if po then po.eventcache = true end
+        local pn = new and plateByGuid[new]
+        if pn then pn.eventcache = true end
       end
 
     elseif event == "SPELL_START_OTHER" then
@@ -687,12 +692,7 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
     -- PERF: Cache GetTime() once per frame
     frameState.now = now
     frameState.hasTarget, frameState.targetGuid = UnitExists("target")
-    frameState.mouseoverGuid = UnitGUID("mouseover")
 
-    -- propagate a global refresh to all active plates. Set the flag on the
-    -- overlay (nameplate) -- that's what OnUpdate reads for hasEventUpdate; the
-    -- base frame's .eventcache is never read. Only visible plates need it
-    -- (hidden pool slots refresh on OnShow), matching the OnUpdate loop.
     if this.eventcache then
       this.eventcache = nil
       for plate in pairs(visiblePlates) do
@@ -700,11 +700,6 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
       end
     end
 
-    -- visiblePlateCount is maintained event-driven via NAME_PLATE_UNIT_ADDED/_REMOVED.
-
-    -- Central OnUpdate for active plates only. visiblePlates is maintained by
-    -- NAME_PLATE_UNIT_ADDED/_REMOVED, so hidden pool slots aren't iterated; the
-    -- IsVisible guard stays as a cheap safety net for transient hides.
     for plate in pairs(visiblePlates) do
       if plate:IsVisible() then
         nameplates.OnUpdate(plate, frameState)
