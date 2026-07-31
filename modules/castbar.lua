@@ -86,7 +86,7 @@ pfUI:RegisterModule("castbar", function ()
 
   -- Stamp the bar with cast data and render text/icon/lag once. OnUpdate
   -- then animates the fill from this state without touching C_Spell.
-  local function StampBar(cb, name, tex, startMs, endMs, spellID, isChannel, delayMs, isTradeskill)
+  local function StampBar(cb, name, tex, startMs, endMs, spellID, isChannel, delayMs, isTradeskill, rank)
     cb.startTime = startMs
     cb.endTime = endMs
     cb.isChannel = isChannel
@@ -99,10 +99,13 @@ pfUI:RegisterModule("castbar", function ()
 
     cb.bar:SetStatusBarColor(GetStringColor(C.appearance.castbar[isChannel and "channelcolor" or "castbarcolor"]))
 
-    local rank = ""
-    if spellID then
+    -- Rank: prefer the value the UNIT_SPELLCAST_* event delivered (arg5, passed
+    -- through by RefreshBar). Only the retarget re-poll has no event in hand, so
+    -- it falls back to a lookup.
+    if not rank and spellID then
       rank = C_Spell.GetSpellSubtext(spellID) or ""
     end
+    rank = rank or ""
     local spellname = (cb.showname and name) and (name .. " ") or ""
     local rankstr = (cb.showrank and rank ~= "") and string.format("|cffaaffcc[%s]|r", rank) or ""
     cb.bar.left:SetText(spellname .. rankstr)
@@ -143,7 +146,7 @@ pfUI:RegisterModule("castbar", function ()
 
   -- One-shot poll: read C_Spell for the bar's unit, stamp or clear. Called
   -- from event handlers (cast start, target/focus change), never per-frame.
-  local function RefreshBar(cb)
+  local function RefreshBar(cb, rank)
     local query = cb.unitstr ~= "" and cb.unitstr or cb.unitname
     if not query or (cb.unitstr ~= "" and not UnitExists(cb.unitstr)) then
       ClearBar(cb)
@@ -166,7 +169,7 @@ pfUI:RegisterModule("castbar", function ()
       end
     end
     if name and startMs and endMs then
-      StampBar(cb, name, tex, startMs, endMs, spellID, isChan, delayMs, isTradeskill)
+      StampBar(cb, name, tex, startMs, endMs, spellID, isChan, delayMs, isTradeskill, rank)
     else
       ClearBar(cb)
     end
@@ -311,15 +314,14 @@ pfUI:RegisterModule("castbar", function ()
       end
     end)
 
-    -- Cast lifecycle. The player's own casts come from ClassicAPI's
-    -- UNIT_SPELLCAST_* (player-only, synthesized engine-side); remote units
-    -- (target/focus not resolving to the player) come from Nampower
-    -- SPELL_*_OTHER, gated by the NP_EnableSpell{Start,Go}Events CVars enabled
-    -- by libdebuff, plus the retarget event. The player feed is registered on
-    -- every bar so target=self / focus=self casts show too (UnitIsUnit gate in
-    -- the handler). UNIT_SPELLCAST_START fires for chained same-spell recasts,
-    -- pushback and completion, so it replaces the vanilla SPELLCAST_* plus the
-    -- nampower SPELL_{START,GO,DELAYED}_SELF workarounds.
+    -- Cast lifecycle, entirely on ClassicAPI's UNIT_SPELLCAST_* events. They
+    -- fire per unit token: arg1=="player" for the player's own casts, and the
+    -- remote token(s) ("target", "focus", ...) for other units -- so one set of
+    -- events drives every bar with no Nampower dependency. The handler routes an
+    -- event to this bar when arg1 matches its unit, or -- since the player's own
+    -- casts only ever fire arg1=="player" -- when the bar's unit resolves to the
+    -- player (target=self). PLAYER_TARGET/FOCUS_CHANGED re-polls so a unit
+    -- already mid-cast when it becomes the target/focus still shows.
     cb:RegisterEvent("UNIT_SPELLCAST_START")
     cb:RegisterEvent("UNIT_SPELLCAST_STOP")
     cb:RegisterEvent("UNIT_SPELLCAST_FAILED")
@@ -329,14 +331,10 @@ pfUI:RegisterModule("castbar", function ()
     cb:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
     cb:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
     cb:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
-    if unitstr ~= "player" and unitstr ~= "" then
-      cb:RegisterEvent("SPELL_START_OTHER")
-      cb:RegisterEvent("SPELL_FAILED_OTHER")
-      if unitstr == "target" then
-        cb:RegisterEvent("PLAYER_TARGET_CHANGED")
-      elseif unitstr == "focus" then
-        cb:RegisterEvent("PLAYER_FOCUS_CHANGED")
-      end
+    if unitstr == "target" then
+      cb:RegisterEvent("PLAYER_TARGET_CHANGED")
+    elseif unitstr == "focus" then
+      cb:RegisterEvent("PLAYER_FOCUS_CHANGED")
     end
 
     cb:SetScript("OnEvent", function()
@@ -347,28 +345,14 @@ pfUI:RegisterModule("castbar", function ()
         return
       end
 
-      if event == "SPELL_START_OTHER" then
-        -- arg3=casterGuid. Defer one frame so ClassicAPI's UnitChannelInfo
-        -- can see the engine's +0x228 broadcast for remote-unit channels
-        -- (the cohook+packet handler runs in the same frame; the broadcast
-        -- propagates after).
-        if arg3 == UnitGUID(unit) then
-          local target = this
-          RunNextFrame(function() RefreshBar(target) end)
-        end
+      -- UNIT_SPELLCAST_* fire per unit token (arg1). Handle an event when it's
+      -- for this bar's unit, or -- since the player's own casts only ever fire
+      -- arg1=="player" -- when this bar's unit currently resolves to the player
+      -- (target=self / focus=self).
+      -- Args: arg1=unit, arg2=castGUID, arg3=spellID, arg4=name, arg5=rank.
+      if arg1 ~= unit and not (arg1 == "player" and UnitIsUnit(unit, "player")) then
         return
       end
-
-      if event == "SPELL_FAILED_OTHER" then
-        if arg1 == UnitGUID(unit) then ClearBar(this, true) end
-        return
-      end
-
-      -- UNIT_SPELLCAST_* are player-only (arg1 == "player"). Non-player bars
-      -- consume them only when their unit currently resolves to the player
-      -- (target=self / focus=self); the remote path is SPELL_*_OTHER above.
-      -- Args: arg1="player", arg2=castGUID, arg3=spellID, arg4=name, arg5=rank.
-      if not UnitIsUnit(unit, 'player') then return end
 
       if event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" then
         -- START also fires per craft in a same-spell chain, so an active merge
@@ -376,7 +360,7 @@ pfUI:RegisterModule("castbar", function ()
         if this.tradeskillTotal then
           StartTradeskillCraft(this)
         else
-          RefreshBar(this)
+          RefreshBar(this, arg5)
           if this.isTradeskill and (this.pendingTradeskillCount or 0) > 1
               and C.castbar.player.mergetradeskill == "1" then
             EnterTradeskillMerge(this, this.startTime, this.endTime, this.pendingTradeskillCount)
