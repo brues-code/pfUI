@@ -64,18 +64,19 @@ pfUI:RegisterModule("nameplates", function ()
 
   local raidGuidCache = {}  -- guid -> name (rebuilt on RAID_ROSTER_UPDATE/PARTY_MEMBERS_CHANGED)
   
-  -- Per-GUID cast state, populated by nampower's SPELL_START_OTHER events and
-  -- cleared on SPELL_FAILED_OTHER / plate removal / expiry. This replaces the
-  -- old per-tick C_Spell poll on every visible plate: cast detection is now
-  -- event driven, and GetCastInfo just reads this cache.
+  -- Per-GUID cast state, populated from ClassicAPI's UNIT_SPELLCAST_* events
+  -- (which now fire for nameplate tokens) and cleared on STOP / plate removal /
+  -- expiry. This replaces the old per-tick C_Spell poll on every visible plate:
+  -- cast detection is event driven, and GetCastInfo just reads this cache.
   local castState = {}
   -- guid -> nameplate, maintained on NAME_PLATE_UNIT_ADDED/_REMOVED so a cast
   -- event can find its plate in O(1) and only cache casts we actually show.
   local plateByGuid = {}
 
-  -- One-shot C_Spell poll. Only used to seed a plate that spawns while its
-  -- unit is already mid-cast (its SPELL_START_OTHER fired before the plate
-  -- existed). Never called per frame.
+  -- One-shot C_Spell poll. Builds the cast struct for a UNIT_SPELLCAST_* event
+  -- (the payload carries no timing) and seeds a plate that spawns while its unit
+  -- is already mid-cast (its START fired before the plate existed). Picks cast
+  -- vs channel itself. Never called per frame.
   local function PollCastInfo(unit)
     if not unit then return nil end
     local name, _, texture, startMs, endMs, _, _, _, spellID = C_Spell.UnitCastingInfo(unit)
@@ -477,8 +478,10 @@ nameplates:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 nameplates:RegisterEvent("UNIT_AURA")
 nameplates:RegisterEvent("UNIT_FLAGS")
 nameplates:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-nameplates:RegisterEvent("SPELL_START_OTHER")
-nameplates:RegisterEvent("SPELL_FAILED_OTHER")
+nameplates:RegisterEvent("UNIT_SPELLCAST_START")
+nameplates:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
+nameplates:RegisterEvent("UNIT_SPELLCAST_STOP")
+nameplates:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
   
   nameplates:SetScript("OnEvent", function()
     -- Stop event handling during logout to prevent crash 132
@@ -562,9 +565,9 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
         plate.nameplate.unit = arg1
         if guid then
           plateByGuid[guid] = plate.nameplate
-          -- Seed: the unit may already be mid-cast (its SPELL_START_OTHER fired
-          -- before this plate existed). One poll here catches that; ongoing
-          -- casts arrive via the event.
+          -- Seed: the unit may already be mid-cast (its UNIT_SPELLCAST_START
+          -- fired before this plate existed). One poll here catches that;
+          -- ongoing casts arrive via the event.
           castState[guid] = PollCastInfo(arg1)
         end
         nameplates.OnShow(plate)
@@ -609,39 +612,32 @@ nameplates:RegisterEvent("SPELL_FAILED_OTHER")
         if pn then pn.eventcache = true end
       end
 
-    elseif event == "SPELL_START_OTHER" then
-      -- nampower: arg2=spellId, arg3=casterGuid, arg6=castTime(ms),
-      -- arg7=channel duration(ms, 0 if not a channel), arg8=spellType
-      -- (1 = channel). Cache the cast only for a unit we have a plate for, so
+    elseif event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" then
+      -- ClassicAPI fires UNIT_SPELLCAST_* per unit token, including the caster's
+      -- "nameplateN". The payload has no timing, so poll it (PollCastInfo picks
+      -- cast vs channel) and cache -- only for a unit we have a plate for, so
       -- the table stays bounded to on-screen casters.
-      local casterGuid = arg3
-      local plate = casterGuid and plateByGuid[casterGuid]
-      if plate then
-        local isChannel = arg8 == 1
-        local durationMs = isChannel and arg7 or arg6
-        if durationMs and durationMs > 0 then
-          local spellId = arg2
-          local now = GetTime()
-          castState[casterGuid] = {
-            spellName = C_Spell.GetSpellName(spellId),
-            spellID   = spellId,
-            icon      = C_Spell.GetSpellTexture(spellId),
-            startTime = now,
-            endTime   = now + durationMs / 1000,
-            duration  = durationMs / 1000,
-            isChannel = isChannel,
-          }
-          plate.castUpdate = true  -- bypass the throttle so the bar shows now
+      if arg1 and strfind(arg1, "^nameplate") then
+        local guid = UnitGUID(arg1)
+        local plate = guid and plateByGuid[guid]
+        if plate then
+          castState[guid] = PollCastInfo(arg1)
+          if castState[guid] then
+            plate.castUpdate = true  -- bypass the throttle so the bar shows now
+          end
         end
       end
 
-    elseif event == "SPELL_FAILED_OTHER" then
-      -- nampower: arg1=casterGuid, arg2=spellId. Clear on interrupt/failure.
-      local casterGuid = arg1
-      if casterGuid and castState[casterGuid] then
-        castState[casterGuid] = nil
-        local plate = plateByGuid[casterGuid]
-        if plate then plate.castUpdate = true end
+    elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
+      -- Cast/channel ended (natural, interrupted, or cancelled -- the poll fires
+      -- STOP for all three). Clear the cached cast and refresh its plate.
+      if arg1 and strfind(arg1, "^nameplate") then
+        local guid = UnitGUID(arg1)
+        if guid and castState[guid] then
+          castState[guid] = nil
+          local plate = plateByGuid[guid]
+          if plate then plate.castUpdate = true end
+        end
       end
 
     elseif event == "UNIT_AURA" then
