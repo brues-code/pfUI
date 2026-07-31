@@ -767,11 +767,7 @@ pfUI:RegisterModule("bags", function ()
         end)
 
         frame.bags:SetScript("OnClick", function()
-          if pfUI.bag.right.bagslots:IsShown() then
-            pfUI.bag.right.bagslots:Hide()
-          else
-            pfUI.bag.right.bagslots:Show()
-          end
+          pfUI.bag.right.bagslots:SetShown(not pfUI.bag.right.bagslots:IsShown())
         end)
       end
 
