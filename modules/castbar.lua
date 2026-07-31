@@ -16,9 +16,13 @@ pfUI:RegisterModule("castbar", function ()
     end
   end
 
-  -- Clear cast state on the bar. Shows the bar full for one frame, then
-  -- OnUpdate fades it out.
-  local function ClearBar(cb)
+  -- Clear cast state on the bar and start the fade-out. On a normal end the bar
+  -- is left at its current fill (a completed cast is already ~full; nothing
+  -- snaps to full, which used to flash for a frame when the next cast stamped
+  -- the bar). When `failed` is set for a cast that was actually in progress, the
+  -- bar flashes full red before fading — the cancelled-cast indicator.
+  local function ClearBar(cb, failed)
+    local wasActive = cb.endTime ~= nil
     cb.startTime, cb.endTime, cb.isChannel = nil, nil, nil
     cb.activeName, cb.spellID = nil, nil
     cb.isTradeskill = nil
@@ -26,8 +30,11 @@ pfUI:RegisterModule("castbar", function ()
     cb.tradeskillSingleMs, cb.currentCraftStart = nil, nil
     cb.lastMax = nil
     cb.delay = 0
-    cb.bar:SetMinMaxValues(1, 100)
-    cb.bar:SetValue(100)
+    if failed and wasActive then
+      cb.bar:SetStatusBarColor(GetStringColor(C.appearance.castbar.failcolor))
+      cb.bar:SetMinMaxValues(0, 1)
+      cb.bar:SetValue(1)
+    end
     if cb.bar.spark then cb.bar.spark:Hide() end
     cb.fadeout = 1
   end
@@ -65,8 +72,8 @@ pfUI:RegisterModule("castbar", function ()
   end
 
   -- Mark the start of craft 2..N within an active merge (called from the
-  -- SPELLCAST_START / SPELL_START_SELF handlers). Resets the per-craft
-  -- spark to the left edge of the bar.
+  -- UNIT_SPELLCAST_START handler). Resets the per-craft spark to the left
+  -- edge of the bar.
   local function StartTradeskillCraft(cb)
     cb.currentCraftStart = GetTime() * 1000
     local remaining = cb.tradeskillTotal - (cb.tradeskillCompleted or 0)
@@ -122,6 +129,16 @@ pfUI:RegisterModule("castbar", function ()
 
     cb.bar:SetMinMaxValues(0, duration)
     cb.lastMax = duration
+
+    -- Prime the fill on this frame. StampBar otherwise leaves the previous
+    -- value in place (ClearBar, run on the prior cast's STOP, leaves it full),
+    -- so the bar would flash full for the frame between here and the next
+    -- OnUpdate tick. Reset the throttle too so the timer text updates promptly.
+    local nowSec = GetTime()
+    local cur = isChannel and (endMs / 1000 - nowSec) or (nowSec - startMs / 1000)
+    if cur < 0 then cur = 0 elseif cur > duration then cur = duration end
+    cb.bar:SetValue(cur)
+    cb.tick = 0
   end
 
   -- One-shot poll: read C_Spell for the bar's unit, stamp or clear. Called
@@ -294,27 +311,24 @@ pfUI:RegisterModule("castbar", function ()
       end
     end)
 
-    -- Cast lifecycle events. Player bars react to vanilla SPELLCAST_*; non-
-    -- player bars also react to Nampower SPELL_*_OTHER (gated by the
-    -- NP_EnableSpell{Start,Go}Events CVars, enabled by libdebuff) plus the
-    -- retarget event. Player events also feed non-player bars for the
-    -- target=self case.
-    cb:RegisterEvent("SPELLCAST_START")
-    cb:RegisterEvent("SPELLCAST_STOP")
-    cb:RegisterEvent("SPELLCAST_FAILED")
-    cb:RegisterEvent("SPELLCAST_INTERRUPTED")
-    cb:RegisterEvent("SPELLCAST_CHANNEL_START")
-    cb:RegisterEvent("SPELLCAST_CHANNEL_STOP")
-    cb:RegisterEvent("SPELLCAST_CHANNEL_UPDATE")
-    cb:RegisterEvent("SPELL_DELAYED_SELF")
-    -- Chained same-spell recasts never run the client cast path (the 1.12
-    -- engine short-circuits at spellID == current-cast), so vanilla
-    -- SPELLCAST_START never fires for them. nampower's SPELL_START_SELF
-    -- (server-driven) is the only signal that shows them.
-    cb:RegisterEvent("SPELL_START_SELF")
-    if unitstr == "player" then
-      cb:RegisterEvent("SPELL_GO_SELF")
-    end
+    -- Cast lifecycle. The player's own casts come from ClassicAPI's
+    -- UNIT_SPELLCAST_* (player-only, synthesized engine-side); remote units
+    -- (target/focus not resolving to the player) come from Nampower
+    -- SPELL_*_OTHER, gated by the NP_EnableSpell{Start,Go}Events CVars enabled
+    -- by libdebuff, plus the retarget event. The player feed is registered on
+    -- every bar so target=self / focus=self casts show too (UnitIsUnit gate in
+    -- the handler). UNIT_SPELLCAST_START fires for chained same-spell recasts,
+    -- pushback and completion, so it replaces the vanilla SPELLCAST_* plus the
+    -- nampower SPELL_{START,GO,DELAYED}_SELF workarounds.
+    cb:RegisterEvent("UNIT_SPELLCAST_START")
+    cb:RegisterEvent("UNIT_SPELLCAST_STOP")
+    cb:RegisterEvent("UNIT_SPELLCAST_FAILED")
+    cb:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+    cb:RegisterEvent("UNIT_SPELLCAST_DELAYED")
+    cb:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+    cb:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
+    cb:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+    cb:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
     if unitstr ~= "player" and unitstr ~= "" then
       cb:RegisterEvent("SPELL_START_OTHER")
       cb:RegisterEvent("SPELL_FAILED_OTHER")
@@ -346,19 +360,20 @@ pfUI:RegisterModule("castbar", function ()
       end
 
       if event == "SPELL_FAILED_OTHER" then
-        if arg1 == UnitGUID(unit) then ClearBar(this) end
+        if arg1 == UnitGUID(unit) then ClearBar(this, true) end
         return
       end
 
-      -- Vanilla SPELLCAST_* + SPELL_DELAYED_SELF fire only for the local
-      -- player. Non-player bars handle them only when their unit currently
-      -- resolves to the player (target=self / focus=self).
+      -- UNIT_SPELLCAST_* are player-only (arg1 == "player"). Non-player bars
+      -- consume them only when their unit currently resolves to the player
+      -- (target=self / focus=self); the remote path is SPELL_*_OTHER above.
+      -- Args: arg1="player", arg2=castGUID, arg3=spellID, arg4=name, arg5=rank.
       if not UnitIsUnit(unit, 'player') then return end
 
-      if event == "SPELLCAST_START" or event == "SPELLCAST_CHANNEL_START" then
+      if event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" then
+        -- START also fires per craft in a same-spell chain, so an active merge
+        -- just resyncs the current craft's spark/label instead of restamping.
         if this.tradeskillTotal then
-          -- Mid-chain craft N+1 of N. Keep the merged bar; resync the spark
-          -- to the new craft's start and refresh the "(N)" count label.
           StartTradeskillCraft(this)
         else
           RefreshBar(this)
@@ -368,48 +383,11 @@ pfUI:RegisterModule("castbar", function ()
           end
           this.pendingTradeskillCount = nil
         end
-      elseif event == "SPELL_START_SELF" then
-        -- Catches chained same-spell recasts (no SPELLCAST_START fires) —
-        -- including tradeskill chaining where craft 2..N reuse one spell.
-        -- Defer one frame so ClassicAPI's SMSG_SPELL_START co-hook has
-        -- stamped g_cast before we poll, regardless of co-hook order.
-        if this.tradeskillTotal then
-          StartTradeskillCraft(this)
-        else
-          local target = this
-          RunNextFrame(function()
-            -- Re-check: SPELL_START_SELF (nampower co-hook) fires before vanilla
-            -- SPELLCAST_START on the same packet, so SPELLCAST_START may have
-            -- entered merge in this same frame. Don't restamp over it.
-            if target.tradeskillTotal then
-              StartTradeskillCraft(target)
-              return
-            end
-            RefreshBar(target)
-            if target.unitstr == "player" and target.isTradeskill
-                and (target.pendingTradeskillCount or 0) > 1
-                and C.castbar.player.mergetradeskill == "1" then
-              EnterTradeskillMerge(target, target.startTime, target.endTime, target.pendingTradeskillCount)
-            end
-            target.pendingTradeskillCount = nil
-          end)
-        end
-      elseif event == "SPELLCAST_CHANNEL_STOP" then
-        -- A channel's stop can arrive after a following cast already claimed
-        -- the bar (channel->cast transition); only clear if a channel is
-        -- actually being shown, so it doesn't wipe an active cast bar.
-        if this.isChannel then ClearBar(this) end
-      elseif event == "SPELLCAST_STOP" then
-        -- During a tradeskill chain, SPELL_GO_SELF already counted this craft
-        -- and either cleared the bar (chain done) or kept it running. Only a
-        -- non-merge cast clears here.
-        if not this.tradeskillTotal then ClearBar(this) end
-      elseif event == "SPELLCAST_FAILED" or event == "SPELLCAST_INTERRUPTED" then
-        ClearBar(this)
-      elseif event == "SPELL_GO_SELF" then
-        -- arg2 = spellId. In a tradeskill merge, count each successful craft
-        -- and clear when the chain is done.
-        if this.tradeskillTotal and arg2 == this.tradeskillSpellID then
+      elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+        -- Per-craft completion during a tradeskill merge (arg3 = spellID):
+        -- count and clear when the chain is done. A no-op for normal casts,
+        -- which are cleared by UNIT_SPELLCAST_STOP.
+        if this.tradeskillTotal and arg3 == this.tradeskillSpellID then
           this.tradeskillCompleted = (this.tradeskillCompleted or 0) + 1
           if this.tradeskillCompleted >= this.tradeskillTotal then
             ClearBar(this)
@@ -417,33 +395,46 @@ pfUI:RegisterModule("castbar", function ()
             UpdateTradeskillLabel(this)
           end
         end
-      elseif event == "SPELL_DELAYED_SELF" then
-        -- Cast pushback. nampower's event carries the delay (arg2); apply it
-        -- locally rather than re-polling, so the bar doesn't depend on
-        -- ClassicAPI's SMSG_SPELL_DELAYED co-hook having bumped g_cast before
-        -- this fires (co-hook order vs nampower is not guaranteed).
-        if not this.endTime or not arg2 then return end
-        local delayMs = tonumber(arg2) or 0
-        if delayMs > 0 then
-          this.delay = (this.delay or 0) + delayMs / 1000
-          this.endTime = this.endTime + delayMs
-          local newDuration = (this.endTime - this.startTime) / 1000
-          this.bar:SetMinMaxValues(0, newDuration)
-          this.lastMax = newDuration
-        end
-      elseif event == "SPELLCAST_CHANNEL_UPDATE" then
-        -- Channel pushback. ClassicAPI doesn't track channel delay in
-        -- g_channel, so we adjust endTime + delay locally and resize the
-        -- bar so OnUpdate animates against the new total.
-        if not this.endTime or not arg1 then return end
-        local newEndMs = GetTime() * 1000 + arg1
-        local diff = this.endTime - newEndMs
-        if diff > 50 then
-          this.delay = (this.delay or 0) + diff / 1000
-          this.endTime = newEndMs
-          local newDuration = (this.endTime - this.startTime) / 1000
-          this.bar:SetMinMaxValues(0, newDuration)
-          this.lastMax = newDuration
+      elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
+        -- A channel's stop can arrive after a following cast already claimed
+        -- the bar (channel->cast transition); only clear if a channel is
+        -- actually being shown, so it doesn't wipe an active cast bar.
+        if this.isChannel then ClearBar(this) end
+      elseif event == "UNIT_SPELLCAST_STOP" then
+        -- STOP fires between crafts in a merge too (each craft is a new cast);
+        -- UNIT_SPELLCAST_SUCCEEDED owns the count, so only a non-merge cast
+        -- clears here.
+        if not this.tradeskillTotal then ClearBar(this) end
+      elseif event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
+        ClearBar(this, true)
+      elseif event == "UNIT_SPELLCAST_DELAYED" or event == "UNIT_SPELLCAST_CHANNEL_UPDATE" then
+        -- Pushback: a cast delayed later or a channel shortened. Following
+        -- Quartz, re-poll just the times and accumulate the shift into a running
+        -- this.delay for the +/- indicator, rather than a full restamp (which
+        -- would reset that total and re-render icon/text). ClassicAPI moves
+        -- endMs (SpellDelayed_h bumps g_cast.endMs; the MSG_CHANNEL_UPDATE
+        -- co-hook rewrites g_channel.endMs) while startMs stays put, so we diff
+        -- endMs. delay is a positive magnitude; OnUpdate signs it "+" for casts
+        -- and "-" for channels. Skipped during a tradeskill merge.
+        if this.endTime and not this.tradeskillTotal then
+          local query = this.unitstr ~= "" and this.unitstr or this.unitname
+          local startMs, endMs
+          if this.isChannel then
+            local _, _, _, s, e = C_Spell.UnitChannelInfo(query)
+            startMs, endMs = s, e
+          else
+            local _, _, _, s, e = C_Spell.UnitCastingInfo(query)
+            startMs, endMs = s, e
+          end
+          if startMs and endMs then
+            local shift = this.isChannel and (this.endTime - endMs) or (endMs - this.endTime)
+            this.delay = (this.delay or 0) + shift / 1000
+            this.startTime = startMs
+            this.endTime = endMs
+            local newDuration = (endMs - startMs) / 1000
+            this.bar:SetMinMaxValues(0, newDuration)
+            this.lastMax = newDuration
+          end
         end
       end
     end)
@@ -489,10 +480,10 @@ pfUI:RegisterModule("castbar", function ()
     UpdateMovable(pfUI.castbar.player)
 
     -- Tradeskill merge: hook DoTradeSkill so the player castbar knows the
-    -- requested count before the first SPELLCAST_START fires. Always-on hook
-    -- (the config knob is read at event time so toggling takes effect on the
-    -- next craft without a /reload). DoTradeSkill is synchronous; the server
-    -- roundtrip to SPELLCAST_START gives us plenty of time after this hook.
+    -- requested count before the first UNIT_SPELLCAST_START fires. Always-on
+    -- hook (the config knob is read at event time so toggling takes effect on
+    -- the next craft without a /reload). DoTradeSkill is synchronous; the
+    -- server roundtrip to UNIT_SPELLCAST_START gives us plenty of time.
     hooksecurefunc("DoTradeSkill", function(index, num)
       if pfUI.castbar.player then
         pfUI.castbar.player.pendingTradeskillCount = tonumber(num) or 1
