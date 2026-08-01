@@ -1296,7 +1296,7 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
     unit, id = "target", ""
   end
 
-  local f = CreateFrame("Button", "pf" .. fname, UIParent, UNITFRAME_SECURE_TEMPLATE)
+  local f = CreateFrame("Button", "pf" .. fname, UIParent)
 
   -- add unitframe functions
   f.UpdateFrameSize  = pfUI.uf.UpdateFrameSize
