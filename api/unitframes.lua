@@ -238,6 +238,7 @@ function pfUI.uf:UpdateVisibility()
   end
 
   local unitstr = string.format("%s%s", self.label or "", self.id or "")
+  self:SetAttribute("unit", unitstr ~= "" and unitstr or nil)
   local visibility = string.format("[target=%s,exists] show; hide", unitstr)
 
   -- Group frames are redundant when the group is already shown as a raid grid:
@@ -1177,32 +1178,8 @@ function pfUI.uf.OnUpdate()
   end
 end
 
-function pfUI.uf.OnEnter()
-  if not this.label then return end
-
-  local unitstr = this.label .. this.id
-  if UnitExists(unitstr) then
-    SetMouseoverUnit(unitstr)
-  end
-
-  if this.config.showtooltip == "0" then return end
-  GameTooltip_SetDefaultAnchor(GameTooltip, this)
-  GameTooltip:SetUnit(this.label .. this.id)
-  GameTooltip:Show()
-end
-
-function pfUI.uf.OnLeave()
-  SetMouseoverUnit("")
-
-  GameTooltip:FadeOut()
-end
-
 function pfUI.uf.OnClick()
-  if not this.label and this.unitname then
-    TargetByName(this.unitname, true)
-  else
     pfUI.uf:ClickAction(arg1)
-  end
 end
 
 function pfUI.uf:RightClickAction(unit)
@@ -1266,8 +1243,6 @@ function pfUI.uf:EnableScripts()
   f:SetScript("OnShow", pfUI.uf.OnShow)
   f:SetScript("OnEvent", pfUI.uf.OnEvent)
   f:SetScript("OnUpdate", pfUI.uf.OnUpdate)
-  f:SetScript("OnEnter", pfUI.uf.OnEnter)
-  f:SetScript("OnLeave", pfUI.uf.OnLeave)
   f:EnableClickCast()
 
   -- add frame to visibility refresh handler
@@ -1421,6 +1396,11 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
   else
     f:UnregisterAllEvents()
     f:Hide()
+  end
+
+  if f.label ~= "" then
+    f:SetAttribute("unit", f.label .. f.id)
+    f:SetAttribute("type1", "target")
   end
 
   -- register frame for clique
@@ -2190,7 +2170,6 @@ function pfUI.uf:ClickAction(button)
       local is_macro = string.find(this.clickactions[modstring], "^%/(.+)")
 
       local tswitch = UnitIsUnit(unitstr, "target")
-      TargetUnit(unitstr)
 
       if is_macro then
         RunMacroText(this.clickactions[modstring])
@@ -2218,9 +2197,6 @@ function pfUI.uf:ClickAction(button)
       return
     end
   end
-
-  -- default click
-  TargetUnit(unitstr)
 end
 
 function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
