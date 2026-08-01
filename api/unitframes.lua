@@ -1111,11 +1111,7 @@ function pfUI.uf.OnUpdate()
         
         -- update ressurections
         local ress = libpredict:UnitHasIncomingResurrection(unit)
-        if ress and UnitIsDeadOrGhost(unit) then
-          this.ressIcon:Show()
-        else
-          this.ressIcon:Hide()
-        end
+        this.ressIcon:SetShown(ress and UnitIsDeadOrGhost(unit))
       end
     end
   end
@@ -1457,11 +1453,7 @@ function pfUI.uf:RefreshIndicators(unit)
   local unitstr = unit.label .. unit.id
 
   if unit.leaderIcon then -- Leader Icon
-    if unit.config.leadericon == "1" and UnitIsPartyLeader(unitstr) and IsInGroup() then
-      unit.leaderIcon:Show()
-    else
-      unit.leaderIcon:Hide()
-    end
+    unit.leaderIcon:SetShown(unit.config.leadericon == "1" and UnitIsPartyLeader(unitstr) and IsInGroup())
   end
 
   if unit.lootIcon then -- Loot Icon
@@ -1471,29 +1463,16 @@ function pfUI.uf:RefreshIndicators(unit)
       -- no third return value here.. but leaving this as a hint
       local method, group, raid = GetLootMethod()
       local name = group and UnitName(group == 0 and "player" or "party"..group) or raid and UnitName("raid"..raid) or nil
-
-      if name and name == UnitName(unitstr) then
-        unit.lootIcon:Show()
-      else
-        unit.lootIcon:Hide()
-      end
+      unit.lootIcon:SetShown(name and name == UnitName(unitstr))
     end
   end
 
   if unit.pvpIcon then -- PvP Icon
-    if unit.config.showPVP == "1" and UnitIsPVP(unitstr) then
-      unit.pvpIcon:Show()
-    else
-      unit.pvpIcon:Hide()
-    end
+    unit.pvpIcon:SetShown(unit.config.showPVP == "1" and UnitIsPVP(unitstr))
   end
 
   if unit.restIcon and unit:GetName() == "pfPlayer" then -- Rest Icon
-    if C.unitframes.player.showRest == "1" and UnitIsUnit(unitstr, "player") and IsResting() then
-      unit.restIcon:Show()
-    else
-      unit.restIcon:Hide()
-    end
+    unit.restIcon:SetShown(C.unitframes.player.showRest == "1" and UnitIsUnit(unitstr, "player") and IsResting())
   end
 
   if unit.happinessIcon and unit:GetName() == "pfPet" then -- Happiness Icon
@@ -1563,7 +1542,7 @@ function pfUI.uf:RefreshUnit(unit, component)
   if not unit.hp then return end
   if not unit.power then return end
   if not unit.id then unit.id = "" end
-  local component = component or ""
+  component = component or ""
 
   -- don't update scanner activity
   if unit.label == "target" or unit.label == "targettarget" or unit.label == "targettargettarget" then
