@@ -41,7 +41,6 @@ Provides:
 ### [SuperWoW](https://github.com/balakethelock/SuperWoW)
 
 Provides:
-- UnitPosition for distance calculations
 - SetMouseoverUnit for improved targeting
 
 ### [Nampower](https://github.com/brues-code/nampower)
@@ -49,8 +48,6 @@ Provides:
 Provides:
 - Spell queue indicator
 - GCD indicator
-- Reactive spell detection
-- Enhanced cast information
 
 ### [UnitXP_SP3](https://codeberg.org/konaka/UnitXP_SP3)
 
