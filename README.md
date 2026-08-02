@@ -90,7 +90,7 @@ pfUI supports and contains language specific code for the following gameclients.
 * Russian (ruRU)
 
 ## Recommended Addons
-* [pfQuest](https://shagu.org/pfQuest) A simple database and quest helper
+* [pfQuest](https://github.com/brues-code/pfQuest) A simple database and quest helper
 * [SuperCleveRoidMacros](https://github.com/brues-code/SuperCleveRoidMacros) Supports modern macro formats
 
 ## Plugins
