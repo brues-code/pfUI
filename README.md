@@ -36,18 +36,20 @@ Provides:
 - Faster, safer profile sharing - Engine-side serialize/compress/base64 via C_EncodingUtil
 - C_Timer - After / NewTicker replacing hand-rolled OnUpdate throttles
 - Feign death, shapeshift and quest-item detection via real API calls
+- Mouseover Unit Frames
+- Click-casting
 - Plenty other functions
-
-### [SuperWoW](https://github.com/balakethelock/SuperWoW)
-
-Provides:
-- SetMouseoverUnit for improved targeting
 
 ### [Nampower](https://github.com/brues-code/nampower)
 
 Provides:
 - Spell queue indicator
 - GCD indicator
+
+### [SuperWoW](https://github.com/balakethelock/SuperWoW)
+
+Provides:
+- Tracks party/raid units on the minimap
 
 ### [UnitXP_SP3](https://codeberg.org/konaka/UnitXP_SP3)
 
