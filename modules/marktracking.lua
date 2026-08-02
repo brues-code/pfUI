@@ -27,7 +27,6 @@ pfUI:RegisterModule("marktracking", function ()
   end
 
   local FALLBACK_INTERVAL = 1.0  -- safety net for units that come into range after marker was set
-  local elapsed = 0
   local isUnlocked = false
   local ROW_HEIGHT = tonumber(C.unitframes.raidmarkerheight) or 14
   local BAR_WIDTH = tonumber(C.unitframes.raidmarkerwidth) or 80
@@ -305,12 +304,7 @@ pfUI.marktracking = CreateFrame("Frame", "pfMarkTracking", UIParent)
     UpdateDisplay()
   end)
 
-  -- Fallback poll at 1s: catches units that come into range AFTER a marker was set
+  -- Fallback poll: catches units that come into range AFTER a marker was set
   -- (no event fires for that case, so we need this safety net)
-  scanner:SetScript("OnUpdate", function()
-    elapsed = elapsed + arg1
-    if elapsed < FALLBACK_INTERVAL then return end
-    elapsed = 0
-    UpdateDisplay()
-  end)
+  C_Timer.NewTicker(FALLBACK_INTERVAL, UpdateDisplay)
 end)
