@@ -397,22 +397,25 @@ pfUI:RegisterModule("addonbuttons", function ()
     pfUI.addonbuttons:ProcessButtons()
   end)
 
-  pfUI.addonbuttons:SetScript("OnUpdate", function()
+  -- Initial setup on the next frame, once other addons' minimap buttons exist
+  RunNextFrame(function()
     -- check if the panel should be shown by default
-    if not this.initialized then
-      if C.abuttons.showdefault == "1" and GetNumButtons() > 0 then
-        pfUI.addonbuttons:Show()
-      else
-        pfUI.addonbuttons:Hide()
-      end
-
-      -- update all buttons
-      pfUI.addonbuttons:ProcessButtons()
-      this.initialized = true
+    if C.abuttons.showdefault == "1" and GetNumButtons() > 0 then
+      pfUI.addonbuttons:Show()
+    else
+      pfUI.addonbuttons:Hide()
     end
 
-    -- throttle updates to once per 5 seconds
-    if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + 5 end
+    -- update all buttons and apply workarounds
+    pfUI.addonbuttons:ProcessButtons()
+    for k, v in pairs(pfUI.addonbuttons.overrides) do
+      _G[k] = v
+    end
+  end)
+
+  -- Rescan minimap buttons every 5 seconds while the panel is shown
+  C_Timer.NewTicker(5, function()
+    if not pfUI.addonbuttons:IsShown() then return end
 
     -- reload/rescan minimap buttons
     pfUI.addonbuttons:ProcessButtons()

@@ -46,9 +46,7 @@ pfUI:RegisterModule("panel", function()
           widget.timerFrame.Snapshot = GetTime()
         end
       end
-      widget:SetScript("OnUpdate",function()
-        if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + 1 end
-
+      C_Timer.NewTicker(1, function()
         local secondsenabled = C.panel.seconds == "1"
         local fmt
         if C.global.twentyfour == "0" then
@@ -103,11 +101,9 @@ pfUI:RegisterModule("panel", function()
           pfUI.panel:OutputPanel("combat", T["Combat"] .. ": " .. NOT_APPLICABLE)
         end
       end)
-      widget.combat:SetScript("OnUpdate", function()
-        if not this.tick then this.tick = GetTime() end
-        if GetTime() <= this.tick + 1 then return else this.tick = GetTime() end
-        if this.combat then
-          pfUI.panel:OutputPanel("combat", "|cffffaaaa" .. SecondsToTime(ceil(GetTime() - this.combat)))
+      C_Timer.NewTicker(1, function()
+        if widget.combat.combat then
+          pfUI.panel:OutputPanel("combat", "|cffffaaaa" .. SecondsToTime(ceil(GetTime() - widget.combat.combat)))
         end
       end)
     end
@@ -153,9 +149,7 @@ pfUI:RegisterModule("panel", function()
           pfUI.addons:Show()
         end
       end
-      widget:SetScript("OnUpdate",function()
-        if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + 1 end
-
+      C_Timer.NewTicker(1, function()
         fps = floor(GetFramerate())
         _, _, lag = GetNetStats()
 
@@ -346,7 +340,7 @@ pfUI:RegisterModule("panel", function()
       widget:RegisterEvent("PLAYER_GUILD_UPDATE")
       widget.Tooltip = function()
         -- skip without guild
-        if not GetGuildInfo("player") then return end
+        if not IsInGuild() then return end
 
         local raidparty = {}
         for i=1,4 do -- detect people in group
@@ -398,7 +392,7 @@ pfUI:RegisterModule("panel", function()
       end
       widget.Click = function() ToggleFriendsFrame(3) end
       widget:SetScript("OnEvent", function()
-        if GetGuildInfo("player") then
+        if IsInGuild() then
           local count = 0
           for i = 1, GetNumGuildMembers() do
             local _, _, _, _, _, _, _, _, online = GetGuildRosterInfo(i)
@@ -411,9 +405,8 @@ pfUI:RegisterModule("panel", function()
         end
       end)
 
-      widget:SetScript("OnUpdate",function()
-        if ( this.tick or 60) > GetTime() then return else this.tick = GetTime() + 60 end
-        if GetGuildInfo("player") then GuildRoster() end
+      C_Timer.NewTicker(60, function()
+        if IsInGuild() then GuildRoster() end
       end)
     end
 
