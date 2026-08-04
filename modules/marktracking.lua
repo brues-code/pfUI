@@ -1,57 +1,32 @@
 pfUI:RegisterModule("marktracking", function ()
-  -- Requires mark1-mark8 unit tokens (Turtle WoW / Nampower)
   if not UnitExists("mark1") and not UnitExists("mark8") then
     if not pcall(function() UnitExists("mark1") end) then return end
   end
 
   local rawborder, border = GetBorderSize()
 
-  -- Parse color strings "r,g,b,a" into components
-  local function ParseColor(str, dr, dg, db, da)
-    if not str or str == "" then return dr, dg, db, da end
-    local _, _, r, g, b, a = string.find(str, "([%d%.]+),([%d%.]+),([%d%.]+),([%d%.]+)")
-    if r then
-      return tonumber(r) or dr, tonumber(g) or dg, tonumber(b) or db, tonumber(a) or da
-    end
-    return dr, dg, db, da
-  end
-
   local markerOrder = { 8, 7, 6, 5, 4, 3, 2, 1 } -- skull, cross, square, moon, triangle, diamond, circle, star
   local markerTokens = {}
-  for i = 1, 8 do markerTokens[i] = "mark" .. i end
-
-  -- Default colors per marker
-  local defaultColors = {
-    [1] = { 1.0, 0.9, 0.0, 1 },    -- star: yellow
-    [2] = { 1.0, 0.5, 0.0, 1 },    -- circle: orange
-    [3] = { 0.8, 0.0, 0.8, 1 },    -- diamond: purple
-    [4] = { 0.0, 0.8, 0.0, 1 },    -- triangle: green
-    [5] = { 0.7, 0.7, 0.7, 1 },    -- moon: silver
-    [6] = { 0.0, 0.4, 0.9, 1 },    -- square: blue
-    [7] = { 0.9, 0.0, 0.0, 1 },    -- cross: red
-    [8] = { 1.0, 1.0, 1.0, 1 },    -- skull: white
-  }
 
   local markerConfigKeys = {
-    [1] = "raidmarkercolor_star",
-    [2] = "raidmarkercolor_circle",
-    [3] = "raidmarkercolor_diamond",
-    [4] = "raidmarkercolor_triangle",
-    [5] = "raidmarkercolor_moon",
-    [6] = "raidmarkercolor_square",
-    [7] = "raidmarkercolor_cross",
-    [8] = "raidmarkercolor_skull",
+    "raidmarkercolor_star",
+    "raidmarkercolor_circle",
+    "raidmarkercolor_diamond",
+    "raidmarkercolor_triangle",
+    "raidmarkercolor_moon",
+    "raidmarkercolor_square",
+    "raidmarkercolor_cross",
+    "raidmarkercolor_skull",
   }
 
   local markerColors = {}
-  for i = 1, 8 do
-    local d = defaultColors[i]
-    local r, g, b, a = ParseColor(C.unitframes[markerConfigKeys[i]], d[1], d[2], d[3], d[4])
-    markerColors[i] = { r, g, b, a }
+  for i, markKey in ipairs(markerConfigKeys) do
+    markerTokens[i] = "mark" .. i
+    local r, g, b, a = GetStringColor(C.unitframes[markKey])
+    markerColors[i] = { tonumber(r), tonumber(g), tonumber(b), tonumber(a) }
   end
 
   local FALLBACK_INTERVAL = 1.0  -- safety net for units that come into range after marker was set
-  local elapsed = 0
   local isUnlocked = false
   local ROW_HEIGHT = tonumber(C.unitframes.raidmarkerheight) or 14
   local BAR_WIDTH = tonumber(C.unitframes.raidmarkerwidth) or 80
@@ -125,19 +100,16 @@ pfUI.marktracking = CreateFrame("Frame", "pfMarkTracking", UIParent)
     local i = markerOrder[idx]
 
     local row = CreateFrame("Button", nil, pfUI.marktracking)
-    row:SetWidth(TOTAL_ROW_WIDTH)
-    row:SetHeight(ROW_HEIGHT)
+    row:SetSize(TOTAL_ROW_WIDTH, ROW_HEIGHT)
     row:Hide()
 
-    row:RegisterForClicks("LeftButtonUp")
-    row:SetScript("OnClick", function()
-      TargetUnit(markerTokens[this.markerIndex])
-    end)
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetAttribute("type1", "target")
+    row:SetAttribute("type2", "menu")
 
     -- raid icon
     row.icon = row:CreateTexture(nil, "ARTWORK")
-    row.icon:SetWidth(ROW_HEIGHT)
-    row.icon:SetHeight(ROW_HEIGHT)
+    row.icon:SetSize(ROW_HEIGHT, ROW_HEIGHT)
     row.icon:SetPoint("LEFT", row, "LEFT", 1, 0)
     local markTex = C.unitframes.blizzard_raidicons == "1" and "Interface\\TargetingFrame\\UI-RaidTargetingIcons" or pfUI.media["img:raidicons"]
     row.icon:SetTexture(markTex)
@@ -145,8 +117,7 @@ pfUI.marktracking = CreateFrame("Frame", "pfMarkTracking", UIParent)
 
     -- portrait (right side)
     row.portrait = row:CreateTexture(nil, "ARTWORK")
-    row.portrait:SetWidth(PORTRAIT_SIZE)
-    row.portrait:SetHeight(PORTRAIT_SIZE)
+    row.portrait:SetSize(PORTRAIT_SIZE, PORTRAIT_SIZE)
     row.portrait:SetPoint("RIGHT", row, "RIGHT", -1, 0)
     row.portrait:SetTexCoord(.1, .9, .1, .9)
     if not rm_showportrait then row.portrait:Hide() end
@@ -204,8 +175,8 @@ pfUI.marktracking = CreateFrame("Frame", "pfMarkTracking", UIParent)
       local token = markerTokens[i]
 
       if UnitExists(token) and not UnitIsDead(token) then
-        local hp = UnitHealth(token)
-        local maxhp = UnitHealthMax(token)
+        local hp, maxhp = UnitHealth(token), UnitHealthMax(token)
+        row:SetAttribute('unit', token)
 
         if hp and maxhp and maxhp > 0 and hp > 0 then
           local pct = hp / maxhp
@@ -267,6 +238,27 @@ pfUI.marktracking = CreateFrame("Frame", "pfMarkTracking", UIParent)
     end
   end
 
+  -- Fast per-row refresh for a single mark's UNIT_HEALTH/UNIT_MAXHEALTH: moves
+  -- just the bar + hp text. If the mark's visibility flips (comes into range,
+  -- dies, hp crosses 0) the visible rows re-pack, so hand off to UpdateDisplay.
+  local function UpdateRow(i)
+    if isUnlocked then return end
+    local row = pfUI.marktracking.rows[i]
+    if not row then return end
+    local token = markerTokens[i]
+    local hp, maxhp = UnitHealth(token), UnitHealthMax(token)
+    local shouldShow = UnitExists(token) and not UnitIsDead(token)
+                       and hp and maxhp and maxhp > 0 and hp > 0 and true or false
+    if shouldShow ~= (row:IsShown() and true or false) then
+      UpdateDisplay()
+      return
+    end
+    if not shouldShow then return end
+    local pct = hp / maxhp
+    row.health:SetValue(pct)
+    if rm_showpct then row.hptext:SetText(math.ceil(pct * 100) .. "%") end
+  end
+
   -- Unlock mode: show fixed 1-row placeholder so positioning works correctly
   if pfUI.unlock then
     local origShow = pfUI.unlock:GetScript("OnShow")
@@ -292,24 +284,27 @@ pfUI.marktracking = CreateFrame("Frame", "pfMarkTracking", UIParent)
   -- Event-driven scanner frame
   local scanner = CreateFrame("Frame")
 
-  -- RAID_TARGET_UPDATE: fires when a raid marker is set/cleared
-  -- PLAYER_ENTERING_WORLD: fires on login, reload, and zone transitions
-  -- UNIT_HEALTH/UNIT_MAXHEALTH: fires on HP changes for real-time bar updates
+  -- RAID_TARGET_UPDATE: a raid marker was set/cleared -> full refresh
+  -- PLAYER_ENTERING_WORLD: login/reload/zone -> full refresh
+  -- UNIT_HEALTH/UNIT_MAXHEALTH: ClassicAPI fires these per token; with the mark
+  --   tokens observed they arrive as arg1 == "markN", so we refresh just that
+  --   one row (UpdateRow) instead of rescanning all eight.
   scanner:RegisterEvent("RAID_TARGET_UPDATE")
   scanner:RegisterEvent("PLAYER_ENTERING_WORLD")
   scanner:RegisterEvent("UNIT_HEALTH")
   scanner:RegisterEvent("UNIT_MAXHEALTH")
 
   scanner:SetScript("OnEvent", function()
+    if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" then
+      -- arg1 is the token; "markN" -> N, nil for any non-mark token.
+      local i = arg1 and tonumber(string.match(arg1, "^mark(%d)"))
+      if i then UpdateRow(i) end
+      return
+    end
     UpdateDisplay()
   end)
 
-  -- Fallback poll at 1s: catches units that come into range AFTER a marker was set
+  -- Fallback poll: catches units that come into range AFTER a marker was set
   -- (no event fires for that case, so we need this safety net)
-  scanner:SetScript("OnUpdate", function()
-    elapsed = elapsed + arg1
-    if elapsed < FALLBACK_INTERVAL then return end
-    elapsed = 0
-    UpdateDisplay()
-  end)
+  C_Timer.NewTicker(FALLBACK_INTERVAL, UpdateDisplay)
 end)

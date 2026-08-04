@@ -2,8 +2,8 @@
 
 [![Octo WoW](https://img.shields.io/badge/Octo%20WoW-1.18.1-brightgreen.svg)](https://octowow.st/)
 [![ClassicAPI](https://img.shields.io/badge/ClassicAPI-Required-purple.svg)](https://github.com/brues-code/ClassicAPI)
-[![SuperWoW](https://img.shields.io/badge/SuperWoW-Required-purple.svg)](https://github.com/balakethelock/SuperWoW)
 [![Nampower](https://img.shields.io/badge/Nampower-Required-purple.svg)](https://github.com/brues-code/nampower)
+[![SuperWoW](https://img.shields.io/badge/SuperWoW-Optional-yellow.svg)](https://github.com/balakethelock/SuperWoW)
 [![UnitXP](https://img.shields.io/badge/UnitXP__SP3-Optional-yellow.svg)](https://codeberg.org/konaka/UnitXP_SP3)
 
 **A pfUI fork specifically optimized for ClassicAPI on [Octo WoW](https://octowow.st/) which requires Nampower and SuperWoW with optional UnitXP_SP3 DLL integration.**
@@ -36,21 +36,20 @@ Provides:
 - Faster, safer profile sharing - Engine-side serialize/compress/base64 via C_EncodingUtil
 - C_Timer - After / NewTicker replacing hand-rolled OnUpdate throttles
 - Feign death, shapeshift and quest-item detection via real API calls
+- Mouseover Unit Frames
+- Click-casting
 - Plenty other functions
-
-### [SuperWoW](https://github.com/balakethelock/SuperWoW)
-
-Provides:
-- UnitPosition for distance calculations
-- SetMouseoverUnit for improved targeting
 
 ### [Nampower](https://github.com/brues-code/nampower)
 
 Provides:
 - Spell queue indicator
 - GCD indicator
-- Reactive spell detection
-- Enhanced cast information
+
+### [SuperWoW](https://github.com/balakethelock/SuperWoW)
+
+Provides:
+- Tracks party/raid units on the minimap
 
 ### [UnitXP_SP3](https://codeberg.org/konaka/UnitXP_SP3)
 
@@ -91,7 +90,7 @@ pfUI supports and contains language specific code for the following gameclients.
 * Russian (ruRU)
 
 ## Recommended Addons
-* [pfQuest](https://shagu.org/pfQuest) A simple database and quest helper
+* [pfQuest](https://github.com/brues-code/pfQuest) A simple database and quest helper
 * [SuperCleveRoidMacros](https://github.com/brues-code/SuperCleveRoidMacros) Supports modern macro formats
 
 ## Plugins

@@ -238,6 +238,7 @@ function pfUI.uf:UpdateVisibility()
   end
 
   local unitstr = string.format("%s%s", self.label or "", self.id or "")
+  self:SetAttribute("unit", unitstr ~= "" and unitstr or nil)
   local visibility = string.format("[target=%s,exists] show; hide", unitstr)
 
   -- Group frames are redundant when the group is already shown as a raid grid:
@@ -1110,11 +1111,7 @@ function pfUI.uf.OnUpdate()
         
         -- update ressurections
         local ress = libpredict:UnitHasIncomingResurrection(unit)
-        if ress and UnitIsDeadOrGhost(unit) then
-          this.ressIcon:Show()
-        else
-          this.ressIcon:Hide()
-        end
+        this.ressIcon:SetShown(ress and UnitIsDeadOrGhost(unit))
       end
     end
   end
@@ -1177,52 +1174,6 @@ function pfUI.uf.OnUpdate()
   end
 end
 
-function pfUI.uf.OnEnter()
-  if not this.label then return end
-
-  local unitstr = this.label .. this.id
-  if UnitExists(unitstr) then
-    SetMouseoverUnit(unitstr)
-  end
-
-  if this.config.showtooltip == "0" then return end
-  GameTooltip_SetDefaultAnchor(GameTooltip, this)
-  GameTooltip:SetUnit(this.label .. this.id)
-  GameTooltip:Show()
-end
-
-function pfUI.uf.OnLeave()
-  SetMouseoverUnit("")
-
-  GameTooltip:FadeOut()
-end
-
-function pfUI.uf.OnClick()
-  if not this.label and this.unitname then
-    TargetByName(this.unitname, true)
-  else
-    pfUI.uf:ClickAction(arg1)
-  end
-end
-
-function pfUI.uf:RightClickAction(unit)
-  if unit == "player" then
-    ToggleDropDownMenu(1, nil, PlayerFrameDropDown, "cursor")
-  elseif unit == "target" then
-    ToggleDropDownMenu(1, nil, TargetFrameDropDown, "cursor")
-  elseif unit == "pet" then
-    ToggleDropDownMenu(1, nil, PetFrameDropDown, "cursor")
-  elseif unit == "party" or strfind(unit, "party%d") then
-    ToggleDropDownMenu(1, nil, getglobal("PartyMemberFrame" .. this.id .. "DropDown"), "cursor")
-  elseif unit == "raid" or strfind(unit, "raid%d") then
-    local name = this.lastUnit
-    local unitstr = this.label .. this.id
-    FriendsDropDown.displayMode = "MENU"
-    FriendsDropDown.initialize = function() UnitPopup_ShowMenu(_G[UIDROPDOWNMENU_OPEN_MENU], "PARTY", unitstr, name, id) end
-    ToggleDropDownMenu(1, nil, FriendsDropDown, "cursor")
-  end
-end
-
 function pfUI.uf:EnableEvents()
   local f = self
 
@@ -1261,13 +1212,12 @@ end
 function pfUI.uf:EnableScripts()
   local f = self
 
-  f:SetScript("OnClick", pfUI.uf.OnClick)
+  f:SetAttribute("type1", "target")
+  f:SetAttribute("type2", "menu")
 
   f:SetScript("OnShow", pfUI.uf.OnShow)
   f:SetScript("OnEvent", pfUI.uf.OnEvent)
   f:SetScript("OnUpdate", pfUI.uf.OnUpdate)
-  f:SetScript("OnEnter", pfUI.uf.OnEnter)
-  f:SetScript("OnLeave", pfUI.uf.OnLeave)
   f:EnableClickCast()
 
   -- add frame to visibility refresh handler
@@ -1423,6 +1373,10 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
     f:Hide()
   end
 
+  if f.label ~= "" then
+    f:SetAttribute("unit", f.label .. f.id)
+  end
+
   -- register frame for clique
   _G.ClickCastFrames = ClickCastFrames or {}
   ClickCastFrames[f] = true
@@ -1477,11 +1431,7 @@ function pfUI.uf:RefreshIndicators(unit)
   local unitstr = unit.label .. unit.id
 
   if unit.leaderIcon then -- Leader Icon
-    if unit.config.leadericon == "1" and UnitIsPartyLeader(unitstr) and IsInGroup() then
-      unit.leaderIcon:Show()
-    else
-      unit.leaderIcon:Hide()
-    end
+    unit.leaderIcon:SetShown(unit.config.leadericon == "1" and UnitIsPartyLeader(unitstr) and IsInGroup())
   end
 
   if unit.lootIcon then -- Loot Icon
@@ -1491,29 +1441,16 @@ function pfUI.uf:RefreshIndicators(unit)
       -- no third return value here.. but leaving this as a hint
       local method, group, raid = GetLootMethod()
       local name = group and UnitName(group == 0 and "player" or "party"..group) or raid and UnitName("raid"..raid) or nil
-
-      if name and name == UnitName(unitstr) then
-        unit.lootIcon:Show()
-      else
-        unit.lootIcon:Hide()
-      end
+      unit.lootIcon:SetShown(name and name == UnitName(unitstr))
     end
   end
 
   if unit.pvpIcon then -- PvP Icon
-    if unit.config.showPVP == "1" and UnitIsPVP(unitstr) then
-      unit.pvpIcon:Show()
-    else
-      unit.pvpIcon:Hide()
-    end
+    unit.pvpIcon:SetShown(unit.config.showPVP == "1" and UnitIsPVP(unitstr))
   end
 
   if unit.restIcon and unit:GetName() == "pfPlayer" then -- Rest Icon
-    if C.unitframes.player.showRest == "1" and UnitIsUnit(unitstr, "player") and IsResting() then
-      unit.restIcon:Show()
-    else
-      unit.restIcon:Hide()
-    end
+    unit.restIcon:SetShown(C.unitframes.player.showRest == "1" and UnitIsUnit(unitstr, "player") and IsResting())
   end
 
   if unit.happinessIcon and unit:GetName() == "pfPet" then -- Happiness Icon
@@ -1583,7 +1520,7 @@ function pfUI.uf:RefreshUnit(unit, component)
   if not unit.hp then return end
   if not unit.power then return end
   if not unit.id then unit.id = "" end
-  local component = component or ""
+  component = component or ""
 
   -- don't update scanner activity
   if unit.label == "target" or unit.label == "targettarget" or unit.label == "targettargettarget" then
@@ -2126,14 +2063,6 @@ function pfUI.uf:RefreshUnit(unit, component)
   end
 end
 
-local buttons = {
-  [1] = "LeftButton",
-  [2] = "RightButton",
-  [3] = "MiddleButton",
-  [4] = "Button4",
-  [5] = "Button5",
-}
-
 local modifiers = {
   [""] = "",
   ["alt"] = "_alt",
@@ -2143,84 +2072,29 @@ local modifiers = {
 
 function pfUI.uf:EnableClickCast()
   if self.config.clickcast ~= "1" then return end
-  for bid, button in pairs(buttons) do
+  for bid = 1, 5 do -- LeftButton, RightButton, MiddleButton, Button4, Button5
     for modifier, mconf in pairs(modifiers) do
       local bconf = bid == 1 and "" or bid
-      if pfUI_config.unitframes["clickcast"..bconf..mconf] ~= "" then
-        -- fill clickaction table
-        self.clickactions = self.clickactions or {}
-        self.clickactions[modifier..button] = pfUI_config.unitframes["clickcast"..bconf..mconf]
+      local action = pfUI_config.unitframes["clickcast"..bconf..mconf]
+      if action and action ~= "" then
+        local prefix = modifier ~= "" and (modifier .. "-") or ""
+        local low = string.lower(action)
+        if low == "menu" then
+          self:SetAttribute(prefix .. "type" .. bid, "menu")
+        elseif low == "target" then
+          self:SetAttribute(prefix .. "type" .. bid, "target")
+        elseif low == "focus" then
+          self:SetAttribute(prefix .. "type" .. bid, "focus")
+        elseif string.find(action, "^/") then
+          self:SetAttribute(prefix .. "type" .. bid, "macro")
+          self:SetAttribute(prefix .. "macrotext" .. bid, action)
+        else
+          self:SetAttribute(prefix .. "type" .. bid, "spell")
+          self:SetAttribute(prefix .. "spell" .. bid, action)
+        end
       end
     end
   end
-end
-
-function pfUI.uf:ClickAction(button)
-  local label = this.label or ""
-  local id = this.id or ""
-  local unitstr = label .. id
-  local showmenu = button == "RightButton" and true or nil
-  if SpellIsTargeting() and button == "RightButton" then
-    SpellStopTargeting()
-    return
-  end
-
-  if SpellIsTargeting() and button == "LeftButton" then
-    SpellTargetUnit(unitstr)
-  elseif CursorHasItem() then
-    DropItemOnUnit(unitstr)
-  end
-
-  -- run click casting if enabled
-  local modstring = ""
-  modstring = IsAltKeyDown() and modstring.."alt" or modstring
-  modstring = IsControlKeyDown() and modstring.."ctrl" or modstring
-  modstring = IsShiftKeyDown() and modstring.."shift" or modstring
-  modstring = modstring..button
-  if this.clickactions and this.clickactions[modstring] then
-    local action_lower = string.lower(this.clickactions[modstring])
-    if string.find(action_lower, "^menu") then
-      -- show menu
-      showmenu = true
-    elseif string.find(action_lower, "^target") then
-      -- target unit
-      showmenu = nil
-    else
-      -- run click cast action
-      local is_macro = string.find(this.clickactions[modstring], "^%/(.+)")
-
-      local tswitch = UnitIsUnit(unitstr, "target")
-      TargetUnit(unitstr)
-
-      if is_macro then
-        RunMacroText(this.clickactions[modstring])
-      else
-        CastSpellByName(this.clickactions[modstring])
-      end
-
-      if not tswitch then TargetLastTarget() end
-
-      return
-    end
-  end
-
-  -- dropdown menus
-  if showmenu then
-    pfUI.uf:RightClickAction(label)
-    return
-  end
-
-  -- drop food on petframe
-  if label == "pet" and CursorHasItem() then
-    local playerClass = UnitClassBase("player")
-    if playerClass == "HUNTER" then
-      DropItemOnUnit("pet")
-      return
-    end
-  end
-
-  -- default click
-  TargetUnit(unitstr)
 end
 
 function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)

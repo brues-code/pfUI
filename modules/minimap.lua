@@ -131,18 +131,16 @@ pfUI:RegisterModule("minimap", function ()
 
   -- Create coordinates text frame with location configurable
   pfUI.minimapCoordinates = CreateFrame("Frame", "pfMinimapCoord", pfUI.minimap)
-  pfUI.minimapCoordinates:SetScript("OnUpdate", function()
-    -- Throttle to update coords every 0.1 seconds
-    if ( this.tick or 0) > GetTime() then return end
-    this.tick = GetTime() + .1
-    
+  -- Update coords every 0.1 seconds
+  C_Timer.NewTicker(0.1, function()
     if C.appearance.minimap.coordstext == "off" then return end
 
-    this.posX, this.posY = GetPlayerMapPosition("player")
-    if this.posX ~= 0 and this.posY ~= 0 then
-      this.text:SetText(string.format("%.1f, %.1f", round(this.posX * 100, 1), round(this.posY * 100, 1)))
+    local coord = pfUI.minimapCoordinates
+    coord.posX, coord.posY = GetPlayerMapPosition("player")
+    if coord.posX ~= 0 and coord.posY ~= 0 then
+      coord.text:SetText(string.format("%.1f, %.1f", round(coord.posX * 100, 1), round(coord.posY * 100, 1)))
     else
-      this.text:SetText("|cffffaaaaN/A")
+      coord.text:SetText("|cffffaaaaN/A")
     end
   end)
 

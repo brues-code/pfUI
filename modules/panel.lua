@@ -37,18 +37,12 @@ pfUI:RegisterModule("panel", function()
           return
         end
         if arg1 == "LeftButton" then
-          if widget.timerFrame:IsShown() then
-            widget.timerFrame:Hide()
-          else
-            widget.timerFrame:Show()
-          end
+          widget.timerFrame:SetShown(not widget.timerFrame:IsShown())
         elseif arg1 == "RightButton" then
           widget.timerFrame.Snapshot = GetTime()
         end
       end
-      widget:SetScript("OnUpdate",function()
-        if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + 1 end
-
+      C_Timer.NewTicker(1, function()
         local secondsenabled = C.panel.seconds == "1"
         local fmt
         if C.global.twentyfour == "0" then
@@ -62,8 +56,7 @@ pfUI:RegisterModule("panel", function()
 
       widget.timerFrame = CreateFrame("Frame", "pfUITimer", UIParent)
       widget.timerFrame:Hide()
-      widget.timerFrame:SetWidth(120)
-      widget.timerFrame:SetHeight(35)
+      widget.timerFrame:SetSize(120, 35)
       widget.timerFrame:SetPoint("TOP", 0, -100)
       UpdateMovable(widget.timerFrame)
 
@@ -103,11 +96,9 @@ pfUI:RegisterModule("panel", function()
           pfUI.panel:OutputPanel("combat", T["Combat"] .. ": " .. NOT_APPLICABLE)
         end
       end)
-      widget.combat:SetScript("OnUpdate", function()
-        if not this.tick then this.tick = GetTime() end
-        if GetTime() <= this.tick + 1 then return else this.tick = GetTime() end
-        if this.combat then
-          pfUI.panel:OutputPanel("combat", "|cffffaaaa" .. SecondsToTime(ceil(GetTime() - this.combat)))
+      C_Timer.NewTicker(1, function()
+        if widget.combat.combat then
+          pfUI.panel:OutputPanel("combat", "|cffffaaaa" .. SecondsToTime(ceil(GetTime() - widget.combat.combat)))
         end
       end)
     end
@@ -153,9 +144,7 @@ pfUI:RegisterModule("panel", function()
           pfUI.addons:Show()
         end
       end
-      widget:SetScript("OnUpdate",function()
-        if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + 1 end
-
+      C_Timer.NewTicker(1, function()
         fps = floor(GetFramerate())
         _, _, lag = GetNetStats()
 
@@ -346,7 +335,7 @@ pfUI:RegisterModule("panel", function()
       widget:RegisterEvent("PLAYER_GUILD_UPDATE")
       widget.Tooltip = function()
         -- skip without guild
-        if not GetGuildInfo("player") then return end
+        if not IsInGuild() then return end
 
         local raidparty = {}
         for i=1,4 do -- detect people in group
@@ -398,7 +387,7 @@ pfUI:RegisterModule("panel", function()
       end
       widget.Click = function() ToggleFriendsFrame(3) end
       widget:SetScript("OnEvent", function()
-        if GetGuildInfo("player") then
+        if IsInGuild() then
           local count = 0
           for i = 1, GetNumGuildMembers() do
             local _, _, _, _, _, _, _, _, online = GetGuildRosterInfo(i)
@@ -411,9 +400,8 @@ pfUI:RegisterModule("panel", function()
         end
       end)
 
-      widget:SetScript("OnUpdate",function()
-        if ( this.tick or 60) > GetTime() then return else this.tick = GetTime() + 60 end
-        if GetGuildInfo("player") then GuildRoster() end
+      C_Timer.NewTicker(60, function()
+        if IsInGuild() then GuildRoster() end
       end)
     end
 
@@ -492,11 +480,7 @@ pfUI:RegisterModule("panel", function()
         GameTooltip:Show()
       end
       widget.Click = function()
-        if WorldMapFrame:IsShown() then
-          WorldMapFrame:Hide()
-        else
-          WorldMapFrame:Show()
-        end
+        WorldMapFrame:SetShown(not WorldMapFrame:IsShown())
       end
       widget:SetScript("OnEvent", function()
         pfUI.panel:OutputPanel("zone", GetMinimapZoneText(), widget.Tooltip, widget.Click)
@@ -645,8 +629,7 @@ pfUI:RegisterModule("panel", function()
     local frame = CreateFrame("Button", nil, parent)
     frame:SetFrameLevel(0)
     frame:ClearAllPoints()
-    frame:SetWidth(width)
-    frame:SetHeight(parent:GetHeight())
+    frame:SetSize(width, parent:GetHeight())
     frame:SetPoint(location, 0, 0)
     frame.text = frame:CreateFontString("Status", "LOW", "GameFontNormal")
     frame.text:ClearAllPoints()
@@ -687,8 +670,7 @@ pfUI:RegisterModule("panel", function()
     local imgstring = "img:" .. leftright
     parent.texture:SetTexture(pfUI.media[imgstring])
     parent.texture:SetPoint("CENTER", 0, 0)
-    parent.texture:SetWidth(8)
-    parent.texture:SetHeight(8)
+    parent.texture:SetSize(8, 8)
     parent.texture:SetVertexColor(.25,.25,.25,1)
     return parent.texture
   end
@@ -710,7 +692,7 @@ pfUI:RegisterModule("panel", function()
   UpdateMovable(pfUI.panel.left)
 
   pfUI.panel.left.hide:SetScript("OnClick", function()
-    if pfUI.chat.left:IsShown() then pfUI.chat.left:Hide() else pfUI.chat.left:Show() end
+    pfUI.chat.left:SetShown(not pfUI.chat.left:IsShown())
   end)
 
   if not pfUI.chat then pfUI.panel.left.hide:Hide() end
@@ -747,7 +729,7 @@ pfUI:RegisterModule("panel", function()
   UpdateMovable(pfUI.panel.right)
 
   pfUI.panel.right.hide:SetScript("OnClick", function()
-    if pfUI.chat.right:IsShown() then pfUI.chat.right:Hide() else pfUI.chat.right:Show() end
+    pfUI.chat.right:SetShown(not pfUI.chat.right:IsShown())
   end)
 
   if not pfUI.chat then pfUI.panel.right.hide:Hide() end
@@ -796,8 +778,7 @@ pfUI:RegisterModule("panel", function()
     pfUI.panel.microbutton = CreateFrame("Frame", "pfPanelMicroButton", UIParent)
     pfUI.panel.microbutton:SetPoint("TOP", pfUI.panel.minimap, "BOTTOM", 0,  -2*default_border)
     UpdateMovable(pfUI.panel.microbutton)
-    pfUI.panel.microbutton:SetHeight(23)
-    pfUI.panel.microbutton:SetWidth(145)
+    pfUI.panel.microbutton:SetSize(145, 23)
     pfUI.panel.microbutton:SetFrameStrata("MEDIUM")
 
     for i=1,table.getn(MICRO_BUTTONS) do
