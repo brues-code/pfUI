@@ -1561,8 +1561,18 @@ pfUI:RegisterModule("actionbar", function ()
       if reagent_slots[slot] ~= newID then
         reagent_slots[slot] = newID
         if newID then
-          reagent_counts[newID] = reagent_counts[newID] or 0
+          reagent_counts[newID] = reagent_counts[newID] or C_Item.GetItemCount(newID)
         end
+        updatecache[slot] = true
+      end
+    end
+
+    -- Recount every tracked reagent and flag its buttons for a refresh.
+    local RecountReagents = function()
+      for itemID in pairs(reagent_counts) do
+        reagent_counts[itemID] = C_Item.GetItemCount(itemID)
+      end
+      for slot in pairs(reagent_slots) do
         updatecache[slot] = true
       end
     end
@@ -1572,47 +1582,21 @@ pfUI:RegisterModule("actionbar", function ()
     reagentcounter:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
     reagentcounter:RegisterEvent("BAG_UPDATE_DELAYED")
     reagentcounter:SetScript("OnEvent", function()
-      if event == "BAG_UPDATE_DELAYED" then
-        this.event = true
+      if event == "ACTIONBAR_SLOT_CHANGED" then
+        -- arg1 is the changed slot; 0 (or nil) means "all slots"
+        if arg1 and arg1 > 0 then
+          UpdateSlot(arg1)
+        else
+          for slot = 1, 120 do UpdateSlot(slot) end
+        end
+      elseif event == "BAG_UPDATE_DELAYED" then
+        -- inventory changed: refresh the counts we already track
+        RecountReagents()
       else
-        this.scan = 1
+        -- PLAYER_ENTERING_WORLD: seed the full reagent map (UpdateSlot seeds
+        -- each new reagent's count; a BAG_UPDATE_DELAYED follows during login)
+        for slot = 1, 120 do UpdateSlot(slot) end
       end
-    end)
-
-    -- Reagent counter update with throttle for performance optimization
-    reagentcounter:SetScript("OnUpdate", function()
-      -- Throttle entire function to 10 FPS for smooth scanning
-      if (this.tick_update or 0) > GetTime() then return end
-      this.tick_update = GetTime() + 0.1
-      
-      -- scan one action slot per update
-      if this.scan and this.scan <= 120 then
-        UpdateSlot(this.scan)
-        this.scan = this.scan + 1
-      end
-
-      -- trigger reagent count updates after action scans
-      if this.scan and this.scan >= 120 then
-        this.event = true
-        this.scan = nil
-      end
-
-      -- queue events to fire only once per second
-      if not this.event then return end
-      if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + 1 end
-
-      -- scan for all reagent item counts
-      for itemID in pairs(reagent_counts) do
-        reagent_counts[itemID] = C_Item.GetItemCount(itemID)
-      end
-
-      -- update all actionbar buttons
-      for slot in pairs(reagent_slots) do
-        updatecache[slot] = true
-      end
-
-      -- remove event trigger
-      this.event = nil
     end)
 
     function IsReagentAction(slot)
