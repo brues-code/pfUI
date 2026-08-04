@@ -4,7 +4,7 @@
 [![ClassicAPI](https://img.shields.io/badge/ClassicAPI-Required-purple.svg)](https://github.com/brues-code/ClassicAPI)
 [![Nampower](https://img.shields.io/badge/Nampower-Required-purple.svg)](https://github.com/brues-code/nampower)
 [![SuperWoW](https://img.shields.io/badge/SuperWoW-Optional-yellow.svg)](https://github.com/balakethelock/SuperWoW)
-[![UnitXP](https://img.shields.io/badge/UnitXP__SP3-Optional-yellow.svg)](https://codeberg.org/konaka/UnitXP_SP3)
+[![UnitXP](https://img.shields.io/badge/UnitXP__SP3-Optional-yellow.svg)](https://github.com/brues-code/UnitXP_SP3)
 
 **A pfUI fork specifically optimized for ClassicAPI on [Octo WoW](https://octowow.st/) which requires Nampower and SuperWoW with optional UnitXP_SP3 DLL integration.**
 
@@ -16,7 +16,7 @@ This version includes significant performance improvements and DLL-enhanced feat
 4. Copy "pfUI" into Wow-Directory\Interface\AddOns
 5. Restart Wow
 
-## Optional DLL Enhancements
+## DLL Enhancements
 
 Since pfUI 6.0.0 includes integrations with client-side DLLs for enhanced functionality. These DLLs are permitted on Octo WoW:
 
@@ -38,6 +38,8 @@ Provides:
 - Feign death, shapeshift and quest-item detection via real API calls
 - Mouseover Unit Frames
 - Click-casting
+- Loot Roll History (/loothistory)
+- New item highlighting
 - Plenty other functions
 
 ### [Nampower](https://github.com/brues-code/nampower)
@@ -51,7 +53,7 @@ Provides:
 Provides:
 - Tracks party/raid units on the minimap
 
-### [UnitXP_SP3](https://codeberg.org/konaka/UnitXP_SP3)
+### [UnitXP_SP3](https://github.com/brues-code/UnitXP_SP3)
 
 Provides:
 - Line of Sight detection
@@ -78,6 +80,7 @@ Use `/pfdll` in-game to check which DLLs are detected.
     /swapfocus    Toggle Focus and Target-Frame
     /pftest       Toggle pfUI Unitframe Test Mode
     /abp          Addon Button Panel
+    /loothistory  Show Loot Roll History
 
 ## Languages
 pfUI supports and contains language specific code for the following gameclients.
