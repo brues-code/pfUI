@@ -300,27 +300,27 @@ pfUI:RegisterModule("equipmentmanager", function()
       pfUI.equipmentmanager.Refresh()
     end)
 
-    -- Hover handling: OnLeave fires when the cursor moves onto a child
-    -- (the gear button becomes the topmost mouse target). Use an
-    -- OnUpdate poll so the gear stays shown while the cursor is over
-    -- the row OR the gear itself.
+    -- Show the gear and tooltip while the cursor is over the row or its
+    -- gear child. The gear sits inside the row's rectangle, so a single
+    -- MouseIsOver(row) check covers both. OnLeave on the row and the gear
+    -- catches every exit path, so no OnUpdate poll is needed.
+    local function HideRowHover()
+      if MouseIsOver(row) then return end
+      GameTooltip:Hide()
+      row.gear:Hide()
+    end
     row:SetScript("OnEnter", function()
-      if not this.setID then return end
-      local name = C_EquipmentSet.GetEquipmentSetInfo(this.setID)
+      if not row.setID then return end
+      local name = C_EquipmentSet.GetEquipmentSetInfo(row.setID)
       if name then
-        GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+        GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
         GameTooltip:SetEquipmentSet(name)
         GameTooltip:Show()
       end
       row.gear:Show()
-      this:SetScript("OnUpdate", function()
-        if not MouseIsOver(this) and not MouseIsOver(row.gear) then
-          this:SetScript("OnUpdate", nil)
-          GameTooltip:Hide()
-          row.gear:Hide()
-        end
-      end)
     end)
+    row:SetScript("OnLeave", HideRowHover)
+    row.gear:SetScript("OnLeave", HideRowHover)
 
     return row
   end
