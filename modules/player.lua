@@ -41,7 +41,7 @@ pfUI:RegisterModule("player", function ()
   -- Convert "r,g,b,a" config color string to a 6-char hex string, or nil if unset
   local function cfgColorToHex(colorStr)
     if not colorStr or colorStr == "" then return nil end
-    local r, g, b = strsplit(",", colorStr)
+    local r, g, b = GetStringColor(colorStr)
     r, g, b = tonumber(r), tonumber(g), tonumber(b)
     if not r or not g or not b then return nil end
     return string.format("%02X%02X%02X", r * 255, g * 255, b * 255)

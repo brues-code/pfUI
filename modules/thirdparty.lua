@@ -244,10 +244,10 @@ pfUI:RegisterModule("thirdparty", function()
             end
 
             if C.thirdparty.chatbg == "1" and C.chat.global.custombg == "1" then
-              local r, g, b, a = strsplit(",", C.chat.global.background)
+              local r, g, b, a = GetStringColor(C.chat.global.background)
               window.backdrop:SetBackdropColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
 
-              local r, g, b, a = strsplit(",", C.chat.global.border)
+              local r, g, b, a = GetStringColor(C.chat.global.border)
               window.backdrop:SetBackdropBorderColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
             end
 
@@ -350,10 +350,10 @@ pfUI:RegisterModule("thirdparty", function()
           CreateBackdropShadow(frame)
 
           if C.thirdparty.chatbg == "1" and C.chat.global.custombg == "1" then
-            local r, g, b, a = strsplit(",", C.chat.global.background)
+            local r, g, b, a = GetStringColor(C.chat.global.background)
             frame.backdrop:SetBackdropColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
 
-            local r, g, b, a = strsplit(",", C.chat.global.border)
+            local r, g, b, a = GetStringColor(C.chat.global.border)
             frame.backdrop:SetBackdropBorderColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
           end
         end

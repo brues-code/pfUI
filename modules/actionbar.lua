@@ -600,17 +600,17 @@ pfUI:RegisterModule("actionbar", function ()
     -- update usable [out-of-range = 1, oom = 2, not-usable = 3, default = 0]
     if self.outofrange and C.bars.glowrange == "1" then
       if self.vertexstate ~= 1 then
-        self.icon:SetVertexColor(self.rangeColor[1], self.rangeColor[2], self.rangeColor[3], self.rangeColor[4])
+        self.icon:SetVertexColor(self.rangeColor:GetRGBA())
         self.vertexstate = 1
       end
     elseif oom and C.bars.showoom == "1" then
       if self.vertexstate ~= 2 then
-        self.icon:SetVertexColor(self.oomColor[1], self.oomColor[2], self.oomColor[3], self.oomColor[4])
+        self.icon:SetVertexColor(self.oomColor:GetRGBA())
         self.vertexstate = 2
       end
     elseif not usable and C.bars.showna == "1" then
       if self.vertexstate ~= 3 then
-        self.icon:SetVertexColor(self.naColor[1], self.naColor[2], self.naColor[3], self.naColor[4])
+        self.icon:SetVertexColor(self.naColor:GetRGBA())
         self.vertexstate = 3
       end
     else
@@ -992,13 +992,13 @@ pfUI:RegisterModule("actionbar", function ()
     local font_offset = tonumber(C.bars.font_offset)
 
     local macro_size = tonumber(C.bars.macro_size)
-    local macro_color = { strsplit(",", C.bars.macro_color) }
+    local macro_color = { GetStringColor(C.bars.macro_color) }
 
     local count_size = tonumber(C.bars.count_size)
-    local count_color = { strsplit(",", C.bars.count_color) }
+    local count_color = { GetStringColor(C.bars.count_color) }
 
     local bind_size = tonumber(C.bars.bind_size)
-    local bind_color = { strsplit(",", C.bars.bind_color) }
+    local bind_color = { GetStringColor(C.bars.bind_color) }
 
     local cd_size = tonumber(C.bars.cd_size)
 
@@ -1157,17 +1157,17 @@ pfUI:RegisterModule("actionbar", function ()
     end
 
     -- range glow color
-    f.rangeColor = { strsplit(",", C.bars.rangecolor) }
+    f.rangeColor = GetStringColorObject(C.bars.rangecolor)
 
     -- out of mana color
-    f.oomColor = { strsplit(",", C.bars.oomcolor) }
+    f.oomColor = GetStringColorObject(C.bars.oomcolor)
 
     -- not usable color
-    f.naColor = { strsplit(",", C.bars.nacolor) }
+    f.naColor = GetStringColorObject(C.bars.nacolor)
 
     -- equipped color
     if f.equipped then
-      f.equipped:SetTexture(strsplit(",", C.bars.eqcolor))
+      f.equipped:SetTexture(GetStringColor(C.bars.eqcolor))
     end
 
     -- general appearance
@@ -1546,7 +1546,7 @@ pfUI:RegisterModule("actionbar", function ()
     -- via GetActionInfo + C_Spell.GetSpellReagents. Macro actions and
     -- bag-item actions are skipped (their reagent resolution would need a
     -- macro-body parse / item-effect lookup that we don't bother with).
-    local UpdateSlot = function(slot)
+    local function UpdateSlot(slot)
       local newID = nil
       if HasAction(slot) then
         local kind, spellID = GetActionInfo(slot)

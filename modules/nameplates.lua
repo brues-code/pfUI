@@ -948,7 +948,7 @@ nameplates:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
     -- Use the same castbar texture and color as the unit frame castbar (castbar.lua)
     local cbtexture = pfUI.media[C.appearance.castbar.texture]
     nameplate.castbar:SetStatusBarTexture(cbtexture or hptexture)
-    local cbr, cbg, cbb, cba = strsplit(",", C.appearance.castbar.castbarcolor)
+    local cbr, cbg, cbb, cba = GetStringColor(C.appearance.castbar.castbarcolor)
     nameplate.castbar:SetStatusBarColor(cbr, cbg, cbb, cba)
     -- reset endTime cache so color/texture refresh takes effect on next cast
     nameplate.castbar.lastEndTime = nil

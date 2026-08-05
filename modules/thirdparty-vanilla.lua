@@ -100,10 +100,10 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
       CreateBackdropShadow(KLHTM_Frame)
 
       if C.thirdparty.chatbg == "1" and C.chat.global.custombg == "1" then
-        local r, g, b, a = strsplit(",", C.chat.global.background)
+        local r, g, b, a = GetStringColor(C.chat.global.background)
         KLHTM_Frame.backdrop:SetBackdropColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
 
-        local r, g, b, a = strsplit(",", C.chat.global.border)
+        local r, g, b, a = GetStringColor(C.chat.global.border)
         KLHTM_Frame.backdrop:SetBackdropBorderColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
       end
 
@@ -199,10 +199,10 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
       CreateBackdropShadow(TWTMain)
 
       if C.thirdparty.chatbg == "1" and C.chat.global.custombg == "1" then
-        local r, g, b, a = strsplit(",", C.chat.global.background)
+        local r, g, b, a = GetStringColor(C.chat.global.background)
         TWTMain.backdrop:SetBackdropColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
 
-        local r, g, b, a = strsplit(",", C.chat.global.border)
+        local r, g, b, a = GetStringColor(C.chat.global.border)
         TWTMain.backdrop:SetBackdropBorderColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
       end
 
@@ -328,10 +328,10 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
       CreateBackdropShadow(SW_BarFrame1)
 
       if C.thirdparty.chatbg == "1" and C.chat.global.custombg == "1" then
-        local r, g, b, a = strsplit(",", C.chat.global.background)
+        local r, g, b, a = GetStringColor(C.chat.global.background)
         SW_BarFrame1.backdrop:SetBackdropColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
 
-        local r, g, b, a = strsplit(",", C.chat.global.border)
+        local r, g, b, a = GetStringColor(C.chat.global.border)
         SW_BarFrame1.backdrop:SetBackdropBorderColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
       end
 

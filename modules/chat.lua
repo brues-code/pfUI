@@ -82,10 +82,10 @@ pfUI:RegisterModule("chat", function ()
   end
 
   if C.chat.global.custombg == "1" then
-    local r, g, b, a = strsplit(",", C.chat.global.background)
+    local r, g, b, a = GetStringColor(C.chat.global.background)
     pfUI.chat.left.backdrop:SetBackdropColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
 
-    local r, g, b, a = strsplit(",", C.chat.global.border)
+    local r, g, b, a = GetStringColor(C.chat.global.border)
     pfUI.chat.left.backdrop:SetBackdropBorderColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
   end
 
@@ -257,10 +257,10 @@ pfUI:RegisterModule("chat", function ()
   end
 
   if C.chat.global.custombg == "1" then
-    local r, g, b, a = strsplit(",", C.chat.global.background)
+    local r, g, b, a = GetStringColor(C.chat.global.background)
     pfUI.chat.right.backdrop:SetBackdropColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
 
-    local r, g, b, a = strsplit(",", C.chat.global.border)
+    local r, g, b, a = GetStringColor(C.chat.global.border)
     pfUI.chat.right.backdrop:SetBackdropBorderColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
   end
 
@@ -675,7 +675,7 @@ pfUI:RegisterModule("chat", function ()
   end
 
   -- read and parse whisper color settings
-  local cr, cg, cb, ca = strsplit(",", C.chat.global.whisper)
+  local cr, cg, cb, ca = GetStringColor(C.chat.global.whisper)
   cr, cg, cb = tonumber(cr), tonumber(cg), tonumber(cb)
   local wcol = rgbhex(cr, cg, cb)
 
@@ -706,10 +706,10 @@ pfUI:RegisterModule("chat", function ()
     _G.CHAT_WHISPER_INFORM_GET = '[W]' .. default
   end
 
-  local r,g,b,a = strsplit(",", C.chat.text.timecolor)
+  local r,g,b,a = GetStringColor(C.chat.text.timecolor)
   local timecolorhex = rgbhex(r,g,b,a)
 
-  local r,g,b = strsplit(",", C.chat.text.unknowncolor)
+  local r,g,b = GetStringColor(C.chat.text.unknowncolor)
   local unknowncolorhex = rgbhex(r,g,b)
 
   -- Suppress FriendsFrame's WHO_LIST_UPDATE handling for our DLL-issued

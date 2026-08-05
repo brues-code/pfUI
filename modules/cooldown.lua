@@ -1,10 +1,10 @@
 pfUI:RegisterModule("cooldown", function ()
   -- cache values
-  local lowcolor    = {strsplit(",", C.appearance.cd.lowcolor)}
-  local normalcolor = {strsplit(",", C.appearance.cd.normalcolor)}
-  local minutecolor = {strsplit(",", C.appearance.cd.minutecolor)}
-  local hourcolor   = {strsplit(",", C.appearance.cd.hourcolor)}
-  local daycolor    = {strsplit(",", C.appearance.cd.daycolor)}
+  -- local lowcolor    = {strsplit(",", C.appearance.cd.lowcolor)}
+  -- local normalcolor = {strsplit(",", C.appearance.cd.normalcolor)}
+  -- local minutecolor = {strsplit(",", C.appearance.cd.minutecolor)}
+  -- local hourcolor   = {strsplit(",", C.appearance.cd.hourcolor)}
+  -- local daycolor    = {strsplit(",", C.appearance.cd.daycolor)}
 
   local parent, parent_name
   local function pfCooldownOnUpdate()
