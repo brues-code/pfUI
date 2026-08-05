@@ -71,42 +71,37 @@ pfUI:RegisterModule("player", function ()
     -- from UNIT_MOD_CAST_SPEED). Talent/spell-specific cast-time reductions
     -- show up in the actual cast bar via C_Spell.UnitCastingInfo; folding them
     -- in here too was mixing two different concepts into one number.
-    local showHaste = cfg.display_haste == "1"
-    local showSP = cfg.display_spellpower == "1"
-
     local isSpellCaster = playerFrame.isSpellCaster
-    if (not showHaste or not isSpellCaster) and not showSP then
+    local showHaste = isSpellCaster and cfg.display_haste == "1"
+    local showSP    = isSpellCaster and cfg.display_spellpower == "1"
+
+    if not showHaste and not showSP then
       playerFrame.infoTopCenterText:SetText("")
       return
     end
 
-    local haste = UnitSpellHaste("player")
-    local text = ""
+    local parts = {}
 
-    if showHaste and isSpellCaster and haste then
-      local hasteHex = cfgColorToHexTable[cfg.display_haste_color] or "FFFFFFFF"
-      text = string.format("|c%s%.1f%%|r", hasteHex, haste)
+    if showHaste then
+      local hex = cfgColorToHexTable[cfg.display_haste_color] or "FFFFFFFF"
+      table.insert(parts, string.format("|c%s%.1f%%|r", hex, UnitSpellHaste("player")))
     end
 
-    if showSP and isSpellCaster then
-      local defSchool = spDefaultSchool[myclass] or 2
-      local maxSP = GetSpellBonusDamage(defSchool) or 0
-      local maxColor = spColors[defSchool]
-      for i = 2, 7 do  -- skip physical (1); default school seeds the tiebreak
+    if showSP then
+      local school = spDefaultSchool[myclass] or 2
+      local maxSP = GetSpellBonusDamage(school) or 0
+      for i = 2, 7 do  -- skip physical (1)
         local v = GetSpellBonusDamage(i) or 0
-        if v > maxSP then
-          maxSP = v
-          maxColor = spColors[i]
-        end
+        if v > maxSP then maxSP, school = v, i end
       end
+
       if maxSP > 0 then
-        local spHex = (cfg.display_sp_color_override == "1" and cfgColorToHexTable[cfg.display_sp_color]) or maxColor
-        if text ~= "" then text = text .. "    " end
-        text = text .. string.format("|c%s+%d SP|r", spHex, maxSP)
+        local hex = (cfg.display_sp_color_override == "1" and cfgColorToHexTable[cfg.display_sp_color]) or spColors[school]
+        table.insert(parts, string.format("|c%s+%d SP|r", hex, maxSP))
       end
     end
 
-    playerFrame.infoTopCenterText:SetText(text)
+    playerFrame.infoTopCenterText:SetText(table.concat(parts, "    "))
   end
 
   -- Keep a reference to the generic UF UpdateConfig so we can chain it
