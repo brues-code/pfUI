@@ -76,9 +76,14 @@ pfUI:RegisterModule("macroicons", function ()
     picker.selectedPreview.tex:SetAllPoints(picker.selectedPreview)
     picker.selectedPreview.tex:SetTexCoord(.08, .92, .08, .92)
 
+    picker.selectedLabel = picker:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    picker.selectedLabel:SetPoint("TOPRIGHT", picker, "TOPRIGHT", -14, -28)
+    picker.selectedLabel:SetText(ICON_SELECTION_TITLE_CURRENT)
+    picker.selectedLabel:SetTextColor(1, 0.82, 0)
+
     picker.iconLabel = picker:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     picker.iconLabel:SetPoint("TOPLEFT", picker, "TOPLEFT", 14, -100)
-    picker.iconLabel:SetText(T["Choose an Icon:"] or "Choose an Icon:")
+    picker.iconLabel:SetText(MACRO_POPUP_CHOOSE_ICON)
 
     -- Icon grid + scroll
     local iconScroll = CreateFrame("ScrollFrame", "pfMacroIconScroll", picker, "FauxScrollFrameTemplate")
@@ -108,15 +113,15 @@ pfUI:RegisterModule("macroicons", function ()
     end
     UIDropDownMenu_Initialize(filterDropdown, function()
       local info
-      info = {}; info.text = T["All Icons"] or "All Icons"; info.value = "all"
+      info = {}; info.text = ICON_FILTER_ALL; info.value = "all"
       info.func = function() ApplyFilter("all") end
       info.checked = currentFilter == "all"
       UIDropDownMenu_AddButton(info)
-      info = {}; info.text = T["Spells"] or "Spells"; info.value = "spells"
+      info = {}; info.text = ICON_FILTER_SPELL; info.value = "spells"
       info.func = function() ApplyFilter("spells") end
       info.checked = currentFilter == "spells"
       UIDropDownMenu_AddButton(info)
-      info = {}; info.text = T["Items"] or "Items"; info.value = "items"
+      info = {}; info.text = ICON_FILTER_ITEM; info.value = "items"
       info.func = function() ApplyFilter("items") end
       info.checked = currentFilter == "items"
       UIDropDownMenu_AddButton(info)
