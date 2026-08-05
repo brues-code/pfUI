@@ -39,17 +39,20 @@ pfUI:RegisterModule("player", function ()
   playerFrame.isSpellCaster = myclass ~= "WARRIOR" and myclass ~= "ROGUE" and myclass ~= "HUNTER"
 
   -- Convert "r,g,b,a" config color string to a 6-char hex string, or nil if unset
-  local function cfgColorToHex(colorStr)
-    if not colorStr or colorStr == "" then return nil end
-    local r, g, b = GetStringColor(colorStr)
-    r, g, b = tonumber(r), tonumber(g), tonumber(b)
-    if not r or not g or not b then return nil end
-    return string.format("%02X%02X%02X", r * 255, g * 255, b * 255)
-  end
+  local cfgColorToHexTable = setmetatable({}, {
+    __index = function (t, colorStr)
+      if not colorStr or colorStr == "" then return nil end
+      local r, g, b = GetStringColor(colorStr)
+      if not r or not g or not b then return nil end
+      local hex = C_ColorUtil.GenerateTextColorCode({ r=r, g = g, b=b})
+      rawset(t, colorStr, hex)
+      return hex
+    end
+  })
 
   -- SP school colors indexed by GetSpellBonusDamage's 1-based school order
   -- (1=phys, 2=holy, 3=fire, 4=nature, 5=frost, 6=shadow, 7=arcane)
-  local spColors = { "FFFFFF", "FFFF80", "FF8000", "4DFF4D", "80FFFF", "9482C9", "FFFFFF" }
+  local spColors = { "FFFFFFFF", "FFFFFF80", "FFFF8000", "FF4DFF4D", "FF80FFFF", "FF9482C9", "FFFFFFFF" }
 
   -- Default SP school per class used as tiebreaker when multiple schools are equal
   local spDefaultSchool = {
@@ -81,8 +84,8 @@ pfUI:RegisterModule("player", function ()
     local text = ""
 
     if showHaste and isSpellCaster and haste then
-      local hasteHex = cfgColorToHex(cfg.display_haste_color) or "FFFFFF"
-      text = string.format("|cff%s%.1f%%|r", hasteHex, haste)
+      local hasteHex = cfgColorToHexTable[cfg.display_haste_color] or "FFFFFFFF"
+      text = string.format("|c%s%.1f%%|r", hasteHex, haste)
     end
 
     if showSP and isSpellCaster then
@@ -97,9 +100,9 @@ pfUI:RegisterModule("player", function ()
         end
       end
       if maxSP > 0 then
-        local spHex = (cfg.display_sp_color_override == "1" and cfgColorToHex(cfg.display_sp_color)) or maxColor
+        local spHex = (cfg.display_sp_color_override == "1" and cfgColorToHexTable[cfg.display_sp_color]) or maxColor
         if text ~= "" then text = text .. "    " end
-        text = text .. string.format("|cff%s+%d SP|r", spHex, maxSP)
+        text = text .. string.format("|c%s+%d SP|r", spHex, maxSP)
       end
     end
 
