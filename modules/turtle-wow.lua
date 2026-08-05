@@ -355,6 +355,24 @@ pfUI:RegisterModule("turtle-wow", function ()
     end
   end)
 
+  HookAddonOrVariable("Blizzard_MacroUI", function()
+    if type(UpdateMacroIconFilenames) ~= "function" then return end
+    function _G.UpdateMacroIconFilenames()
+      wipe(MACRO_ICON_FILENAMES)
+      local provider = CreateAndInitFromMixin(IconDataProviderMixin, IconDataProviderExtraType.Spellbook)
+      local seen = {}
+      for i = 1, provider:GetNumIcons() do
+        -- uppercase, prefix-stripped basename, matching Blizzard's original
+        local icon = string.gsub(string.upper(provider:GetIconByIndex(i)), "INTERFACE\\ICONS\\", "")
+        if not seen[icon] then
+          seen[icon] = true
+          table.insert(MACRO_ICON_FILENAMES, icon)
+        end
+      end
+      provider:Release()
+    end
+  end)
+
 
   -- add turtle-wow sell values
   pfSellData = {
