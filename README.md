@@ -6,7 +6,7 @@
 [![SuperWoW](https://img.shields.io/badge/SuperWoW-Optional-yellow.svg)](https://github.com/balakethelock/SuperWoW)
 [![UnitXP](https://img.shields.io/badge/UnitXP__SP3-Optional-yellow.svg)](https://github.com/brues-code/UnitXP_SP3)
 
-**A pfUI fork specifically optimized for ClassicAPI on [Octo WoW](https://octowow.st/) which requires Nampower and SuperWoW with optional UnitXP_SP3 DLL integration.**
+**A pfUI fork specifically optimized for ClassicAPI on [Octo WoW](https://octowow.st/)**
 
 This version includes significant performance improvements and DLL-enhanced features.
 
