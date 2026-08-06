@@ -266,4 +266,18 @@ pfUI:RegisterModule("tooltip", function ()
       end
       GameTooltip:Show()
     end
+
+  if C.tooltip.aurasource == "1" then
+    hooksecurefunc(GameTooltip, "SetUnitAura", function(self, ...)
+      local aura = C_UnitAuras.GetAuraDataByIndex(unpack(arg))
+      if not aura then return end
+      local caster = aura.sourceUnit and UnitName(aura.sourceUnit)
+      if not caster and aura.sourceGUID then
+        caster = UnitNameFromGUID(aura.sourceGUID)
+      end
+      if not caster or caster == "" then return end
+      self:AddLine(T["Cast by"] .. ": " .. caster, .7, .7, 1)
+      self:Show()
+    end)
+  end
 end)
