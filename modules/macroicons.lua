@@ -7,6 +7,7 @@
 -- string -- so arbitrary icons (including index-less INV_* item icons) persist
 -- on both the modern (Turtle/Octo) and stock-vanilla macro UIs. The surrounding
 -- MacroFrame (list + body editor) is Blizzard's, already skinned elsewhere.
+if not C_Macro or not C_Macro.CreateMacro then return end
 pfUI:RegisterModule("macroicons", function ()
   HookAddonOrVariable("Blizzard_MacroUI", function()
     local QUESTION_MARK = "INTERFACE\\ICONS\\INV_MISC_QUESTIONMARK"

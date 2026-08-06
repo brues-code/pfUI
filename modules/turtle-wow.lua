@@ -355,7 +355,7 @@ pfUI:RegisterModule("turtle-wow", function ()
     end
   end)
 
-  if C.disabled["macroicons"] == "1" then
+  if C.disabled["macroicons"] == "1" or not C_Macro or not C_Macro.CreateMacro then
     HookAddonOrVariable("Blizzard_MacroUI", function()
       if type(UpdateMacroIconFilenames) ~= "function" then return end
       function _G.UpdateMacroIconFilenames()
