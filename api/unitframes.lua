@@ -1209,16 +1209,72 @@ function pfUI.uf:EnableEvents()
     'MiddleButtonUp', 'Button4Up', 'Button5Up')
 end
 
+-- ============================================================
+-- Clique compatibility
+-- Clique's pfUI plugin replaces pfUI.uf.ClickAction and expects an
+-- OnClick script to call it (with `this` = frame, `arg1` = button). The
+-- secure attribute path replaced that dispatch, so when Clique is loaded
+-- EnableScripts routes clicks through this legacy Lua path instead. The
+-- secure path is skipped there because type1="target" switches the target
+-- before Clique can cast.
+-- ============================================================
+
+function pfUI.uf.OnClick()
+  if not this.label and this.unitname then
+    TargetByName(this.unitname, true)
+  else
+    pfUI.uf:ClickAction(arg1)
+  end
+end
+
+function pfUI.uf:ClickAction(button)
+  local label = this.label or ""
+  local id = this.id or ""
+  local unitstr = label .. id
+
+  if SpellIsTargeting() and button == "RightButton" then
+    SpellStopTargeting()
+    return
+  end
+
+  if SpellIsTargeting() and button == "LeftButton" then
+    SpellTargetUnit(unitstr)
+  elseif CursorHasItem() then
+    DropItemOnUnit(unitstr)
+  end
+
+  -- right-click opens the standard unit menu (ClassicAPI resolves the type)
+  if button == "RightButton" then
+    ClassicAPI_ToggleUnitMenu(unitstr)
+    return
+  end
+
+  -- drop food on petframe
+  if label == "pet" and CursorHasItem() then
+    if UnitClassBase("player") == "HUNTER" then
+      DropItemOnUnit("pet")
+      return
+    end
+  end
+
+  -- default click
+  TargetUnit(unitstr)
+end
+
 function pfUI.uf:EnableScripts()
   local f = self
 
-  f:SetAttribute("type1", "target")
-  f:SetAttribute("type2", "menu")
+  if IsAddOnLoaded("Clique") then
+    f:SetScript("OnClick", pfUI.uf.OnClick)
+  else
+    f:SetAttribute("type1", "target")
+    f:SetAttribute("type2", "menu")
+    f:EnableClickCast()
+  end
 
   f:SetScript("OnShow", pfUI.uf.OnShow)
   f:SetScript("OnEvent", pfUI.uf.OnEvent)
   f:SetScript("OnUpdate", pfUI.uf.OnUpdate)
-  f:EnableClickCast()
 
   -- add frame to visibility refresh handler
   visibilityscan.frames[f] = true
