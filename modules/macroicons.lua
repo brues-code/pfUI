@@ -39,7 +39,7 @@ pfUI:RegisterModule("macroicons", function ()
 
     local picker = CreateFrame("Frame", "pfMacroIconPicker", UIParent)
     picker:SetFrameStrata("DIALOG")
-    picker:SetSize(472, 498)
+    picker:SetSize(472, 484)
     -- Starts anchored to the right of the macro panel (re-anchored at open
     -- once the skin's backdrop exists); dragging pins it in place after.
     picker:SetPoint("BOTTOMLEFT", MacroFrame, "BOTTOMRIGHT", 8, 0)
@@ -55,40 +55,37 @@ pfUI:RegisterModule("macroicons", function ()
       this.userMoved = true
     end)
 
-    picker.title = picker:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    picker.title:SetPoint("TOP", picker, "TOP", 0, -10)
-
     picker.nameLabel = picker:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    picker.nameLabel:SetPoint("TOPLEFT", picker, "TOPLEFT", 14, -34)
+    picker.nameLabel:SetPoint("TOPLEFT", picker, "TOPLEFT", 14, -20)
     picker.nameLabel:SetText(MACRO_POPUP_TEXT)
 
     picker.editbox = CreateFrame("EditBox", "pfMacroIconPickerName", picker, "InputBoxTemplate")
     picker.editbox:SetSize(280, 20)
-    picker.editbox:SetPoint("TOPLEFT", picker, "TOPLEFT", 14, -52)
+    picker.editbox:SetPoint("TOPLEFT", picker, "TOPLEFT", 14, -38)
     picker.editbox:SetAutoFocus(false)
     picker.editbox:SetMaxLetters(16)
     CreateBackdrop(picker.editbox)
 
     picker.selectedPreview = CreateFrame("Frame", nil, picker)
     picker.selectedPreview:SetSize(42, 42)
-    picker.selectedPreview:SetPoint("TOPRIGHT", picker, "TOPRIGHT", -14, -44)
+    picker.selectedPreview:SetPoint("TOPRIGHT", picker, "TOPRIGHT", -14, -30)
     CreateBackdrop(picker.selectedPreview)
     picker.selectedPreview.tex = picker.selectedPreview:CreateTexture(nil, "ARTWORK")
     picker.selectedPreview.tex:SetAllPoints(picker.selectedPreview)
     picker.selectedPreview.tex:SetTexCoord(.08, .92, .08, .92)
 
     picker.selectedLabel = picker:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    picker.selectedLabel:SetPoint("TOPRIGHT", picker, "TOPRIGHT", -14, -28)
+    picker.selectedLabel:SetPoint("TOPRIGHT", picker, "TOPRIGHT", -14, -14)
     picker.selectedLabel:SetText(ICON_SELECTION_TITLE_CURRENT)
     picker.selectedLabel:SetTextColor(1, 0.82, 0)
 
     picker.iconLabel = picker:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    picker.iconLabel:SetPoint("TOPLEFT", picker, "TOPLEFT", 14, -100)
+    picker.iconLabel:SetPoint("TOPLEFT", picker, "TOPLEFT", 14, -86)
     picker.iconLabel:SetText(MACRO_POPUP_CHOOSE_ICON)
 
     -- Icon grid + scroll
     local iconScroll = CreateFrame("ScrollFrame", "pfMacroIconScroll", picker, "FauxScrollFrameTemplate")
-    iconScroll:SetPoint("TOPLEFT", picker, "TOPLEFT", 14, -130)
+    iconScroll:SetPoint("TOPLEFT", picker, "TOPLEFT", 14, -116)
     iconScroll:SetWidth(ICON_GRID_COLS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
     iconScroll:SetHeight(ICON_GRID_ROWS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
 
@@ -100,7 +97,7 @@ pfUI:RegisterModule("macroicons", function ()
 
     -- Filter dropdown: All / Spells / Items
     local filterDropdown = CreateFrame("Frame", "pfMacroIconFilter", picker, "UIDropDownMenuTemplate")
-    filterDropdown:SetPoint("TOPRIGHT", picker, "TOPRIGHT", 0, -94)
+    filterDropdown:SetPoint("TOPRIGHT", picker, "TOPRIGHT", 0, -80)
     local function ApplyFilter(value)
       currentFilter = value
       UIDropDownMenu_SetSelectedValue(filterDropdown, value)
@@ -242,12 +239,10 @@ pfUI:RegisterModule("macroicons", function ()
         local name, texture = GetMacroInfo(MacroFrame.selectedMacro)
         picker.editbox:SetText(name or "")
         selectedIconPath = texture or QUESTION_MARK
-        picker.title:SetText(T["Edit Macro"] or "Edit Macro")
       else
         picker.mode = "new"
         picker.editbox:SetText("")
         selectedIconPath = QUESTION_MARK
-        picker.title:SetText(T["New Macro"] or "New Macro")
       end
       picker.search:SetText("")
       if not picker.userMoved then
