@@ -138,16 +138,10 @@ pfUI:RegisterModule("buff", function ()
       end
     end)
 
-    buff:SetScript("OnLeave", function()
-      GameTooltip:Hide()
-    end)
+    buff:SetScript("OnLeave", GameTooltip_Hide)
 
     buff:SetScript("OnClick", function()
-      if CancelItemTempEnchantment and this.mode and this.mode == "MAINHAND" then
-        CancelItemTempEnchantment(1)
-      elseif CancelItemTempEnchantment and this.mode and this.mode == "OFFHAND" then
-        CancelItemTempEnchantment(2)
-      elseif this.spellId then
+      if this.spellId then
         C_Spell.CancelSpellByID(this.spellId)
       end
     end)
