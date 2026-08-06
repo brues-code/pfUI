@@ -55,6 +55,7 @@ pfUI:RegisterModule("nameplates", function ()
   local savedHostileState = nil
   local savedFriendlyState = nil
   local inFriendlyZone = false
+  local myGuild = nil
   local platecount = 0
   local registry = {}
   -- Subset of registry that currently has a unit assigned (between
@@ -482,6 +483,7 @@ nameplates:RegisterEvent("UNIT_SPELLCAST_START")
 nameplates:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 nameplates:RegisterEvent("UNIT_SPELLCAST_STOP")
 nameplates:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
   
   nameplates:SetScript("OnEvent", function()
     -- Stop event handling during logout to prevent crash 132
@@ -493,13 +495,17 @@ nameplates:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
         nameplates.mouselook:SetScript("OnUpdate", nil)
       end
       return
-      
+
+    elseif event == "PLAYER_GUILD_UPDATE" and arg1 == 'player' then
+      myGuild = GetGuildInfo("player")
+
     elseif event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
       if event == "PLAYER_ENTERING_WORLD" then
         CacheConfig()
         this:SetGameVariables()
         RebuildRaidGuidCache()
         frameState.targetGuid = UnitGUID("target")
+        myGuild = GetGuildInfo("player")
       end
       
       -- Handle friendly zone nameplate disable feature
@@ -1121,7 +1127,7 @@ nameplates:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 
     if guild and C.nameplates.showguildname == "1" then
       plate.guild:SetText(guild)
-      if UnitIsInMyGuild(plate.unit) then
+      if guild == myGuild then
         plate.guild:SetTextColor(0, 0.9, 0, 1)
       else
         plate.guild:SetTextColor(0.8, 0.8, 0.8, 1)
