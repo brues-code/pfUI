@@ -1,11 +1,10 @@
 -- Equipment Manager module
--- Backport of the 4.3.4 GearManagerDialog UI on top of ClassicAPI's
--- C_EquipmentSet.* API. Adds a 6th tab to CharacterFrame.
+-- Backport of the 4.3.4 GearManagerDialog UI on top of ClassicAPI's C_EquipmentSet.* API.
 
 pfUI:RegisterModule("equipmentmanager", function()
   if not C_EquipmentSet or not C_EquipmentSet.CanUseEquipmentSets() then return end
 
-  pfUI.equipmentmanager = pfUI.equipmentmanager or {}
+  pfUI.equipmentmanager = {}
 
   local SET_ROW_HEIGHT = 36
 
@@ -55,7 +54,7 @@ pfUI:RegisterModule("equipmentmanager", function()
   local function EquipSet(setID)
     if not setID then return end
     if C_EquipmentSet.EquipmentSetContainsLockedItems(setID) then
-      UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT or "Locked items in set", 1, .1, .1, 1)
+      UIErrorsFrame:AddMessage(ERR_CLIENT_LOCKED_OUT, 1, .1, .1, 1)
       return
     end
     ClearCursor()
@@ -68,8 +67,7 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- ============================================================
 
   local frame = CreateFrame("Frame", "pfEquipmentManagerFrame", CharacterFrame)
-  frame:SetWidth(220)
-  frame:SetHeight(350)
+  frame:SetSize(220, 350)
   frame:SetFrameStrata("HIGH")
   frame:SetScript("OnShow", function()
     this:ClearAllPoints()
@@ -86,7 +84,7 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   frame.title:SetPoint("TOP", frame, "TOP", 0, -10)
-  frame.title:SetText(T["Equipment Manager"] or "Equipment Manager")
+  frame.title:SetText(EQUIPMENT_MANAGER)
 
   local closeBtn = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
   closeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
@@ -98,15 +96,14 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- ============================================================
 
   local toggleBtn = CreateFrame("Button", "pfEqMgrToggleButton", PaperDollFrame)
-  toggleBtn:SetWidth(28)
-  toggleBtn:SetHeight(28)
+  toggleBtn:SetSize(28, 28)
   toggleBtn:SetPoint("BOTTOM", CharacterHandsSlot, "TOP", 0, 4)
   toggleBtn:SetNormalTexture(pfUI.path.."\\img\\UI-GearManager-Button")
   toggleBtn:SetPushedTexture(pfUI.path.."\\img\\UI-GearManager-Button-Pushed")
   toggleBtn:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
   toggleBtn:SetScript("OnEnter", function()
     GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-    GameTooltip:SetText(T["Equipment Manager"] or "Equipment Manager")
+    GameTooltip:SetText(PAPERDOLL_EQUIPMENTMANAGER)
     GameTooltip:Show()
   end)
   toggleBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -126,13 +123,13 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- ============================================================
 
   local btnEquip = CreateFrame("Button", "pfEqMgrEquip", frame, "UIPanelButtonTemplate")
-  btnEquip:SetWidth(86); btnEquip:SetHeight(22); btnEquip:SetText(T["Equip"] or "Equip")
+  btnEquip:SetSize(86, 22); btnEquip:SetText(EQUIPSET_EQUIP)
   btnEquip:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -30)
   SkinButton(btnEquip)
   btnEquip:SetScript("OnClick", function() EquipSet(selectedSetID) end)
 
   local btnSave = CreateFrame("Button", "pfEqMgrSave", frame, "UIPanelButtonTemplate")
-  btnSave:SetWidth(86); btnSave:SetHeight(22); btnSave:SetText(T["Save"] or "Save")
+  btnSave:SetSize(86, 22); btnSave:SetText(SAVE)
   btnSave:SetPoint("LEFT", btnEquip, "RIGHT", 6, 0)
   SkinButton(btnSave)
   btnSave:SetScript("OnClick", function()
@@ -141,7 +138,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     if not name then return end
     local targetID = selectedSetID
     StaticPopupDialogs["PFUI_EQMGR_SAVE_CONFIRM"] = {
-      text = string.format(T["Would you like to save the equipment set '%s'?"] or "Would you like to save the equipment set '%s'?", name),
+      text = string.format(CONFIRM_SAVE_EQUIPMENT_SET, name),
       button1 = YES, button2 = NO,
       OnAccept = function()
         C_EquipmentSet.ClearIgnoredSlotsForSave()
@@ -166,7 +163,7 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   local rowMenu = CreateFrame("Frame", "pfEqMgrRowMenu", UIParent)
   rowMenu:SetFrameStrata("DIALOG")
-  rowMenu:SetWidth(140); rowMenu:SetHeight(50)
+  rowMenu:SetSize(140, 50);
   rowMenu:Hide()
   CreateBackdrop(rowMenu, nil, nil, .95)
   CreateBackdropShadow(rowMenu)
@@ -185,9 +182,9 @@ pfUI:RegisterModule("equipmentmanager", function()
   tinsert(UISpecialFrames, "pfEqMgrRowMenu")  -- Escape closes it
 
   rowMenu.changeBtn = CreateFrame("Button", nil, rowMenu, "UIPanelButtonTemplate")
-  rowMenu.changeBtn:SetWidth(130); rowMenu.changeBtn:SetHeight(20)
+  rowMenu.changeBtn:SetSize(130, 20);
   rowMenu.changeBtn:SetPoint("TOPLEFT", rowMenu, "TOPLEFT", 5, -3)
-  rowMenu.changeBtn:SetText(T["Change Name/Icon"] or "Change Name/Icon")
+  rowMenu.changeBtn:SetText(EQUIPMENT_SET_EDIT)
   SkinButton(rowMenu.changeBtn)
   rowMenu.changeBtn:SetScript("OnClick", function()
     rowMenu:Hide()
@@ -198,9 +195,9 @@ pfUI:RegisterModule("equipmentmanager", function()
   end)
 
   rowMenu.deleteBtn = CreateFrame("Button", nil, rowMenu, "UIPanelButtonTemplate")
-  rowMenu.deleteBtn:SetWidth(130); rowMenu.deleteBtn:SetHeight(20)
+  rowMenu.deleteBtn:SetSize(130, 20);
   rowMenu.deleteBtn:SetPoint("TOP", rowMenu.changeBtn, "BOTTOM", 0, -2)
-  rowMenu.deleteBtn:SetText(T["Delete"] or "Delete")
+  rowMenu.deleteBtn:SetText(DELETE)
   SkinButton(rowMenu.deleteBtn)
   rowMenu.deleteBtn:SetScript("OnClick", function()
     rowMenu:Hide()
@@ -208,7 +205,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     local targetID = rowMenu.targetSetID
     local name = C_EquipmentSet.GetEquipmentSetInfo(targetID)
     StaticPopupDialogs["PFUI_EQMGR_DELETE"] = {
-      text = string.format(T["Delete equipment set '%s'?"] or "Delete equipment set '%s'?", name or "?"),
+      text = string.format(CONFIRM_DELETE_EQUIPMENT_SET, name or "?"),
       button1 = YES, button2 = NO,
       OnAccept = function()
         pendingIgnoredToggles[targetID] = nil
@@ -229,9 +226,8 @@ pfUI:RegisterModule("equipmentmanager", function()
   local LIST_ROW_STRIDE = SET_ROW_HEIGHT + 2
   local listFrame = CreateFrame("Frame", nil, frame)
   listFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -58)
-  listFrame:SetWidth(180)
   -- Height fits N rows + (N-1) inter-row gaps + 3px top/bottom padding.
-  listFrame:SetHeight(LIST_VISIBLE_ROWS * LIST_ROW_STRIDE + 4)
+  listFrame:SetSize(180, LIST_VISIBLE_ROWS * LIST_ROW_STRIDE + 4)
   CreateBackdrop(listFrame, nil, nil, .75)
 
   -- Mouse-wheel scroll: list of [sets..., newSetRow] is virtualized
@@ -247,15 +243,13 @@ pfUI:RegisterModule("equipmentmanager", function()
   local setRows = {}
   local function CreateSetRow()
     local row = CreateFrame("Button", nil, listFrame)
-    row:SetWidth(170)
-    row:SetHeight(SET_ROW_HEIGHT)
+    row:SetSize(170, SET_ROW_HEIGHT)
     -- Position is set per-Refresh based on the row's visible slot;
     -- start anchored to avoid uninitialized geometry before first Refresh.
     row:SetPoint("TOPLEFT", listFrame, "TOPLEFT", 5, -3)
 
     row.icon = row:CreateTexture(nil, "ARTWORK")
-    row.icon:SetWidth(30)
-    row.icon:SetHeight(30)
+    row.icon:SetSize(30, 30)
     row.icon:SetPoint("LEFT", row, "LEFT", 2, 0)
     row.icon:SetTexCoord(.08, .92, .08, .92)
 
@@ -270,7 +264,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     row.highlight:Hide()
 
     row.gear = CreateFrame("Button", nil, row)
-    row.gear:SetWidth(16); row.gear:SetHeight(16)
+    row.gear:SetSize(16, 16);
     row.gear:SetPoint("RIGHT", row, "RIGHT", -4, 0)
     row.gear.tex = row.gear:CreateTexture(nil, "ARTWORK")
     row.gear.tex:SetAllPoints(row.gear)
@@ -306,27 +300,27 @@ pfUI:RegisterModule("equipmentmanager", function()
       pfUI.equipmentmanager.Refresh()
     end)
 
-    -- Hover handling: OnLeave fires when the cursor moves onto a child
-    -- (the gear button becomes the topmost mouse target). Use an
-    -- OnUpdate poll so the gear stays shown while the cursor is over
-    -- the row OR the gear itself.
+    -- Show the gear and tooltip while the cursor is over the row or its
+    -- gear child. The gear sits inside the row's rectangle, so a single
+    -- MouseIsOver(row) check covers both. OnLeave on the row and the gear
+    -- catches every exit path, so no OnUpdate poll is needed.
+    local function HideRowHover()
+      if MouseIsOver(row) then return end
+      GameTooltip:Hide()
+      row.gear:Hide()
+    end
     row:SetScript("OnEnter", function()
-      if not this.setID then return end
-      local name = C_EquipmentSet.GetEquipmentSetInfo(this.setID)
+      if not row.setID then return end
+      local name = C_EquipmentSet.GetEquipmentSetInfo(row.setID)
       if name then
-        GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+        GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
         GameTooltip:SetEquipmentSet(name)
         GameTooltip:Show()
       end
       row.gear:Show()
-      this:SetScript("OnUpdate", function()
-        if not MouseIsOver(this) and not MouseIsOver(row.gear) then
-          this:SetScript("OnUpdate", nil)
-          GameTooltip:Hide()
-          row.gear:Hide()
-        end
-      end)
     end)
+    row:SetScript("OnLeave", HideRowHover)
+    row.gear:SetScript("OnLeave", HideRowHover)
 
     return row
   end
@@ -338,10 +332,10 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- specific set index (row[i] always shows ids[i]).
 
   local newSetRow = CreateFrame("Button", nil, listFrame)
-  newSetRow:SetWidth(170); newSetRow:SetHeight(SET_ROW_HEIGHT)
+  newSetRow:SetSize(170, SET_ROW_HEIGHT);
 
   newSetRow.icon = newSetRow:CreateTexture(nil, "ARTWORK")
-  newSetRow.icon:SetWidth(24); newSetRow.icon:SetHeight(24)
+  newSetRow.icon:SetSize(24, 24);
   newSetRow.icon:SetPoint("LEFT", newSetRow, "LEFT", 5, 0)
   newSetRow.icon:SetTexture(pfUI.path.."\\img\\Character-Plus")
 
@@ -349,7 +343,7 @@ pfUI:RegisterModule("equipmentmanager", function()
   newSetRow.text:SetPoint("LEFT", newSetRow.icon, "RIGHT", 8, 0)
   newSetRow.text:SetPoint("RIGHT", newSetRow, "RIGHT", -4, 0)
   newSetRow.text:SetJustifyH("LEFT")
-  newSetRow.text:SetText(T["New Set"] or "New Set")
+  newSetRow.text:SetText(PAPERDOLL_NEWEQUIPMENTSET)
   newSetRow.text:SetTextColor(0.2, 1, 0.2)
 
   newSetRow.highlight = newSetRow:CreateTexture(nil, "BACKGROUND")
@@ -362,8 +356,7 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   local function MakeButton(name, label, parent, anchor, ax, ay, width)
     local b = CreateFrame("Button", name, parent, "UIPanelButtonTemplate")
-    b:SetWidth(width or 70)
-    b:SetHeight(22)
+    b:SetSize(width or 70, 22)
     b:SetText(label)
     b:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", ax, ay)
     SkinButton(b)
@@ -376,8 +369,7 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   local namePopup = CreateFrame("Frame", "pfEqMgrNamePopup", UIParent)
   namePopup:SetFrameStrata("DIALOG")
-  namePopup:SetWidth(472)
-  namePopup:SetHeight(498)
+  namePopup:SetSize(472, 484)
   namePopup:SetPoint("CENTER", UIParent, "CENTER")
   namePopup:Hide()
   CreateBackdrop(namePopup, nil, nil, .9)
@@ -388,200 +380,28 @@ pfUI:RegisterModule("equipmentmanager", function()
   namePopup:SetScript("OnDragStart", function() this:StartMoving() end)
   namePopup:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
 
-  namePopup.title = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  namePopup.title:SetPoint("TOP", namePopup, "TOP", 0, -10)
-  namePopup.title:SetText(T["Save Set"] or "Save Set")
+  -- Equipment seed leads the grid with gear-relevant item icons. The widget
+  -- owns the name field, preview, grid, filter, and search; this module keeps
+  -- the OK/Cancel buttons and the create/save/rename flow below.
+  local iconPicker = CreateIconPicker("pfEqMgrIcon", namePopup,
+                                      IconDataProviderExtraType.Equipment, GEARSETS_POPUP_TEXT)
 
-  namePopup.nameLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  namePopup.nameLabel:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -34)
-  namePopup.nameLabel:SetText(T["Enter Set Name (Max 16 Characters):"] or "Enter Set Name (Max 16 Characters):")
+  local btnPopupOK = MakeButton("pfEqMgrPopupOK", OKAY, namePopup, namePopup, 14, -340, 80)
 
-  namePopup.editbox = CreateFrame("EditBox", "pfEqMgrNameEdit", namePopup, "InputBoxTemplate")
-  namePopup.editbox:SetWidth(280)
-  namePopup.editbox:SetHeight(20)
-  namePopup.editbox:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -52)
-  namePopup.editbox:SetAutoFocus(false)
-  namePopup.editbox:SetMaxLetters(16)
-  CreateBackdrop(namePopup.editbox)
-
-  namePopup.selectedLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  namePopup.selectedLabel:SetPoint("TOPRIGHT", namePopup, "TOPRIGHT", -14, -28)
-  namePopup.selectedLabel:SetText(T["Currently Selected"] or "Currently Selected")
-  namePopup.selectedLabel:SetTextColor(1, 0.82, 0)
-
-  namePopup.selectedPreview = CreateFrame("Frame", nil, namePopup)
-  namePopup.selectedPreview:SetWidth(42)
-  namePopup.selectedPreview:SetHeight(42)
-  namePopup.selectedPreview:SetPoint("TOPRIGHT", namePopup, "TOPRIGHT", -14, -44)
-  CreateBackdrop(namePopup.selectedPreview)
-  namePopup.selectedPreview.tex = namePopup.selectedPreview:CreateTexture(nil, "ARTWORK")
-  namePopup.selectedPreview.tex:SetAllPoints(namePopup.selectedPreview)
-  namePopup.selectedPreview.tex:SetTexCoord(.08, .92, .08, .92)
-
-  namePopup.iconLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  namePopup.iconLabel:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -100)
-  namePopup.iconLabel:SetText(T["Choose an Icon:"] or "Choose an Icon:")
-
-  -- Icon picker: 10×8 grid of buttons + scroll
-  local ICON_GRID_COLS = 10
-  local ICON_GRID_ROWS = 8
-  local ICON_BTN_SIZE = 36
-  local ICON_BTN_PAD = 6
-
-  local iconScroll = CreateFrame("ScrollFrame", "pfEqMgrIconScroll", namePopup, "FauxScrollFrameTemplate")
-  iconScroll:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -130)
-  iconScroll:SetWidth(ICON_GRID_COLS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
-  iconScroll:SetHeight(ICON_GRID_ROWS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
-
-  -- IconDataProviderMixin owns the icon DB, dedup, and lazy load.
-  -- Init on first picker open; release on hide so the cache GCs.
-  local provider = nil
-  -- Selection is tracked by PATH (not index) so it survives filter
-  -- changes: a spell icon you picked still saves correctly even after
-  -- you switch the filter to "Items" and it's no longer in the visible list.
-  local QUESTION_MARK = "INTERFACE\\ICONS\\INV_MISC_QUESTIONMARK"
-  local selectedIconPath = QUESTION_MARK
-
-  local function EnsureProvider()
-    if not provider then
-      provider = CreateAndInitFromMixin(IconDataProviderMixin,
-                                         IconDataProviderExtraType.Equipment)
-    end
-  end
-
-  -- Anchor scrollbar to iconScroll's right edge so its position tracks
-  -- the icon grid rather than the popup. -16/+16 vertical insets are the
-  -- standard up/down arrow spacing for UIPanelScrollBarTemplate.
-  local scrollbar = _G["pfEqMgrIconScrollScrollBar"]
-  if scrollbar then
-    scrollbar:ClearAllPoints()
-    scrollbar:SetPoint("TOPLEFT", iconScroll, "TOPRIGHT", 8, -16)
-    scrollbar:SetPoint("BOTTOMLEFT", iconScroll, "BOTTOMRIGHT", 8, 16)
-    SkinScrollbar(scrollbar)
-  end
-
-  -- Filter dropdown: "All Icons" / "Spells" / "Items" (top right of icon area).
-  local filterDropdown = CreateFrame("Frame", "pfEqMgrIconFilter", namePopup, "UIDropDownMenuTemplate")
-  filterDropdown:SetPoint("TOPRIGHT", namePopup, "TOPRIGHT", 0, -94)
-  local currentFilter = "all"
-  local function ApplyFilter(value)
-    currentFilter = value
-    UIDropDownMenu_SetSelectedValue(filterDropdown, value)
-    if provider then
-      if value == "spells" then provider:SetIconTypes({ IconDataProviderIconType.Spell })
-      elseif value == "items" then provider:SetIconTypes({ IconDataProviderIconType.Item })
-      else provider:SetIconTypes(nil) end
-      -- Don't reset selection — selectedIconPath persists. If the
-      -- selected icon isn't in the new filter, no grid entry will be
-      -- highlighted but Save will still write the chosen icon.
-      pfUI.equipmentmanager.RefreshIconGrid()
-    end
-  end
-  UIDropDownMenu_Initialize(filterDropdown, function()
-    local info
-    info = {}; info.text = T["All Icons"] or "All Icons"; info.value = "all"
-    info.func = function() ApplyFilter("all") end
-    info.checked = currentFilter == "all"
-    UIDropDownMenu_AddButton(info)
-    info = {}; info.text = T["Spells"] or "Spells"; info.value = "spells"
-    info.func = function() ApplyFilter("spells") end
-    info.checked = currentFilter == "spells"
-    UIDropDownMenu_AddButton(info)
-    info = {}; info.text = T["Items"] or "Items"; info.value = "items"
-    info.func = function() ApplyFilter("items") end
-    info.checked = currentFilter == "items"
-    UIDropDownMenu_AddButton(info)
-  end)
-  UIDropDownMenu_SetWidth(120, filterDropdown)
-  UIDropDownMenu_SetSelectedValue(filterDropdown, "all")
-  SkinDropDown(filterDropdown)
-
-  local iconButtons = {}
-  for r = 1, ICON_GRID_ROWS do
-    for c = 1, ICON_GRID_COLS do
-      local i = (r - 1) * ICON_GRID_COLS + c
-      local btn = CreateFrame("Button", nil, namePopup)
-      btn:SetWidth(ICON_BTN_SIZE)
-      btn:SetHeight(ICON_BTN_SIZE)
-      btn:SetPoint("TOPLEFT", iconScroll, "TOPLEFT", (c-1) * (ICON_BTN_SIZE + ICON_BTN_PAD), -(r-1) * (ICON_BTN_SIZE + ICON_BTN_PAD))
-      CreateBackdrop(btn)
-      btn.texture = btn:CreateTexture(nil, "ARTWORK")
-      btn.texture:SetAllPoints(btn)
-      btn.texture:SetTexCoord(.08, .92, .08, .92)
-      btn.gridIndex = i
-      btn:SetScript("OnClick", function()
-        if this.iconIndex and provider then
-          local path = provider:GetIconByIndex(this.iconIndex)
-          if path then selectedIconPath = path end
-          pfUI.equipmentmanager.RefreshIconGrid()
-        end
-      end)
-      btn:SetScript("OnEnter", function()
-        if not this.iconIndex or not provider then return end
-        local path = provider:GetIconByIndex(this.iconIndex)
-        if type(path) == "string" then
-          local name = string.gsub(path, "^.-INTERFACE\\\\ICONS\\\\", "")
-          GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-          GameTooltip:SetText(name)
-          GameTooltip:Show()
-        end
-      end)
-      btn:SetScript("OnLeave", GameTooltip_Hide)
-      iconButtons[i] = btn
-    end
-  end
-
-  function pfUI.equipmentmanager.RefreshIconGrid()
-    EnsureProvider()
-    local numIcons = provider:GetNumIcons()
-    local numRows = math.ceil(numIcons / ICON_GRID_COLS)
-    FauxScrollFrame_Update(iconScroll, numRows, ICON_GRID_ROWS, ICON_BTN_SIZE + ICON_BTN_PAD)
-    local offset = FauxScrollFrame_GetOffset(iconScroll)
-    for i = 1, ICON_GRID_ROWS * ICON_GRID_COLS do
-      local listIdx = i + offset * ICON_GRID_COLS
-      local btn = iconButtons[i]
-      if listIdx <= numIcons then
-        btn:Show()
-        btn.iconIndex = listIdx
-        local path = provider:GetIconByIndex(listIdx)
-        btn.texture:SetTexture(path)
-        if path == selectedIconPath then
-          btn.backdrop:SetBackdropBorderColor(1, 0.82, 0, 1)
-        else
-          btn.backdrop:SetBackdropBorderColor(pfUI.cache.er, pfUI.cache.eg, pfUI.cache.eb, pfUI.cache.ea)
-        end
-      else
-        btn:Hide()
-        btn.iconIndex = nil
-      end
-    end
-    -- Sync the "Currently Selected" preview from the path directly so it
-    -- still shows the chosen icon when filtered out of the grid.
-    namePopup.selectedPreview.tex:SetTexture(selectedIconPath)
-  end
-
-  iconScroll:SetScript("OnVerticalScroll", function()
-    FauxScrollFrame_OnVerticalScroll(ICON_BTN_SIZE + ICON_BTN_PAD, function() pfUI.equipmentmanager.RefreshIconGrid() end)
-  end)
-
-  namePopup:SetScript("OnHide", function()
-    if provider then provider:Release(); provider = nil end
-  end)
-
-  local btnPopupOK = MakeButton("pfEqMgrPopupOK", T["OK"] or "OK", namePopup, namePopup, 14, -340, 80)
-  btnPopupOK:ClearAllPoints()
-  btnPopupOK:SetPoint("BOTTOMLEFT", namePopup, "BOTTOMLEFT", 14, 12)
-
-  local btnPopupCancel = MakeButton("pfEqMgrPopupCancel", T["Cancel"] or "Cancel", namePopup, namePopup, 0, 0, 80)
+  local btnPopupCancel = MakeButton("pfEqMgrPopupCancel", CANCEL, namePopup, namePopup, 0, 0, 80)
   btnPopupCancel:ClearAllPoints()
   btnPopupCancel:SetPoint("BOTTOMRIGHT", namePopup, "BOTTOMRIGHT", -14, 12)
   btnPopupCancel:SetScript("OnClick", function() namePopup:Hide() end)
+
+  -- Okay | Cancel, both anchored to the bottom-right corner.
+  btnPopupOK:ClearAllPoints()
+  btnPopupOK:SetPoint("BOTTOMRIGHT", btnPopupCancel, "BOTTOMLEFT", -6, 0)
 
   btnPopupOK:SetScript("OnClick", function()
     local name = namePopup.editbox:GetText()
     if not name or name == "" then return end
     -- Strip the prefix to match ClassicAPI's persisted short-form basenames.
-    local iconForSave = string.gsub(selectedIconPath, "INTERFACE\\ICONS\\", "")
+    local iconForSave = string.gsub(iconPicker.GetIcon(), "INTERFACE\\ICONS\\", "")
     if pendingAction == "new" then
       C_EquipmentSet.CreateEquipmentSet(name, iconForSave)
       C_EquipmentSet.ClearIgnoredSlotsForSave()
@@ -610,31 +430,20 @@ pfUI:RegisterModule("equipmentmanager", function()
   function OpenNamePopup(action, prefillName, prefillIcon)
     pendingAction = action
     namePopup.editbox:SetText(prefillName or "")
-    EnsureProvider()
     if prefillIcon then
-      local short = string.gsub(prefillIcon, "INTERFACE\\ICONS\\", "")
-      selectedIconPath = "INTERFACE\\ICONS\\" .. strupper(short)
+      -- Stored icons come back either as a full path or a bare basename
+      -- (see the row rendering in Refresh). Only prepend the prefix when
+      -- there's no path separator, so a full path isn't double-prefixed.
+      iconPicker.SetIcon(string.find(prefillIcon, "\\") and prefillIcon
+                         or ("INTERFACE\\ICONS\\" .. prefillIcon))
     else
-      selectedIconPath = QUESTION_MARK
+      iconPicker.SetIcon(nil)
     end
-    if action == "rename" then
-      namePopup.title:SetText(T["Rename Set"] or "Rename Set")
-      iconScroll:Hide()
-      for _, b in ipairs(iconButtons) do b:Hide() end
-      namePopup.iconLabel:Hide()
-      namePopup.selectedLabel:Hide()
-      namePopup.selectedPreview:Hide()
-      filterDropdown:Hide()
-    else
-      namePopup.title:SetText(action == "new" and (T["Name Set"] or "Name Set") or (T["Save Set"] or "Save Set"))
-      iconScroll:Show()
-      namePopup.iconLabel:Show()
-      namePopup.selectedLabel:Show()
-      namePopup.selectedPreview:Show()
-      filterDropdown:Show()
-    end
+    namePopup.search:SetText("")
+    -- Rename only changes the name, so hide the whole icon-picking area.
+    iconPicker.SetIconAreaShown(action ~= "rename")
     namePopup:Show()
-    if action ~= "rename" then pfUI.equipmentmanager.RefreshIconGrid() end
+    if action ~= "rename" then iconPicker.Refresh() end
     namePopup.editbox:SetFocus()
   end
 
@@ -643,9 +452,13 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- ============================================================
 
   local flyout = CreateFrame("Frame", "pfEqMgrFlyout", UIParent)
+  -- Everything tied to the EM sidecar closes with it: the popout arrows,
+  -- the per-slot flyout, and the name/icon popup. (OnShow re-shows the
+  -- popout arrows.)
   frame:SetScript("OnHide", function()
     for _, b in ipairs(popoutButtons) do b:Hide() end
     flyout:Hide()
+    namePopup:Hide()
   end)
   flyout:SetFrameStrata("DIALOG")
   flyout:Hide()
@@ -676,7 +489,7 @@ pfUI:RegisterModule("equipmentmanager", function()
       end
     end
     ClearCursor()
-    UIErrorsFrame:AddMessage(EQUIPMENT_MANAGER_BAGS_FULL or "Your bags are full.", 1, .1, .1, 1)
+    UIErrorsFrame:AddMessage(ERR_EQUIPMENT_MANAGER_BAGS_FULL, 1, .1, .1, 1)
   end
 
   local function MakeFlyoutButton(i)
@@ -692,11 +505,11 @@ pfUI:RegisterModule("equipmentmanager", function()
     b:SetScript("OnEnter", function()
       GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
       if this.specialAction == "placeInBags" then
-        GameTooltip:SetText(EQUIPMENT_MANAGER_PLACE_IN_BAGS or "Place in Bags", 1, 1, 1)
+        GameTooltip:SetText(EQUIPMENT_MANAGER_PLACE_IN_BAGS, 1, 1, 1)
       elseif this.specialAction == "ignore" then
-        GameTooltip:SetText(EQUIPMENT_MANAGER_IGNORE_SLOT or "Ignore this slot", 1, 1, 1)
+        GameTooltip:SetText(EQUIPMENT_MANAGER_IGNORE_SLOT, 1, 1, 1)
       elseif this.specialAction == "unignore" then
-        GameTooltip:SetText(EQUIPMENT_MANAGER_UNIGNORE_SLOT or "Stop ignoring this slot", 1, 1, 1)
+        GameTooltip:SetText(EQUIPMENT_MANAGER_UNIGNORE_SLOT, 1, 1, 1)
       elseif this.bag then
         GameTooltip:SetBagItem(this.bag, this.slot)
       elseif this.invSlot then
@@ -704,7 +517,7 @@ pfUI:RegisterModule("equipmentmanager", function()
       end
       GameTooltip:Show()
     end)
-    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b:SetScript("OnLeave", GameTooltip_Hide)
     b:SetScript("OnClick", function()
       if this.specialAction == "placeInBags" then
         UnequipToBags(flyout.targetInvSlot)
@@ -809,7 +622,6 @@ pfUI:RegisterModule("equipmentmanager", function()
 
     if num == 0 then
       flyout:Hide()
-      UIErrorsFrame:AddMessage(T["No matching items in bags"] or "No matching items in bags", 1, 1, 0, 1)
       return
     end
 
@@ -937,16 +749,6 @@ pfUI:RegisterModule("equipmentmanager", function()
       table.insert(popoutButtons, popout)
     end
   end
-
-  -- Tie popout visibility to the EM sidecar. They appear when the
-  -- sidecar opens, hide when it closes, and the flyout closes too.
-  frame:HookScript("OnShow", function()
-    for _, b in ipairs(popoutButtons) do b:Show() end
-  end)
-  frame:HookScript("OnHide", function()
-    for _, b in ipairs(popoutButtons) do b:Hide() end
-    if flyout then flyout:Hide() end
-  end)
 
   -- ============================================================
   -- Refresh

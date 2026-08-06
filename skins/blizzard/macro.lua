@@ -60,33 +60,35 @@ pfUI:RegisterSkin("Macro", function ()
     MacroFrameScrollFrame:ClearAllPoints()
     MacroFrameScrollFrame:SetPoint("TOPLEFT", MacroFrameSelectedMacroBackground, "BOTTOMLEFT", 11, -13)
 
+    -- The macroicons module replaces MacroPopupFrame with its own picker.
+    -- Only skin the stock popup when that module is disabled.
+    if pfUI_config["disabled"] and pfUI_config["disabled"]["macroicons"] == "1" then
+      StripTextures(MacroPopupFrame)
+      CreateBackdrop(MacroPopupFrame, nil, nil, .75)
+      MacroPopupFrame:SetFrameStrata("DIALOG")
+      MacroPopupFrame:ClearAllPoints()
+      MacroPopupFrame:SetPoint("TOPLEFT", MacroFrame.backdrop, "TOPRIGHT", 2*border, 0)
 
+      StripTextures(MacroPopupScrollFrame)
+      SkinScrollbar(MacroPopupScrollFrameScrollBar)
 
-    StripTextures(MacroPopupFrame)
-    CreateBackdrop(MacroPopupFrame, nil, nil, .75)
-    MacroPopupFrame:SetFrameStrata("DIALOG")
-    MacroPopupFrame:ClearAllPoints()
-    MacroPopupFrame:SetPoint("TOPLEFT", MacroFrame.backdrop, "TOPRIGHT", 2*border, 0)
+      MacroPopupEditBox:DisableDrawLayer("BACKGROUND")
+      CreateBackdrop(MacroPopupEditBox, nil, true)
+      MacroPopupEditBox:SetScript("OnEscapePressed", function()
+        MacroPopupFrame:Hide()
+        MacroFrame_Update()
+      end)
 
-    StripTextures(MacroPopupScrollFrame)
-    SkinScrollbar(MacroPopupScrollFrameScrollBar)
-
-    MacroPopupEditBox:DisableDrawLayer("BACKGROUND")
-    CreateBackdrop(MacroPopupEditBox, nil, true)
-    MacroPopupEditBox:SetScript("OnEscapePressed", function()
-      MacroPopupFrame:Hide()
-      MacroFrame_Update()
-    end)
-
-    for i=1, NUM_MACRO_ICONS_SHOWN do
-      local button = _G["MacroPopupButton"..i]
-      local icon = _G["MacroPopupButton"..i..'Icon']
-      StripTextures(button)
-      SkinButton(button, nil, nil, nil, icon)
+      for i=1, NUM_MACRO_ICONS_SHOWN do
+        local button = _G["MacroPopupButton"..i]
+        local icon = _G["MacroPopupButton"..i..'Icon']
+        StripTextures(button)
+        SkinButton(button, nil, nil, nil, icon)
+      end
+      SkinButton(MacroPopupCancelButton)
+      SkinButton(MacroPopupOkayButton)
+      MacroPopupOkayButton:ClearAllPoints()
+      MacroPopupOkayButton:SetPoint("RIGHT", MacroPopupCancelButton, "LEFT", -2*bpad, 0)
     end
-    SkinButton(MacroPopupCancelButton)
-    SkinButton(MacroPopupOkayButton)
-    MacroPopupOkayButton:ClearAllPoints()
-    MacroPopupOkayButton:SetPoint("RIGHT", MacroPopupCancelButton, "LEFT", -2*bpad, 0)
   end)
 end)
