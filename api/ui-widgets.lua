@@ -1246,3 +1246,249 @@ function pfUI.api.SkinMoneyInputFrame(frame)
   copperIcon:ClearAllPoints()
   copperIcon:SetPoint("LEFT", copper_editbox, "RIGHT", 2, 0)
 end
+
+-- Shared icon picker widget. Builds a name field, a "currently selected"
+-- preview, and a 10x8 icon grid backed by IconDataProviderMixin with an
+-- All/Spells/Items filter and a name search. Used by the macro icon picker
+-- and the equipment manager's name/icon popup. The widgets attach to
+-- `parent`; the caller owns the surrounding frame, its OK/Cancel buttons,
+-- and the save flow. Selection is tracked by texture PATH (not index) so it
+-- survives filter changes -- a spell icon you picked still saves after you
+-- switch the filter to "Items" and it drops out of the visible grid.
+--
+--   name          global-name prefix for the scroll frame and editboxes
+--   parent        the popup frame to attach the widgets to
+--   extraType     IconDataProviderExtraType.* seed (Spellbook / Equipment)
+--   nameLabelText header shown above the name field
+--
+-- Returns a handle:
+--   .editbox                 name EditBox (caller wires enter/escape)
+--   .search                  search EditBox
+--   .GetIcon()               current selected texture path
+--   .SetIcon(path)           set selection (nil -> question mark)
+--   .Refresh()               ensure provider, redraw grid + preview
+--   .SetIconAreaShown(shown) show/hide the grid, filter, search, and labels
+function pfUI.api.CreateIconPicker(name, parent, extraType, nameLabelText)
+  local QUESTION_MARK = "INTERFACE\\ICONS\\INV_MISC_QUESTIONMARK"
+
+  local ICON_GRID_COLS = 10
+  local ICON_GRID_ROWS = 8
+  local ICON_BTN_SIZE  = 36
+  local ICON_BTN_PAD   = 6
+
+  local provider = nil
+  local selectedIconPath = QUESTION_MARK
+  local currentFilter = "all"
+  local searchText = ""
+  local filtered = nil  -- provider indices matching the search, or nil when empty
+  local RefreshIconGrid, RebuildFilter
+
+  local function EnsureProvider()
+    if not provider then
+      provider = CreateAndInitFromMixin(IconDataProviderMixin, extraType)
+    end
+  end
+
+  -- Normalize a texture to an uppercase basename so matching works across
+  -- sources: GetMacroInfo / stored set icons return "Interface\Icons\<name>"
+  -- while provider paths are uppercase-prefixed for base icons and
+  -- mixed-case for spellbook extras.
+  local function IconKey(path)
+    if type(path) ~= "string" then return path end
+    return string.gsub(string.upper(path), "^.*[\\/]", "")
+  end
+
+  parent.nameLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  parent.nameLabel:SetPoint("TOPLEFT", parent, "TOPLEFT", 14, -20)
+  parent.nameLabel:SetText(nameLabelText)
+
+  parent.editbox = CreateFrame("EditBox", name.."Name", parent, "InputBoxTemplate")
+  parent.editbox:SetSize(280, 20)
+  parent.editbox:SetPoint("TOPLEFT", parent, "TOPLEFT", 14, -38)
+  parent.editbox:SetAutoFocus(false)
+  parent.editbox:SetMaxLetters(16)
+  CreateBackdrop(parent.editbox)
+
+  parent.selectedLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  parent.selectedLabel:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -14, -14)
+  parent.selectedLabel:SetText(ICON_SELECTION_TITLE_CURRENT)
+  parent.selectedLabel:SetTextColor(1, 0.82, 0)
+
+  parent.selectedPreview = CreateFrame("Frame", nil, parent)
+  parent.selectedPreview:SetSize(42, 42)
+  parent.selectedPreview:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -14, -30)
+  CreateBackdrop(parent.selectedPreview)
+  parent.selectedPreview.tex = parent.selectedPreview:CreateTexture(nil, "ARTWORK")
+  parent.selectedPreview.tex:SetAllPoints(parent.selectedPreview)
+  parent.selectedPreview.tex:SetTexCoord(.08, .92, .08, .92)
+
+  parent.iconLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  parent.iconLabel:SetPoint("TOPLEFT", parent, "TOPLEFT", 14, -86)
+  parent.iconLabel:SetText(MACRO_POPUP_CHOOSE_ICON)
+
+  -- Icon grid + scroll
+  local iconScroll = CreateFrame("ScrollFrame", name.."Scroll", parent, "FauxScrollFrameTemplate")
+  iconScroll:SetPoint("TOPLEFT", parent, "TOPLEFT", 14, -116)
+  iconScroll:SetWidth(ICON_GRID_COLS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
+  iconScroll:SetHeight(ICON_GRID_ROWS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
+
+  local scrollbar = _G[name.."ScrollScrollBar"]
+  scrollbar:ClearAllPoints()
+  scrollbar:SetPoint("TOPLEFT", iconScroll, "TOPRIGHT", 8, -16)
+  scrollbar:SetPoint("BOTTOMLEFT", iconScroll, "BOTTOMRIGHT", 8, 16)
+  SkinScrollbar(scrollbar)
+
+  -- Filter dropdown: All / Spells / Items
+  local filterDropdown = CreateFrame("Frame", name.."Filter", parent, "UIDropDownMenuTemplate")
+  filterDropdown:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, -80)
+  local function ApplyFilter(value)
+    currentFilter = value
+    UIDropDownMenu_SetSelectedValue(filterDropdown, value)
+    if provider then
+      if value == "spells" then provider:SetIconTypes({ IconDataProviderIconType.Spell })
+      elseif value == "items" then provider:SetIconTypes({ IconDataProviderIconType.Item })
+      else provider:SetIconTypes(nil) end
+      RebuildFilter()
+      RefreshIconGrid()
+    end
+  end
+  UIDropDownMenu_Initialize(filterDropdown, function()
+    local info
+    info = {}; info.text = ICON_FILTER_ALL; info.value = "all"
+    info.func = function() ApplyFilter("all") end
+    info.checked = currentFilter == "all"
+    UIDropDownMenu_AddButton(info)
+    info = {}; info.text = ICON_FILTER_SPELL; info.value = "spells"
+    info.func = function() ApplyFilter("spells") end
+    info.checked = currentFilter == "spells"
+    UIDropDownMenu_AddButton(info)
+    info = {}; info.text = ICON_FILTER_ITEM; info.value = "items"
+    info.func = function() ApplyFilter("items") end
+    info.checked = currentFilter == "items"
+    UIDropDownMenu_AddButton(info)
+  end)
+  UIDropDownMenu_SetWidth(120, filterDropdown)
+  UIDropDownMenu_SetSelectedValue(filterDropdown, "all")
+  SkinDropDown(filterDropdown)
+
+  local iconButtons = {}
+  for r = 1, ICON_GRID_ROWS do
+    for c = 1, ICON_GRID_COLS do
+      local i = (r - 1) * ICON_GRID_COLS + c
+      local btn = CreateFrame("Button", nil, parent)
+      btn:SetSize(ICON_BTN_SIZE, ICON_BTN_SIZE)
+      btn:SetPoint("TOPLEFT", iconScroll, "TOPLEFT", (c-1) * (ICON_BTN_SIZE + ICON_BTN_PAD), -(r-1) * (ICON_BTN_SIZE + ICON_BTN_PAD))
+      CreateBackdrop(btn)
+      btn.texture = btn:CreateTexture(nil, "ARTWORK")
+      btn.texture:SetAllPoints(btn)
+      btn.texture:SetTexCoord(.08, .92, .08, .92)
+      btn:SetScript("OnClick", function()
+        if this.iconIndex and provider then
+          local path = provider:GetIconByIndex(this.iconIndex)
+          if path then selectedIconPath = path end
+          RefreshIconGrid()
+        end
+      end)
+      btn:SetScript("OnEnter", function()
+        if not this.iconIndex or not provider then return end
+        local path = provider:GetIconByIndex(this.iconIndex)
+        if type(path) == "string" then
+          GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+          GameTooltip:SetText(IconKey(path), 1, 1, 1)
+          GameTooltip:Show()
+        end
+      end)
+      btn:SetScript("OnLeave", GameTooltip_Hide)
+      iconButtons[i] = btn
+    end
+  end
+
+  -- Rebuild the search-filtered index list (provider indices whose icon
+  -- basename contains the search text); nil when the search box is empty.
+  function RebuildFilter()
+    EnsureProvider()
+    if searchText == "" then
+      filtered = nil
+      return
+    end
+    filtered = {}
+    for i = 1, provider:GetNumIcons() do
+      local path = provider:GetIconByIndex(i)
+      if type(path) == "string" and string.find(IconKey(path), searchText, 1, true) then
+        table.insert(filtered, i)
+      end
+    end
+  end
+
+  function RefreshIconGrid()
+    EnsureProvider()
+    local numIcons = filtered and table.getn(filtered) or provider:GetNumIcons()
+    local numRows = math.ceil(numIcons / ICON_GRID_COLS)
+    FauxScrollFrame_Update(iconScroll, numRows, ICON_GRID_ROWS, ICON_BTN_SIZE + ICON_BTN_PAD)
+    local offset = FauxScrollFrame_GetOffset(iconScroll)
+    for i = 1, ICON_GRID_ROWS * ICON_GRID_COLS do
+      local listIdx = i + offset * ICON_GRID_COLS
+      local btn = iconButtons[i]
+      if listIdx <= numIcons then
+        btn:Show()
+        local providerIdx = filtered and filtered[listIdx] or listIdx
+        btn.iconIndex = providerIdx
+        local path = provider:GetIconByIndex(providerIdx)
+        btn.texture:SetTexture(path)
+        if IconKey(path) == IconKey(selectedIconPath) then
+          btn.backdrop:SetBackdropBorderColor(1, 0.82, 0, 1)
+        else
+          btn.backdrop:SetBackdropBorderColor(pfUI.cache.er, pfUI.cache.eg, pfUI.cache.eb, pfUI.cache.ea)
+        end
+      else
+        btn:Hide()
+        btn.iconIndex = nil
+      end
+    end
+    parent.selectedPreview.tex:SetTexture(selectedIconPath)
+  end
+
+  iconScroll:SetScript("OnVerticalScroll", function()
+    FauxScrollFrame_OnVerticalScroll(ICON_BTN_SIZE + ICON_BTN_PAD, function() RefreshIconGrid() end)
+  end)
+
+  -- Search box (bottom-left) filters the grid by icon name.
+  parent.searchLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  parent.searchLabel:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 16, 18)
+  parent.searchLabel:SetText(SEARCH)
+
+  parent.search = CreateFrame("EditBox", name.."Search", parent, "InputBoxTemplate")
+  parent.search:SetSize(180, 20)
+  parent.search:SetPoint("LEFT", parent.searchLabel, "RIGHT", 10, 0)
+  parent.search:SetAutoFocus(false)
+  CreateBackdrop(parent.search)
+  parent.search:SetScript("OnEscapePressed", function() this:ClearFocus() end)
+  parent.search:SetScript("OnTextChanged", function()
+    searchText = strupper(strtrim(this:GetText()))
+    RebuildFilter()
+    scrollbar:SetValue(0)
+    RefreshIconGrid()
+  end)
+
+  -- Release the provider when the popup closes so its icon cache GCs.
+  parent:HookScript("OnHide", function()
+    if provider then provider:Release(); provider = nil end
+  end)
+
+  local handle = { editbox = parent.editbox, search = parent.search }
+  function handle.GetIcon() return selectedIconPath end
+  function handle.SetIcon(path) selectedIconPath = path or QUESTION_MARK end
+  function handle.Refresh() RefreshIconGrid() end
+  function handle.SetIconAreaShown(shown)
+    local method = shown and "Show" or "Hide"
+    iconScroll[method](iconScroll)
+    for _, b in ipairs(iconButtons) do b[method](b) end
+    parent.iconLabel[method](parent.iconLabel)
+    parent.selectedLabel[method](parent.selectedLabel)
+    parent.selectedPreview[method](parent.selectedPreview)
+    filterDropdown[method](filterDropdown)
+    parent.searchLabel[method](parent.searchLabel)
+    parent.search[method](parent.search)
+  end
+  return handle
+end

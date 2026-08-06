@@ -380,207 +380,11 @@ pfUI:RegisterModule("equipmentmanager", function()
   namePopup:SetScript("OnDragStart", function() this:StartMoving() end)
   namePopup:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
 
-  namePopup.nameLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  namePopup.nameLabel:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -20)
-  namePopup.nameLabel:SetText(GEARSETS_POPUP_TEXT)
-
-  namePopup.editbox = CreateFrame("EditBox", "pfEqMgrNameEdit", namePopup, "InputBoxTemplate")
-  namePopup.editbox:SetSize(280, 20)
-  namePopup.editbox:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -38)
-  namePopup.editbox:SetAutoFocus(false)
-  namePopup.editbox:SetMaxLetters(16)
-  CreateBackdrop(namePopup.editbox)
-
-  namePopup.selectedLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  namePopup.selectedLabel:SetPoint("TOPRIGHT", namePopup, "TOPRIGHT", -14, -14)
-  namePopup.selectedLabel:SetText(ICON_SELECTION_TITLE_CURRENT)
-  namePopup.selectedLabel:SetTextColor(1, 0.82, 0)
-
-  namePopup.selectedPreview = CreateFrame("Frame", nil, namePopup)
-  namePopup.selectedPreview:SetSize(42, 42)
-  namePopup.selectedPreview:SetPoint("TOPRIGHT", namePopup, "TOPRIGHT", -14, -30)
-  CreateBackdrop(namePopup.selectedPreview)
-  namePopup.selectedPreview.tex = namePopup.selectedPreview:CreateTexture(nil, "ARTWORK")
-  namePopup.selectedPreview.tex:SetAllPoints(namePopup.selectedPreview)
-  namePopup.selectedPreview.tex:SetTexCoord(.08, .92, .08, .92)
-
-  namePopup.iconLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  namePopup.iconLabel:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -86)
-  namePopup.iconLabel:SetText(MACRO_POPUP_CHOOSE_ICON)
-
-  -- Icon picker: 10×8 grid of buttons + scroll
-  local ICON_GRID_COLS = 10
-  local ICON_GRID_ROWS = 8
-  local ICON_BTN_SIZE = 36
-  local ICON_BTN_PAD = 6
-
-  local iconScroll = CreateFrame("ScrollFrame", "pfEqMgrIconScroll", namePopup, "FauxScrollFrameTemplate")
-  iconScroll:SetPoint("TOPLEFT", namePopup, "TOPLEFT", 14, -116)
-  iconScroll:SetWidth(ICON_GRID_COLS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
-  iconScroll:SetHeight(ICON_GRID_ROWS * (ICON_BTN_SIZE + ICON_BTN_PAD) - ICON_BTN_PAD)
-
-  -- IconDataProviderMixin owns the icon DB, dedup, and lazy load.
-  -- Init on first picker open; release on hide so the cache GCs.
-  local provider = nil
-  -- Selection is tracked by PATH (not index) so it survives filter
-  -- changes: a spell icon you picked still saves correctly even after
-  -- you switch the filter to "Items" and it's no longer in the visible list.
-  local QUESTION_MARK = "INTERFACE\\ICONS\\INV_MISC_QUESTIONMARK"
-  local selectedIconPath = QUESTION_MARK
-  local searchText = ""
-  local filtered = nil    -- provider indices matching the search, or nil when empty
-  local RebuildFilter     -- forward-declared; assigned below
-
-  local function EnsureProvider()
-    if not provider then
-      provider = CreateAndInitFromMixin(IconDataProviderMixin,
-                                         IconDataProviderExtraType.Equipment)
-    end
-  end
-
-  -- Anchor scrollbar to iconScroll's right edge so its position tracks
-  -- the icon grid rather than the popup. -16/+16 vertical insets are the
-  -- standard up/down arrow spacing for UIPanelScrollBarTemplate.
-  local scrollbar = _G["pfEqMgrIconScrollScrollBar"]
-  if scrollbar then
-    scrollbar:ClearAllPoints()
-    scrollbar:SetPoint("TOPLEFT", iconScroll, "TOPRIGHT", 8, -16)
-    scrollbar:SetPoint("BOTTOMLEFT", iconScroll, "BOTTOMRIGHT", 8, 16)
-    SkinScrollbar(scrollbar)
-  end
-
-  -- Filter dropdown: "All Icons" / "Spells" / "Items" (top right of icon area).
-  local filterDropdown = CreateFrame("Frame", "pfEqMgrIconFilter", namePopup, "UIDropDownMenuTemplate")
-  filterDropdown:SetPoint("TOPRIGHT", namePopup, "TOPRIGHT", 0, -80)
-  local currentFilter = "all"
-  local function ApplyFilter(value)
-    currentFilter = value
-    UIDropDownMenu_SetSelectedValue(filterDropdown, value)
-    if provider then
-      if value == "spells" then provider:SetIconTypes({ IconDataProviderIconType.Spell })
-      elseif value == "items" then provider:SetIconTypes({ IconDataProviderIconType.Item })
-      else provider:SetIconTypes(nil) end
-      -- Don't reset selection — selectedIconPath persists. If the
-      -- selected icon isn't in the new filter, no grid entry will be
-      -- highlighted but Save will still write the chosen icon.
-      RebuildFilter()
-      pfUI.equipmentmanager.RefreshIconGrid()
-    end
-  end
-  UIDropDownMenu_Initialize(filterDropdown, function()
-    local info
-    info = {}; info.text = ICON_FILTER_ALL; info.value = "all"
-    info.func = function() ApplyFilter("all") end
-    info.checked = currentFilter == "all"
-    UIDropDownMenu_AddButton(info)
-    info = {}; info.text = ICON_FILTER_SPELL; info.value = "spells"
-    info.func = function() ApplyFilter("spells") end
-    info.checked = currentFilter == "spells"
-    UIDropDownMenu_AddButton(info)
-    info = {}; info.text = ICON_FILTER_ITEM; info.value = "items"
-    info.func = function() ApplyFilter("items") end
-    info.checked = currentFilter == "items"
-    UIDropDownMenu_AddButton(info)
-  end)
-  UIDropDownMenu_SetWidth(120, filterDropdown)
-  UIDropDownMenu_SetSelectedValue(filterDropdown, "all")
-  SkinDropDown(filterDropdown)
-
-  local iconButtons = {}
-  for r = 1, ICON_GRID_ROWS do
-    for c = 1, ICON_GRID_COLS do
-      local i = (r - 1) * ICON_GRID_COLS + c
-      local btn = CreateFrame("Button", nil, namePopup)
-      btn:SetWidth(ICON_BTN_SIZE)
-      btn:SetHeight(ICON_BTN_SIZE)
-      btn:SetPoint("TOPLEFT", iconScroll, "TOPLEFT", (c-1) * (ICON_BTN_SIZE + ICON_BTN_PAD), -(r-1) * (ICON_BTN_SIZE + ICON_BTN_PAD))
-      CreateBackdrop(btn)
-      btn.texture = btn:CreateTexture(nil, "ARTWORK")
-      btn.texture:SetAllPoints(btn)
-      btn.texture:SetTexCoord(.08, .92, .08, .92)
-      btn.gridIndex = i
-      btn:SetScript("OnClick", function()
-        if this.iconIndex and provider then
-          local path = provider:GetIconByIndex(this.iconIndex)
-          if path then selectedIconPath = path end
-          pfUI.equipmentmanager.RefreshIconGrid()
-        end
-      end)
-      btn:SetScript("OnEnter", function()
-        if not this.iconIndex or not provider then return end
-        local path = provider:GetIconByIndex(this.iconIndex)
-        if type(path) == "string" then
-          local name = string.gsub(path, "^.-INTERFACE\\\\ICONS\\\\", "")
-          GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-          GameTooltip:SetText(name)
-          GameTooltip:Show()
-        end
-      end)
-      btn:SetScript("OnLeave", GameTooltip_Hide)
-      iconButtons[i] = btn
-    end
-  end
-
-  -- Normalize a texture path to an uppercase basename for search matching.
-  local function IconKey(path)
-    if type(path) ~= "string" then return path end
-    return string.gsub(string.upper(path), "^.*[\\/]", "")
-  end
-
-  -- Rebuild the search-filtered index list (provider indices whose icon
-  -- basename contains the search text); nil when the search box is empty.
-  function RebuildFilter()
-    EnsureProvider()
-    if searchText == "" then
-      filtered = nil
-      return
-    end
-    filtered = {}
-    for i = 1, provider:GetNumIcons() do
-      local path = provider:GetIconByIndex(i)
-      if type(path) == "string" and string.find(IconKey(path), searchText, 1, true) then
-        table.insert(filtered, i)
-      end
-    end
-  end
-
-  function pfUI.equipmentmanager.RefreshIconGrid()
-    EnsureProvider()
-    local numIcons = filtered and table.getn(filtered) or provider:GetNumIcons()
-    local numRows = math.ceil(numIcons / ICON_GRID_COLS)
-    FauxScrollFrame_Update(iconScroll, numRows, ICON_GRID_ROWS, ICON_BTN_SIZE + ICON_BTN_PAD)
-    local offset = FauxScrollFrame_GetOffset(iconScroll)
-    for i = 1, ICON_GRID_ROWS * ICON_GRID_COLS do
-      local listIdx = i + offset * ICON_GRID_COLS
-      local btn = iconButtons[i]
-      if listIdx <= numIcons then
-        btn:Show()
-        local providerIdx = filtered and filtered[listIdx] or listIdx
-        btn.iconIndex = providerIdx
-        local path = provider:GetIconByIndex(providerIdx)
-        btn.texture:SetTexture(path)
-        if IconKey(path) == IconKey(selectedIconPath) then
-          btn.backdrop:SetBackdropBorderColor(1, 0.82, 0, 1)
-        else
-          btn.backdrop:SetBackdropBorderColor(pfUI.cache.er, pfUI.cache.eg, pfUI.cache.eb, pfUI.cache.ea)
-        end
-      else
-        btn:Hide()
-        btn.iconIndex = nil
-      end
-    end
-    -- Sync the "Currently Selected" preview from the path directly so it
-    -- still shows the chosen icon when filtered out of the grid.
-    namePopup.selectedPreview.tex:SetTexture(selectedIconPath)
-  end
-
-  iconScroll:SetScript("OnVerticalScroll", function()
-    FauxScrollFrame_OnVerticalScroll(ICON_BTN_SIZE + ICON_BTN_PAD, function() pfUI.equipmentmanager.RefreshIconGrid() end)
-  end)
-
-  namePopup:SetScript("OnHide", function()
-    if provider then provider:Release(); provider = nil end
-  end)
+  -- Equipment seed leads the grid with gear-relevant item icons. The widget
+  -- owns the name field, preview, grid, filter, and search; this module keeps
+  -- the OK/Cancel buttons and the create/save/rename flow below.
+  local iconPicker = CreateIconPicker("pfEqMgrIcon", namePopup,
+                                      IconDataProviderExtraType.Equipment, GEARSETS_POPUP_TEXT)
 
   local btnPopupOK = MakeButton("pfEqMgrPopupOK", OKAY, namePopup, namePopup, 14, -340, 80)
 
@@ -597,7 +401,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     local name = namePopup.editbox:GetText()
     if not name or name == "" then return end
     -- Strip the prefix to match ClassicAPI's persisted short-form basenames.
-    local iconForSave = string.gsub(selectedIconPath, "INTERFACE\\ICONS\\", "")
+    local iconForSave = string.gsub(iconPicker.GetIcon(), "INTERFACE\\ICONS\\", "")
     if pendingAction == "new" then
       C_EquipmentSet.CreateEquipmentSet(name, iconForSave)
       C_EquipmentSet.ClearIgnoredSlotsForSave()
@@ -620,61 +424,26 @@ pfUI:RegisterModule("equipmentmanager", function()
     pfUI.equipmentmanager.Refresh()
   end)
 
-  -- Search box (bottom-left) filters the icon grid by name.
-  namePopup.searchLabel = namePopup:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  namePopup.searchLabel:SetPoint("BOTTOMLEFT", namePopup, "BOTTOMLEFT", 16, 18)
-  namePopup.searchLabel:SetText(SEARCH)
-
-  namePopup.search = CreateFrame("EditBox", "pfEqMgrIconSearch", namePopup, "InputBoxTemplate")
-  namePopup.search:SetSize(180, 20)
-  namePopup.search:SetPoint("LEFT", namePopup.searchLabel, "RIGHT", 10, 0)
-  namePopup.search:SetAutoFocus(false)
-  CreateBackdrop(namePopup.search)
-  namePopup.search:SetScript("OnEscapePressed", function() this:ClearFocus() end)
-  namePopup.search:SetScript("OnTextChanged", function()
-    searchText = strupper(strtrim(this:GetText()))
-    RebuildFilter()
-    if scrollbar then scrollbar:SetValue(0) end
-    pfUI.equipmentmanager.RefreshIconGrid()
-  end)
-
   -- Assignment (not `local function`) so this fills in the forward
   -- declaration at the top of the module — closures created earlier
   -- (row gear menu, "+ New Set" row, etc.) capture the same upvalue.
   function OpenNamePopup(action, prefillName, prefillIcon)
     pendingAction = action
     namePopup.editbox:SetText(prefillName or "")
-    EnsureProvider()
     if prefillIcon then
       -- Stored icons come back either as a full path or a bare basename
       -- (see the row rendering in Refresh). Only prepend the prefix when
       -- there's no path separator, so a full path isn't double-prefixed.
-      selectedIconPath = string.find(prefillIcon, "\\") and prefillIcon
-                         or ("INTERFACE\\ICONS\\" .. prefillIcon)
+      iconPicker.SetIcon(string.find(prefillIcon, "\\") and prefillIcon
+                         or ("INTERFACE\\ICONS\\" .. prefillIcon))
     else
-      selectedIconPath = QUESTION_MARK
+      iconPicker.SetIcon(nil)
     end
     namePopup.search:SetText("")
-    if action == "rename" then
-      iconScroll:Hide()
-      for _, b in ipairs(iconButtons) do b:Hide() end
-      namePopup.iconLabel:Hide()
-      namePopup.selectedLabel:Hide()
-      namePopup.selectedPreview:Hide()
-      filterDropdown:Hide()
-      namePopup.searchLabel:Hide()
-      namePopup.search:Hide()
-    else
-      iconScroll:Show()
-      namePopup.iconLabel:Show()
-      namePopup.selectedLabel:Show()
-      namePopup.selectedPreview:Show()
-      filterDropdown:Show()
-      namePopup.searchLabel:Show()
-      namePopup.search:Show()
-    end
+    -- Rename only changes the name, so hide the whole icon-picking area.
+    iconPicker.SetIconAreaShown(action ~= "rename")
     namePopup:Show()
-    if action ~= "rename" then pfUI.equipmentmanager.RefreshIconGrid() end
+    if action ~= "rename" then iconPicker.Refresh() end
     namePopup.editbox:SetFocus()
   end
 
