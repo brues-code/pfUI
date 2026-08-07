@@ -13,6 +13,7 @@ pfUI:RegisterModule("equipmentmanager", function()
   local pendingAction = nil  -- "new" | "save" | "rename" — what the popups apply to
   local slotOverlays = {}    -- [invSlotID] = ignored-overlay texture on the character slot
   local popoutButtons = {}   -- popout arrow buttons; toggled with the EM frame
+  local UpdatePopouts        -- forward decl; assigned once popouts + flyout exist
 
   -- Pending ignored-slot toggles per set: a slotID here means the
   -- effective state is flipped from what's persisted. Committed on
@@ -76,7 +77,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     else
       frame:SetPoint("TOPLEFT", CharacterFrame, "TOPRIGHT", 0, 0)
     end
-    for _, b in ipairs(popoutButtons) do b:Show() end
+    UpdatePopouts()
   end)
   CreateBackdrop(frame, nil, nil, .9)
   CreateBackdropShadow(frame)
@@ -452,13 +453,13 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- ============================================================
 
   local flyout = CreateFrame("Frame", "pfEqMgrFlyout", UIParent)
-  -- Everything tied to the EM sidecar closes with it: the popout arrows,
-  -- the per-slot flyout, and the name/icon popup. (OnShow re-shows the
-  -- popout arrows.)
+  -- The name/icon popup is sidecar-only, so it closes with the sidecar.
+  -- Popout arrows and the flyout are reconciled by UpdatePopouts: by
+  -- default they follow the sidecar, but with the "Always Show Equipment
+  -- Slot Flyouts" option they stay while the paperdoll is open.
   frame:SetScript("OnHide", function()
-    for _, b in ipairs(popoutButtons) do b:Hide() end
-    flyout:Hide()
     namePopup:Hide()
+    UpdatePopouts()
   end)
   flyout:SetFrameStrata("DIALOG")
   flyout:Hide()
@@ -749,6 +750,27 @@ pfUI:RegisterModule("equipmentmanager", function()
       table.insert(popoutButtons, popout)
     end
   end
+
+  -- Popout arrows follow the EM sidecar by default. With the
+  -- "Always Show Equipment Slot Flyouts" option they follow the paperdoll
+  -- instead, so gear can be swapped without opening the equipment manager.
+  local function PopoutsActive()
+    if C.character.inventory.equipflyout == "1" then
+      return PaperDollFrame:IsShown()
+    end
+    return frame:IsShown()
+  end
+
+  function UpdatePopouts()
+    local show = PopoutsActive()
+    for _, b in ipairs(popoutButtons) do
+      if show then b:Show() else b:Hide() end
+    end
+    if not show then flyout:Hide() end
+  end
+
+  PaperDollFrame:HookScript("OnShow", UpdatePopouts)
+  PaperDollFrame:HookScript("OnHide", UpdatePopouts)
 
   -- ============================================================
   -- Refresh

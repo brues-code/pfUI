@@ -2412,6 +2412,7 @@ pfUI:RegisterModule("gui", function ()
 
     CreateGUIEntry(T["Character"], T["Inventory"], function()
       CreateConfig(nil, T["Show Durability"], C.character.inventory, "durability", "checkbox")
+      CreateConfig(nil, T["Always Show Equipment Slot Flyouts"], C.character.inventory, "equipflyout", "checkbox")
     end)
 
     CreateGUIEntry(T["Character"], T["Reputation"], function()
