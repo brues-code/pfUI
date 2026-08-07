@@ -425,7 +425,7 @@ pfUI:SetScript("OnEvent", function()
       pfUI.version.major, pfUI.version.minor, pfUI.version.fix = 0, 0, 0
       pfUI.version.string = "dev"
     else
-      local major, minor, fix = pfUI.api.strsplit(".", raw)
+      local major, minor, fix = pfUI.api.strsplit(".", string.gsub(raw, "^[vV]", ""))
       pfUI.version.major = tonumber(major) or 0
       pfUI.version.minor = tonumber(minor) or 0
       pfUI.version.fix   = tonumber(fix)   or 0
