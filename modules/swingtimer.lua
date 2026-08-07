@@ -9,11 +9,6 @@ pfUI:RegisterModule("swingtimer", function ()
   local ON_SWING_QUEUED       = 0
   local ON_SWING_QUEUE_POPPED = 1
 
-  -- Spell.dbc bits used to mirror server-side swing-reset rules.
-  local FLAG_AUTOATTACK  = tonumber("0x08",   16)  -- SPELL_INTERRUPT_FLAG_AUTOATTACK
-  local ATTR_KEEP_SWINGS = tonumber("0x20000", 16) -- SPELL_ATTR_EX2_NOT_RESET_AUTO_ACTIONS
-  local ATTR_ON_NEXT_SWING = tonumber("0x04", 16)  -- SPELL_ATTR_ON_NEXT_SWING
-
   -- Consolidate state into a table to avoid Lua 5.0 upvalue limit (32 max)
   local S = {
     mhTimer = 0, mhTimerMax = 1,
@@ -43,12 +38,11 @@ pfUI:RegisterModule("swingtimer", function ()
   local WAND_SHOOT_SPELLID = 5019
   local THROW_SPELLID      = 2764  -- one-shot ranged, not auto-repeat
 
-  -- ATTR_ON_NEXT_SWING: spell replaces next auto-attack swing.
+  -- On-next-swing spells replace the next auto-attack swing.
   -- Covers Raptor Strike, Maul, Mongoose Bite, Holy Strike, etc. automatically.
   local function IsOnSwingSpell(spellId)
     if S.onSwingCache[spellId] ~= nil then return S.onSwingCache[spellId] end
-    local attr = GetSpellRecField(spellId, "attributes") or 0
-    local result = bit.band(attr, ATTR_ON_NEXT_SWING) ~= 0
+    local result = C_Spell.IsNextMeleeSpell(spellId)
     S.onSwingCache[spellId] = result
     return result
   end
@@ -734,13 +728,12 @@ pfUI:RegisterModule("swingtimer", function ()
     S.pendingCastSpellId = arg1
     -- Freeze the swing timer for cast-time spells that DON'T reset auto-
     -- attack on completion (Slam, Hammer of Wrath on Turtle, etc.) — those
-    -- let the swing resume from where it paused. Detect dynamically via the
-    -- absent AUTOATTACK interrupt flag (8); spells with that bit reset on
-    -- SPELL_GO_SELF so freezing isn't necessary. Subsumes the old hardcoded
-    -- swingDelaySpells list (no list maintenance for new Slam-style spells).
+    -- let the swing resume from where it paused. C_Spell.ResetsMeleeSwing
+    -- mirrors the server rule; spells that reset don't need freezing (they
+    -- reset on SPELL_GO_SELF). Subsumes the old hardcoded swingDelaySpells
+    -- list (no list maintenance for new Slam-style spells).
     if S.mhActive then
-      local iflags = GetSpellRecField(arg1, "interruptFlags") or 0
-      if bit.band(iflags, FLAG_AUTOATTACK) == 0 then
+      if not C_Spell.ResetsMeleeSwing(arg1) then
         S.mhFrozenAt = GetTime()
       end
     end
@@ -777,17 +770,13 @@ pfUI:RegisterModule("swingtimer", function ()
       S.hsQueued = false; S.cleaveQueued = false; S.maulQueued = false
       ResetMH()
     else
-      -- Mirror the server rule for "does this spell reset the auto-attack
-      -- swing" (Spell::IsMeleeAttackResetSpell in Turtle's core):
-      --   InterruptFlags has SPELL_INTERRUPT_FLAG_AUTOATTACK (0x08)
-      --   AND AttributesEx2 lacks NOT_RESET_AUTO_ACTIONS (0x20000).
-      -- If neither path resets and we're holding a frozen-swing-during-cast
-      -- (mhFrozenAt set by SPELL_START_SELF for non-AUTOATTACK spells), this
-      -- is a Slam-style cast — push the timer forward by the cast duration
-      -- so the bar resumes from where it paused.
-      local iflags = GetSpellRecField(spellId, "interruptFlags") or 0
-      if bit.band(iflags, FLAG_AUTOATTACK) ~= 0
-          and bit.band(GetSpellRecField(spellId, "attributesEx2") or 0, ATTR_KEEP_SWINGS) == 0 then
+      -- C_Spell.ResetsMeleeSwing mirrors the server rule (Turtle's
+      -- Spell::IsMeleeAttackResetSpell): InterruptFlags has AUTOATTACK and
+      -- AttributesEx2 lacks NOT_RESET_AUTO_ACTIONS. When the spell resets the
+      -- swing, snap the timers to full. Otherwise (elseif) a frozen-swing-
+      -- during-cast is a Slam-style cast — push the timer forward by the cast
+      -- duration so the bar resumes from where it paused.
+      if C_Spell.ResetsMeleeSwing(spellId) then
         if S.mhActive and S.mhSpeed > 0 then
           UpdateWeaponSpeeds()
           S.mhTimerMax = S.mhSpeed
