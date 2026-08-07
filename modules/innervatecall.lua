@@ -75,14 +75,14 @@ pfUI:RegisterModule("innervatecall", function ()
 
     SendChatMessage(">> Innervate casted on " .. targetName .. " <<", channel)
 
-    -- Schedule "ready" announcement when cooldown expires
-    -- Use GetSpellIdCooldown for precise remaining time, fallback to 360s
+    -- Schedule "ready" announcement when the cooldown expires. Read the
+    -- precise remaining time from C_Spell.GetSpellCooldown (startTime and
+    -- duration are seconds from the GetTime epoch); fall back to 360s.
     local cdRemaining = 360
-    if GetSpellIdCooldown then
-      local cd = GetSpellIdCooldown(INNERVATE_SPELLID)
-      if cd and cd.cooldownRemainingMs and cd.cooldownRemainingMs > 0 then
-        cdRemaining = cd.cooldownRemainingMs / 1000
-      end
+    local cd = C_Spell.GetSpellCooldown(INNERVATE_SPELLID)
+    if cd and cd.duration and cd.duration > 0 then
+      local remaining = cd.startTime + cd.duration - GetTime()
+      if remaining > 0 then cdRemaining = remaining end
     end
 
     C_Timer.After(cdRemaining, function()
