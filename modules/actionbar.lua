@@ -371,12 +371,12 @@ pfUI:RegisterModule("actionbar", function ()
     -- active conditional dynamically, instead of being frozen to the first
     -- statically-scanned spell.
     if CleveRoids and CleveRoids.IsManagedAction and CleveRoids.IsManagedAction(self.id) then
-      self.spellslot, self.booktype = nil, nil
+      self.spellslot, self.booktype, self.spellID = nil, nil, nil
       return
     end
 
     local kind, slot = GetActionInfo(self.id)
-    self.spellslot, self.booktype = nil, nil
+    self.spellslot, self.booktype, self.spellID = nil, nil, nil
     if kind == 'macro' then
       local name, _, body = GetMacroInfo(slot)
 
@@ -414,10 +414,7 @@ pfUI:RegisterModule("actionbar", function ()
           end
 
           if match then
-            local _, _, spell, rank = string.find(match, '(.+)%((.+)%)')
-            spell = spell or match
-            self.spellslot, self.booktype = libspell.GetSpellIndex(spell, rank)
-
+            self.spellslot, self.booktype, self.spellID = select(7, libspell.GetSpellInfo(match))
             if self.spellslot and self.spellslot > 0 then return end
           end
         end
@@ -426,7 +423,7 @@ pfUI:RegisterModule("actionbar", function ()
   end
 
   local function ButtonEnter(self)
-    local self = self or this
+    self = self or this
 
     -- indicate that dragging could get enabled
     drag_await = true
@@ -444,6 +441,8 @@ pfUI:RegisterModule("actionbar", function ()
       else
         GameTooltip:SetPetAction(self.id)
       end
+    elseif self.spellID then
+      GameTooltip:SetSpellByID(self.spellID)
     elseif self.spellslot and self.booktype then
       GameTooltip:SetSpell(self.spellslot, self.booktype)
     else
@@ -454,7 +453,7 @@ pfUI:RegisterModule("actionbar", function ()
   end
 
   local function ButtonLeave(self)
-    local self = self or this
+    self = self or this
 
     -- no longer wait for a drag event
     drag_await = nil
@@ -467,7 +466,7 @@ pfUI:RegisterModule("actionbar", function ()
   local grid, sid, id, bar, active, texture, _
   local function ButtonSlotUpdate(self)
     if not self then return end
-    local self = self or this
+    self = self or this
     sid = self.id -- 1 to 120
 
     -- reset shared variables
@@ -586,7 +585,7 @@ pfUI:RegisterModule("actionbar", function ()
 
   local sid, usable, oom, _
   local function ButtonUsableUpdate(self)
-    local self = self or this
+    self = self or this
     sid = self.id -- 1 to 120
 
     if self.bar == 11 then
@@ -622,7 +621,7 @@ pfUI:RegisterModule("actionbar", function ()
   end
 
   local function ButtonRangeUpdate(self)
-    local self = self or this
+    self = self or this
 
     -- update range display
     if C.bars.glowrange == "1" and self.bar ~= 11 and self.bar ~= 12 and HasAction(self.id) and ActionHasRange(self.id) and IsActionInRange(self.id) == 0 then
@@ -700,7 +699,7 @@ pfUI:RegisterModule("actionbar", function ()
   end
 
   local function BarsEvent(self)
-    local self = self or this
+    self = self or this
 
     -- refresh only specific slots
     if event == "ACTIONBAR_SLOT_CHANGED" and arg1 and arg1 ~= 0 then

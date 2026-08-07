@@ -83,12 +83,13 @@ end
 --              [number]            Casting time of the spell in milliseconds
 --              [number]            Minimum range from the target required to cast the spell
 --              [number]            Maximum range from the target at which you can cast the spell
---              [number]            The numeric spell-id of the spell
+--              [number]            Spell's index in the book
 --              [number]            The type of the spellbook that the spell is in
+--              [number]            The numeric spell-id of the spell
 local spellinfo = {}
 function libspell.GetSpellInfo(index, bookType)
   local cache = spellinfo[index]
-  if cache then return cache[1], cache[2], cache[3], cache[4], cache[5], cache[6], cache[7], cache[8] end
+  if cache then return unpack(cache) end
 
   local slot
   if type(index) == "string" then
@@ -108,10 +109,10 @@ function libspell.GetSpellInfo(index, bookType)
   -- ClassicAPI's GetSpellInfo returns: name, rank, icon, cost, isFunnel, powerType,
   -- castTime(ms), minRange, maxRange, spellID. Keep libspell's historical positional
   -- shape (castingTime at 4, ranges at 5/6, slot+bookType at 7/8).
-  local name, rank, icon, _, _, _, castingTime, minRange, maxRange = GetSpellInfo(slot, bookType)
+  local name, rank, icon, _, _, _, castingTime, minRange, maxRange, spellId = GetSpellInfo(slot, bookType)
 
-  spellinfo[index] = { name, rank, icon, castingTime, minRange, maxRange, slot, bookType }
-  return name, rank, icon, castingTime, minRange, maxRange, slot, bookType
+  spellinfo[index] = SafePack(name, rank, icon, castingTime, minRange, maxRange, slot, bookType, spellId)
+  return name, rank, icon, castingTime, minRange, maxRange, slot, bookType, spellId
 end
 
 -- Reset all spell caches whenever new spells are learned/unlearned
