@@ -41,8 +41,6 @@
   <!-- Turtle WoW -->
   <Include file="..\skins\blizzard\barbershop.lua"/>
   <Include file="..\skins\blizzard\transmog.lua"/>
-  <Include file="..\skins\blizzard\custom_merchant.lua"/>
-  <Include file="..\skins\blizzard\arena_score.lua"/>
   <Include file="..\skins\blizzard\ebc.lua"/>
 
 </Ui>
