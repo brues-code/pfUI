@@ -4,7 +4,7 @@ pfUI:RegisterModule("socialmod", function ()
   pfUI.socialmod:RegisterEvent("CHAT_MSG_SYSTEM")
   pfUI.socialmod:SetScript("OnEvent", function()
     local name = cmatch(arg1, _G.ERR_FRIEND_ONLINE_SS)
-    name = cmatch(arg1, _G.ERR_FRIEND_OFFLINE_S)
+    name = name or cmatch(arg1, _G.ERR_FRIEND_OFFLINE_S)
     if name and playerdb[name] and playerdb[name].cname then
       playerdb[name].lastseen = date("%a %d-%b-%Y")
     end
