@@ -290,7 +290,6 @@ pfUI_translation["deDE"] = {
   ["Enable Mana Ticks"] = nil,
   ["Enable Micro Bar"] = nil,
   ["Enable Mouselook With Right Click"] = nil,
-  ["Enable Mouseover Tooltip"] = nil,
   ["Enable Movable Bags"] = nil,
   ["Enable Offscreen Frame Positions"] = nil,
   ["Enable Overlap"] = nil,

@@ -290,7 +290,6 @@ pfUI_translation["ruRU"] = {
   ["Enable Mana Ticks"] = "Включить восполнение маны",
   ["Enable Micro Bar"] = "Включить панель микро меню",
   ["Enable Mouselook With Right Click"] = "Включить нажатие правой кнопки мыши на индикаторе здоровья",
-  ["Enable Mouseover Tooltip"] = "Включить подсказку при наведении мыши",
   ["Enable Movable Bags"] = "Включить подвижные сумки",
   ["Enable Offscreen Frame Positions"] = "Включить расположение окон за пределами экрана",
   ["Enable Overlap"] = "Включить перекрытие",

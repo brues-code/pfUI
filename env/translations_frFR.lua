@@ -290,7 +290,6 @@ pfUI_translation["frFR"] = {
   ["Enable Mana Ticks"] = "Activer les Ticks de mana",
   ["Enable Micro Bar"] = "Activer la barre des menus miniature",
   ["Enable Mouselook With Right Click"] = "Activer le déplacement de la caméra avec le clic droit",
-  ["Enable Mouseover Tooltip"] = "Activer l'infobulle au passage de la souris",
   ["Enable Movable Bags"] = "Activer les sacs mobiles",
   ["Enable Offscreen Frame Positions"] = "Activer le positionnement des cadres en dehors de l'écran",
   ["Enable Overlap"] = "Activer la superposition",

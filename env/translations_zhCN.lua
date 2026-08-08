@@ -290,7 +290,6 @@ pfUI_translation["zhCN"] = {
   ["Enable Mana Ticks"] = "显示法力值刻度",
   ["Enable Micro Bar"] = "显示菜单栏",
   ["Enable Mouselook With Right Click"] = "启动右键移动镜头",
-  ["Enable Mouseover Tooltip"] = "启用鼠标悬停工具提示",
   ["Enable Movable Bags"] = "启用可移动包裹",
   ["Enable Offscreen Frame Positions"] = "允许本插件所有框体移出屏幕边缘",
   ["Enable Overlap"] = "叠加显示",

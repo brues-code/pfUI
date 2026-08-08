@@ -554,7 +554,6 @@ function pfUI:LoadConfig()
 
     pfUI:UpdateConfig("unitframes", unit,      "glowaggro",        "1")
     pfUI:UpdateConfig("unitframes", unit,      "glowcombat",       "1")
-    pfUI:UpdateConfig("unitframes", unit,      "showtooltip",      "1")
     pfUI:UpdateConfig("unitframes", unit,      "healthcolor",      "1")
     pfUI:UpdateConfig("unitframes", unit,      "powercolor",       "1")
     pfUI:UpdateConfig("unitframes", unit,      "levelcolor",       "1")

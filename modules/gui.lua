@@ -2240,7 +2240,6 @@ pfUI:RegisterModule("gui", function ()
 
         -- build config entries
         CreateConfig(U[c], T["Display Frame"] .. ": " .. t, C.unitframes[c], "visible", "checkbox")
-        CreateConfig(U[c], T["Enable Mouseover Tooltip"], C.unitframes[c], "showtooltip", "checkbox")
         CreateConfig(U[c], T["Default Transparency"], C.unitframes[c], "alpha_visible", "dropdown", pfUI.gui.dropdowns.percent_small)
         CreateConfig(U[c], T["Out Of Range Transparency"], C.unitframes[c], "alpha_outrange", "dropdown", pfUI.gui.dropdowns.percent_small)
         CreateConfig(U[c], T["Offline Transparency"], C.unitframes[c], "alpha_offline", "dropdown", pfUI.gui.dropdowns.percent_small)

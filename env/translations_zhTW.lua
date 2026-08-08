@@ -290,7 +290,6 @@ pfUI_translation["zhTW"] = {
   ["Enable Mana Ticks"] = nil,
   ["Enable Micro Bar"] = "顯示功能表列",
   ["Enable Mouselook With Right Click"] = "啟動右鍵移動鏡頭",
-  ["Enable Mouseover Tooltip"] = "啟用滑鼠懸停工具提示",
   ["Enable Movable Bags"] = "啟用可移動包裹",
   ["Enable Offscreen Frame Positions"] = "啟用螢幕框架固定",
   ["Enable Overlap"] = "疊加顯示",

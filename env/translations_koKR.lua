@@ -290,7 +290,6 @@ pfUI_translation["koKR"] = {
   ["Enable Mana Ticks"] = nil,
   ["Enable Micro Bar"] = "미니바 보기(블리자드 마이크로바)",
   ["Enable Mouselook With Right Click"] = "오른쪽 클릭 Mouselook 사용",
-  ["Enable Mouseover Tooltip"] = nil,
   ["Enable Movable Bags"] = nil,
   ["Enable Offscreen Frame Positions"] = "오프스크린 프레임 위치 활성화",
   ["Enable Overlap"] = "겹쳐서 표시",
