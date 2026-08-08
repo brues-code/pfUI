@@ -77,20 +77,19 @@ pfUI:RegisterModule("socialmod", function ()
       local off = FauxScrollFrame_GetOffset(FriendsFrameFriendsScrollFrame)
 
       for i=1, FRIENDS_TO_DISPLAY do
-        local name, level, class, zone, connected, status = GetFriendInfo(off + i)
-        if not name or name == _G.UNKNOWN then break end
+        local info = C_FriendList.GetFriendInfoByIndex(off + i)
+        if not info or not info.name or info.name == _G.UNKNOWN then break end
+        local name = info.name
         local friendName = _G["FriendsFrameFriendButton"..i.."ButtonTextName"]
         local friendLoc = _G["FriendsFrameFriendButton"..i..FRIENDS_NAME_LOCATION]
         local friendInfo = _G["FriendsFrameFriendButton"..i.."ButtonTextInfo"]
         local caption = friendName or friendLoc
 
-        if connected then
-          if not class or class == _G.UNKNOWN then break end
-          local ccolor = PFUI_CLASS_COLORS[L["class"][class]] or { 1, 1, 1 }
-          local lcolor = GetDifficultyColor(tonumber(level)) or { 1, 1, 1 }
-
-          zone = ( zone == playerzone and "|cffffffff" or "|cffcccccc" ) .. zone .. "|r"
-          local cname = rgbhex(ccolor) .. name .. "|r"
+        if info.connected then
+          local ccolor = PFUI_CLASS_COLORS[info.classFilename]
+          local status = info.afk and CHAT_FLAG_AFK or info.dnd and CHAT_FLAG_DND or ""
+          local zone = ( info.area == playerzone and "|cffffffff" or "|cffcccccc" ) .. info.area .. "|r"
+          local cname = ccolor:WrapTextInColorCode(name)
           if playerdb[name] then
             playerdb[name].lastseen = date("%a %d-%b-%Y")
             playerdb[name].cname = cname
@@ -103,7 +102,7 @@ pfUI:RegisterModule("socialmod", function ()
             friendLoc:SetText(format(TEXT(FRIENDS_LIST_TEMPLATE), cname, zone, status))
           end
 
-          friendInfo:SetText(format(TEXT(FRIENDS_LEVEL_TEMPLATE), level, class))
+          friendInfo:SetText(format(TEXT(FRIENDS_LEVEL_TEMPLATE), info.level, info.className))
           caption:SetVertexColor(1,1,1,.9)
           friendInfo:SetVertexColor(1,1,1,.9)
         else
@@ -124,74 +123,73 @@ pfUI:RegisterModule("socialmod", function ()
 
   do -- add colors to who list
     hooksecurefunc("WhoList_Update", function()
-      local num, max = GetNumWhoResults()
+      local num, max = C_FriendList.GetNumWhoResults()
       local off = FauxScrollFrame_GetOffset(WhoListScrollFrame)
 
       local playerzone  = GetRealZoneText()
       local playerrace  = UnitRace("player")
       local playerguild = GetGuildInfo("player")
 
+      if num + 1 >= MAX_WHOS_FROM_SERVER then
+        WhoFrameTotals:SetText("|cffffffff" .. format(GetText("WHO_FRAME_TOTAL_TEMPLATE", nil, num), max).."  |cffaaaaaa"..format(WHO_FRAME_SHOWN_TEMPLATE, MAX_WHOS_FROM_SERVER))
+      else
+        WhoFrameTotals:SetText("|cffffffff" .. format(GetText("WHO_FRAME_TOTAL_TEMPLATE", nil, num), num).."  |cffaaaaaa"..format(WHO_FRAME_SHOWN_TEMPLATE, num))
+      end
+
       for i=1, WHOS_TO_DISPLAY do
-        local name, guild, level, race, class, zone = GetWhoInfo(off + i)
-        local displayedText = ""
+        local info = C_FriendList.GetWhoInfo(off + i)
+        if info then
+          -- filename is the class token, so no L["class"] reversal is needed
+          local class = info.filename
 
-        if num + 1 >= MAX_WHOS_FROM_SERVER then
-          displayedText = format(WHO_FRAME_SHOWN_TEMPLATE, MAX_WHOS_FROM_SERVER)
-          WhoFrameTotals:SetText("|cffffffff" .. format(GetText("WHO_FRAME_TOTAL_TEMPLATE", nil, num), max).."  |cffaaaaaa"..displayedText)
-        else
-          displayedText = format(WHO_FRAME_SHOWN_TEMPLATE, num)
-          WhoFrameTotals:SetText("|cffffffff" .. format(GetText("WHO_FRAME_TOTAL_TEMPLATE", nil, num), num).."  |cffaaaaaa"..displayedText)
-        end
+          _G["WhoFrameButton"..i.."Name"]:SetTextColor(NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b)
 
-        class = L["class"][class]
-
-        _G["WhoFrameButton"..i.."Name"]:SetTextColor(NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b)
-
-        if (UIDropDownMenu_GetSelectedID(WhoFrameDropDown) == 1) then
-          if (zone == playerzone) then
-            _G["WhoFrameButton"..i.."Variable"]:SetTextColor(.5, 1, 1)
-          else
-            _G["WhoFrameButton"..i.."Variable"]:SetTextColor(1, 1, 1)
-          end
-
-        elseif (UIDropDownMenu_GetSelectedID(WhoFrameDropDown) == 2) then
-          if (guild == playerguild) then
-            _G["WhoFrameButton"..i.."Variable"]:SetTextColor(.5, 1, 1)
-          else
-            _G["WhoFrameButton"..i.."Variable"]:SetTextColor(1, 1, 1)
-          end
-
-        elseif (UIDropDownMenu_GetSelectedID(WhoFrameDropDown) == 3) then
-          if (race == playerrace) then
-            _G["WhoFrameButton"..i.."Variable"]:SetTextColor(.5, 1, 1)
-          else
-            _G["WhoFrameButton"..i.."Variable"]:SetTextColor(1, 1, 1)
-          end
-        end
-
-        if class then
-          local classicon = _G["WhoFrameButton"..i].classicon
-          local coords = CLASS_ICON_TCOORDS[class]
-          local color = PFUI_CLASS_COLORS[class]
-
-          -- do we have classicons? (skin enabled?)
-          if classicon then
-            _G["WhoFrameButton"..i.."Class"]:SetTextColor(0,0,0,0)
-            _G["WhoFrameButton"..i.."Name"]:SetTextColor(color.r,color.g,color.b,1)
-
-            if coords then
-              classicon:Show()
-              classicon:SetTexCoord(unpack(coords))
+          if (UIDropDownMenu_GetSelectedID(WhoFrameDropDown) == 1) then
+            if (info.area == playerzone) then
+              _G["WhoFrameButton"..i.."Variable"]:SetTextColor(.5, 1, 1)
             else
-              classicon:Hide()
+              _G["WhoFrameButton"..i.."Variable"]:SetTextColor(1, 1, 1)
             end
-          else
-            _G["WhoFrameButton"..i.."Class"]:SetTextColor(color.r,color.g,color.b,1)
-          end
-        end
 
-        local color = GetDifficultyColor(level)
-        _G["WhoFrameButton"..i.."Level"]:SetTextColor(color.r, color.g, color.b)
+          elseif (UIDropDownMenu_GetSelectedID(WhoFrameDropDown) == 2) then
+            if (info.fullGuildName == playerguild) then
+              _G["WhoFrameButton"..i.."Variable"]:SetTextColor(.5, 1, 1)
+            else
+              _G["WhoFrameButton"..i.."Variable"]:SetTextColor(1, 1, 1)
+            end
+
+          elseif (UIDropDownMenu_GetSelectedID(WhoFrameDropDown) == 3) then
+            if (info.raceStr == playerrace) then
+              _G["WhoFrameButton"..i.."Variable"]:SetTextColor(.5, 1, 1)
+            else
+              _G["WhoFrameButton"..i.."Variable"]:SetTextColor(1, 1, 1)
+            end
+          end
+
+          if class then
+            local classicon = _G["WhoFrameButton"..i].classicon
+            local coords = CLASS_ICON_TCOORDS[class]
+            local color = PFUI_CLASS_COLORS[class]
+
+            -- do we have classicons? (skin enabled?)
+            if classicon then
+              _G["WhoFrameButton"..i.."Class"]:SetTextColor(0,0,0,0)
+              _G["WhoFrameButton"..i.."Name"]:SetTextColor(color.r,color.g,color.b,1)
+
+              if coords then
+                classicon:Show()
+                classicon:SetTexCoord(unpack(coords))
+              else
+                classicon:Hide()
+              end
+            else
+              _G["WhoFrameButton"..i.."Class"]:SetTextColor(color.r,color.g,color.b,1)
+            end
+          end
+
+          local color = GetDifficultyColor(info.level)
+          _G["WhoFrameButton"..i.."Level"]:SetTextColor(color.r, color.g, color.b)
+        end
       end
     end)
   end
