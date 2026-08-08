@@ -587,7 +587,7 @@ end
 function pfUI.api.SetHighlight(frame, cr, cg, cb)
   if not frame then return end
   if not cr or not cg or not cb then
-    cr, cg, cb = GetClassColor(UnitClassBase('player'))
+    cr, cg, cb = PFUI_CLASS_COLORS[UnitClassBase('player')]:GetRGB()
   end
 
   frame.cr, frame.cg, frame.cb = cr, cg, cb, ca
@@ -632,7 +632,7 @@ function pfUI.api.SkinButton(button, cr, cg, cb, icon, disableHighlight)
   if not b then b = button end
   if not b then return end
   if not cr or not cg or not cb then
-    cr, cg, cb = GetClassColor(UnitClassBase('player'))
+    cr, cg, cb = PFUI_CLASS_COLORS[UnitClassBase('player')]:GetRGB()
   end
   pfUI.api.CreateBackdrop(b, nil, true)
   b:SetNormalTexture("")
@@ -709,7 +709,7 @@ end
 function pfUI.api.SkinRotateButton(button)
   pfUI.api.CreateBackdrop(button)
 
-  local cr, cg, cb = GetClassColor(UnitClassBase('player'))
+  local cr, cg, cb = PFUI_CLASS_COLORS[UnitClassBase('player')]:GetRGB()
 
   local btnW, btnH = button:GetSize()
   button:SetSize(btnW - 18, btnH - 18)
@@ -907,7 +907,7 @@ function pfUI.api.SkinDropDown(frame, cr, cg, cb, useSmall)
   end
 
   if not cr or not cg or not cb then
-    cr, cg, cb = GetClassColor(UnitClassBase('player'))
+    cr, cg, cb = PFUI_CLASS_COLORS[UnitClassBase('player')]:GetRGB()
   end
 
   SetHighlight(button, cr, cg, cb)
