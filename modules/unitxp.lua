@@ -268,7 +268,9 @@ pfUI:RegisterModule("unitxp", function ()
     -- Also notify on BG queue pop
     local origBattlefieldPortShow = BattlefieldFrame_Show
     if origBattlefieldPortShow then
-      BattlefieldFrame_Show = function()
+      -- pfUI.env has __index but no __newindex, so a bare global assignment
+      -- inside a RegisterModule closure never leaves the sandbox
+      _G.BattlefieldFrame_Show = function()
         pcall(UnitXP, "notify", "taskbarIcon")
         pcall(UnitXP, "notify", "systemSound")
         return origBattlefieldPortShow()
