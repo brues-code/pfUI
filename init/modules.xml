@@ -81,4 +81,5 @@
   <Include file="..\modules\equipmentmanager.lua"/>
   <Include file="..\modules\loothistory.lua"/>
   <Include file="..\modules\newitem.lua"/>
+  <Include file="..\modules\friendnotes.lua"/>
 </Ui>
