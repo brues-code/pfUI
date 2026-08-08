@@ -290,7 +290,9 @@ pfUI:RegisterModule("swingtimer", function ()
   UpdateMovable(pfUI.swingtimer.ranged)
 
   -- OH weapon detection
-  local OH_WEAPON_TYPES = { [13]=true, [21]=true }
+  -- OH weapon detection: slot 17 (off hand) accepts one-hand (13) and off-hand
+  -- weapons (22); main-hand-only (21) can never sit there.
+  local OH_WEAPON_TYPES = { [13]=true, [22]=true }
   local function HasOffhandWeapon()
     local l = GetInventoryItemLink("player", 17)
     if not l then return false end
