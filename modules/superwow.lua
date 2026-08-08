@@ -75,7 +75,10 @@ pfUI:RegisterModule("superwow", function ()
     DEFAULT_CHAT_FRAME:AddMessage("-> https://github.com/balakethelock/SuperWoW/releases/")
   end
 
-  if SUPERWOW_VERSION == "1.5" then
+  -- compare numerically: an exact string match silently drops this on any
+  -- SuperWoW release past 1.5
+  local swVersion = tonumber(SUPERWOW_VERSION)
+  if swVersion and swVersion >= 1.5 then
     QueueFunction(function()
       local pfCombatText_AddMessage = _G.CombatText_AddMessage
       _G.CombatText_AddMessage = function(message, a, b, c, d, e, f)
