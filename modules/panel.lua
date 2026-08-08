@@ -304,7 +304,7 @@ pfUI:RegisterModule("panel", function()
               GameTooltip:AddLine("|cff555555" .. T["Friends Online"])
               init = true
             end
-            local ccolor = PFUI_CLASS_COLORS[L["class"][friend_class]] or { 1, 1, 1 }
+            local ccolor = PFUI_CLASS_COLORS[L["class"][friend_class]]
             local lcolor = GetDifficultyColor(tonumber(friend_level)) or { 1, 1, 1 }
             local zcolor = friend_area == playerzone and "|cff33ffcc" or "|cffcccccc"
             GameTooltip:AddDoubleLine(rgbhex(ccolor) .. friend_name .. rgbhex(lcolor) .. " [" .. friend_level .. "]", zcolor .. friend_area)
@@ -315,15 +315,7 @@ pfUI:RegisterModule("panel", function()
       end
       widget.Click = function() ToggleFriendsFrame(1) end
       widget:SetScript("OnEvent", function()
-        local online = 0
-        local all = GetNumFriends()
-        for friendIndex=1, all do
-          local friend_name, friend_level, friend_class, friend_area, friend_connected = GetFriendInfo(friendIndex)
-          if ( friend_connected ) then
-            online = online + 1
-          end
-        end
-
+        local online = C_FriendList.GetNumOnlineFriends()
         pfUI.panel:OutputPanel("friends", FRIENDS .. ": " .. online, widget.Tooltip, widget.Click)
       end)
     end
