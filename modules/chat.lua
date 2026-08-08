@@ -810,23 +810,25 @@ pfUI:RegisterModule("chat", function ()
       end
     end
 
+    -- detect the whisper prefix BEFORE prepending a timestamp; the timestamp
+    -- pushes the whisper colour code off position 1 and the find below fails
+    local isWhisper = C.chat.global.whispermod == "1" and string.find(text, wcol, 1) == 1
+
     -- show timestamp in chat
     if C.chat.text.time == "1" then
       text = timecolorhex .. tleft .. date(C.chat.text.timeformat) .. tright .. "|r " .. text
     end
 
     -- save chat history
-    if C.chat.global.whispermod == "1" and string.find(text, wcol, 1) == 1 then
+    if isWhisper then
       SaveChatHistory(frame:GetID(), string.gsub(text, wcol, ""), cr, cg, cb)
     else
       SaveChatHistory(frame:GetID(), text, a1, a2, a3)
     end
 
-    if C.chat.global.whispermod == "1" then
+    if isWhisper then
       -- patch incoming whisper string to match the colors
-      if string.find(text, wcol, 1) == 1 then
-        text = string.gsub(text, "|r", "|r" .. wcol)
-      end
+      text = string.gsub(text, "|r", "|r" .. wcol)
     end
 
     frame:HookAddMessage(text, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17)
