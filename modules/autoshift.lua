@@ -2,6 +2,11 @@ pfUI:RegisterModule("autoshift", function ()
   pfUI.autoshift = CreateFrame("Frame")
   pfUI.autoshift:RegisterEvent("UI_ERROR_MESSAGE")
 
+  -- Empty stub kept only so Turtle WoW's pfUI-turtle addon doesn't error when
+  -- its obsolete moonkin autoshift module iterates pfUI.autoshift.shapeshifts.
+  -- This fork drives autoshift off GetShapeshiftFormID() and no longer uses it.
+  pfUI.autoshift.shapeshifts = {}
+
   pfUI.autoshift.scanString = string.gsub(SPELL_FAILED_ONLY_SHAPESHIFT, "%%s", "(.+)")
 
   pfUI.autoshift.errors = { SPELL_FAILED_NOT_MOUNTED, ERR_ATTACK_MOUNTED, ERR_TAXIPLAYERALREADYMOUNTED,
