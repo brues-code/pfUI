@@ -593,37 +593,13 @@ end
 -- DURATION FUNCTIONS
 -- ============================================================================
 
+-- Report the live, talent-accurate duration of a matching aura on the player.
+-- ClassicAPI's C_UnitAuras carries the real (mod-folded) duration straight from
+-- the engine, so there's no static duration table to maintain. Returns 0 when
+-- the player has no such aura (e.g. a debuff that only ever lands on enemies).
 function libdebuff:GetDuration(effect, rank)
-  if L["debuffs"][effect] then
-    local rank = rank and tonumber((string.gsub(rank, RANK, ""))) or 0
-    local rank = L["debuffs"][effect][rank] and rank or libdebuff:GetMaxRank(effect)
-    local duration = L["debuffs"][effect][rank]
-
-    if effect == L["dyndebuffs"]["Demoralizing Shout"] then
-      local _,_,_,_,count = GetTalentInfo(2,1)
-      if count and count > 0 then duration = duration + ( duration / 100 * (count*10)) end
-    elseif effect == L["dyndebuffs"]["Shadow Word: Pain"] then
-      local _,_,_,_,count = GetTalentInfo(3,4)
-      if count and count > 0 then duration = duration + count * 3 end
-    elseif effect == L["dyndebuffs"]["Frostbolt"] then
-      local _,_,_,_,count = GetTalentInfo(3,7)
-      if count and count > 0 then duration = duration + count end
-    elseif effect == L["dyndebuffs"]["Gouge"] then
-      local _,_,_,_,count = GetTalentInfo(3,3)
-      if count and count > 0 then duration = duration + (count*.5) end
-    end
-    return duration
-  else
-    return 0
-  end
-end
-
-function libdebuff:GetMaxRank(effect)
-  local max = 0
-  for id in pairs(L["debuffs"][effect]) do
-    if id > max then max = id end
-  end
-  return max
+  local aura = C_UnitAuras.GetAuraDataBySpellName("player", effect)
+  return aura and aura.duration or 0
 end
 
 function libdebuff:UpdateDuration(unit, unitlevel, effect, duration)
@@ -649,7 +625,6 @@ libdebuff.objects = {}
 
 function libdebuff:AddPending(unit, unitlevel, effect, duration, caster, rank)
   if not unit or duration <= 0 then return end
-  if not L["debuffs"][effect] then return end
   if libdebuff.pending[3] then return end
 
   libdebuff.pending[1] = unit
@@ -728,39 +703,25 @@ end
 -- API: GetBestAuraCast (for libpredict HoT tracking)
 -- ============================================================================
 
+-- Report the active aura for spellName on `guid`, read straight from
+-- C_UnitAuras. expirationTime is the true, caster-modified remaining time, so
+-- no cast-event bookkeeping is needed -- and a unit only ever holds one instance
+-- of a given spell, so this is inherently the "best" one.
+-- Returns (startTime, duration, timeleft, rank, casterGuid) or nil.
 function libdebuff:GetBestAuraCast(guid, spellName)
   if not guid or not spellName then return nil end
-  
-  -- Check ownDebuffs first (for our casts)
-  if ownDebuffs[guid] and ownDebuffs[guid][spellName] then
-    local data = ownDebuffs[guid][spellName]
-    local timeleft = (data.startTime + data.duration) - GetTime()
-    if timeleft > 0 then
-      return data.startTime, data.duration, timeleft, data.rank, GetPlayerGuid()
-    end
-  end
-  
-  -- Check allAuraCasts (for any caster)
-  if allAuraCasts[guid] and allAuraCasts[guid][spellName] then
-    local bestData = nil
-    local bestCaster = nil
-    local bestTimeleft = 0
-    
-    for casterGuid, data in pairs(allAuraCasts[guid][spellName]) do
-      local timeleft = (data.startTime + data.duration) - GetTime()
-      if timeleft > bestTimeleft then
-        bestTimeleft = timeleft
-        bestData = data
-        bestCaster = casterGuid
-      end
-    end
-    
-    if bestData and bestTimeleft > 0 then
-      return bestData.startTime, bestData.duration, bestTimeleft, bestData.rank, bestCaster
-    end
-  end
-  
-  return nil
+
+  local aura = C_UnitAuras.GetAuraDataBySpellName(guid, spellName)
+  if not aura or not aura.expirationTime or aura.expirationTime == 0 then return nil end
+
+  local timeleft = aura.expirationTime - GetTime()
+  if timeleft <= 0 then return nil end
+
+  local duration = (aura.duration and aura.duration > 0) and aura.duration or timeleft
+  local startTime = aura.expirationTime - duration
+  local rank = aura.spellId and tonumber((string.gsub(C_Spell.GetSpellSubtext(aura.spellId) or "", RANK, ""))) or nil
+
+  return startTime, duration, timeleft, rank, aura.sourceGUID
 end
 
 -- ============================================================================
