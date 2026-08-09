@@ -26,10 +26,14 @@ pfUI:RegisterModule("itemcount", function ()
     if bank < 0 then bank = 0 end
 
     frame:AddLine(" ")
-    if bags > 0     then frame:AddDoubleLine("Bags:",     bags,     1, 1, 1, 1, 1, 1) end
-    if bank > 0     then frame:AddDoubleLine("Bank:",     bank,     1, 1, 1, 1, 1, 1) end
-    if equipped > 0 then frame:AddDoubleLine("Equipped:", equipped, 1, 1, 1, 1, 1, 1) end
-    frame:AddDoubleLine("Total:", total, 1, 1, 1, 1, 1, 1)
+    if bags > 0     then frame:AddDoubleLine(T["Bags"] .. ":",     bags,     1, 1, 1, 1, 1, 1) end
+    if bank > 0     then frame:AddDoubleLine(T["Bank"] .. ":",     bank,     1, 1, 1, 1, 1, 1) end
+    if equipped > 0 then frame:AddDoubleLine(T["Equipped"] .. ":", equipped, 1, 1, 1, 1, 1, 1) end
+
+    local sources = (bags > 0 and 1 or 0) + (bank > 0 and 1 or 0) + (equipped > 0 and 1 or 0)
+    if sources > 1 then
+      frame:AddDoubleLine(T["Total"] .. ":", total, 1, 1, 1, 1, 1, 1)
+    end
     frame:Show()
   end
 
