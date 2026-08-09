@@ -306,8 +306,8 @@ pfUI:RegisterModule("nameplates", function ()
     if C.nameplates.totemicons ~= "1" then return nil end
     if CreatureType(plate) ~= 11 then return nil end
     if plate.totemIcon then return plate.totemIcon end
-    local auras = C_UnitAuras.GetUnitAuras(plate.cachedGuid)
-    if auras and auras[1] then plate.totemIcon = auras[1].icon end
+    local aura = C_UnitAuras.GetBuffDataByIndex(plate.cachedGuid, 1)
+    if aura then plate.totemIcon = aura.icon end
     return plate.totemIcon
   end
 
