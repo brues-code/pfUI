@@ -32,7 +32,7 @@ pfUI:RegisterModule("bgscore", function ()
   -- Title label
   local title = mover:CreateFontString(nil, "OVERLAY")
   title:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
-  title:SetText("Battleground Frames")
+  title:SetText(T["Battleground Frames"])
   title:SetPoint("TOP", mover, "TOP", 0, -2)
 
   -- BG score preview text

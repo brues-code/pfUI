@@ -28,7 +28,7 @@ pfUI:RegisterModule("unitxp", function ()
       behindFrame.text:SetFont(pfUI.font_default, fontSize, "OUTLINE")
       behindFrame.text:SetPoint("RIGHT", behindFrame, "RIGHT", -1, 0)
       behindFrame.text:SetTextColor(0.3, 1, 0.3, 1)
-      behindFrame.text:SetText("BEHIND")
+      behindFrame.text:SetText(T["BEHIND"])
       behindFrame.text:Hide()
 
       local lastCheck = 0
@@ -62,7 +62,7 @@ pfUI:RegisterModule("unitxp", function ()
       losFrame.text:SetFont(pfUI.font_default, fontSize, "OUTLINE")
       losFrame.text:SetPoint("RIGHT", losFrame, "RIGHT", -1, -slot)
       losFrame.text:SetTextColor(1, 0.3, 0.3, 1)
-      losFrame.text:SetText("NO LOS")
+      losFrame.text:SetText(T["NO LOS"])
       losFrame.text:Hide()
 
       local lastCheck = 0

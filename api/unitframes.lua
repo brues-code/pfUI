@@ -1409,7 +1409,7 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
     f.group:SetFont(pfUI.font_unit, 8, "OUTLINE")
     f.group:SetTextColor(1,1,1,.8)
     f.group:SetHeight(16)
-    f.group:SetText("Group " .. group)
+    f.group:SetText(T["Group"] .. " " .. group)
     f.group:Hide()
   end
 
