@@ -1226,12 +1226,11 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
 
     local r, g, b, a = unpack(unitcolors[unittype])
 
-    if class then
-      if unittype == "ENEMY_PLAYER" and C.nameplates["enemyclassc"] == "1" then
-        r, g, b, a = PFUI_CLASS_COLORS[class]:GetRGBA()
-      elseif unittype == "FRIENDLY_PLAYER" and C.nameplates["friendclassc"] == "1" then
-        r, g, b, a = PFUI_CLASS_COLORS[class]:GetRGBA()
-      end
+    if class and (
+      (unittype == "ENEMY_PLAYER" and C.nameplates["enemyclassc"] == "1") or
+      (unittype == "FRIENDLY_PLAYER" and C.nameplates["friendclassc"] == "1")
+    ) then
+      r, g, b, a = PFUI_CLASS_COLORS[class]:GetRGBA()
     end
 
     if unitstr and UnitIsTapped(unitstr) and not UnitIsTappedByPlayer(unitstr) then
@@ -1257,10 +1256,15 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       plate.cache.namecolor = r + g + b
     end
 
-    -- update combopoints
-    for i=1, 5 do plate.combopoints[i]:Hide() end
     if target and C.nameplates.cpdisplay == "1" then
-      for i=1, GetComboPoints("target") do plate.combopoints[i]:Show() end
+      local cp = GetComboPoints("target")
+      if plate.cpShown ~= cp then
+        for i=1, 5 do plate.combopoints[i]:SetShown(i <= cp) end
+        plate.cpShown = cp
+      end
+    elseif plate.cpShown then
+      for i=1, 5 do plate.combopoints[i]:Hide() end
+      plate.cpShown = nil
     end
 
     -- update debuffs
