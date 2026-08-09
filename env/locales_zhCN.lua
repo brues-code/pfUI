@@ -1,16 +1,5 @@
 pfUI_locale["zhCN"] = {}
 
-pfUI_locale["zhCN"]["class"] = {
-  ["术士"] = "WARLOCK",
-  ["战士"] = "WARRIOR",
-  ["猎人"] = "HUNTER",
-  ["法师"] = "MAGE",
-  ["牧师"] = "PRIEST",
-  ["德鲁伊"] = "DRUID",
-  ["圣骑士"] = "PALADIN",
-  ["萨满祭司"] = "SHAMAN",
-  ["盗贼"] = "ROGUE",
-}
 
 pfUI_locale["zhCN"]["healduration"] = {
   ["Rejuvenation"] = "使你的回春术的持续时间延长3秒。",

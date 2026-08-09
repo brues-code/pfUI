@@ -1,16 +1,5 @@
 pfUI_locale["frFR"] = {}
 
-pfUI_locale["frFR"]["class"] = {
-  ["Démoniste"] = "WARLOCK",
-  ["Guerrier"] = "WARRIOR",
-  ["Chasseur"] = "HUNTER",
-  ["Mage"] = "MAGE",
-  ["Prêtre"] = "PRIEST",
-  ["Druide"] = "DRUID",
-  ["Paladin"] = "PALADIN",
-  ["Chaman"] = "SHAMAN",
-  ["Voleur"] = "ROGUE",
-}
 
 pfUI_locale["frFR"]["healduration"] = {
   ["Rejuvenation"] = "Augmente la durée de votre sort Récupération de 3 sec.",

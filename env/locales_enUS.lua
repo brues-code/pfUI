@@ -1,16 +1,5 @@
 pfUI_locale["enUS"] = {}
 
-pfUI_locale["enUS"]["class"] = {
-  ["Warlock"] = "WARLOCK",
-  ["Warrior"] = "WARRIOR",
-  ["Hunter"] = "HUNTER",
-  ["Mage"] = "MAGE",
-  ["Priest"] = "PRIEST",
-  ["Druid"] = "DRUID",
-  ["Paladin"] = "PALADIN",
-  ["Shaman"] = "SHAMAN",
-  ["Rogue"] = "ROGUE",
-}
 
 pfUI_locale["enUS"]["healduration"] = {
   ["Rejuvenation"] = "Increases the duration of your Rejuvenation spell by 3 sec.",

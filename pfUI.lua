@@ -292,6 +292,7 @@ function pfUI:GetEnvironment()
   pfUI.env.C = pfUI_config
   pfUI.env.pfUI_throttle = _G.pfUI_throttle
   pfUI.env.L = (pfUI_locale[GetLocale()] or pfUI_locale["enUS"])
+  pfUI.env.L["class"] = pfUI.env.L["class"] or tInvert(LOCALIZED_CLASS_NAMES_MALE)
 
   return pfUI.env
 end

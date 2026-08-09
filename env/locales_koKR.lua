@@ -1,16 +1,5 @@
 pfUI_locale["koKR"] = {}
 
-pfUI_locale["koKR"]["class"] = {
-  ["흑마법사"] = "WARLOCK",
-  ["전사"] = "WARRIOR",
-  ["사냥꾼"] = "HUNTER",
-  ["마법사"] = "MAGE",
-  ["사제"] = "PRIEST",
-  ["드루이드"] = "DRUID",
-  ["성기사"] = "PALADIN",
-  ["주술사"] = "SHAMAN",
-  ["도적"] = "ROGUE",
-}
 
 pfUI_locale["koKR"]["healduration"] = {
   ["Rejuvenation"] = "회복의 지속시간이 3초만큼 증가합니다.",

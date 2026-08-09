@@ -1,16 +1,5 @@
 pfUI_locale["esES"] = {}
 
-pfUI_locale["esES"]["class"] = {
-  ["Brujo"] = "WARLOCK",
-  ["Guerrero"] = "WARRIOR",
-  ["Cazador"] = "HUNTER",
-  ["Mago"] = "MAGE",
-  ["Sacerdote"] = "PRIEST",
-  ["Druida"] = "DRUID",
-  ["Paladín"] = "PALADIN",
-  ["Chamán"] = "SHAMAN",
-  ["Pícaro"] = "ROGUE",
-}
 
 pfUI_locale["esES"]["healduration"] = {
   ["Rejuvenation"] = "Aumenta 3 s la duración de tu hechizo Rejuvenecimiento.",

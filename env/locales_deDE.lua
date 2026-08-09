@@ -1,16 +1,5 @@
 pfUI_locale["deDE"] = {}
 
-pfUI_locale["deDE"]["class"] = {
-  ["Hexenmeister"] = "WARLOCK",
-  ["Krieger"] = "WARRIOR",
-  ["Jäger"] = "HUNTER",
-  ["Magier"] = "MAGE",
-  ["Priester"] = "PRIEST",
-  ["Druide"] = "DRUID",
-  ["Paladin"] = "PALADIN",
-  ["Schamane"] = "SHAMAN",
-  ["Schurke"] = "ROGUE",
-}
 
 pfUI_locale["deDE"]["healduration"] = {
   ["Rejuvenation"] = "Erhöht die Dauer Eures Zaubers 'Verjüngung' um 3 Sek.",

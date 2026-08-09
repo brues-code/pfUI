@@ -1,16 +1,5 @@
 pfUI_locale["ruRU"] = {}
 
-pfUI_locale["ruRU"]["class"] = {
-  ["Чернокнижник"] = "WARLOCK",
-  ["Воин"] = "WARRIOR",
-  ["Охотник"] = "HUNTER",
-  ["Маг"] = "MAGE",
-  ["Жрец"] = "PRIEST",
-  ["Друид"] = "DRUID",
-  ["Паладин"] = "PALADIN",
-  ["Шаман"] = "SHAMAN",
-  ["Разбойник"] = "ROGUE",
-}
 
 pfUI_locale["ruRU"]["healduration"] = {
   ["Rejuvenation"] = "Увеличивает время действия \"Омоложения\" на 3 сек.",
