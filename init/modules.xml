@@ -1,4 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <!-- pixelperfect must load first: it sets the UI scale that GetPerfectPixel
+       measures a real pixel against, and that value is cached on first use. -->
+  <Include file="..\modules\pixelperfect.lua"/>
   <Include file="..\modules\gui.lua"/>
   <Include file="..\modules\unlock.lua"/>
   <Include file="..\modules\hoverbind.lua"/>
@@ -53,7 +56,6 @@
   <Include file="..\modules\gm.lua"/>
   <Include file="..\modules\mirrortimers.lua"/>
   <Include file="..\modules\feigndeath.lua"/>
-  <Include file="..\modules\pixelperfect.lua"/>
   <Include file="..\modules\hdgraphic.lua"/>
   <Include file="..\modules\share.lua"/>
   <Include file="..\modules\tracking.lua"/>

@@ -13,7 +13,8 @@ pfUI:RegisterModule("macrotweak", function ()
   end
 
   -- do not write macro calls into chat input history
-  if ChatFrameEditBox._AddHistoryLine then
+  -- (install once: _AddHistoryLine is our backup slot and is nil until we set it)
+  if not ChatFrameEditBox._AddHistoryLine then
     local userinput
     ChatFrameEditBox._AddHistoryLine = ChatFrameEditBox.AddHistoryLine
     ChatFrameEditBox.AddHistoryLine = function(self, text)

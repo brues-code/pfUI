@@ -90,12 +90,14 @@ pfUI:RegisterModule("buffwatch", function ()
           if val == skill then return end
         end
         config.whitelist = config.whitelist .. "#" .. skill
+        fcache[tostring(config)] = nil -- invalidate so the new entry takes effect immediately
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ffcc" .. skill .. "|r" .. T["is now whitelisted."])
       elseif IsShiftKeyDown() then
         for _, val in pairs({strsplit("#", config.blacklist)}) do
           if val == skill then return end
         end
         config.blacklist = config.blacklist .. "#" .. skill
+        fcache[tostring(config)] = nil -- invalidate so the new entry takes effect immediately
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ffcc" .. skill .. "|r" .. T["is now blacklisted."])
       end
     elseif this.parent.unit == "player" then

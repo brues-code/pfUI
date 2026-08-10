@@ -4,7 +4,9 @@ pfUI:RegisterModule("raid", function ()
 
   -- tell RaidFrame.lua pfUI replaces party frames
   HookAddonOrVariable("Blizzard_RaidUI", function()
-    GROUP_REPLACE_PARTY = "1"
+    -- must reach _G: RaidFrame.lua reads this global, and pfUI.env has
+    -- __index but no __newindex, so a bare assignment stays in the sandbox
+    _G.GROUP_REPLACE_PARTY = "1"
   end)
 
   pfUI.uf.raid = CreateFrame("Frame", "pfRaidUpdater", UIParent)

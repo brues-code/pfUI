@@ -52,19 +52,19 @@ pfUI:RegisterModule("mapreveal", function ()
     WorldMapTooltip:AddLine(this.name, 1, 1, 1)
     WorldMapTooltip:Show()
 
-    if not explorecaches[this.name] then return end
+    if not explorecaches[this.area] then return end
     if C.appearance.worldmap.mapreveal == "0" then return end
-    for texture in pairs(explorecaches[this.name]) do
+    for texture in pairs(explorecaches[this.area]) do
       texture:SetVertexColor(1,1,1,1)
     end
   end
 
   local exploreLeave = function()
     WorldMapTooltip:Hide()
-    if not explorecaches[this.name] then return end
+    if not explorecaches[this.area] then return end
     if C.appearance.worldmap.mapreveal == "0" then return end
     local r,g,b,a = GetStringColor(C.appearance.worldmap.mapreveal_color)
-    for texture in pairs(explorecaches[this.name]) do
+    for texture in pairs(explorecaches[this.area]) do
       texture:SetVertexColor(r,g,b,a)
     end
   end
@@ -120,6 +120,7 @@ pfUI:RegisterModule("mapreveal", function ()
       explore:EnableMouse(true)
       explore:SetFrameLevel(255)
       explore.name = mapFileName .. " (" .. name .. ")"
+      explore.area = name -- cache key: explorecaches is keyed by the plain area name
       explore.tex = explore.tex or explore:CreateTexture("", "OVERLAY")
       explore.tex:SetBlendMode("ADD")
       explore.tex:SetTexCoord(.08, .92, .08, .92)
