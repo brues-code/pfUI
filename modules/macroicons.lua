@@ -72,7 +72,7 @@ pfUI:RegisterModule("macroicons", function ()
     end
 
     local function SaveMacroPopup()
-      local text = strtrim(picker.editbox:GetText())
+      local text = picker.editbox:GetText()
       if text == "" then return end
 
       local icon = iconPicker.GetIcon()
