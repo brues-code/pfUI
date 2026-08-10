@@ -185,8 +185,93 @@ pfUI:RegisterModule("tooltip", function ()
   GameTooltipStatusBar.SetStatusBarColor_orig = GameTooltipStatusBar.SetStatusBarColor
   GameTooltipStatusBar.SetStatusBarColor = function() return end
 
+  -- A row of buff icons anchored above the tooltip for mouseover units.
+  -- Icons come from a ClassicAPI object pool: ReleaseAll hides the whole
+  -- set each refresh, then we Acquire and re-anchor left-to-right.
+  local BUFF_SIZE, BUFF_SPACING, BUFF_MAX = 20, 2, 32
+  pfUI.tooltip.buffs = CreateFrame("Frame", "pfTooltipBuffs", GameTooltip)
+  pfUI.tooltip.buffs:SetPoint("BOTTOMLEFT", GameTooltipStatusBar, "TOPLEFT", 0, default_border + 2)
+  pfUI.tooltip.buffs:SetHeight(BUFF_SIZE)
+
+  local function CreateBuffIcon()
+    local icon = CreateFrame("Frame", nil, pfUI.tooltip.buffs)
+    icon:SetSize(BUFF_SIZE, BUFF_SIZE)
+    icon.texture = icon:CreateTexture(nil, "BACKGROUND")
+    icon.texture:SetTexCoord(.07, .93, .07, .93)
+    icon.texture:SetAllPoints(icon)
+    CreateBackdrop(icon)
+
+    icon.stacks = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    icon.stacks:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 1, 0)
+    icon.stacks:SetFont(C.tooltip.font_tooltip, C.tooltip.font_tooltip_size, "OUTLINE")
+    icon.stacks:SetTextColor(1, 1, 1, 1)
+
+    icon.timer = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    icon.timer:SetPoint("CENTER", icon, "CENTER", 0, 0)
+    icon.timer:SetFont(C.tooltip.font_tooltip, C.tooltip.font_tooltip_size, "OUTLINE")
+    icon.timer:SetTextColor(1, 1, 1, 1)
+    return icon
+  end
+
+  pfUI.tooltip.buffpool = CreateObjectPool(CreateBuffIcon, function(_, icon)
+    icon:Hide()
+    icon:ClearAllPoints()
+  end)
+
+  -- Tick the remaining-time text on the visible icons. OnUpdate only fires
+  -- while the row is shown, so it stops as soon as the tooltip hides.
+  pfUI.tooltip.buffs:SetScript("OnUpdate", function()
+    local now = GetTime()
+    if (this.tick or 0) > now then return end
+    this.tick = now + 0.1
+    for icon in pfUI.tooltip.buffpool:EnumerateActive() do
+      local timeleft = icon.expirationTime and icon.expirationTime > 0 and (icon.expirationTime - now) or 0
+      icon.timer:SetText(timeleft > 0 and GetColoredTimeString(timeleft) or "")
+    end
+  end)
+
+  function pfUI.tooltip:UpdateBuffs(unit)
+    pfUI.tooltip.buffpool:ReleaseAll()
+
+    if C.tooltip.showbuffs ~= "1" or not unit or unit == "none" then
+      pfUI.tooltip.buffs:Hide()
+      return
+    end
+
+    local prev, count = nil, 0
+    for i = 1, BUFF_MAX do
+      local aura = C_UnitAuras.GetBuffDataByIndex(unit, i)
+      if not aura then break end
+
+      count = count + 1
+      local icon = pfUI.tooltip.buffpool:Acquire()
+      icon.texture:SetTexture(aura.icon)
+      icon.stacks:SetText(aura.applications and aura.applications > 1 and aura.applications or "")
+
+      icon.expirationTime = aura.expirationTime
+      local timeleft = aura.expirationTime and aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or 0
+      icon.timer:SetText(timeleft > 0 and GetColoredTimeString(timeleft) or "")
+
+      if prev then
+        icon:SetPoint("LEFT", prev, "RIGHT", BUFF_SPACING, 0)
+      else
+        icon:SetPoint("BOTTOMLEFT", pfUI.tooltip.buffs, "BOTTOMLEFT", 0, 0)
+      end
+      icon:Show()
+      prev = icon
+    end
+
+    if count > 0 then
+      pfUI.tooltip.buffs:SetWidth(count * BUFF_SIZE + (count - 1) * BUFF_SPACING)
+      pfUI.tooltip.buffs:Show()
+    else
+      pfUI.tooltip.buffs:Hide()
+    end
+  end
+
   function pfUI.tooltip:Update()
       local unit = pfUI.tooltip:GetUnit()
+      pfUI.tooltip:UpdateBuffs(unit)
       if unit == "none" then
         -- process item tooltips
         if C.tooltip.itemid == "1" and GameTooltip:HasItem() then
