@@ -43,6 +43,7 @@ pfUI:RegisterModule("roll", function ()
 
     local _, _, itemLink = string.find(hyperlink, "(item:%d+:%d+:%d+:%d+)")
     local itemName = C_Item.GetItemInfo(itemLink)
+    if not itemName then return end -- uncached item: avoid cache[nil] "table index is nil"
 
     -- delete obsolete tables
     if pfUI.roll.cache[itemName] and pfUI.roll.cache[itemName]["TIMESTAMP"] < GetTime() - 60 then

@@ -263,7 +263,7 @@ pfUI:RegisterModule("firstrun", function ()
     SkinCheckbox(f.checkbox, 18)
 
     f.NextScript = function()
-      if not pfUI.chat then message("Couldn't apply settings. Chat module is disabled.") end
+      if not pfUI.chat then message("Couldn't apply settings. Chat module is disabled.") return end
       pfUI.chat.SetupRightChat(f.checkbox:GetChecked())
     end
 
@@ -283,7 +283,7 @@ pfUI:RegisterModule("firstrun", function ()
     SkinCheckbox(f.checkbox, 18)
 
     f.NextScript = function()
-      if not pfUI.chat then message("Couldn't apply settings. Chat module is disabled.") end
+      if not pfUI.chat then message("Couldn't apply settings. Chat module is disabled.") return end
       if f.checkbox:GetChecked() then
         pfUI.chat.SetupPositions()
       end
@@ -305,7 +305,7 @@ pfUI:RegisterModule("firstrun", function ()
     SkinCheckbox(f.checkbox, 18)
 
     f.NextScript = function()
-      if not pfUI.chat then message("Couldn't apply settings. Chat module is disabled.") end
+      if not pfUI.chat then message("Couldn't apply settings. Chat module is disabled.") return end
       if f.checkbox:GetChecked() then
         pfUI.chat.SetupChannels()
       end

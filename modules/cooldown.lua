@@ -9,7 +9,7 @@ pfUI:RegisterModule("cooldown", function ()
   local parent, parent_name
   local function pfCooldownOnUpdate()
     parent = this:GetParent()
-    if not parent then this:Hide() end
+    if not parent then this:Hide() return end
     parent_name = parent:GetName()
 
     -- avoid to set cooldowns on invalid frames

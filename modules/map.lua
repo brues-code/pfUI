@@ -77,7 +77,13 @@ pfUI:RegisterModule("map", function ()
           if point == "TOPLEFT" and relpoint == "TOPLEFT" then
             offx = offx*oldscale/scale
             offy = offy*oldscale/scale
-            WorldMapFrame:SetPoint(point, rel, relpoint, offx, offy)
+            -- Anchor to the parent (3-arg SetPoint) rather than re-using the frame
+            -- GetPoint handed back. Re-anchoring to `rel` throws
+            -- "<unnamed> is dependent on this" as soon as anything else has anchored
+            -- itself to WorldMapFrame, which aborts the whole zoom handler. The
+            -- parent-relative form is also what LoadMovable/SaveMovable already
+            -- assume: SaveMovable stores only xpos/ypos, with no relative frame.
+            WorldMapFrame:SetPoint(point, offx, offy)
           end
 
           WorldMapFrame:SetScale(scale)
