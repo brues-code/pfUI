@@ -42,6 +42,20 @@ pfUI:RegisterModule("friendnotes", function ()
   local friendMenu = UnitPopupMenus["FRIEND"]
   table.insert(friendMenu, table.getn(friendMenu), EDIT_TOKEN)
 
+  UnitPopupMenus["PFUI_FRIENDNOTE"] = { EDIT_TOKEN, "CANCEL" }
+  local function OfflineNoteDropDown_Initialize()
+    UnitPopup_ShowMenu(_G[UIDROPDOWNMENU_OPEN_MENU], "PFUI_FRIENDNOTE", nil, FriendsDropDown.name)
+  end
+  local FriendsFrame_ShowDropdown_orig = FriendsFrame_ShowDropdown
+  _G.FriendsFrame_ShowDropdown = function(name, connected)
+    if connected then return FriendsFrame_ShowDropdown_orig(name, connected) end
+    HideDropDownMenu(1)
+    FriendsDropDown.initialize = OfflineNoteDropDown_Initialize
+    FriendsDropDown.displayMode = "MENU"
+    FriendsDropDown.name = name
+    ToggleDropDownMenu(1, nil, FriendsDropDown, "cursor")
+  end
+
   -- Route our entry to the editor and close the menu; delegate the rest. A
   -- bare assignment lands on pfUI.env, so set the global explicitly.
   local UnitPopup_OnClick_orig = UnitPopup_OnClick
