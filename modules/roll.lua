@@ -7,8 +7,12 @@ pfUI:RegisterModule("roll", function ()
   local LOOT_ROLL_NEED = string.gsub(LOOT_ROLL_NEED, "%%s|Hitem:%%d:%%d:%%d:%%d|h%[%%s%]|h%%s", "%%s")
   local LOOT_ROLL_PASSED = string.gsub(LOOT_ROLL_PASSED, "%%s|Hitem:%%d:%%d:%%d:%%d|h%[%%s%]|h%%s", "%%s")
 
-  -- try to detect the everyone string
-  local _, _, everyone, _ = strfind(LOOT_ROLL_ALL_PASSED, LOOT_ROLL_PASSED)
+  -- detect the "everyone passed" subject exactly as the loot scanner will capture
+  -- it: feed a dummy item into LOOT_ROLL_ALL_PASSED and run the same LOOT_ROLL_PASSED
+  -- match. (The old strfind had no captures, so `everyone` was always nil and
+  -- "Everyone has passed on: X" got counted as a fake roller.)
+  local everyoneSample = string.gsub(LOOT_ROLL_ALL_PASSED, "%%s", "x")
+  local everyone = cmatch(everyoneSample, LOOT_ROLL_PASSED)
   pfUI.roll.blacklist = { YOU, everyone }
 
   pfUI.roll.cache = {}
