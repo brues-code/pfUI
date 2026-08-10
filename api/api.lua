@@ -1108,17 +1108,10 @@ end
 function pfUI.api.GetPerfectPixel()
   if pfUI.pixel then return pfUI.pixel end
 
-  local resolution = GetCVar("gxResolution") or ""
-  local _, _, screenheight = strfind(resolution, "x(%d+)")
-  screenheight = tonumber(screenheight)
-
-  if pfUI_config.appearance.border.pixelperfect == "1" and screenheight then
-    -- The uiScale cvar is not a reliable source: it is capped at 1.0 while both
-    -- the pixelperfect module and the firstrun slider push UIParent past it via
-    -- SetScale, and it is ignored completely while useUiScale is off. Ask the
-    -- frame itself instead, it always reports what is really on screen.
-    local scale = UIParent:GetEffectiveScale()
-    if not scale or scale <= 0 then scale = 1 end
+  if pfUI_config.appearance.border.pixelperfect == "1" then
+    local scale = GetCVar("useUiScale") == "1" and GetCVar("uiScale") or "1"
+    local resolution = GetCVar("gxResolution")
+    local _, _, screenwidth, screenheight = strfind(resolution, "(.+)x(.+)")
 
     pfUI.pixel = 768 / screenheight / scale
     pfUI.pixel = pfUI.pixel > 1 and 1 or pfUI.pixel
