@@ -142,7 +142,7 @@ pfUI:RegisterModule("socialmod", function ()
           -- filename is the class token, so no L["class"] reversal is needed
           local class = info.filename
 
-          _G["WhoFrameButton"..i.."Name"]:SetTextColor(NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b)
+          _G["WhoFrameButton"..i.."Name"]:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
 
           if (UIDropDownMenu_GetSelectedID(WhoFrameDropDown) == 1) then
             if (info.area == playerzone) then

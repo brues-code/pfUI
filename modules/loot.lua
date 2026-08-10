@@ -77,9 +77,7 @@ pfUI:RegisterModule("loot", function ()
       if pfUI.loot.my_index or pfUI.loot.disenchanter_index or pfUI.loot.banker_index then
         info = wipe(info)
         info.text = T["Special Recipient"]
-        info.textR = NORMAL_FONT_COLOR.r
-        info.textG = NORMAL_FONT_COLOR.g
-        info.textB = NORMAL_FONT_COLOR.b
+        info.textR, info.textG, info.textB = NORMAL_FONT_COLOR:GetRGB()
         info.textHeight = 12
         info.hasArrow = 1
         info.notCheckable = 1
@@ -158,9 +156,7 @@ pfUI:RegisterModule("loot", function ()
     if level == 1 then
       info = wipe(info)
       info.text = T["Random"]
-      info.textR = NORMAL_FONT_COLOR.r
-      info.textG = NORMAL_FONT_COLOR.g
-      info.textB = NORMAL_FONT_COLOR.b
+      info.textR, info.textG, info.textB = NORMAL_FONT_COLOR:GetRGB()
       info.value = "PFRANDOM"
       info.textHeight = 12
       info.notCheckable = 1
@@ -170,9 +166,7 @@ pfUI:RegisterModule("loot", function ()
 
       info = wipe(info)
       info.text = T["Request Rolls"]
-      info.textR = NORMAL_FONT_COLOR.r
-      info.textG = NORMAL_FONT_COLOR.g
-      info.textB = NORMAL_FONT_COLOR.b
+      info.textR, info.textG, info.textB = NORMAL_FONT_COLOR:GetRGB()
       info.value = "PFROLLS"
       info.textHeight = 12
       info.hasArrow = 1
@@ -183,9 +177,7 @@ pfUI:RegisterModule("loot", function ()
       if UIDROPDOWNMENU_MENU_VALUE == "PFROLLS" then
         info = wipe(info)
         info.text = T["Clear Rolls"]
-        info.textR = NORMAL_FONT_COLOR.r
-        info.textG = NORMAL_FONT_COLOR.g
-        info.textB = NORMAL_FONT_COLOR.b
+        info.textR, info.textG, info.textB = NORMAL_FONT_COLOR:GetRGB()
         info.value = "PFCLEARROLLS"
         info.notCheckable = 1
         info.func = pfUI.loot.ClearRolls
@@ -193,9 +185,7 @@ pfUI:RegisterModule("loot", function ()
 
         info = wipe(info)
         info.text = T["Reroll Ties"]
-        info.textR = NORMAL_FONT_COLOR.r
-        info.textG = NORMAL_FONT_COLOR.g
-        info.textB = NORMAL_FONT_COLOR.b
+        info.textR, info.textG, info.textB = NORMAL_FONT_COLOR:GetRGB()
         info.value = "PFTIEROLL"
         info.notCheckable = 1
         info.arg1 = pfUI.loot.rollers_sorted
