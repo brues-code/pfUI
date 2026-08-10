@@ -376,11 +376,9 @@ local function GetDebuffSlotMap(guid)
       local texture = libdebuff:GetSpellIcon(spellId)
       local stacks = (auraApps and auraApps[auraSlot] or 0) + 1
       local dtype = nil
-      if GetSpellRecField then
-        local dispelId = GetSpellRecField(spellId, "dispel")
-        if dispelId and dispelId > 0 then
-          dtype = dispelTypeMap[dispelId]
-        end
+      local dispelId = C_Spell.GetSpellDispelType(spellId)
+      if dispelId and dispelId > 0 then
+        dtype = dispelTypeMap[dispelId]
       end
       map[displaySlot] = {
         auraSlot = auraSlot,

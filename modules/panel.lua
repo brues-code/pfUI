@@ -296,18 +296,18 @@ pfUI:RegisterModule("panel", function()
         local playerzone  = GetRealZoneText()
 
         for friendIndex=1, all do
-          local friend_name, friend_level, friend_class, friend_area, friend_connected = GetFriendInfo(friendIndex)
-          if friend_connected and friend_class and friend_level then
+          local info = C_FriendList.GetFriendInfoByIndex(friendIndex)
+          if info and info.connected and info.classFilename and info.level then
             if not init then
               GameTooltip_SetDefaultAnchor(GameTooltip, this)
               GameTooltip:ClearLines()
               GameTooltip:AddLine("|cff555555" .. T["Friends Online"])
               init = true
             end
-            local ccolor = PFUI_CLASS_COLORS[L["class"][friend_class]] or { 1, 1, 1 }
-            local lcolor = GetDifficultyColor(tonumber(friend_level)) or { 1, 1, 1 }
-            local zcolor = friend_area == playerzone and "|cff33ffcc" or "|cffcccccc"
-            GameTooltip:AddDoubleLine(rgbhex(ccolor) .. friend_name .. rgbhex(lcolor) .. " [" .. friend_level .. "]", zcolor .. friend_area)
+            local ccolor = PFUI_CLASS_COLORS[info.classFilename]
+            local lcolor = GetDifficultyColor(tonumber(info.level)) or { 1, 1, 1 }
+            local zcolor = info.area == playerzone and "|cff33ffcc" or "|cffcccccc"
+            GameTooltip:AddDoubleLine(ccolor:WrapTextInColorCode(info.name) .. rgbhex(lcolor) .. " [" .. info.level .. "]", zcolor .. info.area)
           end
         end
 
@@ -315,15 +315,7 @@ pfUI:RegisterModule("panel", function()
       end
       widget.Click = function() ToggleFriendsFrame(1) end
       widget:SetScript("OnEvent", function()
-        local online = 0
-        local all = GetNumFriends()
-        for friendIndex=1, all do
-          local friend_name, friend_level, friend_class, friend_area, friend_connected = GetFriendInfo(friendIndex)
-          if ( friend_connected ) then
-            online = online + 1
-          end
-        end
-
+        local online = C_FriendList.GetNumOnlineFriends()
         pfUI.panel:OutputPanel("friends", FRIENDS .. ": " .. online, widget.Tooltip, widget.Click)
       end)
     end

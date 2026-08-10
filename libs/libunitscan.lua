@@ -96,13 +96,12 @@ libunitscan:SetScript("OnEvent", function()
     RememberByUnit("player", name, class)
 
   elseif event == "FRIENDLIST_UPDATE" then
-    local name, class, level
     for i = 1, GetNumFriends() do
-      name, level, class = GetFriendInfo(i)
-      class = L["class"][class] or nil
-      -- friendlist updates due to friend going off-line return level 0, let's not overwrite good older values
-      level = level > 0 and level or nil
-      AddData("players", name, class, level)
+      local info = C_FriendList.GetFriendInfoByIndex(i)
+      if info then
+        local level = info.level > 0 and info.level or nil
+        AddData("players", info.name, info.classFilename, level)
+      end
     end
 
   elseif event == "GUILD_ROSTER_UPDATE" then
@@ -137,11 +136,11 @@ libunitscan:SetScript("OnEvent", function()
     end
 
   elseif event == "WHO_LIST_UPDATE" or event == "CHAT_MSG_SYSTEM" then
-    local name, class, level, guild, _
-    for i = 1, GetNumWhoResults() do
-      name, guild, level, _, class, _ = GetWhoInfo(i)
-      class = L["class"][class] or nil
-      AddData("players", name, class, level, nil, guild)
+    for i = 1, C_FriendList.GetNumWhoResults() do
+      local info = C_FriendList.GetWhoInfo(i)
+      if info then
+        AddData("players", info.fullName, info.filename, info.level, nil, info.fullGuildName)
+      end
     end
 
   elseif event == "UPDATE_MOUSEOVER_UNIT" or event == "PLAYER_TARGET_CHANGED" or event == "NAME_PLATE_UNIT_ADDED" then
