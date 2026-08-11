@@ -140,32 +140,43 @@ function pfUI.api.GetUnitStats(unitstr)
 end
 
 local aggrodata = { }
+local aggroScan = nil -- static { u, t, tt } triples, built once so the hot scan allocates nothing
 function pfUI.api.UnitHasAggro(unit)
-  -- Only cache positive results to allow instant detection when aggro changes
-  if aggrodata[unit] and aggrodata[unit].state > 0 and GetTime() < aggrodata[unit].check + 1 then
-    return aggrodata[unit].state
+  local now = GetTime()
+  local data = aggrodata[unit]
+  -- Cache positive results 1s (so aggro clears fast) AND negative results 0.3s
+  -- (so we don't rescan the whole unit table on every call while nothing has aggro).
+  if data and now < data.check + (data.state > 0 and 1 or 0.3) then
+    return data.state
   end
 
-  aggrodata[unit] = aggrodata[unit] or { }
-  aggrodata[unit].check = GetTime()
-  aggrodata[unit].state = 0
+  if not data then data = { }; aggrodata[unit] = data end
+  data.check = now
+  data.state = 0
 
   if UnitExists(unit) and UnitIsFriend(unit, "player") then
-    for u in pairs(pfValidUnits) do
-      local t = u .. "target"
-      local tt = t .. "target"
-
-      if UnitExists(t) and UnitIsUnit(t, unit) and UnitCanAttack(u, unit) then
-        aggrodata[unit].state = aggrodata[unit].state + 1
+    -- pfValidUnits never changes after load, so precompute the "<u>target" /
+    -- "<u>targettarget" token strings once instead of concatenating per call.
+    if not aggroScan then
+      aggroScan = {}
+      for u in pairs(pfValidUnits) do
+        local t = u .. "target"
+        table.insert(aggroScan, { u = u, t = t, tt = t .. "target" })
       end
+    end
 
-      if UnitExists(tt) and UnitIsUnit(tt, unit) and UnitCanAttack(t, unit) then
-        aggrodata[unit].state = aggrodata[unit].state + 1
+    for i = 1, table.getn(aggroScan) do
+      local s = aggroScan[i]
+      if UnitExists(s.t) and UnitIsUnit(s.t, unit) and UnitCanAttack(s.u, unit) then
+        data.state = data.state + 1
+      end
+      if UnitExists(s.tt) and UnitIsUnit(s.tt, unit) and UnitCanAttack(s.t, unit) then
+        data.state = data.state + 1
       end
     end
   end
 
-  return aggrodata[unit].state
+  return data.state
 end
 
 pfUI.uf.glow = CreateFrame("Frame", nil, UIParent)
