@@ -277,6 +277,103 @@ pfUI:RegisterModule("thirdparty", function()
     end
   end)
 
+  -- GreedMeter Damage Meter
+  -- Vanilla: https://github.com/iGreed/GreedMeter
+  -- GreedMeter builds its windows lazily and supports several of them, so the
+  -- frames are resolved at call time. The primary window takes the "damage"
+  -- dock slot; a second window (GreedMeter.UI.frames[2]) takes the "threat"
+  -- slot so the two tile the panel side-by-side. Docking triggers a
+  -- LayoutBars/RefreshFrame so the bars refit the new width.
+  HookAddonOrVariable("GreedMeter", function()
+    local UI = GreedMeter.UI
+
+    local function frameAt(i)
+      return UI and UI.frames and UI.frames[i]
+    end
+    local function primary()
+      return (UI and UI.mainFrame) or getglobal("GreedMeterFrame1")
+    end
+    local function relayout(frame)
+      if not UI then return end
+      if UI.LayoutBars then UI:LayoutBars(frame) end
+      if UI.RefreshFrame then UI:RefreshFrame(frame) end
+    end
+
+    -- Builds a docktable for a window resolved through getframe(). left picks
+    -- the left half in split mode; the primary window uses the right half.
+    local function BuildDock(name, getframe, left)
+      return { "greedmeter", "GreedMeter", name,
+        function() -- single: fill the panel
+          local frame = getframe()
+          if not frame then return end
+          frame:ClearAllPoints()
+          frame:SetAllPoints(pfUI.chat.right)
+          frame:SetWidth(pfUI.chat.right:GetWidth())
+          relayout(frame)
+        end,
+        function() -- dual: take one half
+          local frame = getframe()
+          if not frame then return end
+          frame:ClearAllPoints()
+          if left then
+            frame:SetPoint("TOPLEFT", pfUI.chat.right, "TOPLEFT", 0, 0)
+            frame:SetPoint("BOTTOMRIGHT", pfUI.chat.right, "BOTTOM", 0, 0)
+          else
+            frame:SetPoint("TOPLEFT", pfUI.chat.right, "TOP", 0, 0)
+            frame:SetPoint("BOTTOMRIGHT", pfUI.chat.right, "BOTTOMRIGHT", 0, 0)
+          end
+          frame:SetWidth(pfUI.chat.right:GetWidth() / 2)
+          relayout(frame)
+        end,
+        function() -- show
+          local frame = getframe()
+          if frame then frame:Show() relayout(frame) end
+        end,
+        function() -- hide
+          local frame = getframe()
+          if frame then frame:Hide() end
+        end
+      }
+    end
+
+    local threatdock = BuildDock("GreedMeterFrame2", function() return frameAt(2) end, true)
+    pfUI.thirdparty.meters:RegisterMeter("damage", BuildDock("GreedMeterFrame1", primary, false))
+
+    -- pfUI's dock decides fill-vs-split by whether the threat slot is filled,
+    -- not by counting windows, so reconcile that slot whenever GreedMeter adds
+    -- or removes one. Only the first two windows fit; any beyond that float.
+    local function SyncSecond()
+      if not pfUI.thirdparty.meters.damage then return end -- dock disabled
+      local has2 = frameAt(2) ~= nil
+      if has2 and not pfUI.thirdparty.meters.threat then
+        pfUI.thirdparty.meters.threat = threatdock
+      elseif not has2 and pfUI.thirdparty.meters.threat == threatdock then
+        pfUI.thirdparty.meters.threat = nil
+      end
+      pfUI.thirdparty.meters:Resize()
+
+      -- match the second window's visibility to the panel (the primary tracks it)
+      local f1, f2 = primary(), frameAt(2)
+      if f2 then
+        if f1 and f1:IsShown() then f2:Show() relayout(f2) else f2:Hide() end
+      end
+    end
+
+    -- AddFrame and the login-time layout restore both go through
+    -- CreateMeterFrame; RemoveFrame handles closing a window.
+    local origCreate = UI.CreateMeterFrame
+    UI.CreateMeterFrame = function(self, isPrimary, copyFrom)
+      local frame = origCreate(self, isPrimary, copyFrom)
+      SyncSecond()
+      return frame
+    end
+    local origRemove = UI.RemoveFrame
+    UI.RemoveFrame = function(self, frame)
+      origRemove(self, frame)
+      SyncSecond()
+    end
+  end)
+
   -- DPSMate Damage Meter
   -- Vanilla: https://github.com/Geigerkind/DPSMate
   -- TBC: https://github.com/Geigerkind/DPSMateTBC
