@@ -2773,20 +2773,22 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Status Bar Texture"], C.tooltip.statusbar, "texture", "dropdown", pfUI.gui.dropdowns.uf_bartexture)
 
       CreateConfig(nil, T["Items"], nil, nil, "header")
-      CreateConfig(nil, T["Show Item IDs"], C.tooltip, "itemid", "checkbox")
       CreateConfig(nil, T["Always Show Item Comparison"], C.tooltip.compare, "showalways", "checkbox")
       CreateConfig(nil, T["Always Show Extended Vendor Values"], C.tooltip.vendor, "showalways", "checkbox")
       CreateConfig(U["questitem"], T["Show Related Quest On Questitems"], C.tooltip.questitem, "showquest", "checkbox")
       CreateConfig(U["questitem"], T["Show Required Questitem Count"], C.tooltip.questitem, "showcount", "checkbox")
+      CreateConfig(nil, T["Show Item IDs"], C.tooltip, "itemid", "checkbox")
 
       CreateConfig(nil, T["Spells"], nil, nil, "header")
       CreateConfig(nil, T["Show Aura Caster"], C.tooltip, "aurasource", "checkbox")
+      CreateConfig(nil, T["Show Spell IDs"], C.tooltip, "spellid", "checkbox")
 
       CreateConfig(nil, T["Units"], nil, nil, "header")
       CreateConfig(nil, T["Enable Extended Guild Information"], C.tooltip, "extguild", "checkbox")
       CreateConfig(nil, T["Always Show Health In Percent"], C.tooltip, "alwaysperc", "checkbox")
       CreateConfig(nil, T["Show Movement Speed"], C.tooltip, "movespeed", "checkbox")
       CreateConfig(nil, T["Show Unit Buffs"], C.tooltip, "showbuffs", "checkbox")
+      CreateConfig(nil, T["Show Unit IDs"], C.tooltip, "unitid", "checkbox")
     end)
 
     CreateGUIEntry(T["Castbar"], T["General"], function()

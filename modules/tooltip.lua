@@ -273,10 +273,13 @@ pfUI:RegisterModule("tooltip", function ()
       local unit = pfUI.tooltip:GetUnit()
       pfUI.tooltip:UpdateBuffs(unit)
       if unit == "none" then
-        -- process item tooltips
         if C.tooltip.itemid == "1" and GameTooltip:HasItem() then
           local _, _, itemID = GameTooltip:GetItem()
           GameTooltip:AddLine(T["ItemID"] .. ": " .. itemID, .25,.5,1)
+          GameTooltip:Show()
+        elseif C.tooltip.spellid == "1" and GameTooltip:HasSpell() then
+          local _, _, spellID = GameTooltip:GetSpell()
+          GameTooltip:AddLine(T["SpellID"] .. ": " .. spellID, .25,.5,1)
           GameTooltip:Show()
         end
 
@@ -344,6 +347,13 @@ pfUI:RegisterModule("tooltip", function ()
         end
       end
 
+      if C.tooltip.unitid == "1" and not UnitIsPlayer(unit) then
+        local npcID = C_CreatureInfo.GetCreatureID(UnitGUID(unit))
+        if npcID then
+          GameTooltip:AddLine(T["UnitID"] .. ": " .. npcID, .25,.5,1)
+        end
+      end
+
       if hp and hpm then
         if hp >= 1000 then hp = round(hp / 1000, 1) .. "k" end
         if hpm >= 1000 then hpm = round(hpm / 1000, 1) .. "k" end
@@ -352,16 +362,22 @@ pfUI:RegisterModule("tooltip", function ()
       GameTooltip:Show()
     end
 
-  if C.tooltip.aurasource == "1" then
+  if C.tooltip.aurasource == "1" or C.tooltip.spellid == "1" then
     hooksecurefunc(GameTooltip, "SetUnitAura", function(self, ...)
       local aura = C_UnitAuras.GetAuraDataByIndex(unpack(arg))
       if not aura then return end
-      local caster = aura.sourceUnit and UnitName(aura.sourceUnit)
-      if not caster and aura.sourceGUID then
-        caster = UnitNameFromGUID(aura.sourceGUID)
+      if C.tooltip.aurasource == "1" then
+        local caster = aura.sourceUnit and UnitName(aura.sourceUnit)
+        if not caster and aura.sourceGUID then
+          caster = UnitNameFromGUID(aura.sourceGUID)
+        end
+        if caster and caster ~= "" then
+          self:AddLine(T["Cast by"] .. ": " .. caster, .25,.5,1)
+        end
       end
-      if not caster or caster == "" then return end
-      self:AddLine(T["Cast by"] .. ": " .. caster, .7, .7, 1)
+      if C.tooltip.spellid == "1" then
+        self:AddLine(T["SpellID"] .. ": " .. aura.spellId, .25,.5,1)
+      end
       self:Show()
     end)
   end
