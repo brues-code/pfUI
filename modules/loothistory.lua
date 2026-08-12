@@ -16,12 +16,6 @@ pfUI:RegisterModule("loothistory", function ()
   local WINMARK = "Interface\\Buttons\\UI-CheckBox-Check"
   local QUESTIONMARK = "Interface\\Icons\\INV_Misc_QuestionMark"
 
-  local function ClassColor(class)
-    local c = class and RAID_CLASS_COLORS[class]
-    if c then return c.r, c.g, c.b end
-    return 1, 1, 1
-  end
-
   -- Paint an item row's icon/name/quality from a loaded Item mixin.
   local function RenderItemVisual(f, item)
     local r, g, b = 1, 1, 1
@@ -277,7 +271,7 @@ pfUI:RegisterModule("loothistory", function ()
         if wroll and wroll > 0 then f.winroll:SetText(wroll) else f.winroll:SetText("") end
         f.winroll:Show()
         f.winname:SetText(wname or UNKNOWN)
-        f.winname:SetTextColor(ClassColor(wclass))
+        f.winname:SetTextColor(PFUI_CLASS_COLORS[wclass]:GetRGB())
         f.winname:Show()
       else
         -- nobody won: everyone passed
@@ -298,7 +292,7 @@ pfUI:RegisterModule("loothistory", function ()
 
   local function RenderPlayerFrame(pf, name, class, rollType, roll, isWinner)
     pf.name:SetText(name or UNKNOWN)
-    pf.name:SetTextColor(ClassColor(class))
+    pf.name:SetTextColor(PFUI_CLASS_COLORS[class]:GetRGB())
 
     pf.rollicon:SetTexture(ROLL_TEX[rollType] or ROLL_TEX[ROLL_PASS])
     if roll and roll > 0 then pf.rolltext:SetText(roll) else pf.rolltext:SetText("") end
