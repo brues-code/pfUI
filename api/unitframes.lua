@@ -2152,6 +2152,9 @@ function pfUI.uf:EnableClickCast()
           self:SetAttribute(prefix .. "type" .. bid, "target")
         elseif low == "focus" then
           self:SetAttribute(prefix .. "type" .. bid, "focus")
+        elseif string.find(low, "^macro:") then
+          self:SetAttribute(prefix .. "type" .. bid, "macro")
+          self:SetAttribute(prefix .. "macro" .. bid, string.gsub(string.sub(action, 7), "^%s+", ""))
         elseif string.find(action, "^/") then
           self:SetAttribute(prefix .. "type" .. bid, "macro")
           self:SetAttribute(prefix .. "macrotext" .. bid, action)
