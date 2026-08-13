@@ -204,6 +204,12 @@ function pfUI.api.UnitHasBuff(unit, name)
   return C_UnitAuras.GetAuraDataBySpellName(unit, name, "HELPFUL") ~= nil or nil
 end
 
+-- [ IsPlayerGuid ]
+-- Returns whether a GUID or unit token refers to the local player.
+-- guid         [string]        A unit GUID (or unitID) to test.
+-- return:      [bool]          true if it is the player otherwise "false"
+pfUI.api.IsPlayerGuid = _G.IsPlayerGuid
+
 -- [ GetUnbuffedRoster ]
 -- Returns a comma-joined, colored list of group members missing the named aura.
 -- name         [string]        the localized aura name to check for
