@@ -125,6 +125,7 @@ pfUI:RegisterModule("raid", function ()
     local grid = self.petgrid
 
     local function place(pet, cell, id)
+      pet.label = "raidpet"
       pet.id = id
       local r, g = SlotToCoord(cell, grid.fill, grid.x, grid.y)
       pet:ClearAllPoints()
@@ -136,6 +137,22 @@ pfUI:RegisterModule("raid", function ()
     if pfUI.uf.showall then
       for id = 1, maxraid do
         if self.pets[id] then place(self.pets[id], id, id) end
+      end
+      return
+    end
+
+    -- Party shown as a raid grid: mirror slots 1..5 (player + party members)
+    -- into fixed cells. UpdateVisibility maps each slot to pet / partypet<N>.
+    if not IsInRaid() and IsInGroup() and C.unitframes.raidforgroup == "1" then
+      for id = 1, maxraid do
+        if self.pets[id] then
+          if id <= 5 then
+            place(self.pets[id], id, id)
+          else
+            self.pets[id].id = 0
+            self.pets[id]:Hide()
+          end
+        end
       end
       return
     end
@@ -213,8 +230,13 @@ pfUI:RegisterModule("raid", function ()
     this.tick = GetTime() + 1.0
     this.pendingUpdate = nil
 
-    -- don't proceed without raid
-    if not IsInRaid() then return end
+    -- Without a raid there is nothing to sort, but a party shown as a raid
+    -- grid still needs its pet frames placed and mapped to the party pets.
+    if not IsInRaid() then
+      this:LayoutPets()
+      this:Hide()
+      return
+    end
 
     -- clear all existing frames
     for i=1, maxraid do SetRaidIndex(pfUI.uf.raid[i], 0) end

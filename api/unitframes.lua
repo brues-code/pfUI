@@ -205,8 +205,13 @@ function pfUI.uf:UpdateVisibility()
 
   -- cache result of strsub to avoid repeating calls
   if not self.cache_raid then
-    if strsub(self:GetName(),0,6) == "pfRaid" then
-      self.cache_raid = tonumber(strsub(self:GetName(),7,8)) or 0
+    local name = self:GetName()
+    if strsub(name,0,9) == "pfRaidPet" then
+      -- pet grid slot (pfRaidPet1..40); used to mirror party pets below
+      self.cache_raid = 0
+      self.cache_raidpet = tonumber(strsub(name,10)) or 0
+    elseif strsub(name,0,6) == "pfRaid" then
+      self.cache_raid = tonumber(strsub(name,7,8)) or 0
     else
       self.cache_raid = 0
     end
@@ -238,6 +243,26 @@ function pfUI.uf:UpdateVisibility()
     end
   end
 
+  -- show raidpet frames as party pets when a party is shown as a raid grid
+  if self.cache_raidpet then
+    if not IsInRaid() and IsInGroup() and C.unitframes.raidforgroup == "1" then
+      local id = self.cache_raidpet
+      if id == 1 then
+        -- grid slot 1 mirrors the player, so its pet is the player's pet
+        self.id = ""
+        self.label = "pet"
+      elseif id <= 5 then
+        self.id = id - 1
+        self.label = "partypet"
+      end
+
+    -- reset to regular raidpet unitstrings after leaving party mode
+    elseif self.label == "pet" or self.label == "partypet" then
+      self.id = self.cache_raidpet
+      self.label = "raidpet"
+    end
+  end
+
   -- display every unit as player while pfUI.uf.showall is set
   if pfUI.uf.showall then
     self._label = self._label or self.label
@@ -266,9 +291,10 @@ function pfUI.uf:UpdateVisibility()
     -- frame shall not be visible
     visibility = "hide"
     self.visible = nil
-  elseif hide_group and self.cache_raid == 0 and self.label and strsub(self.label,0,5) == "party" then
-    -- hide group while shown as a raid grid and option is set (raid frames
-    -- carry label "party" under raidforgroup, so exclude them by cache_raid)
+  elseif hide_group and self.cache_raid == 0 and not self.cache_raidpet and self.label and strsub(self.label,0,5) == "party" then
+    -- hide group while shown as a raid grid and option is set (raid player
+    -- frames carry label "party" and raid pet frames carry label "partypet"
+    -- under raidforgroup, so exclude them by cache_raid / cache_raidpet)
     visibility = "hide"
     self.visible = nil
   elseif ( self.fname == "Group0" or self.fname == "PartyPet0" or self.fname == "Party0Target" )
