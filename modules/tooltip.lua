@@ -372,6 +372,15 @@ pfUI:RegisterModule("tooltip", function ()
           caster = UnitNameFromGUID(aura.sourceGUID)
         end
         if caster and caster ~= "" then
+          local classToken
+          if aura.sourceUnit and UnitIsPlayer(aura.sourceUnit) then
+            classToken = UnitClassBase(aura.sourceUnit)
+          elseif aura.sourceGUID then
+            classToken = select(2, GetPlayerInfoByGUID(aura.sourceGUID))
+          end
+          if classToken then
+            caster = PFUI_CLASS_COLORS[classToken]:WrapTextInColorCode(caster)
+          end
           self:AddLine(T["Cast by"] .. ": " .. caster, .25,.5,1)
         end
       end
