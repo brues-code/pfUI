@@ -6,7 +6,6 @@
 ## Version: @project-version@
 ## SavedVariables: pfUI_profiles, pfUI_addon_profiles, pfUI_cache, pfUI_throttle
 ## SavedVariablesPerCharacter: pfUI_config, pfUI_init, pfUI_playerDB
-## Dependencies: !!!ClassicAPI
 ## X-Website: https://github.com/brues-code/pfUI
 
 pfUI.lua
