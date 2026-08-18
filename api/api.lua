@@ -671,6 +671,10 @@ end
 function pfUI.api.CreateGoldString(money)
   if type(money) ~= "number" then return "-" end
 
+  if _G.GetCoinTextureString then
+    return "|cffffffff" .. _G.GetCoinTextureString(money) .. "|r"
+  end
+
   local gold = floor(money/ 100 / 100)
   local silver = floor(mod((money/100),100))
   local copper = floor(mod(money,100))
