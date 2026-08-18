@@ -293,6 +293,20 @@ function pfUI:GetEnvironment()
   pfUI.env.pfUI_throttle = _G.pfUI_throttle
   pfUI.env.L = (pfUI_locale[GetLocale()] or pfUI_locale["enUS"])
   pfUI.env.L["class"] = pfUI.env.L["class"] or tInvert(LOCALIZED_CLASS_NAMES_MALE)
+  if not pfUI.env.L["race"] then
+      pfUI.env.L["race"] = {}
+      local i = 1
+      local raceInfo = C_CreatureInfo.GetRaceInfo(i)
+      while raceInfo ~= nil do
+          pfUI.env.L["race"][raceInfo.clientFileString] = {
+              raceName = raceInfo.raceName,
+              raceID = raceInfo.raceID,
+              faction = C_CreatureInfo.GetFactionInfo(i).groupTag,
+          }
+          i = i + 1
+          raceInfo = C_CreatureInfo.GetRaceInfo(i)
+      end
+   end
 
   return pfUI.env
 end
