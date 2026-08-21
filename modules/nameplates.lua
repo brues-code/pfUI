@@ -1267,7 +1267,7 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     -- either could suppress the other -- and since nameplate.cache survives
     -- pool reuse, a recycled plate could keep the previous unit's name colour.
     local ownname = unittype == "FRIENDLY_PLAYER" and C.nameplates["friendclassnamec"] == "1"
-      and class and PFUI_CLASS_COLORS[class] and true or nil
+      and class and true or nil
 
     if plate.cache.ownname ~= ownname then
       plate.cache.ownname = ownname
@@ -1276,9 +1276,16 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       plate.cache.ownnamecolor = nil
     end
 
-    if ownname and r + g + b ~= plate.cache.ownnamecolor then
-      plate.cache.ownnamecolor = r + g + b
-      plate.name:SetTextColor(r, g, b, a)
+    -- read the class colour directly rather than reusing the bar's r,g,b: the
+    -- bar only carries a class colour when friendclassc happens to be on, and
+    -- it also picks up the tapped-grey and barcombatstate overrides, neither of
+    -- which belongs on the name.
+    if ownname then
+      local cr, cg, cb, ca = PFUI_CLASS_COLORS[class]:GetRGBA()
+      if cr + cg + cb ~= plate.cache.ownnamecolor then
+        plate.cache.ownnamecolor = cr + cg + cb
+        plate.name:SetTextColor(cr, cg, cb, ca)
+      end
     end
 
     if target and C.nameplates.cpdisplay == "1" then
