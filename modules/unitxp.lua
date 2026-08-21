@@ -134,7 +134,7 @@ pfUI:RegisterModule("unitxp", function ()
           end
 
           this.text:SetTextColor(r, g, b, 1)
-          this.text:SetText(string.format("%.1f%s", distance, suffix))
+          this.text:SetFormattedText("%.1f%s", distance, suffix)
           this.text:Show()
         end)
 
@@ -206,7 +206,7 @@ pfUI:RegisterModule("unitxp", function ()
             end
 
             f.text:SetTextColor(r, g, b, 1)
-            f.text:SetText(string.format("%.1f%s", distance, suffix))
+            f.text:SetFormattedText("%.1f%s", distance, suffix)
           end)
         end
         pfUI.uf.target.distanceIndicator = pfRangeDisplay

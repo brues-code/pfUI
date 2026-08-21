@@ -236,7 +236,7 @@ end
       local xpperc = round(xp / xpmax * 100)
       local experc = ex and round(ex / xpmax * 100) or 0
       if ex then text = "%s: %s%% (%s%% %s)" end
-      self.bar.text:SetText(string.format(text, T["Experience"], xpperc, experc, T["Rested"]))
+      self.bar.text:SetFormattedText(text, T["Experience"], xpperc, experc, T["Rested"])
 
       self.tick = GetTime() + self.timeout
       if event == "UPDATE_EXHAUSTION" and GameTooltip:IsOwned(self) then
@@ -254,7 +254,7 @@ end
 
       local text = "%s: %s%%"
       local xpperc = nextXP and nextXP ~= 0 and round(currXP / nextXP * 100) or 0
-      self.bar.text:SetText(string.format(text, T["Pet Experience"], xpperc))
+      self.bar.text:SetFormattedText(text, T["Pet Experience"], xpperc)
 
       self.tick = GetTime() + self.timeout
       return
@@ -282,7 +282,7 @@ end
         local text = "%s: %s%% (%s)"
         local perc = round(barValue / barMax * 100)
         local standing = GetText("FACTION_STANDING_LABEL"..standingID, gender)
-        self.bar.text:SetText(string.format(text, name, perc, standing))
+        self.bar.text:SetFormattedText(text, name, perc, standing)
 
         self.tick = GetTime() + self.timeout
         return

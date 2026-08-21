@@ -119,7 +119,7 @@ pfUI:RegisterModule("screenshot", function ()
   end
 
   function pfUI.screenshot:CHAT_MSG_SYSTEM()
-    local _,_, standing, rep = string.find(arg1, FACTION_STANDING_CHANGEDregex)
+    local standing, rep = string.match(arg1, FACTION_STANDING_CHANGEDregex)
     if standing and rep then
       local dt = date("%a, %b %d, %Y %X")
       local loc = string.format("%s - %s",GetRealZoneText(),GetSubZoneText())
@@ -150,13 +150,13 @@ pfUI:RegisterModule("screenshot", function ()
   end
 
   function pfUI.screenshot:CHAT_MSG_LOOT()
-    local _,_, item, amount = string.find(arg1, LOOT_ITEM_SELF_MULTIPLEregex)
+    local item, amount = string.match(arg1, LOOT_ITEM_SELF_MULTIPLEregex)
     if amount then -- ignore stacks
       return
     else
-      _,_, item = string.find(arg1, LOOT_ITEM_SELFregex)
+      item = string.match(arg1, LOOT_ITEM_SELFregex)
       if item then
-        local _, _, itemColor, itemString, itemName = string.find(item, "^(|c%x+)|H(.+)|h(%[.+%])")
+        local itemColor, itemString, itemName = string.match(item, "^(|c%x+)|H(.+)|h(%[.+%])")
         local quality = color2quality[itemColor]
         if quality and quality >= tonumber(C.screenshot.loot) then
           local dt = date("%a, %b %d, %Y %X")

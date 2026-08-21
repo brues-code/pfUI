@@ -97,20 +97,20 @@ pfUI:RegisterModule("socialmod", function ()
 
           if friendName then
             friendName:SetText(cname)
-            friendLoc:SetText(format(TEXT(FRIENDS_LIST_TEMPLATE), zone, status))
+            friendLoc:SetFormattedText(TEXT(FRIENDS_LIST_TEMPLATE), zone, status)
           else
-            friendLoc:SetText(format(TEXT(FRIENDS_LIST_TEMPLATE), cname, zone, status))
+            friendLoc:SetFormattedText(TEXT(FRIENDS_LIST_TEMPLATE), cname, zone, status)
           end
 
-          friendInfo:SetText(format(TEXT(FRIENDS_LEVEL_TEMPLATE), info.level, info.className))
+          friendInfo:SetFormattedText(TEXT(FRIENDS_LEVEL_TEMPLATE), info.level, info.className)
           caption:SetVertexColor(1,1,1,.9)
           friendInfo:SetVertexColor(1,1,1,.9)
         else
           if playerdb[name] and playerdb[name].cname and playerdb[name].level and playerdb[name].lastseen then
-            caption:SetText(format(TEXT(FRIENDS_LIST_OFFLINE_TEMPLATE), playerdb[name].cname))
-            friendInfo:SetText(format(TEXT(FRIENDS_LEVEL_TEMPLATE), playerdb[name].level, playerdb[name].lastseen))
+            caption:SetFormattedText(TEXT(FRIENDS_LIST_OFFLINE_TEMPLATE), playerdb[name].cname)
+            friendInfo:SetFormattedText(TEXT(FRIENDS_LEVEL_TEMPLATE), playerdb[name].level, playerdb[name].lastseen)
           else
-            caption:SetText(format(TEXT(FRIENDS_LIST_OFFLINE_TEMPLATE), name.."|r"))
+            caption:SetFormattedText(TEXT(FRIENDS_LIST_OFFLINE_TEMPLATE), name.."|r")
             friendInfo:SetText(TEXT(UNKNOWN))
           end
 
@@ -131,9 +131,9 @@ pfUI:RegisterModule("socialmod", function ()
       local playerguild = GetGuildInfo("player")
 
       if num + 1 >= MAX_WHOS_FROM_SERVER then
-        WhoFrameTotals:SetText("|cffffffff" .. format(GetText("WHO_FRAME_TOTAL_TEMPLATE", nil, num), max).."  |cffaaaaaa"..format(WHO_FRAME_SHOWN_TEMPLATE, MAX_WHOS_FROM_SERVER))
+        WhoFrameTotals:SetFormattedText("|cffffffff" .. GetText("WHO_FRAME_TOTAL_TEMPLATE", nil, num) .. "  |cffaaaaaa" .. WHO_FRAME_SHOWN_TEMPLATE, max, MAX_WHOS_FROM_SERVER)
       else
-        WhoFrameTotals:SetText("|cffffffff" .. format(GetText("WHO_FRAME_TOTAL_TEMPLATE", nil, num), num).."  |cffaaaaaa"..format(WHO_FRAME_SHOWN_TEMPLATE, num))
+        WhoFrameTotals:SetFormattedText("|cffffffff" .. GetText("WHO_FRAME_TOTAL_TEMPLATE", nil, num) .. "  |cffaaaaaa" .. WHO_FRAME_SHOWN_TEMPLATE, num, num)
       end
 
       for i=1, WHOS_TO_DISPLAY do

@@ -45,7 +45,7 @@ pfUI:RegisterModule("castbar", function ()
     if not cb.tradeskillTotal or not cb.activeName or not cb.showname then return end
     local remaining = cb.tradeskillTotal - (cb.tradeskillCompleted or 0)
     if remaining > 1 then
-      cb.bar.left:SetText(string.format("%s (%d)", cb.activeName, remaining))
+      cb.bar.left:SetFormattedText("%s (%d)", cb.activeName, remaining)
     else
       cb.bar.left:SetText(cb.activeName)
     end
