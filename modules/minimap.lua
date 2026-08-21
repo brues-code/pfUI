@@ -138,7 +138,7 @@ pfUI:RegisterModule("minimap", function ()
     local coord = pfUI.minimapCoordinates
     coord.posX, coord.posY = GetPlayerMapPosition("player")
     if coord.posX ~= 0 and coord.posY ~= 0 then
-      coord.text:SetText(string.format("%.1f, %.1f", round(coord.posX * 100, 1), round(coord.posY * 100, 1)))
+      coord.text:SetFormattedText("%.1f, %.1f", round(coord.posX * 100, 1), round(coord.posY * 100, 1))
     else
       coord.text:SetText("|cffffaaaaN/A")
     end

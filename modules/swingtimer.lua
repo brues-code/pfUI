@@ -592,10 +592,10 @@ pfUI:RegisterModule("swingtimer", function ()
       end
       pfUI.swingtimer.mainhand:SetStatusBarColor(curR, curG, curB, mhA)
       if sw_showtext then
-        pfUI.swingtimer.mainhand.text:SetText(string.format("%.1f", math.floor(S.mhTimer * 10) / 10))
+        pfUI.swingtimer.mainhand.text:SetFormattedText("%.1f", math.floor(S.mhTimer * 10) / 10)
       end
       if sw_showspeed and S.mhSpeed > 0 then
-        pfUI.swingtimer.mainhand.speed:SetText(string.format("%.2f", S.mhSpeed))
+        pfUI.swingtimer.mainhand.speed:SetFormattedText("%.2f", S.mhSpeed)
       end
       anyActive = true
     end
@@ -626,10 +626,10 @@ pfUI:RegisterModule("swingtimer", function ()
         end
       end
       if sw_showtext then
-        pfUI.swingtimer.offhand.text:SetText(string.format("%.1f", math.floor(S.ohTimer * 10) / 10))
+        pfUI.swingtimer.offhand.text:SetFormattedText("%.1f", math.floor(S.ohTimer * 10) / 10)
       end
       if sw_showspeed and S.ohSpeed > 0 then
-        pfUI.swingtimer.offhand.speed:SetText(string.format("%.2f", S.ohSpeed))
+        pfUI.swingtimer.offhand.speed:SetFormattedText("%.2f", S.ohSpeed)
       end
       anyActive = true
     elseif not sw_showoh then
@@ -668,9 +668,9 @@ pfUI:RegisterModule("swingtimer", function ()
         end
         if sw_showtext then
           if remaining <= 0.5 then
-            pfUI.swingtimer.ranged.text:SetText(string.format("%.1f", math.floor(remaining * 10) / 10))
+            pfUI.swingtimer.ranged.text:SetFormattedText("%.1f", math.floor(remaining * 10) / 10)
           else
-            pfUI.swingtimer.ranged.text:SetText(string.format("%.1f", math.floor((remaining - 0.5) * 10) / 10))
+            pfUI.swingtimer.ranged.text:SetFormattedText("%.1f", math.floor((remaining - 0.5) * 10) / 10)
           end
         end
       else
@@ -683,11 +683,11 @@ pfUI:RegisterModule("swingtimer", function ()
         pfUI.swingtimer.ranged.right:Hide()
         pfUI.swingtimer.ranged.warn:Hide()
         if sw_showtext then
-          pfUI.swingtimer.ranged.text:SetText(string.format("%.1f", math.floor(remaining * 10) / 10))
+          pfUI.swingtimer.ranged.text:SetFormattedText("%.1f", math.floor(remaining * 10) / 10)
         end
       end
       if sw_showspeed and S.raSpeed > 0 then
-        pfUI.swingtimer.ranged.speed:SetText(string.format("%.2f", S.raSpeed))
+        pfUI.swingtimer.ranged.speed:SetFormattedText("%.2f", S.raSpeed)
       end
       local raProgress = 1 - (S.raTimer / S.raTimerMax)
       local raMarkerX = raProgress * sw_width

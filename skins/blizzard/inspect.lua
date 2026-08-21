@@ -125,7 +125,7 @@ pfUI:RegisterSkin("Inspect", function ()
         local guild, title = GetGuildInfo(InspectFrame.unit)
         if guild then
           InspectGuildText:SetPoint("TOP", InspectLevelText, "BOTTOM", 0, -1)
-          InspectGuildText:SetText(format(TEXT(GUILD_TITLE_TEMPLATE), title, guild))
+          InspectGuildText:SetFormattedText(TEXT(GUILD_TITLE_TEMPLATE), title, guild)
           InspectGuildText:Show()
         else
           InspectGuildText:SetText("")

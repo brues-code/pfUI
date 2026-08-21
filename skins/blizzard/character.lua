@@ -295,9 +295,8 @@ pfUI:RegisterSkin("Character", function ()
           if faction and faction.reaction and faction.reaction < 8 then
             local repLeft = faction.nextReactionThreshold - faction.currentStanding
             if repLeft > 1 then
-              local text = standing:GetText() .. string.format(" (%d)", repLeft)
-              standing:SetText(text)
-              standing:GetParent().standingText = text
+              standing:SetFormattedText("%s (%d)", standing:GetText(), repLeft)
+              standing:GetParent().standingText = standing:GetText()
             end
           end
         end

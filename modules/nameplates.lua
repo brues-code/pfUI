@@ -1151,7 +1151,7 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     if plate.cache.level ~= level or plate.cache.elite ~= elite then
       plate.cache.level = level
       plate.cache.elite = elite
-      plate.level:SetText(string.format("%s%s", level, (elitestrings[elite] or "")))
+      plate.level:SetFormattedText("%s%s", level, (elitestrings[elite] or ""))
     end
 
     -- Set level color from GetDifficultyColor when using DB level.
@@ -1212,21 +1212,21 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       local hasdata = ( rhp and rhpmax ) or estimated or hpmax > 100 or (round(hpmax/100*hp) ~= hp)
 
       if setting == "curperc" and hasdata and rhp then
-        plate.health.text:SetText(string.format("%s | %s%%", Abbreviate(rhp), ceil(hp/hpmax*100)))
+        plate.health.text:SetFormattedText("%s | %s%%", Abbreviate(rhp), ceil(hp/hpmax*100))
       elseif setting == "cur" and hasdata and rhp then
-        plate.health.text:SetText(string.format("%s", Abbreviate(rhp)))
+        plate.health.text:SetFormattedText("%s", Abbreviate(rhp))
       elseif setting == "curmax" and hasdata and rhp then
-        plate.health.text:SetText(string.format("%s - %s", Abbreviate(rhp), Abbreviate(rhpmax)))
+        plate.health.text:SetFormattedText("%s - %s", Abbreviate(rhp), Abbreviate(rhpmax))
       elseif setting == "curmaxs" and hasdata and rhp then
-        plate.health.text:SetText(string.format("%s / %s", Abbreviate(rhp), Abbreviate(rhpmax)))
+        plate.health.text:SetFormattedText("%s / %s", Abbreviate(rhp), Abbreviate(rhpmax))
       elseif setting == "curmaxperc" and hasdata and rhp then
-        plate.health.text:SetText(string.format("%s - %s | %s%%", Abbreviate(rhp), Abbreviate(rhpmax), ceil(hp/hpmax*100)))
+        plate.health.text:SetFormattedText("%s - %s | %s%%", Abbreviate(rhp), Abbreviate(rhpmax), ceil(hp/hpmax*100))
       elseif setting == "curmaxpercs" and hasdata and rhp then
-        plate.health.text:SetText(string.format("%s / %s | %s%%", Abbreviate(rhp), Abbreviate(rhpmax), ceil(hp/hpmax*100)))
+        plate.health.text:SetFormattedText("%s / %s | %s%%", Abbreviate(rhp), Abbreviate(rhpmax), ceil(hp/hpmax*100))
       elseif setting == "deficit" and rhp then
-        plate.health.text:SetText(string.format("-%s" .. (hasdata and "" or "%%"), Abbreviate(rhpmax - rhp)))
+        plate.health.text:SetFormattedText("-%s" .. (hasdata and "" or "%%"), Abbreviate(rhpmax - rhp))
       else -- "percent" as fallback
-        plate.health.text:SetText(string.format("%s%%", ceil(hp/hpmax*100)))
+        plate.health.text:SetFormattedText("%s%%", ceil(hp/hpmax*100))
       end
     else
       plate.health.text:SetText()
@@ -1697,7 +1697,7 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       rounded = floor(remaining * 100)
       if castbar.lastTextTick ~= rounded then
         castbar.lastTextTick = rounded
-        castbar.text:SetText(string.format("%.2f", remaining))
+        castbar.text:SetFormattedText("%.2f", remaining)
       end
     end
   end
