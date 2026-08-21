@@ -418,8 +418,13 @@ pfUI:RegisterModule("panel", function()
             local repPercent = floor(cur / max * 100)
             if repPercent < 100 then
               local _, _, _, hex = GetColorGradient(repPercent/100)
+              local link = GetInventoryItemLink("player", id)
+              local texture = GetInventoryItemTexture("player", id)
+              if texture then
+                link = CreateSimpleTextureMarkup(texture, 24) .. " " .. link
+              end
               itemLines[table.getn(itemLines)+1] = {
-                GetInventoryItemLink("player", id),
+                link,
                 string.format("%s%s%%|r", hex, repPercent)
               }
             end
@@ -428,8 +433,7 @@ pfUI:RegisterModule("panel", function()
         if totalRep > 0 then
           GameTooltip:ClearLines()
           GameTooltip_SetDefaultAnchor(GameTooltip, this)
-          GameTooltip:SetText("|cff555555"..(string.gsub(REPAIR_COST,":","")).."|r")
-          SetTooltipMoney(GameTooltip, totalRep)
+          GameTooltip:AddLine(REPAIR_COST.." " .. CreateGoldString(totalRep), 0.3333, 0.3333, 0.3333)
           for _,line in ipairs(itemLines) do
             GameTooltip:AddDoubleLine(line[1],line[2])
           end
