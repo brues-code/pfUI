@@ -110,6 +110,14 @@ pfUI.movables = {}
 pfUI.version = {}
 pfUI.env = {}
 
+-- Capability flag: this fork's pfActionBar buttons correctly handle the modern
+-- HookScript widget method, so ClassicAPI's AddOnCompat shim must NOT shadow
+-- HookScript during actionbar load (older forks branch on `if button.HookScript`
+-- and take a modern path they were never written for). This describes behavior,
+-- not identity: a fork that keeps the HookScript-correct actionbar code keeps
+-- the flag; one that lacks it should drop the flag and get the safe fallback.
+pfUI.handlesHookScript = true
+
 if not pfUI.disabled then
   pfUI.events = Mixin({}, CallbackRegistryMixin)
   pfUI.events:OnLoad()
