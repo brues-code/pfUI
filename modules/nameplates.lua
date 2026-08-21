@@ -1154,11 +1154,20 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       plate.level:SetText(string.format("%s%s", level, (elitestrings[elite] or "")))
     end
 
-    -- Set level color from GetDifficultyColor when using DB level
+    -- Set level color from GetDifficultyColor when using DB level.
+    -- No brightening here: adding a flat offset to all three channels
+    -- desaturates every tier toward white and collapses the boundaries
+    -- (orange reads as yellow, red reads as orange). Use Blizzard's values.
+    -- Clearing cache.levelcolor forces the sync block in OnUpdate to
+    -- re-colour once the ?? resolves and it takes ownership again.
     if levelFromDB and type(level) == "number" then
       local color = GetDifficultyColor(level)
-      plate.level:SetTextColor(color.r + 0.3, color.g + 0.3, color.b + 0.3, 1)
+      plate.level:SetTextColor(color.r, color.g, color.b, 1)
+      plate.cache.levelcolor = nil
     end
+
+    -- remember who owns the level colour so the two writers cannot fight
+    plate.cache.levelfromdb = levelFromDB or nil
 
     if guild and C.nameplates.showguildname == "1" then
       plate.guild:SetText(guild)
@@ -1541,13 +1550,17 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       update = true
     end
 
-    -- trigger update when level color changed
-    local r, g, b = original.level:GetTextColor()
-    r, g, b = r + .3, g + .3, b + .3
-    if r + g + b ~= nameplate.cache.levelcolor then
-      nameplate.cache.levelcolor = r + g + b
-      nameplate.level:SetTextColor(r,g,b,1)
-      update = true
+    -- trigger update when level color changed. Skipped while the level came
+    -- from the database (?? plates), where OnDataChanged owns the colour --
+    -- otherwise both writers race and cache.levelcolor goes stale, which
+    -- leaves a recycled plate wearing the previous unit's colour.
+    if not nameplate.cache.levelfromdb then
+      local r, g, b = original.level:GetTextColor()
+      if r + g + b ~= nameplate.cache.levelcolor then
+        nameplate.cache.levelcolor = r + g + b
+        nameplate.level:SetTextColor(r,g,b,1)
+        update = true
+      end
     end
 
     -- use timer based updates
