@@ -1260,9 +1260,25 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       plate.cache.r, plate.cache.g, plate.cache.b = r, g, b
     end
 
-    if r + g + b ~= plate.cache.namecolor and unittype == "FRIENDLY_PLAYER" and C.nameplates["friendclassnamec"] == "1" and class and PFUI_CLASS_COLORS[class] then
+    -- Friendly player names take this colour when friendclassnamec is on.
+    -- Ownership is recorded so the OnUpdate sync below stands down rather than
+    -- racing us: both writers used to share cache.namecolor despite storing
+    -- unrelated quantities (this colour vs Blizzard's name FontString), so
+    -- either could suppress the other -- and since nameplate.cache survives
+    -- pool reuse, a recycled plate could keep the previous unit's name colour.
+    local ownname = unittype == "FRIENDLY_PLAYER" and C.nameplates["friendclassnamec"] == "1"
+      and class and PFUI_CLASS_COLORS[class] and true or nil
+
+    if plate.cache.ownname ~= ownname then
+      plate.cache.ownname = ownname
+      -- ownership flipped: whichever writer is now in charge must re-assert
+      plate.cache.namecolor = nil
+      plate.cache.ownnamecolor = nil
+    end
+
+    if ownname and r + g + b ~= plate.cache.ownnamecolor then
+      plate.cache.ownnamecolor = r + g + b
       plate.name:SetTextColor(r, g, b, a)
-      plate.cache.namecolor = r + g + b
     end
 
     if target and C.nameplates.cpdisplay == "1" then
@@ -1530,24 +1546,28 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       update = true
     end
 
-    -- trigger update when name color changed (includes combat state check)
-    local r, g, b = original.name:GetTextColor()
-    local inCombatWithPlayer = cfg.namefightcolor and UnitAffectingCombat(nameplate.unit) and UnitAffectingCombat("player")
-    
-    if r + g + b ~= nameplate.cache.namecolor or (cfg.namefightcolor and nameplate.cache.inCombat ~= inCombatWithPlayer) then
-      nameplate.cache.namecolor = r + g + b
-      nameplate.cache.inCombat = inCombatWithPlayer
+    -- trigger update when name color changed (includes combat state check).
+    -- Skipped once OnDataChanged owns the name colour (class-coloured friendly
+    -- players), so the two writers cannot overwrite each other.
+    if not nameplate.cache.ownname then
+      local r, g, b = original.name:GetTextColor()
+      local inCombatWithPlayer = cfg.namefightcolor and UnitAffectingCombat(nameplate.unit) and UnitAffectingCombat("player")
 
-      if cfg.namefightcolor then
-        if (r > .9 and g < .2 and b < .2) or inCombatWithPlayer then
-          nameplate.name:SetTextColor(1,0.4,0.2,1)
+      if r + g + b ~= nameplate.cache.namecolor or (cfg.namefightcolor and nameplate.cache.inCombat ~= inCombatWithPlayer) then
+        nameplate.cache.namecolor = r + g + b
+        nameplate.cache.inCombat = inCombatWithPlayer
+
+        if cfg.namefightcolor then
+          if (r > .9 and g < .2 and b < .2) or inCombatWithPlayer then
+            nameplate.name:SetTextColor(1,0.4,0.2,1)
+          else
+            nameplate.name:SetTextColor(r,g,b,1)
+          end
         else
-          nameplate.name:SetTextColor(r,g,b,1)
+          nameplate.name:SetTextColor(1,1,1,1)
         end
-      else
-        nameplate.name:SetTextColor(1,1,1,1)
+        update = true
       end
-      update = true
     end
 
     -- trigger update when level color changed. Skipped while the level came
