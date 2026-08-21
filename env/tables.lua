@@ -63,6 +63,12 @@ for i=1,40 do
   pfValidUnits["nameplate" .. i .. "target"] = true
 end
 
+
+if TURTLE_WOW_VERSION then -- We already know this table is going to be replaced by turtle-wow.lua, so there's no point in declaring it.
+  pfSellData = {} -- create empty just incase user has turtle-wow module disabled.
+  return
+end
+-- This table makes me sick.
 -- itemid = buyPrice (copper). Sell price comes from C_Item.GetItemSellPriceByID;
 -- this table only carries the curated vendor-buy price (which isn't a static
 -- engine field — it's collected from real vendor encounters).
