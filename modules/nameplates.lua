@@ -1313,19 +1313,22 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       for i = 1, 16 do debuffDisplayBuf[i].effect = nil end
       if unitstr then
         local filter = cfg.owndebuffs and "HARMFUL|PLAYER" or "HARMFUL"
-        local auras = C_UnitAuras.GetUnitAuras(unitstr, filter)
         local now = GetTime()
-        for _, aura in ipairs(auras) do
-          if debuffCount >= 16 then break end
+        -- positional UnitAura writes straight into the reusable buffer, so the
+        -- per-plate scan allocates nothing (no per-aura table, no result array)
+        local i = 1
+        while debuffCount < 16 do
+          local aname, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitAura(unitstr, i, filter)
+          if not aname then break end
           debuffCount = debuffCount + 1
-          local timeleft = (aura.expirationTime and aura.expirationTime > 0) and (aura.expirationTime - now) or nil
           local b = debuffDisplayBuf[debuffCount]
-          b.effect = aura.name
-          b.texture = aura.icon
-          b.stacks = aura.applications
-          b.dtype = aura.dispelName
-          b.duration = aura.duration
-          b.timeleft = timeleft
+          b.effect = aname
+          b.texture = icon
+          b.stacks = count
+          b.dtype = dispelType
+          b.duration = duration
+          b.timeleft = (expirationTime and expirationTime > 0) and (expirationTime - now) or nil
+          i = i + 1
         end
       end
       for i = 1, 16 do

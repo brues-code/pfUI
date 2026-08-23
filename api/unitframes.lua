@@ -1638,39 +1638,40 @@ function pfUI.uf:RefreshUnit(unit, component)
     for i=1, unit.config.bufflimit do
       if not unit.buffs[i] then break end
 
-      local aura = C_UnitAuras.GetBuffDataByIndex(unitstr, i)
+      -- positional UnitBuff allocates nothing (vs a table per icon per refresh)
+      local name, icon, count, _, duration, expirationTime, _, _, _, spellId = C_UnitAuras.UnitBuff(unitstr, i)
 
-      if aura then
-        unit.buffs[i].texture:SetTexture(aura.icon)
+      if name then
+        unit.buffs[i].texture:SetTexture(icon)
         unit.buffs[i]:Show()
 
-        if aura.applications > 1 then
-          unit.buffs[i].stacks:SetText(aura.applications)
+        if count > 1 then
+          unit.buffs[i].stacks:SetText(count)
         else
           unit.buffs[i].stacks:SetText("")
         end
 
-        if aura.expirationTime > 0 then
+        if expirationTime > 0 then
           -- pfUI's cooldown text falls into a 2^32 wraparound branch when start > GetTime(),
-          -- which happens for talent-extended buffs where the real duration exceeds aura.duration
-          -- (the Spell.dbc base). Anchor start to now in that case to keep the remaining math sane.
+          -- which happens for talent-extended buffs where the real duration exceeds the
+          -- Spell.dbc base. Anchor start to now in that case to keep the remaining math sane.
           local now = GetTime()
-          local start = aura.expirationTime - aura.duration
-          local duration = aura.duration
-          if start > now or duration <= 0 then
-            start, duration = now, aura.expirationTime - now
+          local start = expirationTime - duration
+          local dur = duration
+          if start > now or dur <= 0 then
+            start, dur = now, expirationTime - now
           end
-          if duration > 0 then
-            CooldownFrame_SetTimer(unit.buffs[i].cd, start, duration, 1)
+          if dur > 0 then
+            CooldownFrame_SetTimer(unit.buffs[i].cd, start, dur, 1)
           else
             CooldownFrame_SetTimer(unit.buffs[i].cd, 0, 0, 0)
           end
-        elseif aura.duration > 0 then
+        elseif duration > 0 then
           local guid = UnitGUID(unitstr)
           local guidStarts = guid and pfUI.uf.aura_starts[guid]
-          local start = guidStarts and guidStarts[aura.spellId]
+          local start = guidStarts and guidStarts[spellId]
           if start then
-            CooldownFrame_SetTimer(unit.buffs[i].cd, start, aura.duration, 1)
+            CooldownFrame_SetTimer(unit.buffs[i].cd, start, duration, 1)
           else
             CooldownFrame_SetTimer(unit.buffs[i].cd, 0, 0, 0)
           end
@@ -1741,10 +1742,11 @@ function pfUI.uf:RefreshUnit(unit, component)
       -- selfdebuff narrows to player-cast harmful auras via the PLAYER filter.
       -- Player-frame debuffs aren't gated on it (it'd hide most party-applied
       -- effects on you).
-      local filter = (unit.label ~= "player" and selfdebuff == "1") and "HARMFUL|PLAYER" or "HARMFUL"
-      local aura = C_UnitAuras.GetAuraDataByIndex(unitstr, i, filter)
-      if aura then
-        texture, stacks, dtype = aura.icon, aura.applications, aura.dispelName
+      -- positional UnitDebuff allocates nothing; PLAYER predicate honored for selfdebuff
+      local filter = (unit.label ~= "player" and selfdebuff == "1") and "PLAYER" or nil
+      local name, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitDebuff(unitstr, i, filter)
+      if name then
+        texture, stacks, dtype = icon, count, dispelType
       else
         texture, stacks, dtype = nil, 0, nil
       end
@@ -1757,18 +1759,18 @@ function pfUI.uf:RefreshUnit(unit, component)
       if texture then
         unit.debuffs[i]:Show()
 
-        if aura and aura.expirationTime > 0 then
+        if expirationTime > 0 then
           -- Cap start to now so talent-extended debuffs (expirationTime past
           -- the dbc base duration) don't push start into the future and trip
           -- CooldownFrame_SetTimer's 2^32-wraparound branch.
           local now = GetTime()
-          local start = aura.expirationTime - aura.duration
-          local duration = aura.duration
-          if start > now or duration <= 0 then
-            start, duration = now, aura.expirationTime - now
+          local start = expirationTime - duration
+          local dur = duration
+          if start > now or dur <= 0 then
+            start, dur = now, expirationTime - now
           end
-          if duration > 0 then
-            CooldownFrame_SetTimer(unit.debuffs[i].cd, start, duration, 1)
+          if dur > 0 then
+            CooldownFrame_SetTimer(unit.debuffs[i].cd, start, dur, 1)
           else
             CooldownFrame_SetTimer(unit.debuffs[i].cd, 0, 0, 0)
           end
@@ -1868,9 +1870,9 @@ function pfUI.uf:RefreshUnit(unit, component)
         indicator[debuff].visible = nil
 
         for i=1,16 do
-          local a = C_UnitAuras.GetDebuffDataByIndex(unitstr, i)
-          local dtype = a and a.dispelName
-          if dtype == debuff then
+          -- positional read: only the dispel type is needed, so allocate no table
+          local name, _, _, dispelType = C_UnitAuras.UnitDebuff(unitstr, i)
+          if name and dispelType == debuff then
             indicator[debuff].visible = true
           end
         end
@@ -1920,50 +1922,58 @@ function pfUI.uf:RefreshUnit(unit, component)
 
     local pos = 1
     if table.getn(unit.indicators) > 0 then
-      for _, aura in ipairs(C_UnitAuras.GetUnitAuras(unitstr, "HELPFUL")) do
-        local texLower = string.lower(aura.icon)
-        local timeleft = aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or nil
+      local i = 1
+      while true do
+        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitBuff(unitstr, i)
+        if not name then break end
+        local texLower = string.lower(icon)
+        local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
 
         for _, filter in pairs(unit.indicators) do
           if filter == texLower then
             local hot = HOT_INDICATORS[texLower]
-            if hot and string.lower(aura.name) ~= hot.name then
+            if hot and string.lower(name) ~= hot.name then
               break  -- texture matches but name disambiguates (e.g. shared icon)
             end
             if hot then
               local start, duration, prediction = libpredict:GetHotDuration(unitstr, hot.predict)
-              pfUI.uf:AddIcon(unit, pos, aura.icon, timeleft or prediction, aura.applications, tonumber(start), tonumber(duration))
+              pfUI.uf:AddIcon(unit, pos, icon, timeleft or prediction, count, tonumber(start), tonumber(duration))
             else
-              pfUI.uf:AddIcon(unit, pos, aura.icon, timeleft, aura.applications)
+              pfUI.uf:AddIcon(unit, pos, icon, timeleft, count)
             end
             pos = pos + 1
             break
           end
         end
+        i = i + 1
       end
     end
 
     if table.getn(unit.indicator_custom) > 0 then
-      for _, aura in ipairs(C_UnitAuras.GetUnitAuras(unitstr, "HELPFUL")) do
-        local timeleft = aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or nil
-        local lowerName = string.lower(aura.name)
+      local ai = 1
+      while true do
+        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitBuff(unitstr, ai)
+        if not name then break end
+        local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
+        local lowerName = string.lower(name)
         for _, filter in pairs(unit.indicator_custom) do
           if filter == lowerName then
-            pfUI.uf:AddIcon(unit, pos, aura.icon, timeleft, aura.applications)
+            pfUI.uf:AddIcon(unit, pos, icon, timeleft, count)
             pos = pos + 1
             break
           end
         end
+        ai = ai + 1
       end
 
-      local debuffFilter = unit.config.selfdebuff == "1" and "HARMFUL|PLAYER" or "HARMFUL"
+      local debuffFilter = unit.config.selfdebuff == "1" and "PLAYER" or nil
       for i=1,16 do -- scan for custom debuffs
-        local aura = C_UnitAuras.GetAuraDataByIndex(unitstr, i, debuffFilter)
-        if aura then
-          local timeleft = aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or nil
+        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitDebuff(unitstr, i, debuffFilter)
+        if name then
+          local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
           for _, filter in pairs(unit.indicator_custom) do
-            if filter == string.lower(aura.name) then
-              pfUI.uf:AddIcon(unit, pos, aura.icon, timeleft, aura.applications)
+            if filter == string.lower(name) then
+              pfUI.uf:AddIcon(unit, pos, icon, timeleft, count)
               pos = pos + 1
               break
             end
