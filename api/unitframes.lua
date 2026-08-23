@@ -1828,6 +1828,17 @@ function pfUI.uf:RefreshUnit(unit, component)
         end
       end
 
+      -- Scan the 16 harmful slots once into a reusable set, instead of
+      -- re-scanning all 16 for every dispellable type below. Reused across
+      -- frames (populated and consumed within this single RefreshUnit call).
+      local present = pfUI.uf.dispelPresent or {}
+      pfUI.uf.dispelPresent = present
+      for k in pairs(present) do present[k] = nil end
+      for i=1,16 do
+        local name, _, _, dispelType = C_UnitAuras.UnitDebuff(unitstr, i)
+        if name and dispelType and dispelType ~= "" then present[dispelType] = true end
+      end
+
       for _, debuff in pairs(unit.dispellable) do
         indicator[debuff] = indicator[debuff] or CreateFrame("Frame", nil, indicator)
         indicator[debuff]:SetParent(indicator)
@@ -1867,15 +1878,7 @@ function pfUI.uf:RefreshUnit(unit, component)
           indicator[debuff].disp = indicator.disp
         end
 
-        indicator[debuff].visible = nil
-
-        for i=1,16 do
-          -- positional read: only the dispel type is needed, so allocate no table
-          local name, _, _, dispelType = C_UnitAuras.UnitDebuff(unitstr, i)
-          if name and dispelType == debuff then
-            indicator[debuff].visible = true
-          end
-        end
+        indicator[debuff].visible = present[debuff]
 
         if indicator[debuff].visible then
           indicator[debuff]:Show()
