@@ -296,11 +296,9 @@ pfUI:RegisterModule("buffwatch", function ()
           -- calculate dynamic auto color
           local r, g, b
           if frame.type == "HARMFUL" then
-            r, g, b = 1, .2, .2
-            local dtype = data[6]
-            if dtype and DebuffTypeColor[dtype] then
-              r,g,b = DebuffTypeColor[dtype].r,DebuffTypeColor[dtype].g,DebuffTypeColor[dtype].b
-            end
+            -- official Blizzard dispel-type colors (matches unitframes/buff);
+            -- nil/unknown type falls back to the DEBUFF_TYPE_NONE colour
+            r, g, b = C_UnitAuras.GetAuraDispelTypeColor(data[6] or ""):GetRGBA()
           else
             r,g,b = str2rgb(data[3])
           end
