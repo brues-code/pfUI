@@ -23,7 +23,7 @@ pfUI:RegisterModule("buff", function ()
       CreateBackdropShadow(buff)
     end
 
-    local aura = C_UnitAuras.GetAuraDataByIndex("player", buff.id, buff.btype)
+    local name, icon, count, dispelType, _, expirationTime, _, _, _, spellId = C_UnitAuras.UnitAura("player", buff.id, buff.btype)
 
     --detect weapon buffs
     if buff.btype == "HELPFUL" and ((C.buffs.separateweapons == "0" and buff.gid <= pfUI.buff.wepbuffs.count) or (pfUI.buff.wepbuffs.count > 0 and buff.weapon ~= nil)) then
@@ -55,16 +55,16 @@ pfUI:RegisterModule("buff", function ()
         buff.texture:SetTexture(GetInventoryItemTexture("player", 17))
         buff.backdrop:SetBackdropBorderColor(GetItemQualityColor(GetInventoryItemQuality("player", 17) or 1))
       end
-    elseif aura and (( buff.btype == "HARMFUL" and C.buffs.debuffs == "1" ) or ( buff.btype == "HELPFUL" and C.buffs.buffs == "1" )) then
+    elseif name and (( buff.btype == "HARMFUL" and C.buffs.debuffs == "1" ) or ( buff.btype == "HELPFUL" and C.buffs.buffs == "1" )) then
       -- Set Buff Texture and Border
       buff.mode = buff.btype
-      buff.expirationTime = aura.expirationTime
-      buff.stackCount = aura.applications
-      buff.spellId = aura.spellId
-      buff.texture:SetTexture(aura.icon)
+      buff.expirationTime = expirationTime
+      buff.stackCount = count
+      buff.spellId = spellId
+      buff.texture:SetTexture(icon)
 
       if buff.btype == "HARMFUL" then
-        local dispelColor = C_UnitAuras.GetAuraDispelTypeColor(aura.dispelName)
+        local dispelColor = C_UnitAuras.GetAuraDispelTypeColor(dispelType)
         buff.backdrop:SetBackdropBorderColor(dispelColor:GetRGBA())
       else
         buff.backdrop:SetBackdropBorderColor(br,bg,bb,ba)

@@ -75,10 +75,10 @@ pfUI:RegisterModule("buffwatch", function ()
 
   local function GetBuffData(unit, id, type, selfdebuff)
     local filter = (selfdebuff and type == "HARMFUL") and "HARMFUL|PLAYER" or type
-    local aura = C_UnitAuras.GetAuraDataByIndex(unit, id, filter)
-    if not aura then return end
-    local remaining = aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or 0
-    return remaining, aura.icon, aura.name, aura.applications
+    local name, icon, count, dispelType, _, expirationTime = C_UnitAuras.UnitAura(unit, id, filter)
+    if not name then return end
+    local remaining = expirationTime > 0 and (expirationTime - GetTime()) or 0
+    return remaining, icon, name, count, dispelType
   end
 
   local function StatusBarOnClick()
@@ -236,7 +236,7 @@ pfUI:RegisterModule("buffwatch", function ()
     local selfdebuff = frame.config.selfdebuff == "1"
 
     for i=1,32 do
-      local timeleft, texture, name, stacks = GetBuffData(frame.unit, i, frame.type, selfdebuff)
+      local timeleft, texture, name, stacks, dtype = GetBuffData(frame.unit, i, frame.type, selfdebuff)
       timeleft = timeleft or 0
 
       if texture and name and name ~= "" and BuffIsVisible(frame.config, name) then
@@ -245,12 +245,14 @@ pfUI:RegisterModule("buffwatch", function ()
         frame.buffs[i][3] = name
         frame.buffs[i][4] = texture
         frame.buffs[i][5] = stacks
+        frame.buffs[i][6] = dtype
       else
         frame.buffs[i][1] = 0
         frame.buffs[i][2] = nil
         frame.buffs[i][3] = nil
         frame.buffs[i][4] = nil
         frame.buffs[i][5] = 0
+        frame.buffs[i][6] = nil
       end
     end
 
@@ -295,8 +297,7 @@ pfUI:RegisterModule("buffwatch", function ()
           local r, g, b
           if frame.type == "HARMFUL" then
             r, g, b = 1, .2, .2
-            local a = C_UnitAuras.GetDebuffDataByIndex(frame.unit, data[2])
-            local dtype = a and a.dispelName
+            local dtype = data[6]
             if dtype and DebuffTypeColor[dtype] then
               r,g,b = DebuffTypeColor[dtype].r,DebuffTypeColor[dtype].g,DebuffTypeColor[dtype].b
             end
