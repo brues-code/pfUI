@@ -168,6 +168,9 @@ pfUI.libdebuff_spell_start_self_hooks["libpredict"] = function(spellId, casterGu
     return
   end
 
+  spell_queue[1] = spellName
+  spell_queue[2] = spellName .. (C_Spell.GetSpellSubtext(spellId) or "")
+
   if spell_queue[1] == spellName and cache[spell_queue[2]] then
     local amount   = cache[spell_queue[2]][1]
     local casttime = castTime
