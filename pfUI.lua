@@ -86,14 +86,13 @@ do
   end
 end
 
--- initialize saved variables
-pfUI_playerDB = {}
-pfUI_config = {}
-pfUI_init = {}
-pfUI_profiles = {}
-pfUI_addon_profiles = {}
-pfUI_cache = {}
-pfUI_throttle = {}
+pfUI_playerDB = pfUI_playerDB or {}
+pfUI_config = pfUI_config or {}
+pfUI_init = pfUI_init or {}
+pfUI_profiles = pfUI_profiles or {}
+pfUI_addon_profiles = pfUI_addon_profiles or {}
+pfUI_cache = pfUI_cache or {}
+pfUI_throttle = pfUI_throttle or {}
 
 -- localization
 pfUI_locale = {}
