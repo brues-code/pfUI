@@ -1045,7 +1045,13 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     if plate.cache.player == nil and unitstr then
       plate.cache.player = UnitIsPlayer(unitstr) and true or false
     end
-    local class, ulevel, elite, player, guild = GetUnitInfo(name, true, plate.cache.player)
+    if plate.cache.minion == nil and unitstr then
+      plate.cache.minion = UnitIsMinion(unitstr) and true or false
+    end
+    local class, ulevel, elite, player, guild
+    if not plate.cache.minion then
+      class, ulevel, elite, player, guild = GetUnitInfo(name, true, plate.cache.player)
+    end
     if plate.cache.player ~= nil then player = plate.cache.player or nil end
 
     -- Use database level ONLY if current level is ?? (fixes ?? after reload, but doesn't override visible levels)
@@ -1065,7 +1071,7 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     if player and unittype == "ENEMY_NPC" then unittype = "ENEMY_PLAYER" end
     if player and unittype == "FRIENDLY_NPC" then unittype = "FRIENDLY_PLAYER" end
     elite = plate.original.levelicon:IsShown() and not player and "boss" or elite
-    if not class then plate.wait_for_scan = true end
+    if not class and not plate.cache.minion then plate.wait_for_scan = true end
 
     -- skip data updates on invisible frames
     if not visible then return end
@@ -1551,7 +1557,7 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     -- otherwise an NPC sharing a name with a known player flips wait_for_scan
     -- off here, then OnDataChanged re-sets it, every frame until the mob scan
     -- lands.
-    if nameplate.wait_for_scan and GetUnitInfo(name, true, nameplate.cache.player) then
+    if nameplate.wait_for_scan and not nameplate.cache.minion and GetUnitInfo(name, true, nameplate.cache.player) then
       nameplate.wait_for_scan = nil
       update = true
     end
