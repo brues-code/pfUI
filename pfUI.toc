@@ -8,6 +8,8 @@
 ## SavedVariablesPerCharacter: pfUI_config, pfUI_init, pfUI_playerDB
 ## X-Website: https://github.com/brues-code/pfUI
 
+API_Check.lua
+
 pfUI.lua
 
 init\env.xml

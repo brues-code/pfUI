@@ -3,6 +3,10 @@ function SlashCmdList.RELOAD(msg, editbox)
   ReloadUI()
 end
 
+if pfUI_disabled then return end
+
+local addonName = ...
+
 SLASH_PFUI1 = '/pfui'
 function SlashCmdList.PFUI(msg, editbox)
   pfUI.gui:SetShown(not pfUI.gui:IsShown())
@@ -13,7 +17,7 @@ function SlashCmdList.GM(msg, editbox)
   ToggleHelpFrame(1)
 end
 
-pfUI = CreateFrame("Frame", nil, UIParent)
+local pfUI = CreateFrame("Frame", addonName, UIParent)
 pfUI:RegisterEvent("ADDON_LOADED")
 
 -- setup bootvar
@@ -117,35 +121,24 @@ pfUI.env = {}
 -- the flag; one that lacks it should drop the flag and get the safe fallback.
 pfUI.handlesHookScript = true
 
-if not pfUI.disabled then
-  pfUI.events = Mixin({}, CallbackRegistryMixin)
-  pfUI.events:OnLoad()
-  pfUI.events:SetUndefinedEventsAllowed(true)
-end
+pfUI.events = Mixin({}, CallbackRegistryMixin)
+pfUI.events:OnLoad()
+pfUI.events:SetUndefinedEventsAllowed(true)
 
 -- check if macro addons are loaded (disables macrotweak/macroscan)
 function pfUI:MacroAddonsLoaded()
   return IsAddOnLoaded("Supermacro") or IsAddOnLoaded("SuperCleveRoidMacros") or IsAddOnLoaded("UltimaMacros")
 end
 
--- detect current addon path
-local tocs = { "", "-master", "-tbc", "-wotlk" }
-for _, name in pairs(tocs) do
-  local current = string.format("pfUI%s", name)
-  local title = C_AddOns.GetAddOnName(current)
-  if title then
-    pfUI.name = current
-    pfUI.path = "Interface\\AddOns\\" .. current
-    break
-  end
-end
+pfUI.name = addonName
+pfUI.path = "Interface\\AddOns\\" .. addonName
 
 -- handle/convert media dir paths
 pfUI.media = setmetatable({}, { __index = function(tab,key)
   local value = tostring(key)
-  if strfind(value, "img:") then
+  if value:find("img:") then
     value = string.gsub(value, "img:", pfUI.path .. "\\img\\")
-  elseif strfind(value, "font:") then
+  elseif value:find("font:") then
     value = string.gsub(value, "font:", pfUI.path .. "\\fonts\\")
   else
     value = string.gsub(value, "Interface\\AddOns\\pfUI\\", pfUI.path .. "\\")
@@ -154,9 +147,7 @@ pfUI.media = setmetatable({}, { __index = function(tab,key)
   return value
 end})
 
--- cache client version
-local _, _, _, client = GetBuildInfo()
-pfUI.client = client or 11200
+pfUI.client = INTERFACE_VERSION
 
 -- setup pfUI namespace
 setmetatable(pfUI.env, {__index = getfenv(0)})
@@ -390,14 +381,13 @@ function pfUI:CheckNewModules()
 end
 
 local function BackwardsCompatRegister(func, arg3)
-  if arg3 and type(func) == "string" and type(arg3) == "function" and string.find(func, "vanilla") then
+  if arg3 and type(func) == "string" and type(arg3) == "function" and func:find("vanilla") then
     return arg3
   end
   return func
 end
 
 function pfUI:RegisterModule(name, func, arg3)
-  if pfUI.disabled then return end
   if pfUI.module[name] then return end
   func = BackwardsCompatRegister(func, arg3)
   pfUI.module[name] = func
@@ -408,7 +398,6 @@ function pfUI:RegisterModule(name, func, arg3)
 end
 
 function pfUI:RegisterSkin(name, func, arg3)
-  if pfUI.disabled then return end
   if pfUI.skin[name] then return end
   func = BackwardsCompatRegister(func, arg3)
   pfUI.skin[name] = func
@@ -429,7 +418,6 @@ function pfUI:LoadSkin(s)
 end
 
 pfUI:SetScript("OnEvent", function()
-  if pfUI.disabled then return end
 
   -- make sure to initialize and set our fonts
   -- each time an addon got loaded but only
@@ -443,7 +431,7 @@ pfUI:SetScript("OnEvent", function()
     -- "@project-version@" until release tooling substitutes it — mark those
     -- explicitly as "dev" instead of pretending they're a real numbered build.
     local raw = tostring(GetAddOnMetadata(pfUI.name, "Version"))
-    if strfind(raw, "@") then
+    if raw:find("@") then
       pfUI.version.major, pfUI.version.minor, pfUI.version.fix = 0, 0, 0
       pfUI.version.string = "dev"
     else
