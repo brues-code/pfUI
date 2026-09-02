@@ -1,18 +1,22 @@
 {
-  "runtime.version": "Lua 5.1",
-  "diagnostics.disable": ["deprecated"],
-  "diagnostics.globals": [
-    "this",
-    "event",
-    "arg",
-    "arg1",
-    "arg2",
-    "arg3",
-    "arg4",
-    "arg5",
-    "arg6",
-    "arg7",
-    "arg8",
-    "arg9"
-  ]
+  "runtime": {
+    "version": "Lua 5.1"
+  },
+  "diagnostics": {
+    "disable": ["deprecated"],
+    "globals": [
+      "this",
+      "event",
+      "arg",
+      "arg1",
+      "arg2",
+      "arg3",
+      "arg4",
+      "arg5",
+      "arg6",
+      "arg7",
+      "arg8",
+      "arg9"
+    ]
+  }
 }
