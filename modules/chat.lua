@@ -63,6 +63,23 @@ pfUI:RegisterModule("chat", function ()
     return pfUI_cache["chathistory"][realm][player][id]
   end
 
+  -- [ Chat Panel Colors ]
+  -- The panels normally inherit pfUI's global appearance theme; custom colors let chat
+  -- deviate from it. CreateBackdrop is re-run first to restore the theme, so toggling
+  -- custom colors back off doesn't leave the previous override behind.
+  local function ApplyPanelColors(panel)
+    if not panel then return end
+
+    CreateBackdrop(panel, default_border, nil, .8)
+    if C.chat.global.custombg ~= "1" then return end
+
+    local r, g, b, a = GetStringColor(C.chat.global.background)
+    panel.backdrop:SetBackdropColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
+
+    local r, g, b, a = GetStringColor(C.chat.global.border)
+    panel.backdrop:SetBackdropBorderColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
+  end
+
   pfUI.chat = CreateFrame("Frame",nil,UIParent)
 
   pfUI.chat.left = CreateFrame("Frame", "pfChatLeft", UIParent)
@@ -76,17 +93,9 @@ pfUI:RegisterModule("chat", function ()
   pfUI.chat.left:SetPoint("BOTTOMLEFT", 2*default_border,2*default_border)
   pfUI.chat.left:SetScript("OnShow", function() pfUI.chat:RefreshChat() end)
   UpdateMovable(pfUI.chat.left)
-  CreateBackdrop(pfUI.chat.left, default_border, nil, .8)
+  ApplyPanelColors(pfUI.chat.left)
   if C.chat.global.frameshadow == "1" then
     CreateBackdropShadow(pfUI.chat.left)
-  end
-
-  if C.chat.global.custombg == "1" then
-    local r, g, b, a = GetStringColor(C.chat.global.background)
-    pfUI.chat.left.backdrop:SetBackdropColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
-
-    local r, g, b, a = GetStringColor(C.chat.global.border)
-    pfUI.chat.left.backdrop:SetBackdropBorderColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
   end
 
   pfUI.chat.left.panelTop = CreateFrame("Frame", "leftChatPanelTop", pfUI.chat.left)
@@ -251,17 +260,9 @@ pfUI:RegisterModule("chat", function ()
   pfUI.chat.right:SetPoint("BOTTOMRIGHT", -2*default_border,2*default_border)
   pfUI.chat.right:SetScript("OnShow", function() pfUI.chat:RefreshChat() end)
   UpdateMovable(pfUI.chat.right)
-  CreateBackdrop(pfUI.chat.right, default_border, nil, .8)
+  ApplyPanelColors(pfUI.chat.right)
   if C.chat.global.frameshadow == "1" then
     CreateBackdropShadow(pfUI.chat.right)
-  end
-
-  if C.chat.global.custombg == "1" then
-    local r, g, b, a = GetStringColor(C.chat.global.background)
-    pfUI.chat.right.backdrop:SetBackdropColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
-
-    local r, g, b, a = GetStringColor(C.chat.global.border)
-    pfUI.chat.right.backdrop:SetBackdropBorderColor(tonumber(r), tonumber(g), tonumber(b), tonumber(a))
   end
 
   pfUI.chat.right.panelTop = CreateFrame("Frame", "rightChatPanelTop", pfUI.chat.right)
@@ -300,7 +301,7 @@ pfUI:RegisterModule("chat", function ()
   -- Blizzard's per-window transparency slider drives FCF_SetWindowAlpha, which only
   -- touches the ChatFrame*Background textures that pfUI hides on docked frames. Mirror
   -- the window's stored alpha onto the visible pfUI backdrop so the native slider
-  -- controls it directly. The slider is authoritative for the panel's alpha.
+  -- controls it directly.
   local function ApplyChatBackgroundAlpha(panel, frame)
     if not (panel and panel.backdrop and frame) then return end
     local _, _, _, _, _, alpha = GetChatWindowInfo(frame:GetID())
@@ -311,6 +312,12 @@ pfUI:RegisterModule("chat", function ()
   end
 
   function pfUI.chat:RefreshBackgroundAlpha()
+    -- Custom colors own the alpha. C.chat.global.background carries its own alpha, is
+    -- set by profiles and is shared with the meter skins, so the native slider must not
+    -- overwrite it -- doing so reverted the configured opacity on every refresh. The
+    -- slider only drives the panel when the user hasn't opted into pfUI's chat colors.
+    if C.chat.global.custombg == "1" then return end
+
     -- left panel follows the currently selected docked tab
     local selected = SELECTED_CHAT_FRAME
     if not (selected and selected:GetParent() == pfUI.chat.left) then
@@ -321,6 +328,14 @@ pfUI:RegisterModule("chat", function ()
     if C.chat.right.enable == "1" then
       ApplyChatBackgroundAlpha(pfUI.chat.right, ChatFrame3)
     end
+  end
+
+  -- live config apply, resolved by the gui as U["chat"]. Lets the color pickers
+  -- take effect on the spot instead of waiting for a /reload.
+  function pfUI.chat:UpdateConfig()
+    ApplyPanelColors(pfUI.chat.left)
+    ApplyPanelColors(pfUI.chat.right)
+    pfUI.chat:RefreshBackgroundAlpha()
   end
 
   function pfUI.chat:MigrateBackgroundAlpha()
