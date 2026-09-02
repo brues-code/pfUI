@@ -1,0 +1,4 @@
+package-as: pfUI
+
+ignore:
+  - .luarc.json
