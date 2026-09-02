@@ -116,6 +116,7 @@ pfUI:RegisterModule("nameplates", function ()
   -- Reusable per-plate debuff display buffer (avoid GC churn from per-call table creation)
   local debuffDisplayBuf = {}  -- [i] = { effect, texture, stacks, dtype, duration, timeleft }
   for i = 1, 16 do debuffDisplayBuf[i] = {} end
+  local auraSlots = {}  -- reusable GetAuraSlots buffer for the per-plate aura scan
   local threatMemory = {}   -- guid -> true if mob had player targeted
   -- local debuffSeen = {}     -- reusable table for debuff tracking (avoid GC churn)
 
@@ -1312,11 +1313,12 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       if unitstr then
         local filter = cfg.owndebuffs and "HARMFUL|PLAYER" or "HARMFUL"
         local now = GetTime()
-        -- positional UnitAura writes straight into the reusable buffer, so the
-        -- per-plate scan allocates nothing (no per-aura table, no result array)
-        local i = 1
-        while debuffCount < 16 do
-          local aname, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitAura(unitstr, i, filter)
+        -- one GetAuraSlots enumeration, then positional by-slot reads straight
+        -- into the reusable buffer: the per-plate scan allocates nothing (no
+        -- per-aura table, no result array) and walks the aura array once
+        local n = ScanAuraSlots(unitstr, filter, auraSlots, 16)
+        for i = 1, n do
+          local aname, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
           if not aname then break end
           debuffCount = debuffCount + 1
           local b = debuffDisplayBuf[debuffCount]
@@ -1326,7 +1328,6 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
           b.dtype = dispelType
           b.duration = duration
           b.timeleft = (expirationTime and expirationTime > 0) and (expirationTime - now) or nil
-          i = i + 1
         end
       end
       for i = 1, 16 do

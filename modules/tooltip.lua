@@ -189,6 +189,7 @@ pfUI:RegisterModule("tooltip", function ()
   -- Icons come from a ClassicAPI object pool: ReleaseAll hides the whole
   -- set each refresh, then we Acquire and re-anchor left-to-right.
   local BUFF_SIZE, BUFF_SPACING, BUFF_MAX = 20, 2, 32
+  local auraSlots = {}  -- reusable GetAuraSlots buffer for UpdateBuffs
   pfUI.tooltip.buffs = CreateFrame("Frame", "pfTooltipBuffs", GameTooltip)
   pfUI.tooltip.buffs:SetPoint("BOTTOMLEFT", GameTooltipStatusBar, "TOPLEFT", 0, default_border + 2)
   pfUI.tooltip.buffs:SetHeight(BUFF_SIZE)
@@ -239,17 +240,20 @@ pfUI:RegisterModule("tooltip", function ()
     end
 
     local prev, count = nil, 0
-    for i = 1, BUFF_MAX do
-      local aura = C_UnitAuras.GetBuffDataByIndex(unit, i)
-      if not aura then break end
+    -- one GetAuraSlots enumeration + positional by-slot reads: no per-aura
+    -- table and no per-index re-walk of the aura array
+    local n = ScanAuraSlots(unit, "HELPFUL", auraSlots, BUFF_MAX)
+    for i = 1, n do
+      local name, texture, applications, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unit, auraSlots[i])
+      if not name then break end
 
       count = count + 1
       local icon = pfUI.tooltip.buffpool:Acquire()
-      icon.texture:SetTexture(aura.icon)
-      icon.stacks:SetText(aura.applications and aura.applications > 1 and aura.applications or "")
+      icon.texture:SetTexture(texture)
+      icon.stacks:SetText(applications and applications > 1 and applications or "")
 
-      icon.expirationTime = aura.expirationTime
-      local timeleft = aura.expirationTime and aura.expirationTime > 0 and (aura.expirationTime - GetTime()) or 0
+      icon.expirationTime = expirationTime
+      local timeleft = expirationTime and expirationTime > 0 and (expirationTime - GetTime()) or 0
       icon.timer:SetText(timeleft > 0 and GetColoredTimeString(timeleft) or "")
 
       if prev then

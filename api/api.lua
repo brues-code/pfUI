@@ -204,6 +204,26 @@ function pfUI.api.UnitHasBuff(unit, name)
   return C_UnitAuras.GetAuraDataBySpellName(unit, name, "HELPFUL") ~= nil or nil
 end
 
+-- [ ScanAuraSlots ]
+-- Fills `buf` with the slot ids of the auras on `unit` that match `filter` and
+-- returns how many (buf[1..n]; entries past n are cleared), so a module can
+-- keep one buffer and refill it every refresh. Read each aura with
+-- C_UnitAuras.UnitAuraBySlot(unit, buf[i]) (positional, no table) or
+-- GetAuraDataBySlot. One enumeration walks the aura array once, where a
+-- by-index loop (UnitAura(unit, i)) re-walks it from the start for every i.
+-- Uses GetAuraSlots' fill-a-table form (table as the 5th argument) instead of
+-- its vararg return: Lua 5.0 builds an `arg` table for every vararg call, so
+-- collecting the returns in a Lua helper would allocate once per scan.
+-- unit         [string]        unit token
+-- filter       [string]        aura filter ("HELPFUL", "HARMFUL|PLAYER", ...)
+-- buf          [table]         reusable buffer, filled in place
+-- max          [number]        optional cap on the slot count (nil = all)
+-- return:      [number]        count of slot ids written to buf
+function pfUI.api.ScanAuraSlots(unit, filter, buf, max)
+  local _, n = C_UnitAuras.GetAuraSlots(unit, filter, max, nil, buf)
+  return n
+end
+
 -- [ IsPlayerGuid ]
 -- Returns whether a GUID or unit token refers to the local player.
 -- guid         [string]        A unit GUID (or unitID) to test.

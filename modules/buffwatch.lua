@@ -73,9 +73,12 @@ pfUI:RegisterModule("buffwatch", function ()
     return anchor
   end
 
-  local function GetBuffData(unit, id, type, selfdebuff)
-    local filter = (selfdebuff and type == "HARMFUL") and "HARMFUL|PLAYER" or type
-    local name, icon, count, dispelType, _, expirationTime = C_UnitAuras.UnitAura(unit, id, filter)
+  -- reusable GetAuraSlots buffer, filled once per RefreshBuffBarFrame
+  local auraSlots = {}
+
+  -- Reads one aura by the slot id GetAuraSlots returned (nil slot -> nil).
+  local function GetBuffData(unit, slot)
+    local name, icon, count, dispelType, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unit, slot)
     if not name then return end
     local remaining = expirationTime > 0 and (expirationTime - GetTime()) or 0
     return remaining, icon, name, count, dispelType
@@ -234,9 +237,15 @@ pfUI:RegisterModule("buffwatch", function ()
   local function RefreshBuffBarFrame(frame)
     -- reinitialize all active buffs
     local selfdebuff = frame.config.selfdebuff == "1"
+    local filter = (selfdebuff and frame.type == "HARMFUL") and "HARMFUL|PLAYER" or frame.type
+
+    -- one GetAuraSlots enumeration per refresh instead of a by-index walk per
+    -- bar; the i-th slot is the i-th aura of the filtered list, so `i` stays
+    -- the index the tooltip / cancel handlers pass to the by-index API
+    ScanAuraSlots(frame.unit, filter, auraSlots, 32)
 
     for i=1,32 do
-      local timeleft, texture, name, stacks, dtype = GetBuffData(frame.unit, i, frame.type, selfdebuff)
+      local timeleft, texture, name, stacks, dtype = GetBuffData(frame.unit, auraSlots[i])
       timeleft = timeleft or 0
 
       if texture and name and name ~= "" and BuffIsVisible(frame.config, name) then

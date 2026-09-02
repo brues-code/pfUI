@@ -7,6 +7,15 @@ pfUI:RegisterModule("buff", function ()
 
   local br, bg, bb, ba = GetStringColor(pfUI_config.appearance.border.color)
 
+  -- Player aura slot ids, enumerated once per refresh pass (ScanPlayerAuraSlots)
+  -- and read per button by its aura index: one GetAuraSlots walk per range
+  -- instead of a by-index walk per button.
+  local helpfulSlots, harmfulSlots = {}, {}
+  local function ScanPlayerAuraSlots()
+    ScanAuraSlots("player", "HELPFUL", helpfulSlots, 32)
+    ScanAuraSlots("player", "HARMFUL", harmfulSlots, 16)
+  end
+
   local function RefreshBuffButton(buff)
     if buff.btype == "HELPFUL" then
       if C.buffs.separateweapons == "1" then
@@ -23,7 +32,8 @@ pfUI:RegisterModule("buff", function ()
       CreateBackdropShadow(buff)
     end
 
-    local name, icon, count, dispelType, _, expirationTime, _, _, _, spellId = C_UnitAuras.UnitAura("player", buff.id, buff.btype)
+    local slots = buff.btype == "HELPFUL" and helpfulSlots or harmfulSlots
+    local name, icon, count, dispelType, _, expirationTime, _, _, _, spellId = C_UnitAuras.UnitAuraBySlot("player", slots[buff.id])
 
     --detect weapon buffs
     if buff.btype == "HELPFUL" and ((C.buffs.separateweapons == "0" and buff.gid <= pfUI.buff.wepbuffs.count) or (pfUI.buff.wepbuffs.count > 0 and buff.weapon ~= nil)) then
@@ -166,6 +176,8 @@ pfUI:RegisterModule("buff", function ()
       pfUI.buff.wepbuffs.count = 0
     end
 
+    ScanPlayerAuraSlots()
+
     for i=1,32 do
       RefreshBuffButton(pfUI.buff.buffs.buttons[i])
     end
@@ -245,6 +257,9 @@ pfUI:RegisterModule("buff", function ()
       end
     end
   end)
+
+  -- CreateBuffButton refreshes each new button from the slot buffers
+  ScanPlayerAuraSlots()
 
   -- Weapon Buffs
   pfUI.buff.wepbuffs = CreateFrame("Frame", "pfWepBuffFrame", UIParent)

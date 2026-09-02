@@ -4,6 +4,12 @@ setfenv(1, pfUI:GetEnvironment())
 pfUI.uf = CreateFrame("Frame", nil, UIParent)
 pfUI.uf.frames = {}
 
+-- Reusable buffer for C_UnitAuras.GetAuraSlots slot ids (filled by
+-- ScanAuraSlots, api.lua). Each aura scan in RefreshUnit fills it once, then
+-- reads every aura by slot id: one array walk per scan instead of one per index.
+-- Scans run back to back and consume the buffer before the next refill.
+local auraSlots = {}
+
 -- ============================================================================
 -- GUID-based Roster Tracking for Smart Updates
 -- Only updates frames where the unit actually changed, not ALL 40 frames
@@ -1635,11 +1641,13 @@ function pfUI.uf:RefreshUnit(unit, component)
 
   -- buffs
   if unit.buffs and ( component == "all" or component == "aura" ) then
+    -- one GetAuraSlots enumeration per refresh, then a positional read per
+    -- slot id: allocates nothing and never re-walks the aura array per icon
+    ScanAuraSlots(unitstr, "HELPFUL", auraSlots, unit.config.bufflimit)
     for i=1, unit.config.bufflimit do
       if not unit.buffs[i] then break end
 
-      -- positional UnitBuff allocates nothing (vs a table per icon per refresh)
-      local name, icon, count, _, duration, expirationTime, _, _, _, spellId = C_UnitAuras.UnitBuff(unitstr, i)
+      local name, icon, count, _, duration, expirationTime, _, _, _, spellId = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
 
       if name then
         unit.buffs[i].texture:SetTexture(icon)
@@ -1723,6 +1731,13 @@ function pfUI.uf:RefreshUnit(unit, component)
       reposition = true
     end
 
+    -- selfdebuff narrows to player-cast harmful auras via the PLAYER filter.
+    -- Player-frame debuffs aren't gated on it (it'd hide most party-applied
+    -- effects on you). One GetAuraSlots enumeration per refresh; the i-th slot
+    -- is the i-th aura of the filtered list, so `i` stays the tooltip index.
+    local filter = (unit.label ~= "player" and selfdebuff == "1") and "HARMFUL|PLAYER" or "HARMFUL"
+    ScanAuraSlots(unitstr, filter, auraSlots, unit.config.debufflimit)
+
     for i=1, unit.config.debufflimit do
       if not unit.debuffs[i] then break end
 
@@ -1739,12 +1754,8 @@ function pfUI.uf:RefreshUnit(unit, component)
         invert_h * ((row+buffrow)*(multiply*default_border + unit.config.debuffsize + 1) + (multiply*default_border + 1)))
       end
 
-      -- selfdebuff narrows to player-cast harmful auras via the PLAYER filter.
-      -- Player-frame debuffs aren't gated on it (it'd hide most party-applied
-      -- effects on you).
-      -- positional UnitDebuff allocates nothing; PLAYER predicate honored for selfdebuff
-      local filter = (unit.label ~= "player" and selfdebuff == "1") and "PLAYER" or nil
-      local name, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitDebuff(unitstr, i, filter)
+      -- positional read by slot id allocates nothing
+      local name, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
       if name then
         texture, stacks, dtype = icon, count, dispelType
       else
@@ -1834,8 +1845,9 @@ function pfUI.uf:RefreshUnit(unit, component)
       local present = pfUI.uf.dispelPresent or {}
       pfUI.uf.dispelPresent = present
       for k in pairs(present) do present[k] = nil end
-      for i=1,16 do
-        local name, _, _, dispelType = C_UnitAuras.UnitDebuff(unitstr, i)
+      local n = ScanAuraSlots(unitstr, "HARMFUL", auraSlots)
+      for i=1,n do
+        local name, _, _, dispelType = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if name and dispelType and dispelType ~= "" then present[dispelType] = true end
       end
 
@@ -1925,9 +1937,9 @@ function pfUI.uf:RefreshUnit(unit, component)
 
     local pos = 1
     if table.getn(unit.indicators) > 0 then
-      local i = 1
-      while true do
-        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitBuff(unitstr, i)
+      local n = ScanAuraSlots(unitstr, "HELPFUL", auraSlots)
+      for i=1,n do
+        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if not name then break end
         local texLower = string.lower(icon)
         local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
@@ -1948,14 +1960,13 @@ function pfUI.uf:RefreshUnit(unit, component)
             break
           end
         end
-        i = i + 1
       end
     end
 
     if table.getn(unit.indicator_custom) > 0 then
-      local ai = 1
-      while true do
-        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitBuff(unitstr, ai)
+      local n = ScanAuraSlots(unitstr, "HELPFUL", auraSlots)
+      for i=1,n do
+        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if not name then break end
         local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
         local lowerName = string.lower(name)
@@ -1966,12 +1977,12 @@ function pfUI.uf:RefreshUnit(unit, component)
             break
           end
         end
-        ai = ai + 1
       end
 
-      local debuffFilter = unit.config.selfdebuff == "1" and "PLAYER" or nil
-      for i=1,16 do -- scan for custom debuffs
-        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitDebuff(unitstr, i, debuffFilter)
+      local debuffFilter = unit.config.selfdebuff == "1" and "HARMFUL|PLAYER" or "HARMFUL"
+      n = ScanAuraSlots(unitstr, debuffFilter, auraSlots)
+      for i=1,n do -- scan for custom debuffs
+        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if name then
           local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
           for _, filter in pairs(unit.indicator_custom) do
