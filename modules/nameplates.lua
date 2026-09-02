@@ -1039,6 +1039,16 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     local mouseover = plate.cachedGuid and plate.cachedGuid == frameState.mouseoverGuid or nil
     local unitstr = target and "target" or mouseover and "mouseover" or plate.cachedGuid or nil
 
+    -- target event sometimes fires too quickly, where nameplate identifiers are not
+    -- yet updated. So while being inside this event, we cannot trust the unitstr.
+    if event == "PLAYER_TARGET_CHANGED" then unitstr = nil end
+
+    -- remove unitstr when it doesn't resolve to this plate's unit (stale istarget,
+    -- stale mouseover guid or a despawned unit). Must run before the cache fills
+    -- below -- an unrelated unitstr would poison cache.player/minion with the
+    -- *other* unit's answer, and the nil-gate would then never recompute it.
+    if unitstr and UnitName(unitstr) ~= name then unitstr = nil end
+
     -- resolve player vs npc from plate's own unit so libunitscan can't return
     -- a player record for an NPC sharing the same name (e.g. Chromie). Stored
     -- as true/false/nil so it doubles as the GetUnitInfo hint.
@@ -1075,13 +1085,6 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
 
     -- skip data updates on invisible frames
     if not visible then return end
-
-    -- target event sometimes fires too quickly, where nameplate identifiers are not
-    -- yet updated. So while being inside this event, we cannot trust the unitstr.
-    if event == "PLAYER_TARGET_CHANGED" then unitstr = nil end
-
-    -- remove unitstr on unit name mismatch
-    if unitstr and UnitName(unitstr) ~= name then unitstr = nil end
 
     -- always make sure to keep plate visible
     plate:Show()
