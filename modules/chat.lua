@@ -296,6 +296,54 @@ pfUI:RegisterModule("chat", function ()
     end
   end
 
+  -- [ Chat Background Alpha ]
+  -- Blizzard's per-window transparency slider drives FCF_SetWindowAlpha, which only
+  -- touches the ChatFrame*Background textures that pfUI hides on docked frames. Mirror
+  -- the window's stored alpha onto the visible pfUI backdrop so the native slider
+  -- controls it directly. The slider is authoritative for the panel's alpha.
+  local function ApplyChatBackgroundAlpha(panel, frame)
+    if not (panel and panel.backdrop and frame) then return end
+    local _, _, _, _, _, alpha = GetChatWindowInfo(frame:GetID())
+    alpha = tonumber(alpha)
+    if not alpha then return end
+    local r, g, b = panel.backdrop:GetBackdropColor()
+    panel.backdrop:SetBackdropColor(r, g, b, alpha)
+  end
+
+  function pfUI.chat:RefreshBackgroundAlpha()
+    -- left panel follows the currently selected docked tab
+    local selected = SELECTED_CHAT_FRAME
+    if not (selected and selected:GetParent() == pfUI.chat.left) then
+      selected = ChatFrame1
+    end
+    ApplyChatBackgroundAlpha(pfUI.chat.left, selected)
+
+    if C.chat.right.enable == "1" then
+      ApplyChatBackgroundAlpha(pfUI.chat.right, ChatFrame3)
+    end
+  end
+
+  function pfUI.chat:MigrateBackgroundAlpha()
+    -- Runs once per character. The previous SetupPositions default stored a hard 0 window
+    -- alpha, which now renders the pfUI backdrop fully transparent. Restore the historical
+    -- 0.8 look for any pfUI-managed window still sitting at 0. Only existing installs that
+    -- already ran chat setup carry that legacy 0; fresh installs get 0.8 from SetupPositions.
+    if pfUI_init.chatbgalpha then return end
+    if not pfUI_init["chat_position"] then return end
+    pfUI_init.chatbgalpha = true
+
+    local frames = { ChatFrame1, ChatFrame2 }
+    if C.chat.right.enable == "1" then table.insert(frames, ChatFrame3) end
+
+    for _, frame in ipairs(frames) do
+      local _, _, _, _, _, alpha = GetChatWindowInfo(frame:GetID())
+      alpha = tonumber(alpha)
+      if alpha and alpha <= 0 then
+        FCF_SetWindowAlpha(frame, 0.8)
+      end
+    end
+  end
+
   function pfUI.chat:RefreshChat()
     local panelheight = C.global.font_size*1.5 + default_border*2 + 2
 
@@ -447,9 +495,13 @@ pfUI:RegisterModule("chat", function ()
     for index, value in pairs(DOCKED_CHAT_FRAMES) do
       FCF_UpdateButtonSide(value)
     end
+
+    pfUI.chat:RefreshBackgroundAlpha()
   end
 
   hooksecurefunc("FCF_SaveDock", pfUI.chat.RefreshChat)
+  hooksecurefunc("FCF_SetWindowAlpha", function() pfUI.chat:RefreshBackgroundAlpha() end)
+  hooksecurefunc("FCF_SelectDockFrame", function() pfUI.chat:RefreshBackgroundAlpha() end)
 
   if C.chat.global.tabmouse == "1" then
     pfUI.chat.mouseovertab = CreateFrame("Frame")
@@ -500,7 +552,7 @@ pfUI:RegisterModule("chat", function ()
     FCF_SetLocked(ChatFrame1, 1)
     FCF_SetWindowName(ChatFrame1, GENERAL)
     FCF_SetWindowColor(ChatFrame1, 0, 0, 0)
-    FCF_SetWindowAlpha(ChatFrame1, 0)
+    FCF_SetWindowAlpha(ChatFrame1, 0.8)
     FCF_SetChatWindowFontSize(ChatFrame1, 12)
     ChatFrame1:SetUserPlaced(1)
 
@@ -508,7 +560,7 @@ pfUI:RegisterModule("chat", function ()
     FCF_SetLocked(ChatFrame2, 1)
     FCF_SetWindowName(ChatFrame2, COMBAT_LOG)
     FCF_SetWindowColor(ChatFrame2, 0, 0, 0)
-    FCF_SetWindowAlpha(ChatFrame2, 0)
+    FCF_SetWindowAlpha(ChatFrame2, 0.8)
     FCF_SetChatWindowFontSize(ChatFrame2, 12)
     ChatFrame2:SetUserPlaced(1)
 
@@ -518,7 +570,7 @@ pfUI:RegisterModule("chat", function ()
       FCF_SetLocked(ChatFrame3, 1)
       FCF_SetWindowName(ChatFrame3, T["Loot & Spam"])
       FCF_SetWindowColor(ChatFrame3, 0, 0, 0)
-      FCF_SetWindowAlpha(ChatFrame3, 0)
+      FCF_SetWindowAlpha(ChatFrame3, 0.8)
       FCF_SetChatWindowFontSize(ChatFrame3, 12)
       FCF_UnDockFrame(ChatFrame3)
       FCF_SetTabPosition(ChatFrame3, 0)
@@ -566,6 +618,9 @@ pfUI:RegisterModule("chat", function ()
   end
 
   pfUI.chat:SetScript("OnEvent", function()
+    -- restore legacy chat windows stuck at 0 alpha before anything reads it
+    pfUI.chat:MigrateBackgroundAlpha()
+
     -- set the default chat
     FCF_SelectDockFrame(SELECTED_CHAT_FRAME)
 
