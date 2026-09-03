@@ -433,7 +433,7 @@ pfUI:RegisterModule("nameplates", function ()
       plate.debuffs[index].cd.SetSequenceTime = DoNothing
     else
       -- Use CooldownFrameTemplate for animation
-      plate.debuffs[index].cd = CreateFrame(COOLDOWN_FRAME_TYPE, plate.platename.."Debuff"..index.."Cooldown", plate.debuffs[index], "CooldownFrameTemplate")
+      plate.debuffs[index].cd = CreateFrame("Model", plate.platename.."Debuff"..index.."Cooldown", plate.debuffs[index], "CooldownFrameTemplate")
       plate.debuffs[index].cd:SetAllPoints(plate.debuffs[index])
       plate.debuffs[index].cd:SetFrameLevel(6)
     end
@@ -770,6 +770,8 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     nameplate.original.healthbar, nameplate.original.castbar = parent:GetChildren()
     DisableObject(nameplate.original.healthbar)
     DisableObject(nameplate.original.castbar)
+
+    local NAMEPLATE_OBJECTORDER = { "border", "glow", "name", "level", "levelicon", "raidicon" }
 
     for i, object in pairs({parent:GetRegions()}) do
       if NAMEPLATE_OBJECTORDER[i] and NAMEPLATE_OBJECTORDER[i] == "raidicon" then

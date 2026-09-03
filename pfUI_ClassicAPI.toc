@@ -17,7 +17,6 @@ pfUI.lua
 
 init\env.xml
 init\stock.xml
-init\compat.xml
 init\api.xml
 init\libs.xml
 init\skins.xml

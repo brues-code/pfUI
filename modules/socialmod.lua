@@ -81,7 +81,7 @@ pfUI:RegisterModule("socialmod", function ()
         if not info or not info.name or info.name == _G.UNKNOWN then break end
         local name = info.name
         local friendName = _G["FriendsFrameFriendButton"..i.."ButtonTextName"]
-        local friendLoc = _G["FriendsFrameFriendButton"..i..FRIENDS_NAME_LOCATION]
+        local friendLoc = _G["FriendsFrameFriendButton"..i.."ButtonTextNameLocation"]
         local friendInfo = _G["FriendsFrameFriendButton"..i.."ButtonTextInfo"]
         local caption = friendName or friendLoc
 

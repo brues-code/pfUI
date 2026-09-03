@@ -17,7 +17,6 @@ API_Check.lua
 pfUI.lua
 
 init\env.xml
-init\compat.xml
 init\api.xml
 init\libs.xml
 init\skins.xml

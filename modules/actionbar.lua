@@ -1016,7 +1016,7 @@ pfUI:RegisterModule("actionbar", function ()
 
     local id = (bar-1)*12+button
     local exists = _G[button_name] and true or nil
-    local f = _G[button_name] or CreateFrame("Button", button_name, parent, ACTIONBAR_SECURE_TEMPLATE_BUTTON)
+    local f = _G[button_name] or CreateFrame("Button", button_name, parent)
 
     -- no button available, create a new one
     if not exists then
@@ -1042,7 +1042,7 @@ pfUI:RegisterModule("actionbar", function ()
       f.slot = id
 
       -- cooldown
-      f.cd = CreateFrame(COOLDOWN_FRAME_TYPE, f:GetName() .. "Cooldown", f, "CooldownFrameTemplate")
+      f.cd = CreateFrame("Model", f:GetName() .. "Cooldown", f, "CooldownFrameTemplate")
       f.cd.pfCooldownStyleAnimation = 1
       f.cd.pfCooldownType = "NOGCD"
       f.cd.pfCooldownSize = cd_size
@@ -1233,7 +1233,7 @@ pfUI:RegisterModule("actionbar", function ()
 
     -- create frame
     local init = not bars[i]
-    bars[i] = bars[i] or CreateFrame("Frame", "pfActionBar" .. barnames[i], UIParent, ACTIONBAR_SECURE_TEMPLATE_BAR)
+    bars[i] = bars[i] or CreateFrame("Frame", "pfActionBar" .. barnames[i], UIParent)
     bars[i]:SetID(i)
 
     -- autohide

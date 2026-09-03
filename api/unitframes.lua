@@ -767,7 +767,7 @@ function pfUI.uf:UpdateConfig()
       if not f.buffs[i].cd then
         if cooldown_anim == 1 then
           -- Animation enabled: Use Model frame with CooldownFrameTemplate
-          f.buffs[i].cd = CreateFrame(COOLDOWN_FRAME_TYPE, f.buffs[i]:GetName() .. "Cooldown", f.buffs[i], "CooldownFrameTemplate")
+          f.buffs[i].cd = CreateFrame("Model", f.buffs[i]:GetName() .. "Cooldown", f.buffs[i], "CooldownFrameTemplate")
         else
           -- Animation disabled: Use regular Frame with dummy functions
           f.buffs[i].cd = CreateFrame("Frame", f.buffs[i]:GetName() .. "Cooldown", f.buffs[i])
@@ -840,7 +840,7 @@ function pfUI.uf:UpdateConfig()
       if not f.debuffs[i].cd then
         if cooldown_anim == 1 then
           -- Animation enabled: Use Model frame with CooldownFrameTemplate
-          f.debuffs[i].cd = CreateFrame(COOLDOWN_FRAME_TYPE, f.debuffs[i]:GetName() .. "Cooldown", f.debuffs[i], "CooldownFrameTemplate")
+          f.debuffs[i].cd = CreateFrame("Model", f.debuffs[i]:GetName() .. "Cooldown", f.debuffs[i], "CooldownFrameTemplate")
         else
           -- Animation disabled: Use regular Frame with dummy functions
           f.debuffs[i].cd = CreateFrame("Frame", f.debuffs[i]:GetName() .. "Cooldown", f.debuffs[i])
@@ -2244,7 +2244,7 @@ function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
     -- Check if parent frame has cooldown animation enabled
     local parent_cooldown_anim = frame.config and tonumber(frame.config.cooldown_anim) or 1
     if parent_cooldown_anim == 1 then
-      frame.icon[pos].cd = CreateFrame(COOLDOWN_FRAME_TYPE, nil, frame.icon[pos])
+      frame.icon[pos].cd = CreateFrame("Model", nil, frame.icon[pos])
     else
       frame.icon[pos].cd = CreateFrame("Frame", nil, frame.icon[pos])
       frame.icon[pos].cd.AdvanceTime = DoNothing
