@@ -12,6 +12,33 @@ CLASS_ICON_TCOORDS = CLASS_ICON_TCOORDS or {
   ["GM"]          = {0.5, 0.73828125, 0.5, .75},
 }
 
+-- race icons live in Interface\Glues\CharacterCreate\UI-CharacterCreate-Races
+-- keyed by RACEKEY_GENDER (englishRace .. sex); mirrors the GlueXML table,
+-- which isn't loaded in-world. includes the Turtle-specific BloodElf/Goblin.
+RACE_ICON_TCOORDS = RACE_ICON_TCOORDS or {
+  ["HUMAN_MALE"]      = {0,     0.125, 0,    0.25},
+  ["DWARF_MALE"]      = {0.125, 0.25,  0,    0.25},
+  ["GNOME_MALE"]      = {0.25,  0.375, 0,    0.25},
+  ["NIGHTELF_MALE"]   = {0.375, 0.5,   0,    0.25},
+  ["TAUREN_MALE"]     = {0,     0.125, 0.25, 0.5},
+  ["SCOURGE_MALE"]    = {0.125, 0.25,  0.25, 0.5},
+  ["TROLL_MALE"]      = {0.25,  0.375, 0.25, 0.5},
+  ["ORC_MALE"]        = {0.375, 0.5,   0.25, 0.5},
+  ["BLOODELF_MALE"]   = {0.5,   0.625, 0.25, 0.5},
+  ["GOBLIN_MALE"]     = {0.5,   0.625, 0,    0.25},
+
+  ["HUMAN_FEMALE"]    = {0,     0.125, 0.5,  0.75},
+  ["DWARF_FEMALE"]    = {0.125, 0.25,  0.5,  0.75},
+  ["GNOME_FEMALE"]    = {0.25,  0.375, 0.5,  0.75},
+  ["NIGHTELF_FEMALE"] = {0.375, 0.5,   0.5,  0.75},
+  ["TAUREN_FEMALE"]   = {0,     0.125, 0.75, 1.0},
+  ["SCOURGE_FEMALE"]  = {0.125, 0.25,  0.75, 1.0},
+  ["TROLL_FEMALE"]    = {0.25,  0.375, 0.75, 1.0},
+  ["ORC_FEMALE"]      = {0.375, 0.5,   0.75, 1.0},
+  ["BLOODELF_FEMALE"] = {0.5,   0.625, 0.75, 1.0},
+  ["GOBLIN_FEMALE"]   = {0.5,   0.625, 0.5,  0.75},
+}
+
 -- barlength = {[formfactor]={cols, rows}}
 pfGridmath = {
   [1] = {{1,1}},
