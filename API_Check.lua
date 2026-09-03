@@ -13,7 +13,7 @@ do
   -- on. There pfUI does load, and will throw wherever it reaches for something
   -- the installed DLL doesn't have yet -- the popup names the cause so those
   -- errors aren't a mystery.
-  local PFUI_CLASSIC_API_MIN     = 11301  -- (X*10000 + Y*100 + Z)
+  local PFUI_CLASSIC_API_MIN     = 11303  -- (X*10000 + Y*100 + Z)
   local PFUI_CLASSIC_API_LATEST  = PFUI_CLASSIC_API_MIN
   local PFUI_CLASSIC_API_WEBSITE = "https://github.com/brues-code/ClassicAPI"
   local PFUI_CLASSIC_API_LATEST_URL = PFUI_CLASSIC_API_WEBSITE .. "/releases/latest"
