@@ -9,9 +9,8 @@
 ## X-Website: https://github.com/brues-code/pfUI
 
 # Selected by ClassicAPI on Turtle WoW, where it wins over pfUI_ClassicAPI.toc.
-# Same list, except it adds init\turtle.xml -- the modules and skins that only
-# have anything to bind to on a Turtle client -- and drops env\selldata.lua,
-# whose vendor prices modules\turtle-wow.lua supplies for this server instead.
+# Same list with init\stock.xml swapped for init\turtle.xml: the modules, skins
+# and vendor prices that only mean anything on a Turtle client.
 
 API_Check.lua
 

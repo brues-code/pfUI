@@ -1,11 +1,46 @@
--- Vendor-buy prices for the stock 1.12 item set. Pulled in by
--- pfUI_ClassicAPI.toc only: on Turtle, modules\turtle-wow.lua replaces
--- pfSellData wholesale with the server's own table.
+RACE_ICON_TCOORDS = RACE_ICON_TCOORDS or {
+	["HUMAN_MALE"]		= {0, 0.25, 0, 0.25},
+	["DWARF_MALE"]		= {0.25, 0.5, 0, 0.25},
+	["GNOME_MALE"]		= {0.5, 0.75, 0, 0.25},
+	["NIGHTELF_MALE"]	= {0.75, 1.0, 0, 0.25},
+
+	["TAUREN_MALE"]		= {0, 0.25, 0.25, 0.5},
+	["SCOURGE_MALE"]	= {0.25, 0.5, 0.25, 0.5},
+	["TROLL_MALE"]		= {0.5, 0.75, 0.25, 0.5},
+	["ORC_MALE"]		= {0.75, 1.0, 0.25, 0.5},
+
+	["HUMAN_FEMALE"]	= {0, 0.25, 0.5, 0.75},
+	["DWARF_FEMALE"]	= {0.25, 0.5, 0.5, 0.75},
+	["GNOME_FEMALE"]	= {0.5, 0.75, 0.5, 0.75},
+	["NIGHTELF_FEMALE"]	= {0.75, 1.0, 0.5, 0.75},
+
+	["TAUREN_FEMALE"]	= {0, 0.25, 0.75, 1.0},   
+	["SCOURGE_FEMALE"]	= {0.25, 0.5, 0.75, 1.0},
+	["TROLL_FEMALE"]	= {0.5, 0.75, 0.75, 1.0},
+	["ORC_FEMALE"]		= {0.75, 1.0, 0.75, 1.0},
+};
+
+CLASS_ICON_TCOORDS = CLASS_ICON_TCOORDS or {
+	["WARRIOR"]	= {0, 0.25, 0, 0.25},
+	["MAGE"]	= {0.25, 0.49609375, 0, 0.25},
+	["ROGUE"]	= {0.49609375, 0.7421875, 0, 0.25},
+	["DRUID"]	= {0.7421875, 0.98828125, 0, 0.25},
+	["HUNTER"]	= {0, 0.25, 0.25, 0.5},
+	["SHAMAN"]	= {0.25, 0.49609375, 0.25, 0.5},
+	["PRIEST"]	= {0.49609375, 0.7421875, 0.25, 0.5},
+	["WARLOCK"]	= {0.7421875, 0.98828125, 0.25, 0.5},
+	["PALADIN"]	= {0, 0.25, 0.5, 0.75}
+};
+
+-- Vendor-buy prices for the stock 1.12 item set. Pulled in by init\stock.xml,
+-- so pfUI_ClassicAPI.toc only: Turtle has its own list in
+-- env\tables_turtle.lua, loaded from init\turtle.xml instead.
 
 -- This table makes me sick.
 -- itemid = buyPrice (copper). Sell price comes from C_Item.GetItemSellPriceByID;
 -- this table only carries the curated vendor-buy price (which isn't a static
 -- engine field — it's collected from real vendor encounters).
+
 pfSellData = {
   [25]=35, [35]=47, [36]=38, [37]=38, [38]=1, [39]=5,
   [40]=4, [41]=2, [42]=2, [43]=4, [44]=4, [45]=1,

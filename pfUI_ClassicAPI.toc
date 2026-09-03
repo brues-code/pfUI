@@ -9,14 +9,14 @@
 ## X-Website: https://github.com/brues-code/pfUI
 
 # Selected by ClassicAPI on every non-Turtle client. Turtle clients get
-# pfUI_Turtle.toc instead, which trades env\selldata.lua for init\turtle.xml.
+# pfUI_Turtle.toc instead, which trades init\stock.xml for init\turtle.xml.
 
 API_Check.lua
 
 pfUI.lua
 
 init\env.xml
-env\selldata.lua
+init\stock.xml
 init\compat.xml
 init\api.xml
 init\libs.xml

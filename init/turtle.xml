@@ -2,6 +2,8 @@
   <!-- Turtle WoW only: pulled in by pfUI_Turtle.toc, which ClassicAPI selects
        when it detects a Turtle client. Everything in here targets frames that
        only a Turtle client ever creates. -->
+  <Include file="..\env\tables_turtle.lua"/>
+
   <Include file="..\skins\blizzard\lft.lua"/>
   <Include file="..\skins\blizzard\turtle_shop.lua"/>
   <Include file="..\skins\blizzard\barbershop.lua"/>
