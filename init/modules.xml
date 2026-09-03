@@ -72,7 +72,6 @@
   <Include file="..\modules\totems.lua"/>
   <Include file="..\modules\macrotweak.lua"/>
   <Include file="..\modules\macroicons.lua"/>
-  <Include file="..\modules\turtle-wow.lua"/>
   <Include file="..\modules\superwow.lua"/>
   <Include file="..\modules\innervatecall.lua"/>
   <Include file="..\modules\nampower.lua"/>

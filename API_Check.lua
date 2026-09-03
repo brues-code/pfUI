@@ -1,7 +1,18 @@
 do
-  -- ClassicAPI dependency check.
-  -- pfUI relies pervasively on the modern C_* / SuperWoW / nameplate / focus
-  -- API surface that ClassicAPI polyfills, so presence is required.
+  -- ClassicAPI dependency gate.
+  --
+  -- Which TOC the client opened already answers "is ClassicAPI here?". Whenever
+  -- the DLL is loaded it redirects the read of `pfUI\pfUI.toc` to
+  -- `pfUI_Turtle.toc` (Turtle clients) or `pfUI_ClassicAPI.toc` (everything
+  -- else). Reaching this file from the plain `pfUI.toc` therefore means
+  -- ClassicAPI is absent -- and that TOC deliberately loads nothing but this
+  -- file, so there is nothing to disable, only a notice to show.
+  --
+  -- The flavor TOCs still need a version gate of their own: the redirect has
+  -- existed since ClassicAPI v1.11.0, well below the API surface pfUI relies
+  -- on. There pfUI does load, and will throw wherever it reaches for something
+  -- the installed DLL doesn't have yet -- the popup names the cause so those
+  -- errors aren't a mystery.
   local PFUI_CLASSIC_API_MIN     = 11301  -- (X*10000 + Y*100 + Z)
   local PFUI_CLASSIC_API_LATEST  = PFUI_CLASSIC_API_MIN
   local PFUI_CLASSIC_API_WEBSITE = "https://github.com/brues-code/ClassicAPI"
@@ -12,57 +23,20 @@ do
     local z = math.mod(packed, 100)
     return string.format("v%d.%d.%d", x, y, z)
   end
-  if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
-    local minVersion = FormatVersion(PFUI_CLASSIC_API_MIN)
-    pfUI_disabled = true
-    pfUI_locale = {}
-    pfUI_profiles = {}
-    pfUI_translation = {}
 
-    -- ClassicAPI is required. Rather than let the ~140 files that follow flood
-    -- errors as they load, stand up an inert stub so everything no-ops:
-    --   * modules/skins register their body into a no-op, so it never runs;
-    --   * the setfenv'd api/lib files run inside `env`, where CreateFrame and
-    --     any missing global (C_*, SuperWoW, ...) resolve to a null object --
-    --     so no real frames or live OnUpdate/OnEvent handlers get created and
-    --     missing API calls just return null instead of erroring.
-    local null  -- forward declaration so the metamethods can return it
-    local nullmt = {
-      __index = function() return null end,
-      __newindex = function() end,
-      __call = function() return null end,
-      __concat = function() return "" end,
-      __tostring = function() return "" end,
-    }
-    for _, op in ipairs({ "__add","__sub","__mul","__div","__mod","__pow","__unm" }) do
-      nullmt[op] = function() return null end
-    end
-    for _, op in ipairs({ "__lt","__le","__eq" }) do nullmt[op] = function() return false end end
-    null = setmetatable({}, nullmt)
+  local headline, detail
+  if not CLASSIC_API_VERSION then
+    headline = "|cff33ffccpf|cffffffffUI|r has been disabled."
+    detail = "The ClassicAPI DLL isn't loaded. Download the latest release from:"
+  elseif CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
+    headline = "|cff33ffccpf|cffffffffUI|r cannot run on this ClassicAPI."
+    detail = "ClassicAPI " .. FormatVersion(PFUI_CLASSIC_API_MIN) .. " or newer is required -- any errors alongside this one are the APIs it is missing. Download the latest release from:"
+  end
 
-    local realG = getfenv(0)
-    pfUI = setmetatable({}, { __index = function() return null end })
-    pfUI.env = setmetatable({}, {
-      __index = function(_, k)
-        if k == "CreateFrame" then return function() return null end end
-        local v = realG[k]
-        if v ~= nil then return v end
-        return null
-      end,
-    })
-    function pfUI:RegisterModule(_, _, _) end
-    function pfUI:RegisterSkin(_, _, _) end
-    function pfUI:GetEnvironment() return pfUI.env end
-    local detail
-    if not CLASSIC_API_VERSION then
-      detail = "The ClassicAPI DLL isn't loaded. The |cff33ffcc!!!ClassicAPI|r addon ships bundled with it -- delete your |cff33ffcc!!!ClassicAPI|r folder and install the latest release from:"
-    else
-      detail = "ClassicAPI " .. minVersion .. " or newer is required. Delete your |cff33ffcc!!!ClassicAPI|r folder and reinstall the latest release from:"
-    end
-
+  if detail then
     local function ShowRequiredPopup()
       StaticPopupDialogs["PFUI_CLASSICAPI_REQUIRED"] = {
-        text = "|cff33ffccpf|cffffffffUI|r has been disabled.\n\n" .. detail,
+        text = headline .. "\n\n" .. detail,
         button1 = OKAY,
         hasEditBox = 1,
         editBoxWidth = 280,
@@ -81,7 +55,7 @@ do
       }
       StaticPopup_Show("PFUI_CLASSICAPI_REQUIRED")
       DEFAULT_CHAT_FRAME:AddMessage(
-        "|cff33ffccpf|cffffffffUI|r disabled: " .. detail .. " " .. PFUI_CLASSIC_API_LATEST_URL,
+        headline .. " " .. detail .. " " .. PFUI_CLASSIC_API_LATEST_URL,
         1, 0.3, 0.3
       )
     end

@@ -1,6 +1,4 @@
--- skip module initialization on every other client than turtle-wow
-if not TURTLE_WOW_VERSION then return end
-
+-- Turtle WoW only: loaded from init\turtle.xml, which only pfUI_Turtle.toc pulls in.
 pfUI:RegisterModule("turtle-wow", function ()
   -- Manage Turtle WoW's GroupUI (Turtle_GroupUI addon) vs pfUI frames.
   --
