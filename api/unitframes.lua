@@ -10,6 +10,11 @@ pfUI.uf.frames = {}
 -- Scans run back to back and consume the buffer before the next refill.
 local auraSlots = {}
 
+-- Separate buffer for the tooltip handlers. They run from OnEnter, which can
+-- fire while RefreshUnit is showing/hiding icons under the cursor, so they must
+-- not share the refresh buffer.
+local tooltipSlots = {}
+
 -- ============================================================================
 -- GUID-based Roster Tracking for Smart Updates
 -- Only updates frames where the unit actually changed, not ALL 40 frames
@@ -94,16 +99,21 @@ local function DebuffOnEnter()
     local parent = this:GetParent()
 
     -- selfdebuff filters the displayed list to player-cast harmful auras, but
-    -- SetUnitAura's index has to be into the engine's full HARMFUL list. Look
-    -- up the displayed aura via the PLAYER filter, then scan engine slots for
-    -- one whose name + sourceGUID match.
+    -- SetUnitAura's index has to be into the unfiltered HARMFUL list. Look up
+    -- the displayed aura via the PLAYER filter, then find its position in the
+    -- unfiltered list by name + sourceGUID.
+    --
+    -- The unfiltered list is NOT capped at 16: once a unit's 16 debuff slots
+    -- are full the server parks further debuffs in buff slots, and C_UnitAuras
+    -- reports those as harmful too. So enumerate however many the unit has.
     if parent.config and parent.config.selfdebuff == "1" then
       local ownAura = C_UnitAuras.GetAuraDataByIndex(unitstr, this.id, "HARMFUL|PLAYER")
       if ownAura then
-        for gameSlot = 1, 16 do
-          local check = C_UnitAuras.GetDebuffDataByIndex(unitstr, gameSlot)
+        local n = ScanAuraSlots(unitstr, "HARMFUL", tooltipSlots)
+        for i = 1, n do
+          local check = C_UnitAuras.GetAuraDataBySlot(unitstr, tooltipSlots[i])
           if check and check.name == ownAura.name and check.sourceGUID == ownAura.sourceGUID then
-            GameTooltip:SetUnitAura(unitstr, gameSlot, "HARMFUL")
+            GameTooltip:SetUnitAura(unitstr, i, "HARMFUL")
             return
           end
         end

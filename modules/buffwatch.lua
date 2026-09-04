@@ -76,6 +76,10 @@ pfUI:RegisterModule("buffwatch", function ()
   -- reusable GetAuraSlots buffer, filled once per RefreshBuffBarFrame
   local auraSlots = {}
 
+  -- Separate buffer for the tooltip handler: OnEnter can fire while a refresh
+  -- is showing/hiding bars under the cursor, so it must not share the above.
+  local tooltipSlots = {}
+
   -- Reads one aura by the slot id GetAuraSlots returned (nil slot -> nil).
   local function GetBuffData(unit, slot)
     local name, icon, count, dispelType, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unit, slot)
@@ -116,17 +120,22 @@ pfUI:RegisterModule("buffwatch", function ()
       GameTooltip:SetUnitAura("player", this.id, this.type)
     elseif this.type == "HARMFUL" then
       -- selfdebuff filters the displayed list to player-cast harmful auras, but
-      -- SetUnitAura's index has to be into the engine's full HARMFUL list. Look
-      -- up the displayed aura via the PLAYER filter, then scan engine slots for
-      -- one whose name + sourceGUID match.
+      -- SetUnitAura's index has to be into the unfiltered HARMFUL list. Look up
+      -- the displayed aura via the PLAYER filter, then find its position in the
+      -- unfiltered list by name + sourceGUID.
+      --
+      -- The unfiltered list is NOT capped at 16: once a unit's 16 debuff slots
+      -- are full the server parks further debuffs in buff slots, and
+      -- C_UnitAuras reports those as harmful too. So enumerate what it has.
       local config = this.parent and this.parent.config
       if config and config.selfdebuff == "1" then
         local ownAura = C_UnitAuras.GetAuraDataByIndex(this.unit, this.id, "HARMFUL|PLAYER")
         if ownAura then
-          for gameSlot = 1, 16 do
-            local check = C_UnitAuras.GetDebuffDataByIndex(this.unit, gameSlot)
+          local n = ScanAuraSlots(this.unit, "HARMFUL", tooltipSlots)
+          for i = 1, n do
+            local check = C_UnitAuras.GetAuraDataBySlot(this.unit, tooltipSlots[i])
             if check and check.name == ownAura.name and check.sourceGUID == ownAura.sourceGUID then
-              GameTooltip:SetUnitAura(this.unit, gameSlot, "HARMFUL")
+              GameTooltip:SetUnitAura(this.unit, i, "HARMFUL")
               break
             end
           end
