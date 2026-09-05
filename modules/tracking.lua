@@ -1,7 +1,7 @@
 pfUI:RegisterModule("tracking", function ()
 
-  MINIMAP_TRACKING_FRAME:UnregisterAllEvents()
-  MINIMAP_TRACKING_FRAME:Hide()
+  _G.MiniMapTrackingFrame:UnregisterAllEvents()
+  _G.MiniMapTrackingFrame:Hide()
 
   local rawborder, border = GetBorderSize()
   local size = tonumber(C.appearance.minimap.tracking_size)

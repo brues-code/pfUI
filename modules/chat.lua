@@ -827,7 +827,7 @@ pfUI:RegisterModule("chat", function ()
         local real, _ = strsplit(":", name)
         local color = unknowncolorhex
         local match = false
-        local _, class = C_PlayerCache.GetPlayerInfoByName(real)
+        local _, class, _, raceKey, sex = C_PlayerCache.GetPlayerInfoByName(real)
         -- local guid = GetCurrentChatGUID()
         -- if guid then
         --   _, class = GetPlayerInfoByGUID(guid)
@@ -845,8 +845,12 @@ pfUI:RegisterModule("chat", function ()
         end
 
         if C.chat.text.tintunknown == "1" or match then
+          local icon = ""
+          if match and C.chat.text.playericons == "1" then
+            icon = GetFactionIcon(raceKey) .. GetRaceIcon(raceKey, sex)
+          end
           text = string.gsub(text, "|Hplayer:"..name.."|h%["..real.."%]|h(.-:-)",
-            left..color.."|Hplayer:"..name.."|h" .. color .. real .. "|h|r"..right.."%1")
+            left..icon..color.."|Hplayer:"..name.."|h" .. color .. real .. "|h|r"..right.."%1")
         end
       end
     end

@@ -204,6 +204,26 @@ function pfUI.api.UnitHasBuff(unit, name)
   return C_UnitAuras.GetAuraDataBySpellName(unit, name, "HELPFUL") ~= nil or nil
 end
 
+-- [ ScanAuraSlots ]
+-- Fills `buf` with the slot ids of the auras on `unit` that match `filter` and
+-- returns how many (buf[1..n]; entries past n are cleared), so a module can
+-- keep one buffer and refill it every refresh. Read each aura with
+-- C_UnitAuras.UnitAuraBySlot(unit, buf[i]) (positional, no table) or
+-- GetAuraDataBySlot. One enumeration walks the aura array once, where a
+-- by-index loop (UnitAura(unit, i)) re-walks it from the start for every i.
+-- Uses GetAuraSlots' fill-a-table form (table as the 5th argument) instead of
+-- its vararg return: Lua 5.0 builds an `arg` table for every vararg call, so
+-- collecting the returns in a Lua helper would allocate once per scan.
+-- unit         [string]        unit token
+-- filter       [string]        aura filter ("HELPFUL", "HARMFUL|PLAYER", ...)
+-- buf          [table]         reusable buffer, filled in place
+-- max          [number]        optional cap on the slot count (nil = all)
+-- return:      [number]        count of slot ids written to buf
+function pfUI.api.ScanAuraSlots(unit, filter, buf, max)
+  local _, n = C_UnitAuras.GetAuraSlots(unit, filter, max, nil, buf)
+  return n
+end
+
 -- [ IsPlayerGuid ]
 -- Returns whether a GUID or unit token refers to the local player.
 -- guid         [string]        A unit GUID (or unitID) to test.
@@ -240,6 +260,45 @@ function pfUI.api.GetUnitColor(unitstr)
   local class = UnitClassBase(unitstr)
   local classColor = PFUI_CLASS_COLORS[class]
   return classColor:GenerateHexColorMarkup(), classColor:GetRGB()
+end
+
+-- [ GetRaceIcon ]
+-- Builds an inline race icon texture from the shared races atlas.
+-- 'raceKey'    [string]        englishRace key (e.g. "NightElf")
+-- 'sex'        [int]           unit sex (3 = female)
+-- return:      [string]        inline texture escape, or an empty string
+function pfUI.api.GetRaceIcon(raceKey, sex)
+  if not raceKey then return "" end
+  local gender = sex == 3 and "FEMALE" or "MALE"
+  local coords = RACE_ICON_TCOORDS[strupper(raceKey) .. "_" .. gender]
+  if not coords then return "" end
+  return string.format(
+    "|TInterface\\Glues\\CharacterCreate\\UI-CharacterCreate-Races:0:0:0:0:512:512:%d:%d:%d:%d|t",
+    coords[1] * 512, coords[2] * 512, coords[3] * 512, coords[4] * 512)
+end
+
+-- inline faction emblems (cropped from the target-frame PvP banners)
+local FACTION_ICON = {
+  Alliance = "|TInterface\\TargetingFrame\\UI-PVP-Alliance:0:0:0:0:64:64:5:37:3:35|t",
+  Horde    = "|TInterface\\TargetingFrame\\UI-PVP-Horde:0:0:0:0:64:64:5:37:3:35|t",
+}
+
+-- [ GetFactionIcon ]
+-- Resolves an inline faction emblem from the englishRace key stored in L["race"].
+-- 'raceKey'    [string]        englishRace key (e.g. "Orc")
+-- return:      [string]        inline texture escape, or an empty string
+function pfUI.api.GetFactionIcon(raceKey)
+  local info = raceKey and L["race"][raceKey]
+  if not info then return "" end
+  return FACTION_ICON[info.faction] or ""
+end
+
+-- [ GetPlayerRaceIcons ]
+-- Returns the faction and race emblems of the player character.
+-- return:      [string]        both inline textures, or an empty string
+function pfUI.api.GetPlayerRaceIcons()
+  local _, raceKey = UnitRace("player")
+  return pfUI.api.GetFactionIcon(raceKey) .. pfUI.api.GetRaceIcon(raceKey, UnitSex("player"))
 end
 
 -- [ strvertical ]

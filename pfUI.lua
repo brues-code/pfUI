@@ -3,6 +3,8 @@ function SlashCmdList.RELOAD(msg, editbox)
   ReloadUI()
 end
 
+local addonName = ...
+
 SLASH_PFUI1 = '/pfui'
 function SlashCmdList.PFUI(msg, editbox)
   pfUI.gui:SetShown(not pfUI.gui:IsShown())
@@ -13,78 +15,11 @@ function SlashCmdList.GM(msg, editbox)
   ToggleHelpFrame(1)
 end
 
-pfUI = CreateFrame("Frame", nil, UIParent)
+local pfUI = CreateFrame("Frame", addonName, UIParent)
 pfUI:RegisterEvent("ADDON_LOADED")
 
 -- setup bootvar
 pfUI.bootup = true
-
-do
-  -- ClassicAPI dependency check.
-  -- pfUI relies pervasively on the modern C_* / SuperWoW / nameplate / focus
-  -- API surface that ClassicAPI polyfills, so presence is required.
-  local PFUI_CLASSIC_API_MIN     = 11204  -- (X*10000 + Y*100 + Z)
-  local PFUI_CLASSIC_API_LATEST  = PFUI_CLASSIC_API_MIN
-  local PFUI_CLASSIC_API_WEBSITE = "https://github.com/brues-code/ClassicAPI"
-  local PFUI_CLASSIC_API_LATEST_URL = PFUI_CLASSIC_API_WEBSITE .. "/releases/latest"
-  local function FormatVersion(packed)
-    local x = math.floor(packed / 10000)
-    local y = math.floor(math.mod(packed, 10000) / 100)
-    local z = math.mod(packed, 100)
-    return string.format("v%d.%d.%d", x, y, z)
-  end
-  if not CLASSIC_API_VERSION or CLASSIC_API_VERSION < PFUI_CLASSIC_API_MIN then
-    local minVersion = FormatVersion(PFUI_CLASSIC_API_MIN)
-    pfUI.disabled = true
-    local detail
-    if not CLASSIC_API_VERSION then
-      detail = "The ClassicAPI DLL isn't loaded. The |cff33ffcc!!!ClassicAPI|r addon ships bundled with it -- delete your |cff33ffcc!!!ClassicAPI|r folder and install the latest release from:"
-    else
-      detail = "ClassicAPI " .. minVersion .. " or newer is required. Delete your |cff33ffcc!!!ClassicAPI|r folder and reinstall the latest release from:"
-    end
-
-    local function ShowRequiredPopup()
-      StaticPopupDialogs["PFUI_CLASSICAPI_REQUIRED"] = {
-        text = "|cff33ffccpf|cffffffffUI|r has been disabled.\n\n" .. detail,
-        button1 = OKAY,
-        hasEditBox = 1,
-        editBoxWidth = 280,
-        timeout = 0,
-        whileDead = 1,
-        hideOnEscape = 1,
-        preferredIndex = 3,
-        OnShow = function()
-          local editBox = getglobal(this:GetName().."EditBox")
-          if editBox then
-            editBox:SetText(PFUI_CLASSIC_API_LATEST_URL)
-            editBox:HighlightText()
-            editBox:SetFocus()
-          end
-        end,
-      }
-      StaticPopup_Show("PFUI_CLASSICAPI_REQUIRED")
-      DEFAULT_CHAT_FRAME:AddMessage(
-        "|cff33ffccpf|cffffffffUI|r disabled: " .. detail .. " " .. PFUI_CLASSIC_API_LATEST_URL,
-        1, 0.3, 0.3
-      )
-    end
-    local loginFrame = CreateFrame("Frame")
-    loginFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    loginFrame:SetScript("OnEvent", function()
-      loginFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
-      ShowRequiredPopup()
-    end)
-  elseif CLASSIC_API_VERSION < PFUI_CLASSIC_API_LATEST then
-    EventUtil.ContinueOnPlayerLogin(function()
-      C_Timer.After(8, function()
-        DEFAULT_CHAT_FRAME:AddMessage(
-          "|cff33ffccpf|rUI: ClassicAPI " .. FormatVersion(PFUI_CLASSIC_API_LATEST) .. " is available — " .. PFUI_CLASSIC_API_LATEST_URL,
-          1, 0.85, 0.3
-        )
-      end)
-    end)
-  end
-end
 
 pfUI_playerDB = pfUI_playerDB or {}
 pfUI_config = pfUI_config or {}
@@ -117,35 +52,24 @@ pfUI.env = {}
 -- the flag; one that lacks it should drop the flag and get the safe fallback.
 pfUI.handlesHookScript = true
 
-if not pfUI.disabled then
-  pfUI.events = Mixin({}, CallbackRegistryMixin)
-  pfUI.events:OnLoad()
-  pfUI.events:SetUndefinedEventsAllowed(true)
-end
+pfUI.events = Mixin({}, CallbackRegistryMixin)
+pfUI.events:OnLoad()
+pfUI.events:SetUndefinedEventsAllowed(true)
 
 -- check if macro addons are loaded (disables macrotweak/macroscan)
 function pfUI:MacroAddonsLoaded()
   return IsAddOnLoaded("Supermacro") or IsAddOnLoaded("SuperCleveRoidMacros") or IsAddOnLoaded("UltimaMacros")
 end
 
--- detect current addon path
-local tocs = { "", "-master", "-tbc", "-wotlk" }
-for _, name in pairs(tocs) do
-  local current = string.format("pfUI%s", name)
-  local title = C_AddOns.GetAddOnName(current)
-  if title then
-    pfUI.name = current
-    pfUI.path = "Interface\\AddOns\\" .. current
-    break
-  end
-end
+pfUI.name = addonName
+pfUI.path = "Interface\\AddOns\\" .. addonName
 
 -- handle/convert media dir paths
 pfUI.media = setmetatable({}, { __index = function(tab,key)
   local value = tostring(key)
-  if strfind(value, "img:") then
+  if value:find("img:") then
     value = string.gsub(value, "img:", pfUI.path .. "\\img\\")
-  elseif strfind(value, "font:") then
+  elseif value:find("font:") then
     value = string.gsub(value, "font:", pfUI.path .. "\\fonts\\")
   else
     value = string.gsub(value, "Interface\\AddOns\\pfUI\\", pfUI.path .. "\\")
@@ -154,9 +78,7 @@ pfUI.media = setmetatable({}, { __index = function(tab,key)
   return value
 end})
 
--- cache client version
-local _, _, _, client = GetBuildInfo()
-pfUI.client = client or 11200
+pfUI.client = INTERFACE_VERSION
 
 -- setup pfUI namespace
 setmetatable(pfUI.env, {__index = getfenv(0)})
@@ -390,14 +312,13 @@ function pfUI:CheckNewModules()
 end
 
 local function BackwardsCompatRegister(func, arg3)
-  if arg3 and type(func) == "string" and type(arg3) == "function" and string.find(func, "vanilla") then
+  if arg3 and type(func) == "string" and type(arg3) == "function" and func:find("vanilla") then
     return arg3
   end
   return func
 end
 
 function pfUI:RegisterModule(name, func, arg3)
-  if pfUI.disabled then return end
   if pfUI.module[name] then return end
   func = BackwardsCompatRegister(func, arg3)
   pfUI.module[name] = func
@@ -408,7 +329,6 @@ function pfUI:RegisterModule(name, func, arg3)
 end
 
 function pfUI:RegisterSkin(name, func, arg3)
-  if pfUI.disabled then return end
   if pfUI.skin[name] then return end
   func = BackwardsCompatRegister(func, arg3)
   pfUI.skin[name] = func
@@ -429,7 +349,6 @@ function pfUI:LoadSkin(s)
 end
 
 pfUI:SetScript("OnEvent", function()
-  if pfUI.disabled then return end
 
   -- make sure to initialize and set our fonts
   -- each time an addon got loaded but only
@@ -443,7 +362,7 @@ pfUI:SetScript("OnEvent", function()
     -- "@project-version@" until release tooling substitutes it — mark those
     -- explicitly as "dev" instead of pretending they're a real numbered build.
     local raw = tostring(GetAddOnMetadata(pfUI.name, "Version"))
-    if strfind(raw, "@") then
+    if raw:find("@") then
       pfUI.version.major, pfUI.version.minor, pfUI.version.fix = 0, 0, 0
       pfUI.version.string = "dev"
     else
@@ -576,4 +495,19 @@ function pfUI.SetupCVars()
     COMBAT_TEXT_SHOW_HONOR_GAINED = "1"
   end
   UIParentLoadAddOn("Blizzard_CombatText")
+end
+
+do -- RunMacroText
+  local obj = setmetatable({ ["GetText"] = function(self) return self.text end }, {
+    __index = function(tab,key)
+      local value = function() return end
+      rawset(tab,key,value)
+      return value
+    end
+  })
+
+  function RunMacroText(text)
+    obj.text = text
+    ChatEdit_ParseText(obj, 1)
+  end
 end

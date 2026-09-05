@@ -457,7 +457,7 @@ pfUI:RegisterModule("panel", function()
 
     do -- Zone
       local widget = CreateFrame("Frame", "pfPanelWidgetZone", UIParent)
-      for _,event in pairs(EVENTS_MINIMAP_ZONE_UPDATE) do
+      for _,event in pairs({"PLAYER_ENTERING_WORLD", "MINIMAP_ZONE_CHANGED"}) do
         widget:RegisterEvent(event)
       end
       widget.Tooltip = function()
@@ -777,9 +777,15 @@ pfUI:RegisterModule("panel", function()
     pfUI.panel.microbutton:SetSize(145, 23)
     pfUI.panel.microbutton:SetFrameStrata("MEDIUM")
 
-    for i=1,table.getn(MICRO_BUTTONS) do
-      local anchor = _G[MICRO_BUTTONS[i-1]] or pfUI.panel.microbutton
-      local button = _G[MICRO_BUTTONS[i]]
+    local microButtons = {
+      'CharacterMicroButton', 'SpellbookMicroButton', 'TalentMicroButton',
+      'QuestLogMicroButton', 'SocialsMicroButton', 'WorldMapMicroButton',
+      'MainMenuMicroButton', 'HelpMicroButton',
+    }
+
+    for i=1,table.getn(microButtons) do
+      local anchor = _G[microButtons[i-1]] or pfUI.panel.microbutton
+      local button = _G[microButtons[i]]
       button:ClearAllPoints()
       button:SetParent(pfUI.panel.microbutton)
       if i == 1 then

@@ -4,6 +4,17 @@ setfenv(1, pfUI:GetEnvironment())
 pfUI.uf = CreateFrame("Frame", nil, UIParent)
 pfUI.uf.frames = {}
 
+-- Reusable buffer for C_UnitAuras.GetAuraSlots slot ids (filled by
+-- ScanAuraSlots, api.lua). Each aura scan in RefreshUnit fills it once, then
+-- reads every aura by slot id: one array walk per scan instead of one per index.
+-- Scans run back to back and consume the buffer before the next refill.
+local auraSlots = {}
+
+-- Separate buffer for the tooltip handlers. They run from OnEnter, which can
+-- fire while RefreshUnit is showing/hiding icons under the cursor, so they must
+-- not share the refresh buffer.
+local tooltipSlots = {}
+
 -- ============================================================================
 -- GUID-based Roster Tracking for Smart Updates
 -- Only updates frames where the unit actually changed, not ALL 40 frames
@@ -88,16 +99,21 @@ local function DebuffOnEnter()
     local parent = this:GetParent()
 
     -- selfdebuff filters the displayed list to player-cast harmful auras, but
-    -- SetUnitAura's index has to be into the engine's full HARMFUL list. Look
-    -- up the displayed aura via the PLAYER filter, then scan engine slots for
-    -- one whose name + sourceGUID match.
+    -- SetUnitAura's index has to be into the unfiltered HARMFUL list. Look up
+    -- the displayed aura via the PLAYER filter, then find its position in the
+    -- unfiltered list by name + sourceGUID.
+    --
+    -- The unfiltered list is NOT capped at 16: once a unit's 16 debuff slots
+    -- are full the server parks further debuffs in buff slots, and C_UnitAuras
+    -- reports those as harmful too. So enumerate however many the unit has.
     if parent.config and parent.config.selfdebuff == "1" then
       local ownAura = C_UnitAuras.GetAuraDataByIndex(unitstr, this.id, "HARMFUL|PLAYER")
       if ownAura then
-        for gameSlot = 1, 16 do
-          local check = C_UnitAuras.GetDebuffDataByIndex(unitstr, gameSlot)
+        local n = ScanAuraSlots(unitstr, "HARMFUL", tooltipSlots)
+        for i = 1, n do
+          local check = C_UnitAuras.GetAuraDataBySlot(unitstr, tooltipSlots[i])
           if check and check.name == ownAura.name and check.sourceGUID == ownAura.sourceGUID then
-            GameTooltip:SetUnitAura(unitstr, gameSlot, "HARMFUL")
+            GameTooltip:SetUnitAura(unitstr, i, "HARMFUL")
             return
           end
         end
@@ -761,7 +777,7 @@ function pfUI.uf:UpdateConfig()
       if not f.buffs[i].cd then
         if cooldown_anim == 1 then
           -- Animation enabled: Use Model frame with CooldownFrameTemplate
-          f.buffs[i].cd = CreateFrame(COOLDOWN_FRAME_TYPE, f.buffs[i]:GetName() .. "Cooldown", f.buffs[i], "CooldownFrameTemplate")
+          f.buffs[i].cd = CreateFrame("Model", f.buffs[i]:GetName() .. "Cooldown", f.buffs[i], "CooldownFrameTemplate")
         else
           -- Animation disabled: Use regular Frame with dummy functions
           f.buffs[i].cd = CreateFrame("Frame", f.buffs[i]:GetName() .. "Cooldown", f.buffs[i])
@@ -834,7 +850,7 @@ function pfUI.uf:UpdateConfig()
       if not f.debuffs[i].cd then
         if cooldown_anim == 1 then
           -- Animation enabled: Use Model frame with CooldownFrameTemplate
-          f.debuffs[i].cd = CreateFrame(COOLDOWN_FRAME_TYPE, f.debuffs[i]:GetName() .. "Cooldown", f.debuffs[i], "CooldownFrameTemplate")
+          f.debuffs[i].cd = CreateFrame("Model", f.debuffs[i]:GetName() .. "Cooldown", f.debuffs[i], "CooldownFrameTemplate")
         else
           -- Animation disabled: Use regular Frame with dummy functions
           f.debuffs[i].cd = CreateFrame("Frame", f.debuffs[i]:GetName() .. "Cooldown", f.debuffs[i])
@@ -1635,11 +1651,13 @@ function pfUI.uf:RefreshUnit(unit, component)
 
   -- buffs
   if unit.buffs and ( component == "all" or component == "aura" ) then
+    -- one GetAuraSlots enumeration per refresh, then a positional read per
+    -- slot id: allocates nothing and never re-walks the aura array per icon
+    ScanAuraSlots(unitstr, "HELPFUL", auraSlots, unit.config.bufflimit)
     for i=1, unit.config.bufflimit do
       if not unit.buffs[i] then break end
 
-      -- positional UnitBuff allocates nothing (vs a table per icon per refresh)
-      local name, icon, count, _, duration, expirationTime, _, _, _, spellId = C_UnitAuras.UnitBuff(unitstr, i)
+      local name, icon, count, _, duration, expirationTime, _, _, _, spellId = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
 
       if name then
         unit.buffs[i].texture:SetTexture(icon)
@@ -1723,6 +1741,13 @@ function pfUI.uf:RefreshUnit(unit, component)
       reposition = true
     end
 
+    -- selfdebuff narrows to player-cast harmful auras via the PLAYER filter.
+    -- Player-frame debuffs aren't gated on it (it'd hide most party-applied
+    -- effects on you). One GetAuraSlots enumeration per refresh; the i-th slot
+    -- is the i-th aura of the filtered list, so `i` stays the tooltip index.
+    local filter = (unit.label ~= "player" and selfdebuff == "1") and "HARMFUL|PLAYER" or "HARMFUL"
+    ScanAuraSlots(unitstr, filter, auraSlots, unit.config.debufflimit)
+
     for i=1, unit.config.debufflimit do
       if not unit.debuffs[i] then break end
 
@@ -1739,12 +1764,8 @@ function pfUI.uf:RefreshUnit(unit, component)
         invert_h * ((row+buffrow)*(multiply*default_border + unit.config.debuffsize + 1) + (multiply*default_border + 1)))
       end
 
-      -- selfdebuff narrows to player-cast harmful auras via the PLAYER filter.
-      -- Player-frame debuffs aren't gated on it (it'd hide most party-applied
-      -- effects on you).
-      -- positional UnitDebuff allocates nothing; PLAYER predicate honored for selfdebuff
-      local filter = (unit.label ~= "player" and selfdebuff == "1") and "PLAYER" or nil
-      local name, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitDebuff(unitstr, i, filter)
+      -- positional read by slot id allocates nothing
+      local name, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
       if name then
         texture, stacks, dtype = icon, count, dispelType
       else
@@ -1834,8 +1855,9 @@ function pfUI.uf:RefreshUnit(unit, component)
       local present = pfUI.uf.dispelPresent or {}
       pfUI.uf.dispelPresent = present
       for k in pairs(present) do present[k] = nil end
-      for i=1,16 do
-        local name, _, _, dispelType = C_UnitAuras.UnitDebuff(unitstr, i)
+      local n = ScanAuraSlots(unitstr, "HARMFUL", auraSlots)
+      for i=1,n do
+        local name, _, _, dispelType = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if name and dispelType and dispelType ~= "" then present[dispelType] = true end
       end
 
@@ -1925,9 +1947,9 @@ function pfUI.uf:RefreshUnit(unit, component)
 
     local pos = 1
     if table.getn(unit.indicators) > 0 then
-      local i = 1
-      while true do
-        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitBuff(unitstr, i)
+      local n = ScanAuraSlots(unitstr, "HELPFUL", auraSlots)
+      for i=1,n do
+        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if not name then break end
         local texLower = string.lower(icon)
         local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
@@ -1948,14 +1970,13 @@ function pfUI.uf:RefreshUnit(unit, component)
             break
           end
         end
-        i = i + 1
       end
     end
 
     if table.getn(unit.indicator_custom) > 0 then
-      local ai = 1
-      while true do
-        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitBuff(unitstr, ai)
+      local n = ScanAuraSlots(unitstr, "HELPFUL", auraSlots)
+      for i=1,n do
+        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if not name then break end
         local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
         local lowerName = string.lower(name)
@@ -1966,12 +1987,12 @@ function pfUI.uf:RefreshUnit(unit, component)
             break
           end
         end
-        ai = ai + 1
       end
 
-      local debuffFilter = unit.config.selfdebuff == "1" and "PLAYER" or nil
-      for i=1,16 do -- scan for custom debuffs
-        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitDebuff(unitstr, i, debuffFilter)
+      local debuffFilter = unit.config.selfdebuff == "1" and "HARMFUL|PLAYER" or "HARMFUL"
+      n = ScanAuraSlots(unitstr, debuffFilter, auraSlots)
+      for i=1,n do -- scan for custom debuffs
+        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if name then
           local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
           for _, filter in pairs(unit.indicator_custom) do
@@ -2233,7 +2254,7 @@ function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
     -- Check if parent frame has cooldown animation enabled
     local parent_cooldown_anim = frame.config and tonumber(frame.config.cooldown_anim) or 1
     if parent_cooldown_anim == 1 then
-      frame.icon[pos].cd = CreateFrame(COOLDOWN_FRAME_TYPE, nil, frame.icon[pos])
+      frame.icon[pos].cd = CreateFrame("Model", nil, frame.icon[pos])
     else
       frame.icon[pos].cd = CreateFrame("Frame", nil, frame.icon[pos])
       frame.icon[pos].cd.AdvanceTime = DoNothing

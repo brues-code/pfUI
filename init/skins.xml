@@ -35,12 +35,6 @@
   <Include file="..\skins\blizzard\tooltips.lua"/>
   <Include file="..\skins\blizzard\tabard.lua"/>
   <Include file="..\skins\blizzard\itemtext.lua"/>
-  <Include file="..\skins\blizzard\lft.lua"/>
-  <Include file="..\skins\blizzard\turtle_shop.lua"/>
 
-  <!-- Turtle WoW -->
-  <Include file="..\skins\blizzard\barbershop.lua"/>
-  <Include file="..\skins\blizzard\transmog.lua"/>
-  <Include file="..\skins\blizzard\ebc.lua"/>
-
+  <!-- Turtle WoW skins live in init\turtle.xml (pfUI_Turtle.toc only). -->
 </Ui>

@@ -116,6 +116,7 @@ pfUI:RegisterModule("nameplates", function ()
   -- Reusable per-plate debuff display buffer (avoid GC churn from per-call table creation)
   local debuffDisplayBuf = {}  -- [i] = { effect, texture, stacks, dtype, duration, timeleft }
   for i = 1, 16 do debuffDisplayBuf[i] = {} end
+  local auraSlots = {}  -- reusable GetAuraSlots buffer for the per-plate aura scan
   local threatMemory = {}   -- guid -> true if mob had player targeted
   -- local debuffSeen = {}     -- reusable table for debuff tracking (avoid GC churn)
 
@@ -296,18 +297,23 @@ pfUI:RegisterModule("nameplates", function ()
     return plate.creatureType
   end
 
-  -- Totem icon, read straight from the game:
-  --   * Passive totems self-cast their provided buff, so they carry exactly one
-  --     aura whose icon IS the totem's icon (Totem::Summon TOTEM_PASSIVE).
-  --   * Active totems (Searing/Magma/Fire Nova) cast at enemies and hold no
-  --     self-aura, so their icon arrives via UNIT_SPELLCAST_SUCCEEDED (cached
-  --     into plate.totemIcon by the event handler); nil here until then.
+  -- Totem icon: UnitCreatedBySpell returns the totem-drop spell, whose icon IS
+  -- the totem's icon. It's a broadcast descriptor field the client has for every
+  -- summoned unit in range, so it resolves immediately for passive and active
+  -- totems alike -- no self-aura read or attack-cast capture needed.
+  --
+  -- Re-read the spell every call rather than caching the icon outright: a shaman
+  -- can swap the totem in place (same unit, new drop spell) with no plate re-add
+  -- to invalidate a cache, so key the cached texture on the spell id and refresh
+  -- it only when the spell changes.
   local function TotemPlate(plate)
     if C.nameplates.totemicons ~= "1" then return nil end
     if CreatureType(plate) ~= 11 then return nil end
-    if plate.totemIcon then return plate.totemIcon end
-    local aura = C_UnitAuras.GetBuffDataByIndex(plate.cachedGuid, 1)
-    if aura then plate.totemIcon = aura.icon end
+    local spellId = UnitCreatedBySpell(plate.cachedGuid)
+    if spellId ~= plate.totemSpell then
+      plate.totemSpell = spellId
+      plate.totemIcon = spellId and C_Spell.GetSpellTexture(spellId) or nil
+    end
     return plate.totemIcon
   end
 
@@ -427,7 +433,7 @@ pfUI:RegisterModule("nameplates", function ()
       plate.debuffs[index].cd.SetSequenceTime = DoNothing
     else
       -- Use CooldownFrameTemplate for animation
-      plate.debuffs[index].cd = CreateFrame(COOLDOWN_FRAME_TYPE, plate.platename.."Debuff"..index.."Cooldown", plate.debuffs[index], "CooldownFrameTemplate")
+      plate.debuffs[index].cd = CreateFrame("Model", plate.platename.."Debuff"..index.."Cooldown", plate.debuffs[index], "CooldownFrameTemplate")
       plate.debuffs[index].cd:SetAllPoints(plate.debuffs[index])
       plate.debuffs[index].cd:SetFrameLevel(6)
     end
@@ -499,7 +505,6 @@ nameplates:RegisterEvent("UNIT_SPELLCAST_START")
 nameplates:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 nameplates:RegisterEvent("UNIT_SPELLCAST_STOP")
 nameplates:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
-nameplates:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
   
   nameplates:SetScript("OnEvent", function()
@@ -588,6 +593,7 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
         plate.nameplate.unit = arg1
         plate.nameplate.creatureType = nil  -- recompute for the new unit
         plate.nameplate.totemIcon = nil
+        plate.nameplate.totemSpell = nil
         if guid then
           plateByGuid[guid] = plate.nameplate
           -- Seed: the unit may already be mid-cast (its UNIT_SPELLCAST_START
@@ -662,22 +668,6 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
           castState[guid] = nil
           local plate = plateByGuid[guid]
           if plate then plate.castUpdate = true end
-        end
-      end
-
-    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
-      -- Active totems (Searing/Magma/Fire Nova) carry no self-aura, so their
-      -- attack cast is the only icon source. Capture it once per totem, gated on
-      -- creature type so a normal caster's spell never styles it as a totem.
-      if arg1 and strfind(arg1, "^nameplate") then
-        local guid = UnitGUID(arg1)
-        local plate = guid and plateByGuid[guid]
-        if plate and not plate.totemIcon and arg3 and CreatureType(plate) == 11 then
-          local tex = C_Spell.GetSpellTexture(arg3)
-          if tex then
-            plate.totemIcon = tex
-            plate.castUpdate = true  -- re-render now so the icon shows
-          end
         end
       end
 
@@ -780,6 +770,8 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     nameplate.original.healthbar, nameplate.original.castbar = parent:GetChildren()
     DisableObject(nameplate.original.healthbar)
     DisableObject(nameplate.original.castbar)
+
+    local NAMEPLATE_OBJECTORDER = { "border", "glow", "name", "level", "levelicon", "raidicon" }
 
     for i, object in pairs({parent:GetRegions()}) do
       if NAMEPLATE_OBJECTORDER[i] and NAMEPLATE_OBJECTORDER[i] == "raidicon" then
@@ -1119,7 +1111,7 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     local TotemIcon = TotemPlate(plate)
 
     if TotemIcon then
-      -- icon resolved from the totem's aura / attack cast (already a full path)
+      -- icon resolved from the totem-drop spell (already a full path)
       plate.totem.icon:SetTexture(TotemIcon)
 
       plate.glow:Hide()
@@ -1323,11 +1315,12 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       if unitstr then
         local filter = cfg.owndebuffs and "HARMFUL|PLAYER" or "HARMFUL"
         local now = GetTime()
-        -- positional UnitAura writes straight into the reusable buffer, so the
-        -- per-plate scan allocates nothing (no per-aura table, no result array)
-        local i = 1
-        while debuffCount < 16 do
-          local aname, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitAura(unitstr, i, filter)
+        -- one GetAuraSlots enumeration, then positional by-slot reads straight
+        -- into the reusable buffer: the per-plate scan allocates nothing (no
+        -- per-aura table, no result array) and walks the aura array once
+        local n = ScanAuraSlots(unitstr, filter, auraSlots, 16)
+        for i = 1, n do
+          local aname, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
           if not aname then break end
           debuffCount = debuffCount + 1
           local b = debuffDisplayBuf[debuffCount]
@@ -1337,7 +1330,6 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
           b.dtype = dispelType
           b.duration = duration
           b.timeleft = (expirationTime and expirationTime > 0) and (expirationTime - now) or nil
-          i = i + 1
         end
       end
       for i = 1, 16 do

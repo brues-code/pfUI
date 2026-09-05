@@ -8,9 +8,17 @@
 ## SavedVariablesPerCharacter: pfUI_config, pfUI_init, pfUI_playerDB
 ## X-Website: https://github.com/brues-code/pfUI
 
-# ClassicAPI-less fallback. ClassicAPI redirects this read to pfUI_Turtle.toc
-# (Turtle clients) or pfUI_ClassicAPI.toc (everything else), so the client only
-# ever reaches THIS file when the DLL is missing. Load the notice and nothing
-# else.
+# Selected by ClassicAPI on Turtle WoW, where it wins over pfUI_ClassicAPI.toc.
+# Same list with init\stock.xml swapped for init\turtle.xml: the modules, skins
+# and vendor prices that only mean anything on a Turtle client.
 
 API_Check.lua
+
+pfUI.lua
+
+init\env.xml
+init\api.xml
+init\libs.xml
+init\skins.xml
+init\modules.xml
+init\turtle.xml
