@@ -511,3 +511,5 @@ do -- RunMacroText
     ChatEdit_ParseText(obj, 1)
   end
 end
+
+_G.PLAYER_BUFF_START_ID = -1
