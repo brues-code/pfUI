@@ -104,7 +104,6 @@ pfUI:RegisterModule("loothistory", function ()
   -- Frame pools
   -- ==========================================================================
   local itemFrames = {}
-  local usedPlayers, freePlayers = {}, {}
 
   local FullUpdate -- forward declaration (toggle handlers call it)
 
@@ -204,20 +203,10 @@ pfUI:RegisterModule("loothistory", function ()
     return f
   end
 
-  local function RecycleAllPlayers()
-    for i = 1, table.getn(usedPlayers) do
-      local pf = usedPlayers[i]
-      pf:Hide()
-      table.insert(freePlayers, pf)
-    end
-    usedPlayers = {}
-  end
-
-  local function GetPlayerFrame()
-    local pf = table.remove(freePlayers) or CreatePlayerFrame()
-    table.insert(usedPlayers, pf)
-    return pf
-  end
+  local playerPool = CreateObjectPool(CreatePlayerFrame, function(_, pf)
+    pf:Hide()
+    pf:ClearAllPoints()
+  end)
 
   local function SetToggleTexture(toggle, isExpanded)
     if isExpanded then
@@ -309,7 +298,7 @@ pfUI:RegisterModule("loothistory", function ()
 
   function FullUpdate()
     if not pfUI.loothistory:IsShown() then return end
-    RecycleAllPlayers()
+    playerPool:ReleaseAll()
 
     local num = C_LootHistory.GetNumItems()
     local y = -2
@@ -327,7 +316,7 @@ pfUI:RegisterModule("loothistory", function ()
         for p = 1, f.numPlayers do
           local name, class, rollType, roll, isWinner, isMe = C_LootHistory.GetPlayerInfo(i, p)
           if ShouldDisplayPlayer(f.isDone, roll, isMe) then
-            local pf = GetPlayerFrame()
+            local pf = playerPool:Acquire()
             RenderPlayerFrame(pf, name, class, rollType, roll, isWinner)
             pf:ClearAllPoints()
             pf:SetPoint("TOPLEFT", list, "TOPLEFT", 22, y)
