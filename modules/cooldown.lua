@@ -43,13 +43,13 @@ pfUI:RegisterModule("cooldown", function ()
     else
       -- I have absolutely no idea, but it works:
       -- https://github.com/Stanzilla/WoWUIBugs/issues/47
-      local time = time()
-      local startupTime = time - now
+      local currentTime = time()
+      local startupTime = currentTime - now
       -- just a simplification of: ((2^32) - (start * 1000)) / 1000
       local cdTime = (2 ^ 32) / 1000 - this.start
       local cdStartTime = startupTime - cdTime
       local cdEndTime = cdStartTime + this.duration
-      local remaining = cdEndTime - time
+      local remaining = cdEndTime - currentTime
 
       if remaining >= 0 then
         this.text:SetText(GetColoredTimeString(remaining))
