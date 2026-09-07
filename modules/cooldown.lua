@@ -6,30 +6,35 @@ pfUI:RegisterModule("cooldown", function ()
   -- local hourcolor   = {strsplit(",", C.appearance.cd.hourcolor)}
   -- local daycolor    = {strsplit(",", C.appearance.cd.daycolor)}
 
-  local parent, parent_name
   local function pfCooldownOnUpdate()
-    parent = this:GetParent()
+    -- Throttle FIRST. One of these runs per visible cooldown text, every frame,
+    -- so anything above this gate is multiplied by the frame rate and by how
+    -- many cooldowns are ticking.
+    local now = GetTime()
+    if (this.tick or 0) > now then return end
+    this.tick = now + .1
+
+    local parent = this:GetParent()
     if not parent then this:Hide() return end
-    parent_name = parent:GetName()
 
-    -- avoid to set cooldowns on invalid frames
-    if parent_name and _G[parent_name .. "Cooldown"] then
-      if not _G[parent_name .. "Cooldown"]:IsShown() then
-        this:Hide()
-      end
+    -- avoid to set cooldowns on invalid frames. The cooldown frame is stashed
+    -- at creation: resolving it as _G[parent:GetName() .. "Cooldown"] built and
+    -- interned that string twice per call, and this is the hottest path in the
+    -- UI. The stashed reference is also the frame itself rather than a guess
+    -- from its parent's name, so it holds for cooldowns named anything else.
+    if this.cooldown and not this.cooldown:IsShown() then
+      this:Hide()
+      return
     end
-
-    -- only run every 0.1 seconds from here on
-    if ( this.tick or .1) > GetTime() then return else this.tick = GetTime() + .1 end
 
     -- fix own alpha value (should be inherited, but somehow isn't always)
     if this:GetAlpha() ~= parent:GetAlpha() then
       this:SetAlpha(parent:GetAlpha())
     end
 
-    if this.start < GetTime() then
+    if this.start < now then
       -- calculating remaining time as it should be
-      local remaining = this.duration - (GetTime() - this.start)
+      local remaining = this.duration - (now - this.start)
       if remaining >= 0 then
         this.text:SetText(GetColoredTimeString(remaining))
       else
@@ -39,7 +44,7 @@ pfUI:RegisterModule("cooldown", function ()
       -- I have absolutely no idea, but it works:
       -- https://github.com/Stanzilla/WoWUIBugs/issues/47
       local time = time()
-      local startupTime = time - GetTime()
+      local startupTime = time - now
       -- just a simplification of: ((2^32) - (start * 1000)) / 1000
       local cdTime = (2 ^ 32) / 1000 - this.start
       local cdStartTime = startupTime - cdTime
@@ -55,11 +60,16 @@ pfUI:RegisterModule("cooldown", function ()
   end
 
   local height, size
+  local textcount = 0
   local function pfCreateCoolDown(cooldown, start, duration)
-    cooldown.pfCooldownText = CreateFrame("Frame", "pfCooldownFrame", cooldown:GetParent())
+    textcount = textcount + 1
+    local name = cooldown.GetName and cooldown:GetName() or "pfCooldown" .. textcount
+
+    cooldown.pfCooldownText = CreateFrame("Frame", name .. "Text", cooldown:GetParent())
+    cooldown.pfCooldownText.cooldown = cooldown
     cooldown.pfCooldownText:SetAllPoints(cooldown)
     cooldown.pfCooldownText:SetFrameLevel(cooldown:GetParent():GetFrameLevel() + 2)
-    cooldown.pfCooldownText.text = cooldown.pfCooldownText:CreateFontString("pfCooldownFrameText", "OVERLAY")
+    cooldown.pfCooldownText.text = cooldown.pfCooldownText:CreateFontString(name .. "TextString", "OVERLAY")
 
     if not cooldown.pfCooldownType then
       size = tonumber(C.appearance.cd.font_size_foreign)
