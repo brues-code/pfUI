@@ -35,14 +35,32 @@ pfUI.api.RegisterSlashCommand("PFTEST", { "/pftest", "/pfuftest" }, function()
   if pfUI.uf.raid and pfUI.uf.raid.LayoutPets then pfUI.uf.raid:LayoutPets() end
 end, true)
 
--- HoT buff indicators that need name verification because their icons are
--- reused by other spells. Maps icon (lowercased) → expected aura name +
--- libpredict key for the prediction integration.
-local HOT_INDICATORS = {
-  [strlower(C_Spell.GetSpellTexture(774))]  = { name = strlower(C_Spell.GetSpellName(774)),  predict = "Reju" },
-  [strlower(C_Spell.GetSpellTexture(139))]  = { name = strlower(C_Spell.GetSpellName(139)),  predict = "Renew" },
-  [strlower(C_Spell.GetSpellTexture(8936))] = { name = strlower(C_Spell.GetSpellName(8936)), predict = "Regr" },
-}
+-- Buff indicators are identified by a spell id, resolved once into the aura's
+-- localized name plus its icon. A match needs both to agree.
+--
+-- Icon alone is ambiguous: Spell.dbc reuses icons across unrelated spells, so
+-- an icon-only filter lights the indicator for the wrong buff (Blessing of
+-- Sanctuary shares its icon with Lightning Shield and Shadowguard, Blessing of
+-- Kings with Mage Armor and Commanding Shout, Totemic Power with the Blessed
+-- Sunfruit food buff). Name alone is ambiguous too -- creature and item auras
+-- reuse player spell names ("Renew", "Rejuvenation", "Fire Resistance").
+--
+-- Every rank of a spell carries the same name and icon, so one id per buff
+-- covers the whole rank ladder. Ids missing from this client resolve to nil and
+-- drop out of the list. 'predict' names the libpredict key of a HoT.
+local indicator_cache = {}
+local function AddIndicator(indicators, spellId, predict)
+  local record = indicator_cache[spellId]
+  if record == nil then
+    local name = C_Spell.GetSpellName(spellId)
+    local icon = name and C_Spell.GetSpellTexture(spellId)
+    -- cache misses as false, so an absent spell is only looked up once
+    record = icon and { name = name:lower(), icon = icon:lower(), predict = predict } or false
+    indicator_cache[spellId] = record
+  end
+
+  if record then table.insert(indicators, record) end
+end
 
 local glow = {
   edgeFile = pfUI.media["img:glow"], edgeSize = 8,
@@ -289,9 +307,9 @@ function pfUI.uf:UpdateVisibility()
     self._label, self._id = nil, nil
   end
 
-  local unitstr = string.format("%s%s", self.label or "", self.id or "")
+  local unitstr = ("%s%s"):format(self.label or "", self.id or "")
   self:SetAttribute("unit", unitstr ~= "" and unitstr or nil)
-  local visibility = string.format("[target=%s,exists] show; hide", unitstr)
+  local visibility = ("[target=%s,exists] show; hide"):format(unitstr)
 
   -- Group frames are redundant when the group is already shown as a raid grid:
   -- either an actual raid, or a party promoted to the raid grid via
@@ -1939,7 +1957,7 @@ function pfUI.uf:RefreshUnit(unit, component)
     if not unit.indicator_custom and unit.config.buff_indicator == "1" then
       unit.indicator_custom = {}
       for k, v in pairs({strsplit("#", unit.config.custom_indicator)}) do
-        unit.indicator_custom[k] = string.lower(v)
+        unit.indicator_custom[k] = v:lower()
       end
     elseif not unit.indicator_custom then
       unit.indicator_custom = {}
@@ -1951,17 +1969,14 @@ function pfUI.uf:RefreshUnit(unit, component)
       for i=1,n do
         local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if not name then break end
-        local texLower = string.lower(icon)
+        local texLower = icon:lower()
+        local nameLower = name:lower()
         local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
 
         for _, filter in pairs(unit.indicators) do
-          if filter == texLower then
-            local hot = HOT_INDICATORS[texLower]
-            if hot and string.lower(name) ~= hot.name then
-              break  -- texture matches but name disambiguates (e.g. shared icon)
-            end
-            if hot then
-              local start, duration, prediction = libpredict:GetHotDuration(unitstr, hot.predict)
+          if filter.icon == texLower and filter.name == nameLower then
+            if filter.predict then
+              local start, duration, prediction = libpredict:GetHotDuration(unitstr, filter.predict)
               pfUI.uf:AddIcon(unit, pos, icon, timeleft or prediction, count, tonumber(start), tonumber(duration))
             else
               pfUI.uf:AddIcon(unit, pos, icon, timeleft, count)
@@ -1979,7 +1994,7 @@ function pfUI.uf:RefreshUnit(unit, component)
         local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if not name then break end
         local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
-        local lowerName = string.lower(name)
+        local lowerName = name:lower()
         for _, filter in pairs(unit.indicator_custom) do
           if filter == lowerName then
             pfUI.uf:AddIcon(unit, pos, icon, timeleft, count)
@@ -1996,7 +2011,7 @@ function pfUI.uf:RefreshUnit(unit, component)
         if name then
           local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
           for _, filter in pairs(unit.indicator_custom) do
-            if filter == string.lower(name) then
+            if filter == name:lower() then
               pfUI.uf:AddIcon(unit, pos, icon, timeleft, count)
               pos = pos + 1
               break
@@ -2205,17 +2220,17 @@ function pfUI.uf:EnableClickCast()
       local action = pfUI_config.unitframes["clickcast"..bconf..mconf]
       if action and action ~= "" then
         local prefix = modifier ~= "" and (modifier .. "-") or ""
-        local low = string.lower(action)
+        local low = action:lower()
         if low == "menu" then
           self:SetAttribute(prefix .. "type" .. bid, "menu")
         elseif low == "target" then
           self:SetAttribute(prefix .. "type" .. bid, "target")
         elseif low == "focus" then
           self:SetAttribute(prefix .. "type" .. bid, "focus")
-        elseif string.find(low, "^macro:") then
+        elseif low:find("^macro:") then
           self:SetAttribute(prefix .. "type" .. bid, "macro")
-          self:SetAttribute(prefix .. "macro" .. bid, string.gsub(string.sub(action, 7), "^%s+", ""))
-        elseif string.find(action, "^/") then
+          self:SetAttribute(prefix .. "macro" .. bid, action:sub(7):gsub("^%s+", ""))
+        elseif action:find("^/") then
           self:SetAttribute(prefix .. "type" .. bid, "macro")
           self:SetAttribute(prefix .. "macrotext" .. bid, action)
         else
@@ -2353,175 +2368,122 @@ function pfUI.uf:SetupBuffIndicators(config)
 
   if config.show_buffs == "1" then -- buffs
     if myclass == "DRUID" then
-      -- Mark of the Wild
-      table.insert(indicators, "interface\\icons\\spell_nature_regeneration")
-      -- Gift of the Wild
-      table.insert(indicators, "interface\\icons\\spell_nature_giftofthewild")
-      -- Thorns
-      table.insert(indicators, "interface\\icons\\spell_nature_thorns")
+      AddIndicator(indicators, 1126)   -- Mark of the Wild
+      AddIndicator(indicators, 21849)  -- Gift of the Wild
+      AddIndicator(indicators, 467)    -- Thorns
     end
 
     if myclass == "PRIEST" then
-      -- Prayer Of Fortitude"
-      table.insert(indicators, "interface\\icons\\spell_holy_wordfortitude")
-      table.insert(indicators, "interface\\icons\\spell_holy_prayeroffortitude")
-      -- Prayer of Spirit
-      table.insert(indicators, "interface\\icons\\spell_holy_divinespirit")
-      table.insert(indicators, "interface\\icons\\spell_holy_prayerofspirit")
-      -- Shadow Protection
-      table.insert(indicators, "interface\\icons\\spell_shadow_antishadow")
-      table.insert(indicators, "interface\\icons\\spell_holy_prayerofshadowprotection")
-      -- Fear Ward
-      table.insert(indicators, "interface\\icons\\spell_holy_excorcism")
+      AddIndicator(indicators, 1243)   -- Power Word: Fortitude
+      AddIndicator(indicators, 21562)  -- Prayer of Fortitude
+      AddIndicator(indicators, 6386)   -- Divine Spirit
+      AddIndicator(indicators, 27681)  -- Prayer of Spirit
+      AddIndicator(indicators, 976)    -- Shadow Protection
+      AddIndicator(indicators, 27683)  -- Prayer of Shadow Protection
+      AddIndicator(indicators, 6346)   -- Fear Ward
     end
 
     if myclass == "PALADIN" then
-      -- Blessing of Salvation
-      table.insert(indicators, "interface\\icons\\spell_holy_greaterblessingofsalvation")
-      table.insert(indicators, "interface\\icons\\spell_holy_sealofsalvation")
-      -- Blessing of Wisdom
-      table.insert(indicators, "interface\\icons\\spell_holy_sealofwisdom")
-      table.insert(indicators, "interface\\icons\\spell_holy_greaterblessingofwisdom")
-      -- Blessing of Sanctuary
-      table.insert(indicators, "interface\\icons\\spell_nature_lightningshield")
-      table.insert(indicators, "interface\\icons\\spell_holy_greaterblessingofsanctuary")
-      -- Blessing of Kings
-      table.insert(indicators, "interface\\icons\\spell_magic_magearmor")
-      table.insert(indicators, "interface\\icons\\spell_magic_greaterblessingofkings")
-      -- Blessing of Might
-      table.insert(indicators, "interface\\icons\\spell_holy_fistofjustice")
-      table.insert(indicators, "interface\\icons\\spell_holy_greaterblessingofkings")
-      -- Blessing of Light
-      table.insert(indicators, "interface\\icons\\spell_holy_prayerofhealing02")
-      table.insert(indicators, "interface\\icons\\spell_holy_greaterblessingoflight")
-      -- Blessing of Sacrifice
-      table.insert(indicators, "interface\\icons\\spell_holy_sealofsacrifice")
-      -- Blessing of Freedom
-      table.insert(indicators, "interface\\icons\\spell_holy_sealofvalor")
-      -- Blessing of Protection
-      table.insert(indicators, "interface\\icons\\spell_holy_sealofprotection")
+      AddIndicator(indicators, 1038)   -- Blessing of Salvation
+      AddIndicator(indicators, 25895)  -- Greater Blessing of Salvation
+      AddIndicator(indicators, 19742)  -- Blessing of Wisdom
+      AddIndicator(indicators, 25894)  -- Greater Blessing of Wisdom
+      AddIndicator(indicators, 20204)  -- Blessing of Sanctuary
+      AddIndicator(indicators, 25899)  -- Greater Blessing of Sanctuary
+      AddIndicator(indicators, 20217)  -- Blessing of Kings
+      AddIndicator(indicators, 25898)  -- Greater Blessing of Kings
+      AddIndicator(indicators, 19740)  -- Blessing of Might
+      AddIndicator(indicators, 25782)  -- Greater Blessing of Might
+      AddIndicator(indicators, 19977)  -- Blessing of Light
+      AddIndicator(indicators, 25890)  -- Greater Blessing of Light
+      AddIndicator(indicators, 6940)   -- Hand of Sacrifice
+      AddIndicator(indicators, 45801)  -- Greater Blessing of Sacrifice
+      AddIndicator(indicators, 1044)   -- Hand of Freedom
+      AddIndicator(indicators, 1022)   -- Hand of Protection
     end
 
     if myclass == "WARLOCK" then
-      -- Fire Shield
-      table.insert(indicators, "interface\\icons\\spell_fire_firearmor")
-      -- Blood Pact
-      table.insert(indicators, "interface\\icons\\spell_shadow_bloodboil")
-      -- Soulstone
-      table.insert(indicators, "interface\\icons\\spell_shadow_soulgem")
-      -- Unending Breath
-      table.insert(indicators, "interface\\icons\\spell_shadow_demonbreath")
-      -- Detect Greater Invisibility or Detect Invisibility
-      table.insert(indicators, "interface\\icons\\spell_shadow_detectinvisibility")
-      -- Detect Lesser Invisibility
-      table.insert(indicators, "interface\\icons\\spell_shadow_detectlesserinvisibility")
-      -- Paranoia
-      table.insert(indicators, "interface\\icons\\Spell_Shadow_AuraOfDarkness")
+      AddIndicator(indicators, 1167)   -- Fire Shield
+      AddIndicator(indicators, 6307)   -- Blood Pact
+      AddIndicator(indicators, 20707)  -- Soulstone Resurrection
+      AddIndicator(indicators, 5697)   -- Unending Breath
+      AddIndicator(indicators, 2970)   -- Detect Invisibility
+      AddIndicator(indicators, 11743)  -- Detect Greater Invisibility
+      AddIndicator(indicators, 132)    -- Detect Lesser Invisibility
+      AddIndicator(indicators, 19480)  -- Paranoia
     end
 
     if myclass == "WARRIOR" then
-      -- Battle Shout
-      table.insert(indicators, "interface\\icons\\ability_warrior_battleshout")
-      -- Commanding Shout (TBC)
-      table.insert(indicators, "interface\\icons\\ability_warrior_rallyingcry")
+      AddIndicator(indicators, 5242)   -- Battle Shout
+      AddIndicator(indicators, 45580)  -- Commanding Shout
     end
 
     if myclass == "MAGE" then
-      -- Arcane Intellect
-      table.insert(indicators, "interface\\icons\\spell_holy_magicalsentry")
-      table.insert(indicators, "interface\\icons\\spell_holy_arcaneintellect")
-      -- Dampen Magic
-      table.insert(indicators, "interface\\icons\\spell_nature_abolishmagic")
-      -- Amplify Magic
-      table.insert(indicators, "interface\\icons\\spell_holy_flashheal")
+      AddIndicator(indicators, 1459)   -- Arcane Intellect
+      AddIndicator(indicators, 23028)  -- Arcane Brilliance
+      AddIndicator(indicators, 604)    -- Dampen Magic
+      AddIndicator(indicators, 1008)   -- Amplify Magic
     end
 
     if myclass == "HUNTER" then
-      -- Aspect of the Wild
-      table.insert(indicators, "interface\\icons\\spell_nature_protectionformnature")
-
-      -- Aspect of the Pack
-      table.insert(indicators, "interface\\icons\\ability_mount_whitetiger")
-
-      -- Misdirection (TBC)
-      table.insert(indicators, "interface\\icons\\ability_hunter_misdirection")
+      AddIndicator(indicators, 20043)  -- Aspect of the Wild
+      AddIndicator(indicators, 13159)  -- Aspect of the Pack
     end
 
     if myclass == "SHAMAN" then
-      -- Earth Shield (TBC)
-      table.insert(indicators, "interface\\icons\\spell_nature_skinofearth")
+      AddIndicator(indicators, 45525)  -- Earth Shield
     end
   end
 
   if config.show_procs == "1" then -- procs
     if myclass == "SHAMAN" or config.all_procs == "1" then
-      -- Ancestral Fortitude
-      table.insert(indicators, "interface\\icons\\spell_nature_undyingstrength")
-      -- Healing Way
-      table.insert(indicators, "interface\\icons\\spell_nature_healingway")
-      -- Totemic Power (known issue: one conflicts with Blessed Sunfruit buff)
-      table.insert(indicators, "interface\\icons\\spell_holy_spiritualguidence")
-      table.insert(indicators, "interface\\icons\\spell_holy_devotion")
-      table.insert(indicators, "interface\\icons\\spell_holy_holynova")
-      table.insert(indicators, "interface\\icons\\spell_magic_magearmor")
+      AddIndicator(indicators, 16177)  -- Ancestral Fortitude
+      AddIndicator(indicators, 29202)  -- Healing Way
+      -- Totemic Power is four auras, one per totem school, each with its own icon
+      AddIndicator(indicators, 28824)
+      AddIndicator(indicators, 28825)
+      AddIndicator(indicators, 28826)
+      AddIndicator(indicators, 28827)
     end
 
     if myclass == "PRIEST" or config.all_procs == "1" then
-      -- Inspiration
-      table.insert(indicators, "interface\\icons\\inv_shield_06")
+      AddIndicator(indicators, 14893)  -- Inspiration
     end
   end
 
   if config.show_hots == "1" then -- hots
     if myclass == "PRIEST" or config.all_hots == "1" then
-      -- Renew
-      table.insert(indicators, "interface\\icons\\spell_holy_renew")
-      -- Power Word: Shield
-      table.insert(indicators, "interface\\icons\\spell_holy_powerwordshield")
-      -- Prayer of Mending (TBC)
-      table.insert(indicators, "interface\\icons\\spell_holy_prayerofmendingtga")
+      AddIndicator(indicators, 139, "Renew")   -- Renew
+      AddIndicator(indicators, 17)             -- Power Word: Shield
     end
 
     if myclass == "DRUID" or config.all_hots == "1" then
-      -- Regrowth
-      table.insert(indicators, "interface\\icons\\spell_nature_resistnature")
-      -- Rejuvenation
-      table.insert(indicators, "interface\\icons\\spell_nature_rejuvenation")
-      -- Lifebloom
-      table.insert(indicators, "interface\\icons\\inv_misc_herb_felblossom")
+      AddIndicator(indicators, 8936, "Regr")   -- Regrowth
+      AddIndicator(indicators, 774, "Reju")    -- Rejuvenation
     end
   end
 
   if config.show_totems == "1" and myclass == "SHAMAN" then -- totems
-    -- Strength of Earth Totem
-    table.insert(indicators, "interface\\icons\\spell_nature_earthbindtotem")
-    -- Stoneskin Totem
-    table.insert(indicators, "interface\\icons\\spell_nature_stoneskintotem")
-    -- Mana Spring Totem
-    table.insert(indicators, "interface\\icons\\spell_nature_manaregentotem")
-    -- Mana Tide Totem
-    table.insert(indicators, "interface\\icons\\spell_frost_summonwaterelemental")
-    -- Healing Spring Totem
-    table.insert(indicators, "interface\\icons\\inv_spear_04")
-    -- Tranquil Air Totem
-    table.insert(indicators, "interface\\icons\\spell_nature_brilliance")
-    -- Grace of Air Totem
-    table.insert(indicators, "interface\\icons\\spell_nature_invisibilitytotem")
-    -- Grounding Totem
-    table.insert(indicators, "interface\\icons\\spell_nature_groundingtotem")
-    -- Nature Resistance Totem
-    table.insert(indicators, "interface\\icons\\spell_nature_natureresistancetotem")
-    -- Fire Resistance Totem
-    table.insert(indicators, "interface\\icons\\spell_fireresistancetotem_01")
-    -- Frost Resistance Totem
-    table.insert(indicators, "interface\\icons\\spell_frostresistancetotem_01")
+    -- the aura each totem applies, not the cast that drops it: they share an
+    -- icon but the totem's own name carries a " Totem" suffix the aura lacks
+    AddIndicator(indicators, 8076)   -- Strength of Earth
+    AddIndicator(indicators, 8072)   -- Stoneskin
+    AddIndicator(indicators, 5677)   -- Mana Spring
+    AddIndicator(indicators, 16191)  -- Mana Tide
+    AddIndicator(indicators, 5672)   -- Healing Stream
+    AddIndicator(indicators, 25909)  -- Tranquil Air
+    AddIndicator(indicators, 8836)   -- Grace of Air
+    AddIndicator(indicators, 8177)   -- Grounding Totem
+    AddIndicator(indicators, 10596)  -- Nature Resistance
+    AddIndicator(indicators, 8185)   -- Fire Resistance
+    AddIndicator(indicators, 8182)   -- Frost Resistance
   end
 
   return indicators
 end
 
 local function abbrevname(t)
-  return string.sub(t,1,1)..". "
+  return t:sub(1,1)..". "
 end
 
 function pfUI.uf:GetNameString(unitstr)
@@ -2531,12 +2493,12 @@ function pfUI.uf:GetNameString(unitstr)
 
   -- first try to only abbreviate the first word
   if abbrev and name and strlen(name) > size then
-    name = string.gsub(name, "^(%S+) ", abbrevname)
+    name = name:gsub("^(%S+) ", abbrevname)
   end
 
   -- abbreviate all if it still doesn't fit
   if abbrev and name and strlen(name) > size then
-    name = string.gsub(name, "(%S+) ", abbrevname)
+    name = name:gsub("(%S+) ", abbrevname)
   end
 
   return name
