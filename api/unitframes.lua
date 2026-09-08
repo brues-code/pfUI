@@ -48,6 +48,12 @@ end, true)
 -- Every rank of a spell carries the same name and icon, so one id per buff
 -- covers the whole rank ladder. Ids missing from this client resolve to nil and
 -- drop out of the list. 'predict' names the libpredict key of a HoT.
+--
+-- Both fields are stored raw, and RefreshUnit compares them raw. The aura's
+-- name and icon and these come out of the same DBC records byte for byte --
+-- Spell.dbc's localized name, SpellIcon.dbc's path -- so case folding either
+-- side would only burn a string per aura per scan. Feed this ids, never
+-- hand-written names or icon paths, or that equality quietly stops holding.
 local indicator_cache = {}
 local function AddIndicator(indicators, spellId, predict)
   local record = indicator_cache[spellId]
@@ -55,7 +61,7 @@ local function AddIndicator(indicators, spellId, predict)
     local name = C_Spell.GetSpellName(spellId)
     local icon = name and C_Spell.GetSpellTexture(spellId)
     -- cache misses as false, so an absent spell is only looked up once
-    record = icon and { name = name:lower(), icon = icon:lower(), predict = predict } or false
+    record = icon and { name = name, icon = icon, predict = predict } or false
     indicator_cache[spellId] = record
   end
 
@@ -1969,12 +1975,10 @@ function pfUI.uf:RefreshUnit(unit, component)
       for i=1,n do
         local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if not name then break end
-        local texLower = icon:lower()
-        local nameLower = name:lower()
         local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
 
         for _, filter in pairs(unit.indicators) do
-          if filter.icon == texLower and filter.name == nameLower then
+          if filter.icon == icon and filter.name == name then
             if filter.predict then
               local start, duration, prediction = libpredict:GetHotDuration(unitstr, filter.predict)
               pfUI.uf:AddIcon(unit, pos, icon, timeleft or prediction, count, tonumber(start), tonumber(duration))
