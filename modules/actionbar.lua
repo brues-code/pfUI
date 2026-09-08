@@ -807,10 +807,28 @@ pfUI:RegisterModule("actionbar", function ()
 
   -- create the main event and update handler for pfUI actionbars
   local bars = CreateFrame("Frame", "pfActionBar", UIParent)
-  for event in pairs(special_events) do bars:RegisterEvent(event) end
-  for event in pairs(global_events) do bars:RegisterEvent(event) end
-  for event in pairs(aura_events) do bars:RegisterEvent(event) end
-  for event in pairs(pet_events) do bars:RegisterEvent(event) end
+
+  -- The only unit events in the tables above; both concern the player alone.
+  -- A registration keeps its kind, so these have to go in unit-filtered from
+  -- the start -- RegisterUnitEvent over a plain registration stays plain.
+  local event_units = {
+    ["UNIT_INVENTORY_CHANGED"] = "player",
+    ["UNIT_PET"] = "player",
+  }
+
+  local function RegisterBarEvent(event)
+    local unit = event_units[event]
+    if unit then
+      bars:RegisterUnitEvent(event, unit)
+    else
+      bars:RegisterEvent(event)
+    end
+  end
+
+  for event in pairs(special_events) do RegisterBarEvent(event) end
+  for event in pairs(global_events) do RegisterBarEvent(event) end
+  for event in pairs(aura_events) do RegisterBarEvent(event) end
+  for event in pairs(pet_events) do RegisterBarEvent(event) end
 
   -- refresh actionbar buttons on event
   bars:SetScript("OnEvent", BarsEvent)

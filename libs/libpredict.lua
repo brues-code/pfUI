@@ -1134,7 +1134,7 @@ libpredict.sender:RegisterEvent("SPELL_HEAL_BY_SELF")
 libpredict.sender:RegisterEvent("SPELL_HEAL_BY_OTHER")  -- populates foreignCache for other healers
 
 -- force cache updates
-libpredict.sender:RegisterEvent("UNIT_INVENTORY_CHANGED")
+libpredict.sender:RegisterUnitEvent("UNIT_INVENTORY_CHANGED", "player")
 libpredict.sender:RegisterEvent("SKILL_LINES_CHANGED")
 
 -- Shared cleanup helper for failed/interrupted casts

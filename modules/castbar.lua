@@ -322,15 +322,21 @@ pfUI:RegisterModule("castbar", function ()
     -- casts only ever fire arg1=="player" -- when the bar's unit resolves to the
     -- player (target=self). PLAYER_TARGET/FOCUS_CHANGED re-polls so a unit
     -- already mid-cast when it becomes the target/focus still shows.
-    cb:RegisterEvent("UNIT_SPELLCAST_START")
-    cb:RegisterEvent("UNIT_SPELLCAST_STOP")
-    cb:RegisterEvent("UNIT_SPELLCAST_FAILED")
-    cb:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
-    cb:RegisterEvent("UNIT_SPELLCAST_DELAYED")
-    cb:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-    cb:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
-    cb:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
-    cb:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
+    -- Filter to this bar's unit, plus "player" for the target/focus bars: the
+    -- player's own casts only ever fire arg1=="player", so a self-targeted cast
+    -- has to reach them too (nil for the player bar itself, which the filter
+    -- skips). This only narrows what arrives -- the arg1/UnitIsUnit test below
+    -- still decides whether the bar acts on it.
+    local selfunit = unitstr ~= "player" and "player" or nil
+    cb:RegisterUnitEvent("UNIT_SPELLCAST_START", unitstr, selfunit)
+    cb:RegisterUnitEvent("UNIT_SPELLCAST_STOP", unitstr, selfunit)
+    cb:RegisterUnitEvent("UNIT_SPELLCAST_FAILED", unitstr, selfunit)
+    cb:RegisterUnitEvent("UNIT_SPELLCAST_INTERRUPTED", unitstr, selfunit)
+    cb:RegisterUnitEvent("UNIT_SPELLCAST_DELAYED", unitstr, selfunit)
+    cb:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", unitstr, selfunit)
+    cb:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", unitstr, selfunit)
+    cb:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", unitstr, selfunit)
+    cb:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_UPDATE", unitstr, selfunit)
     if unitstr == "target" then
       cb:RegisterEvent("PLAYER_TARGET_CHANGED")
     elseif unitstr == "focus" then
