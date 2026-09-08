@@ -159,6 +159,24 @@ pfUI:RegisterModule("nameplates", function ()
     cfg.debuffanim = tonumber(C.nameplates.debuffanim) or 0
     cfg.debufftext = tonumber(C.nameplates.debufftext) or 1
 
+    -- Throttle delays, resolved once instead of per plate per tick.
+    -- libthrottle:Get walks the saved-variable table, a defaults fallback and a
+    -- preset table, and can build a "<category>_custom" key -- the per-plate
+    -- OnUpdate was calling it one or two times for every visible plate, a
+    -- hundred times a second, just to decide it had nothing to do.
+    --
+    -- cfg.throttle_min is the floor across all four. No plate can ever be due
+    -- sooner than that, so the update can bail on it before working out which
+    -- category it actually belongs to.
+    cfg.throttle_target = pfUI.throttle:Get("nameplates_target")
+    cfg.throttle_mass = pfUI.throttle:Get("nameplates_mass")
+    cfg.throttle_normal = pfUI.throttle:Get("nameplates")
+    cfg.throttle_castbar = pfUI.throttle:Get("nameplates_castbar")
+    cfg.throttle_min = cfg.throttle_target
+    if cfg.throttle_mass < cfg.throttle_min then cfg.throttle_min = cfg.throttle_mass end
+    if cfg.throttle_normal < cfg.throttle_min then cfg.throttle_min = cfg.throttle_normal end
+    if cfg.throttle_castbar < cfg.throttle_min then cfg.throttle_min = cfg.throttle_castbar end
+
     -- Rebuild offtanks lookup table
     offtanks = {}
     for k, v in pairs({strsplit("#", C.nameplates.combatofftanks)}) do
@@ -1409,6 +1427,16 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
 
     -- cachedGuid is maintained by NAME_PLATE_UNIT_ADDED / _REMOVED events.
 
+    -- Cheap gate first. The central loop calls this for every visible plate ~100
+    -- times a second, and classifying the plate below costs two C calls, a cast
+    -- lookup and a throttle resolution -- all of it wasted on a plate that is
+    -- throttled to 10fps. cfg.throttle_min is the floor across every category,
+    -- so nothing that would have updated can be turned away here; the real
+    -- category-specific throttle is still applied after the classification.
+    -- Event flags bypass both gates, as before.
+    local hasEventUpdate = nameplate.eventcache or nameplate.auraUpdate or nameplate.castUpdate or nameplate.targetUpdate or nameplate.comboUpdate
+    if not hasEventUpdate and (nameplate.lasttick or 0) + cfg.throttle_min > now then return end
+
     -- PERF: Intelligent throttling based on target/castbar status and plate count
     -- Use GUID comparison as primary target detection: instant, immune to alpha transitions,
     -- and immediately correct on de-target (unlike istarget which updates one tick later)
@@ -1435,25 +1463,24 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       end
     end
 
+    -- Resolved in CacheConfig, so these are table reads rather than a walk
+    -- through the saved variables and preset tables.
     local throttle
     if target then
-      throttle = pfUI.throttle:Get("nameplates_target")
+      throttle = cfg.throttle_target
     elseif visiblePlateCount > 20 then
-      throttle = pfUI.throttle:Get("nameplates_mass")
+      throttle = cfg.throttle_mass
     else
-      throttle = pfUI.throttle:Get("nameplates")
+      throttle = cfg.throttle_normal
     end
 
     -- Non-target plates with active castbar use the castbar throttle
-    if isCastingNonTarget then
-      local cbThrottle = pfUI.throttle:Get("nameplates_castbar")
-      if cbThrottle < throttle then throttle = cbThrottle end
+    if isCastingNonTarget and cfg.throttle_castbar < throttle then
+      throttle = cfg.throttle_castbar
     end
 
-    -- Check for pending event updates (these bypass throttle for immediate response)
-    local hasEventUpdate = nameplate.eventcache or nameplate.auraUpdate or nameplate.castUpdate or nameplate.targetUpdate or nameplate.comboUpdate
-
-    -- Event updates bypass throttle
+    -- The category-specific gate. hasEventUpdate was read above, before the
+    -- classification, and still bypasses the throttle.
     if not hasEventUpdate and (nameplate.lasttick or 0) + throttle > now then return end
     nameplate.lasttick = now
     
@@ -1655,10 +1682,9 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     -- engine framerate, decoupled from central loop). Only update non-target castbars here.
     local isTargetPlate = target or nameplate.istarget or (nameplate.health and nameplate.health.zoomed)
     if cfg.showcastbar and not cfg.targetcastbar and not isTargetPlate then
-      local cbThrottle = pfUI.throttle:Get("nameplates_castbar")
-      if visiblePlateCount > 20 then
-        local massThrottle = pfUI.throttle:Get("nameplates_mass")
-        if massThrottle > cbThrottle then cbThrottle = massThrottle end
+      local cbThrottle = cfg.throttle_castbar
+      if visiblePlateCount > 20 and cfg.throttle_mass > cbThrottle then
+        cbThrottle = cfg.throttle_mass
       end
       if (nameplate.castbar_tick or 0) + cbThrottle <= now then
         nameplate.castbar_tick = now
