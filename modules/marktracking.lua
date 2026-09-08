@@ -1,12 +1,9 @@
 pfUI:RegisterModule("marktracking", function ()
-  if not UnitExists("mark1") and not UnitExists("mark8") then
-    if not pcall(function() UnitExists("mark1") end) then return end
-  end
-
   local rawborder, border = GetBorderSize()
 
   local markerOrder = { 8, 7, 6, 5, 4, 3, 2, 1 } -- skull, cross, square, moon, triangle, diamond, circle, star
-  local markerTokens = {}
+  local markerTokens = {}  -- [i] = "markN"
+  local markerIndex = {}   -- ["markN"] = i, for the event handler's arg1
 
   local markerConfigKeys = {
     "raidmarkercolor_star",
@@ -22,6 +19,7 @@ pfUI:RegisterModule("marktracking", function ()
   local markerColors = {}
   for i, markKey in ipairs(markerConfigKeys) do
     markerTokens[i] = "mark" .. i
+    markerIndex[markerTokens[i]] = i
     local r, g, b, a = GetStringColor(C.unitframes[markKey])
     markerColors[i] = { tonumber(r), tonumber(g), tonumber(b), tonumber(a) }
   end
@@ -73,8 +71,7 @@ pfUI.marktracking = CreateFrame("Frame", "pfMarkTracking", UIParent)
   else
     pfUI.marktracking:SetPoint("TOP", UIParent, "CENTER", 0, 0)
   end
-  pfUI.marktracking:SetWidth(TOTAL_ROW_WIDTH)
-  pfUI.marktracking:SetHeight(8 * (ROW_HEIGHT + 1) + border * 2 - 1)
+  pfUI.marktracking:SetSize(TOTAL_ROW_WIDTH, 8 * (ROW_HEIGHT + 1) + border * 2 - 1)
   pfUI.marktracking:Hide()
 
   CreateBackdrop(pfUI.marktracking)
@@ -284,27 +281,50 @@ pfUI.marktracking = CreateFrame("Frame", "pfMarkTracking", UIParent)
   -- Event-driven scanner frame
   local scanner = CreateFrame("Frame")
 
+  -- Fallback poll: catches units that come into range AFTER a marker was set
+  -- (no event fires for that case, so we need this safety net). UpdateDisplay
+  -- is a full eight-row rebuild, so it exists only while grouped -- raid markers
+  -- are a group feature and there is nothing to discover alone. The group events
+  -- below start and cancel it, so outside a group there is no timer queued at
+  -- all rather than one waking every second to return early.
+  --
+  -- Deliberately NOT keyed on a mark being visible: a marker set on a unit that
+  -- is out of range shows no row, and that is exactly what this poll catches.
+  local poll
+  local function UpdatePoll()
+    local grouped = IsInGroup()
+    if grouped and not poll then
+      poll = C_Timer.NewTicker(FALLBACK_INTERVAL, UpdateDisplay)
+    elseif not grouped and poll then
+      poll:Cancel()
+      poll = nil
+    end
+  end
+
   -- RAID_TARGET_UPDATE: a raid marker was set/cleared -> full refresh
   -- PLAYER_ENTERING_WORLD: login/reload/zone -> full refresh
-  -- UNIT_HEALTH/UNIT_MAXHEALTH: ClassicAPI fires these per token; with the mark
-  --   tokens observed they arrive as arg1 == "markN", so we refresh just that
-  --   one row (UpdateRow) instead of rescanning all eight.
+  -- PARTY_MEMBERS_CHANGED/RAID_ROSTER_UPDATE: joined or left a group -> the rows
+  --   can change, and the fallback poll starts or stops with it
+  -- UNIT_HEALTH/UNIT_MAXHEALTH: filtered to the eight mark tokens, so arg1 is
+  --   always "markN" and we refresh just that row (UpdateRow) instead of
+  --   rescanning all eight.
   scanner:RegisterEvent("RAID_TARGET_UPDATE")
   scanner:RegisterEvent("PLAYER_ENTERING_WORLD")
-  scanner:RegisterEvent("UNIT_HEALTH")
-  scanner:RegisterEvent("UNIT_MAXHEALTH")
+  scanner:RegisterEvent("PARTY_MEMBERS_CHANGED")
+  scanner:RegisterEvent("RAID_ROSTER_UPDATE")
+  scanner:RegisterUnitEvent("UNIT_HEALTH", "mark1", "mark2", "mark3", "mark4", "mark5", "mark6", "mark7", "mark8")
+  scanner:RegisterUnitEvent("UNIT_MAXHEALTH", "mark1", "mark2", "mark3", "mark4", "mark5", "mark6", "mark7", "mark8")
 
   scanner:SetScript("OnEvent", function()
     if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" then
-      -- arg1 is the token; "markN" -> N, nil for any non-mark token.
-      local i = arg1 and tonumber(string.match(arg1, "^mark(%d)"))
+      -- arg1 is one of the eight tokens we registered for, so this is a lookup
+      -- rather than a parse -- string.match would allocate a capture and
+      -- tonumber would parse it, on every health tick of every marked unit.
+      local i = arg1 and markerIndex[arg1]
       if i then UpdateRow(i) end
       return
     end
+    if event ~= "RAID_TARGET_UPDATE" then UpdatePoll() end
     UpdateDisplay()
   end)
-
-  -- Fallback poll: catches units that come into range AFTER a marker was set
-  -- (no event fires for that case, so we need this safety net)
-  C_Timer.NewTicker(FALLBACK_INTERVAL, UpdateDisplay)
 end)
