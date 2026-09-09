@@ -130,9 +130,28 @@ pfUI:RegisterModule("eqcompare", function ()
     SetTradeTargetItem = GetTradeTargetItemLink
   }
 
+  -- Guda anchors its item tooltips with ANCHOR_NONE and its own SetPoint, and
+  -- the tooltip module then moves every ANCHOR_NONE tooltip to its configured
+  -- spot. Reading the rect inside the Set* call picks the side against the
+  -- position the tooltip is about to leave, so place the compare a frame later.
+  local deferred
+  if C_AddOns.DoesAddOnExist("Guda") then
+    EventUtil.ContinueOnAddOnLoaded("Guda", function()
+      deferred = true
+    end)
+  end
+
   local function makeHook(getter)
     return function(tooltip, arg1, arg2, arg3)
-      ShowCompareItem(tooltip, getter(arg1, arg2, arg3))
+      local link = getter(arg1, arg2, arg3)
+      if not deferred then
+        return ShowCompareItem(tooltip, link)
+      end
+      RunNextFrame(function()
+        if tooltip:IsShown() then
+          ShowCompareItem(tooltip, link)
+        end
+      end)
     end
   end
 
