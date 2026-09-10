@@ -1,3 +1,5 @@
+if CLASSIC_API_VERSION >= 11500 then return end
+
 pfUI:RegisterModule("macrotweak", function ()
   local conflictAddons = { "Supermacro", "SuperCleveRoidMacros", "UltimaMacros" }
   local disabled = false
