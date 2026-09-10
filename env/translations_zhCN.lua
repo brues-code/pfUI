@@ -670,7 +670,6 @@ pfUI_translation["zhCN"] = {
   ["Scale"] = "比例",
   ["Scale Border On HiDPI Displays"] = "缩放高DPI显示器上的边框",
   ["Scaling"] = "UI缩放",
-  ["Scan Macros For Spells"] = "扫描宏命令中的法术",
   ["Screen Edge Glow Intensity"] = "屏幕边缘发光强度",
   ["Screen Resolution"] = "屏幕分辨率",
   ["Screenshot"] = "屏幕截图",

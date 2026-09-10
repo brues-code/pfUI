@@ -670,7 +670,6 @@ pfUI_translation["deDE"] = {
   ["Scale"] = nil,
   ["Scale Border On HiDPI Displays"] = nil,
   ["Scaling"] = nil,
-  ["Scan Macros For Spells"] = nil,
   ["Screen Edge Glow Intensity"] = nil,
   ["Screen Resolution"] = nil,
   ["Screenshot"] = nil,

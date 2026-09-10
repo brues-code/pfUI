@@ -360,68 +360,6 @@ pfUI:RegisterModule("actionbar", function ()
     end
   end
 
-  local function ButtonMacroScan(self)
-    if self.bar > 10 then return end
-    if not self.scanmacro then return end
-    if pfUI.bars.skip_macro then return end
-
-    -- SuperCleveRoidMacros: for macros it manages, leave spellslot/booktype unset
-    -- so the button's icon, cooldown, and tooltip flow through the hooked
-    -- GetActionTexture / GetActionCooldown / GameTooltip:SetAction and follow the
-    -- active conditional dynamically, instead of being frozen to the first
-    -- statically-scanned spell.
-    if CleveRoids and CleveRoids.IsManagedAction and CleveRoids.IsManagedAction(self.id) then
-      self.spellslot, self.booktype, self.spellID = nil, nil, nil
-      return
-    end
-
-    local kind, slot = GetActionInfo(self.id)
-    self.spellslot, self.booktype, self.spellID = nil, nil, nil
-    if kind == 'macro' then
-      local name, _, body = GetMacroInfo(slot)
-
-      if name and body then
-        local match
-
-        for line in gfind(body, "[^%\n]+") do
-          _, _, match = string.find(line, '^#showtooltip (.+)')
-
-          -- allow the user to disable the scan
-          if match and strfind(match, "disable") then
-            return
-          end
-
-          if not match then
-            -- add support to specify custom tooltips via:
-            --  /run --showtooltip SPELLNAME
-            _, _, match = string.find(line, '%-%-showtooltip (.+)')
-          end
-
-          if not match then
-            _, _, match = string.find(line, '^/cast (.+)')
-          end
-
-          if not match then
-            _, _, match = string.find(line, '^/pfcast (.+)')
-          end
-
-          if not match then
-            _, _, match = string.find(line, '^/pfmouse (.+)')
-          end
-
-          if not match then
-            _, _, match = string.find(line, 'CastSpellByName%(%"(.+)%"%)')
-          end
-
-          if match then
-            self.spellslot, self.booktype, self.spellID = select(7, libspell.GetSpellInfo(match))
-            if self.spellslot and self.spellslot > 0 then return end
-          end
-        end
-      end
-    end
-  end
-
   local function ButtonEnter(self)
     self = self or this
 
@@ -690,7 +628,6 @@ pfUI:RegisterModule("actionbar", function ()
   local function ButtonFullUpdate(button)
     if not button then return end
 
-    ButtonMacroScan(button)
     ButtonSlotUpdate(button)
     ButtonRangeUpdate(button)
     ButtonUsableUpdate(button)
@@ -1166,12 +1103,7 @@ pfUI:RegisterModule("actionbar", function ()
     f.count:SetJustifyH("RIGHT")
     f.count:SetJustifyV("BOTTOM")
 
-    -- macro spell scan (disabled when macro addons are loaded)
-    if C.bars.macroscan == "0" or pfUI:MacroAddonsLoaded() then
-      f.scanmacro, f.spellslot, f.booktype = nil, nil, nil
-    else
-      f.scanmacro = true
-    end
+    f.scanmacro, f.spellslot, f.booktype = nil, nil, nil
 
     -- range glow color
     f.rangeColor = GetStringColorObject(C.bars.rangecolor)

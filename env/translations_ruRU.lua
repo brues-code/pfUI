@@ -670,7 +670,6 @@ pfUI_translation["ruRU"] = {
   ["Scale"] = "Масштаб",
   ["Scale Border On HiDPI Displays"] = "Масштабировать границы на HiDPI мониторах",
   ["Scaling"] = "Масштаб интерфейса",
-  ["Scan Macros For Spells"] = nil,
   ["Screen Edge Glow Intensity"] = "Интенсивность свечения на краях экрана",
   ["Screen Resolution"] = "Разрешение экрана",
   ["Screenshot"] = "Снимок экрана",
