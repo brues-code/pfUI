@@ -670,7 +670,6 @@ pfUI_translation["frFR"] = {
   ["Scale"] = "Échelle",
   ["Scale Border On HiDPI Displays"] = "Échelle de bordure sur les écrans HiDPI",
   ["Scaling"] = "Mise à l'échelle",
-  ["Scan Macros For Spells"] = nil,
   ["Screen Edge Glow Intensity"] = nil,
   ["Screen Resolution"] = "Résolution d'écran",
   ["Screenshot"] = "Imprime écran",

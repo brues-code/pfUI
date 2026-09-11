@@ -670,7 +670,6 @@ pfUI_translation["koKR"] = {
   ["Scale"] = nil,
   ["Scale Border On HiDPI Displays"] = nil,
   ["Scaling"] = nil,
-  ["Scan Macros For Spells"] = nil,
   ["Screen Edge Glow Intensity"] = nil,
   ["Screen Resolution"] = "화면 해상도",
   ["Screenshot"] = nil,

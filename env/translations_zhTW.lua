@@ -670,7 +670,6 @@ pfUI_translation["zhTW"] = {
   ["Scale"] = "比例",
   ["Scale Border On HiDPI Displays"] = nil,
   ["Scaling"] = nil,
-  ["Scan Macros For Spells"] = nil,
   ["Screen Edge Glow Intensity"] = nil,
   ["Screen Resolution"] = "螢幕解析度",
   ["Screenshot"] = nil,

@@ -10,8 +10,8 @@ local libhealth = CreateFrame("Frame")
 libhealth.enabled = true
 libhealth.reqhit = 4
 libhealth.reqdmg = 5
-libhealth:RegisterEvent("UNIT_HEALTH")
-libhealth:RegisterEvent("UNIT_COMBAT")
+libhealth:RegisterUnitEvent("UNIT_HEALTH", "target")
+libhealth:RegisterUnitEvent("UNIT_COMBAT", "target")
 libhealth:RegisterEvent("PLAYER_TARGET_CHANGED")
 libhealth:RegisterEvent("PLAYER_ENTERING_WORLD")
 libhealth:SetScript("OnEvent", function()

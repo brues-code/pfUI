@@ -363,9 +363,9 @@ end
     b:EnableMouse(true)
 
     b:RegisterEvent("FACTION_STANDING_CHANGED")
-    b:RegisterEvent("UNIT_PET")
-    b:RegisterEvent("UNIT_LEVEL")
-    b:RegisterEvent("UNIT_PET_EXPERIENCE")
+    b:RegisterUnitEvent("UNIT_PET", "player")
+    b:RegisterUnitEvent("UNIT_LEVEL", "player")
+    b:RegisterUnitEvent("UNIT_PET_EXPERIENCE", "player", "pet")
     b:RegisterEvent("PLAYER_ENTERING_WORLD")
     b:RegisterEvent("UPDATE_EXHAUSTION")
     b:RegisterEvent("PLAYER_XP_UPDATE")

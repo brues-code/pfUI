@@ -314,7 +314,8 @@ function pfUI.uf:UpdateVisibility()
   end
 
   local unitstr = ("%s%s"):format(self.label or "", self.id or "")
-  self:SetAttribute("unit", unitstr ~= "" and unitstr or nil)
+  self.unitstr = unitstr ~= "" and unitstr or nil
+  self:SetAttribute("unit", self.unitstr)
   local visibility = ("[target=%s,exists] show; hide"):format(unitstr)
 
   -- Group frames are redundant when the group is already shown as a raid grid:
@@ -343,6 +344,15 @@ function pfUI.uf:UpdateVisibility()
      visibility = "hide"
      self.visible = nil
   end
+
+  -- This is the single place a frame's unit is ever assigned, so it is also the
+  -- place its subscriptions follow it to: the engine then delivers only this
+  -- unit's events, and OnEvent compares against the cached string instead of
+  -- rebuilding label..id -- and calling UnitGUID -- for every unit event fired
+  -- by anything, anywhere. A frame that is not in use drops them entirely; the
+  -- roster events that would bring it back are registered plainly, and
+  -- visibilityscan re-runs this every 0.2s regardless, so it recovers on its own.
+  self:RegisterUnitEvents(visibility ~= "hide" and self.unitstr or nil)
 
   -- vanilla visibility
   if self.unitname then
@@ -624,11 +634,14 @@ function pfUI.uf:UpdateConfig()
       f.feedbackText:ClearAllPoints()
       f.feedbackText:SetPoint("CENTER", f.portrait, "CENTER")
     end
-    f:RegisterEvent("UNIT_COMBAT")
+    f.combatfeedback = true
   else
     f.feedbackText:Hide()
-    f:UnregisterEvent("UNIT_COMBAT")
+    f.combatfeedback = nil
   end
+  -- RegisterUnitEvents owns UNIT_COMBAT; clearing the cached unit makes the
+  -- next UpdateVisibility re-run it against the new combatfeedback state.
+  f.eventunit = nil
 
   f.hpLeftText:SetFontObject(GameFontWhite)
   f.hpLeftText:SetFont(fontname, fontsize, fontstyle)
@@ -918,6 +931,9 @@ function pfUI.uf:UpdateConfig()
     f:UpdateFrameSize()
   else
     f:UnregisterAllEvents()
+    -- that dropped the unit filters along with the registrations, so the cache
+    -- has to go too or the next UpdateVisibility believes they are still set
+    f.eventunit = nil
     f:Hide()
   end
 end
@@ -959,6 +975,10 @@ function pfUI.uf.OnEvent()
     this:UnregisterAllEvents()
     this:SetScript("OnEvent", nil)
     this:SetScript("OnUpdate", nil)
+    -- visibilityscan is a separate frame and keeps ticking, so leaving this one
+    -- on its list would have UpdateVisibility re-register the unit events we
+    -- just dropped -- straight back into the crash 132 this branch prevents
+    visibilityscan.frames[this] = nil
     return
   end
   
@@ -1025,8 +1045,12 @@ function pfUI.uf.OnEvent()
     this.update_aura = true
   elseif this.label == "pet" and event == "UNIT_HAPPINESS" then
     this.update_full = true
-  -- UNIT_XXX Events
-  elseif arg1 and (arg1 == this.label .. this.id or (UnitGUID and arg1 == UnitGUID(this.label .. this.id))) then
+  -- UNIT_XXX Events. RegisterUnitEvents means arg1 can only be this frame's own
+  -- unit; the compare is kept for the case the filter sits out, which is when
+  -- arg1 is not a string. The old GUID alternative is gone: these events fire
+  -- once per token that resolves to the unit AND once with the raw GUID, so the
+  -- token form always arrives and the GUID form was only ever a duplicate wake.
+  elseif arg1 and arg1 == this.unitstr then
     if event == "UNIT_PORTRAIT_UPDATE" or event == "UNIT_MODEL_CHANGED" then
       this.update_portrait = true
     elseif event == "UNIT_AURA" then
@@ -1251,25 +1275,56 @@ function pfUI.uf.OnUpdate()
   end
 end
 
+-- The unit events whose arg1 is the frame's OWN unit -- everything the OnEvent
+-- routes through its "UNIT_XXX Events" branch. These are not registered here:
+-- UpdateVisibility owns them, because it owns the frame's unit (below).
+--
+-- UNIT_PET and UNIT_HAPPINESS are deliberately absent. Their branches key on
+-- the frame's label, and UNIT_PET's arg1 is the pet's OWNER ("player" for a
+-- "pet" frame), so filtering them by the frame's own unit would drop them.
+local UNIT_EVENTS = {
+  "UNIT_DISPLAYPOWER",
+  "UNIT_HEALTH", "UNIT_MAXHEALTH",
+  "UNIT_MANA", "UNIT_MAXMANA",
+  "UNIT_RAGE", "UNIT_MAXRAGE",
+  "UNIT_ENERGY", "UNIT_MAXENERGY",
+  "UNIT_FOCUS",
+  "UNIT_PORTRAIT_UPDATE", "UNIT_MODEL_CHANGED",
+  "UNIT_FACTION",
+  "UNIT_AURA", -- frame=buff, frame=debuff
+}
+
+-- Point this frame's unit-event subscriptions at `unitstr`, or drop them when
+-- the frame has no unit. Cheap to call repeatedly: it no-ops unless the unit
+-- actually changed, which matters because visibilityscan runs UpdateVisibility
+-- for every frame five times a second.
+function pfUI.uf:RegisterUnitEvents(unitstr)
+  if self.eventunit == unitstr then return end
+  self.eventunit = unitstr
+
+  for i = 1, table.getn(UNIT_EVENTS) do
+    if unitstr then
+      self:RegisterUnitEvent(UNIT_EVENTS[i], unitstr)
+    else
+      self:UnregisterEvent(UNIT_EVENTS[i])
+    end
+  end
+
+  -- UNIT_COMBAT rides along only while the frame draws combat feedback text.
+  -- UpdateConfig clears eventunit when it toggles that, so the next
+  -- UpdateVisibility re-runs this.
+  if unitstr and self.combatfeedback then
+    self:RegisterUnitEvent("UNIT_COMBAT", unitstr)
+  else
+    self:UnregisterEvent("UNIT_COMBAT")
+  end
+end
+
 function pfUI.uf:EnableEvents()
   local f = self
 
   f:RegisterEvent("PLAYER_ENTERING_WORLD")
   f:RegisterEvent("PLAYER_LOGOUT")
-  f:RegisterEvent("UNIT_DISPLAYPOWER")
-  f:RegisterEvent("UNIT_HEALTH")
-  f:RegisterEvent("UNIT_MAXHEALTH")
-  f:RegisterEvent("UNIT_MANA")
-  f:RegisterEvent("UNIT_MAXMANA")
-  f:RegisterEvent("UNIT_RAGE")
-  f:RegisterEvent("UNIT_MAXRAGE")
-  f:RegisterEvent("UNIT_ENERGY")
-  f:RegisterEvent("UNIT_MAXENERGY")
-  f:RegisterEvent("UNIT_FOCUS")
-  f:RegisterEvent("UNIT_PORTRAIT_UPDATE")
-  f:RegisterEvent("UNIT_MODEL_CHANGED")
-  f:RegisterEvent("UNIT_FACTION")
-  f:RegisterEvent("UNIT_AURA") -- frame=buff, frame=debuff
   f:RegisterEvent("PLAYER_AURAS_CHANGED") -- label=player && frame=buff
   f:RegisterEvent("PLAYER_EQUIPMENT_CHANGED") -- label=player && frame=buff (ClassicAPI: weapon-enchant buffs)
   f:RegisterEvent("PARTY_MEMBERS_CHANGED") -- label=party, frame=leaderIcon
@@ -1387,6 +1442,7 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
   f.UpdateConfig     = pfUI.uf.UpdateConfig
   f.EnableScripts    = pfUI.uf.EnableScripts
   f.EnableEvents     = pfUI.uf.EnableEvents
+  f.RegisterUnitEvents = pfUI.uf.RegisterUnitEvents
   f.EnableClickCast  = pfUI.uf.EnableClickCast
   f.GetColor         = pfUI.uf.GetColor
 
@@ -1503,6 +1559,9 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
     f:UpdateFrameSize()
   else
     f:UnregisterAllEvents()
+    -- that dropped the unit filters along with the registrations, so the cache
+    -- has to go too or the next UpdateVisibility believes they are still set
+    f.eventunit = nil
     f:Hide()
   end
 

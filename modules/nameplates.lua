@@ -5,10 +5,7 @@ pfUI:RegisterModule("nameplates", function ()
   -- Local function references for performance
   local GetTime = GetTime
   local UnitName = UnitName
-  local UnitClass = UnitClass
-  local UnitLevel = UnitLevel
   local UnitIsPlayer = UnitIsPlayer
-  local UnitIsDead = UnitIsDead
   local UnitAffectingCombat = UnitAffectingCombat
   local UnitIsUnit = UnitIsUnit
   local UnitCanAssist = UnitCanAssist
@@ -161,6 +158,24 @@ pfUI:RegisterModule("nameplates", function ()
     cfg.debufftimers = C.nameplates.debufftimers == "1"
     cfg.debuffanim = tonumber(C.nameplates.debuffanim) or 0
     cfg.debufftext = tonumber(C.nameplates.debufftext) or 1
+
+    -- Throttle delays, resolved once instead of per plate per tick.
+    -- libthrottle:Get walks the saved-variable table, a defaults fallback and a
+    -- preset table, and can build a "<category>_custom" key -- the per-plate
+    -- OnUpdate was calling it one or two times for every visible plate, a
+    -- hundred times a second, just to decide it had nothing to do.
+    --
+    -- cfg.throttle_min is the floor across all four. No plate can ever be due
+    -- sooner than that, so the update can bail on it before working out which
+    -- category it actually belongs to.
+    cfg.throttle_target = pfUI.throttle:Get("nameplates_target")
+    cfg.throttle_mass = pfUI.throttle:Get("nameplates_mass")
+    cfg.throttle_normal = pfUI.throttle:Get("nameplates")
+    cfg.throttle_castbar = pfUI.throttle:Get("nameplates_castbar")
+    cfg.throttle_min = cfg.throttle_target
+    if cfg.throttle_mass < cfg.throttle_min then cfg.throttle_min = cfg.throttle_mass end
+    if cfg.throttle_normal < cfg.throttle_min then cfg.throttle_min = cfg.throttle_normal end
+    if cfg.throttle_castbar < cfg.throttle_min then cfg.throttle_min = cfg.throttle_castbar end
 
     -- Rebuild offtanks lookup table
     offtanks = {}
@@ -490,7 +505,7 @@ local nameplates = CreateFrame("Frame", "pfNameplates", UIParent)
 nameplates:RegisterEvent("PLAYER_ENTERING_WORLD")
 nameplates:RegisterEvent("PLAYER_TARGET_CHANGED")
 nameplates:RegisterEvent("PLAYER_LOGOUT")
-nameplates:RegisterEvent("UNIT_COMBO_POINTS")
+nameplates:RegisterUnitEvent("UNIT_COMBO_POINTS", "player")
 nameplates:RegisterEvent("PLAYER_COMBO_POINTS")
 nameplates:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 nameplates:RegisterEvent("RAID_ROSTER_UPDATE")
@@ -498,13 +513,10 @@ nameplates:RegisterEvent("PARTY_MEMBERS_CHANGED")
 nameplates:RegisterEvent("NAME_PLATE_CREATED")
 nameplates:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 nameplates:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
-nameplates:RegisterEvent("UNIT_AURA")
-nameplates:RegisterEvent("UNIT_FLAGS")
 nameplates:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-nameplates:RegisterEvent("UNIT_SPELLCAST_START")
-nameplates:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
-nameplates:RegisterEvent("UNIT_SPELLCAST_STOP")
-nameplates:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+-- UNIT_AURA / UNIT_FLAGS / UNIT_SPELLCAST_* are registered per plate, on the
+-- plate's own frame, against its own token -- see OnCreate and
+-- NAME_PLATE_UNIT_ADDED.
 nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
   
   nameplates:SetScript("OnEvent", function()
@@ -515,6 +527,15 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       this:SetScript("OnUpdate", nil)
       if nameplates.mouselook then
         nameplates.mouselook:SetScript("OnUpdate", nil)
+      end
+      -- The plates hold their own unit subscriptions now, so silencing this
+      -- frame alone would leave them dispatching through logout -- exactly what
+      -- this branch exists to prevent.
+      for plate in pairs(registry) do
+        if plate.nameplate then
+          plate.nameplate:UnregisterAllEvents()
+          plate.nameplate:SetScript("OnEvent", nil)
+        end
       end
       return
 
@@ -591,6 +612,16 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
         local guid = UnitGUID(arg1)
         plate.nameplate.cachedGuid = guid
         plate.nameplate.unit = arg1
+
+        -- Point this plate's own subscriptions at the token it just took. On a
+        -- recycled frame these replace the previous unit rather than stacking:
+        -- RegisterUnitEvent on an already-filtered registration swaps the units.
+        plate.nameplate:RegisterUnitEvent("UNIT_AURA", arg1)
+        plate.nameplate:RegisterUnitEvent("UNIT_FLAGS", arg1)
+        plate.nameplate:RegisterUnitEvent("UNIT_SPELLCAST_START", arg1)
+        plate.nameplate:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", arg1)
+        plate.nameplate:RegisterUnitEvent("UNIT_SPELLCAST_STOP", arg1)
+        plate.nameplate:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", arg1)
         plate.nameplate.creatureType = nil  -- recompute for the new unit
         plate.nameplate.totemIcon = nil
         plate.nameplate.totemSpell = nil
@@ -621,14 +652,9 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
         if plate and plate.nameplate and plate.nameplate.cachedGuid == guid then
           plate.nameplate.cachedGuid = nil
           plate.nameplate.unit = nil
-        end
-      end
-
-    elseif event == "UNIT_FLAGS" then
-      if arg1 and strfind(arg1, "^nameplate") then
-        local plate = C_NamePlate.GetNamePlateForUnit(arg1)
-        if plate and plate.nameplate then
-          plate.nameplate.eventcache = true
+          -- Drop the subscriptions with the token: this slot is now free and the
+          -- next plate to take it would otherwise feed this frame its events.
+          plate.nameplate:UnregisterAllEvents()
         end
       end
 
@@ -641,48 +667,6 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
         if po then po.eventcache = true end
         local pn = new and plateByGuid[new]
         if pn then pn.eventcache = true end
-      end
-
-    elseif event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" then
-      -- ClassicAPI fires UNIT_SPELLCAST_* per unit token, including the caster's
-      -- "nameplateN". The payload has no timing, so poll it (PollCastInfo picks
-      -- cast vs channel) and cache -- only for a unit we have a plate for, so
-      -- the table stays bounded to on-screen casters.
-      if arg1 and strfind(arg1, "^nameplate") then
-        local guid = UnitGUID(arg1)
-        local plate = guid and plateByGuid[guid]
-        if plate then
-          castState[guid] = PollCastInfo(arg1)
-          if castState[guid] then
-            plate.castUpdate = true  -- bypass the throttle so the bar shows now
-          end
-        end
-      end
-
-    elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
-      -- Cast/channel ended (natural, interrupted, or cancelled -- the poll fires
-      -- STOP for all three). Clear the cached cast and refresh its plate.
-      if arg1 and strfind(arg1, "^nameplate") then
-        local guid = UnitGUID(arg1)
-        if guid and castState[guid] then
-          castState[guid] = nil
-          local plate = plateByGuid[guid]
-          if plate then plate.castUpdate = true end
-        end
-      end
-
-    elseif event == "UNIT_AURA" then
-      -- ClassicAPI: fires with arg1 == "nameplateN" when a unit's aura set
-      -- changes (add/remove/modify). Flag the matching plate so OnUpdate does a
-      -- fresh C_UnitAuras read next tick instead of waiting on the 0.5s
-      -- throttle -- covers expirations, dispels, refreshes, and stack changes
-      -- in one event. Guard on the token prefix (UNIT_AURA also fires for
-      -- target/party/raid).
-      if arg1 and strfind(arg1, "^nameplate") then
-        local plate = C_NamePlate.GetNamePlateForUnit(arg1)
-        if plate and plate.nameplate then
-          plate.nameplate.auraUpdate = true
-        end
       end
 
     elseif event == "PLAYER_TARGET_CHANGED" then
@@ -765,6 +749,40 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     nameplate.parent = parent
     nameplate.cache = {}
     nameplate.original = {}
+
+    -- Each plate watches its own unit. With RegisterUnitEvent the token IS the
+    -- subscription, so there is no central listener sifting every unit event in
+    -- the world for a "^nameplate" prefix and then resolving the plate back out
+    -- of arg1 -- the event arrives only at the plate it concerns, and `this` is
+    -- already that plate. NAME_PLATE_UNIT_ADDED points the registration at the
+    -- new token; _REMOVED drops it, which matters because freed slots are
+    -- reused and a stale token would feed this frame another unit's events.
+    nameplate:SetScript("OnEvent", function()
+      if event == "UNIT_AURA" then
+        -- a fresh C_UnitAuras read next tick rather than waiting out the 0.5s
+        -- throttle -- covers expiry, dispels, refreshes and stack changes
+        this.auraUpdate = true
+      elseif event == "UNIT_FLAGS" then
+        this.eventcache = true
+      elseif event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" then
+        -- the payload carries no timing, so poll it (PollCastInfo picks cast
+        -- vs channel)
+        local guid = this.cachedGuid
+        if guid then
+          castState[guid] = PollCastInfo(this.unit)
+          if castState[guid] then
+            this.castUpdate = true -- bypass the throttle so the bar shows now
+          end
+        end
+      elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
+        -- ended: natural, interrupted or cancelled -- the poll fires STOP for all
+        local guid = this.cachedGuid
+        if guid and castState[guid] then
+          castState[guid] = nil
+          this.castUpdate = true
+        end
+      end
+    end)
 
     -- create shortcuts for all known elements and disable them
     nameplate.original.healthbar, nameplate.original.castbar = parent:GetChildren()
@@ -1409,6 +1427,16 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
 
     -- cachedGuid is maintained by NAME_PLATE_UNIT_ADDED / _REMOVED events.
 
+    -- Cheap gate first. The central loop calls this for every visible plate ~100
+    -- times a second, and classifying the plate below costs two C calls, a cast
+    -- lookup and a throttle resolution -- all of it wasted on a plate that is
+    -- throttled to 10fps. cfg.throttle_min is the floor across every category,
+    -- so nothing that would have updated can be turned away here; the real
+    -- category-specific throttle is still applied after the classification.
+    -- Event flags bypass both gates, as before.
+    local hasEventUpdate = nameplate.eventcache or nameplate.auraUpdate or nameplate.castUpdate or nameplate.targetUpdate or nameplate.comboUpdate
+    if not hasEventUpdate and (nameplate.lasttick or 0) + cfg.throttle_min > now then return end
+
     -- PERF: Intelligent throttling based on target/castbar status and plate count
     -- Use GUID comparison as primary target detection: instant, immune to alpha transitions,
     -- and immediately correct on de-target (unlike istarget which updates one tick later)
@@ -1435,25 +1463,24 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       end
     end
 
+    -- Resolved in CacheConfig, so these are table reads rather than a walk
+    -- through the saved variables and preset tables.
     local throttle
     if target then
-      throttle = pfUI.throttle:Get("nameplates_target")
+      throttle = cfg.throttle_target
     elseif visiblePlateCount > 20 then
-      throttle = pfUI.throttle:Get("nameplates_mass")
+      throttle = cfg.throttle_mass
     else
-      throttle = pfUI.throttle:Get("nameplates")
+      throttle = cfg.throttle_normal
     end
 
     -- Non-target plates with active castbar use the castbar throttle
-    if isCastingNonTarget then
-      local cbThrottle = pfUI.throttle:Get("nameplates_castbar")
-      if cbThrottle < throttle then throttle = cbThrottle end
+    if isCastingNonTarget and cfg.throttle_castbar < throttle then
+      throttle = cfg.throttle_castbar
     end
 
-    -- Check for pending event updates (these bypass throttle for immediate response)
-    local hasEventUpdate = nameplate.eventcache or nameplate.auraUpdate or nameplate.castUpdate or nameplate.targetUpdate or nameplate.comboUpdate
-
-    -- Event updates bypass throttle
+    -- The category-specific gate. hasEventUpdate was read above, before the
+    -- classification, and still bypasses the throttle.
     if not hasEventUpdate and (nameplate.lasttick or 0) + throttle > now then return end
     nameplate.lasttick = now
     
@@ -1655,10 +1682,9 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     -- engine framerate, decoupled from central loop). Only update non-target castbars here.
     local isTargetPlate = target or nameplate.istarget or (nameplate.health and nameplate.health.zoomed)
     if cfg.showcastbar and not cfg.targetcastbar and not isTargetPlate then
-      local cbThrottle = pfUI.throttle:Get("nameplates_castbar")
-      if visiblePlateCount > 20 then
-        local massThrottle = pfUI.throttle:Get("nameplates_mass")
-        if massThrottle > cbThrottle then cbThrottle = massThrottle end
+      local cbThrottle = cfg.throttle_castbar
+      if visiblePlateCount > 20 and cfg.throttle_mass > cbThrottle then
+        cbThrottle = cfg.throttle_mass
       end
       if (nameplate.castbar_tick or 0) + cbThrottle <= now then
         nameplate.castbar_tick = now
