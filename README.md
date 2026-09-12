@@ -1,12 +1,9 @@
 # pfUI - ClassicAPI Edition
 
-[![Octo WoW](https://img.shields.io/badge/Octo%20WoW-1.18.1-brightgreen.svg)](https://octowow.st/)
 [![ClassicAPI](https://img.shields.io/badge/ClassicAPI-Required-purple.svg)](https://github.com/brues-code/ClassicAPI)
 [![Nampower](https://img.shields.io/badge/Nampower-Required-purple.svg)](https://github.com/brues-code/nampower)
 [![SuperWoW](https://img.shields.io/badge/SuperWoW-Optional-yellow.svg)](https://github.com/balakethelock/SuperWoW)
 [![UnitXP](https://img.shields.io/badge/UnitXP__SP3-Optional-yellow.svg)](https://github.com/brues-code/UnitXP_SP3)
-
-**A pfUI fork specifically optimized for ClassicAPI on [Octo WoW](https://octowow.st/)**
 
 This version includes significant performance improvements and DLL-enhanced features.
 
@@ -18,7 +15,7 @@ This version includes significant performance improvements and DLL-enhanced feat
 
 ## DLL Enhancements
 
-Since pfUI 6.0.0 includes integrations with client-side DLLs for enhanced functionality. These DLLs are permitted on Octo WoW:
+Since pfUI 6.0.0 includes integrations with client-side DLLs for enhanced functionality:
 
 ### [ClassicAPI](https://github.com/brues-code/ClassicAPI)
 
