@@ -86,7 +86,7 @@ pfUI:RegisterModule("castbar", function ()
 
   -- Stamp the bar with cast data and render text/icon/lag once. OnUpdate
   -- then animates the fill from this state without touching C_Spell.
-  local function StampBar(cb, name, tex, startMs, endMs, spellID, isChannel, delayMs, isTradeskill, rank)
+  local function StampBar(cb, name, tex, startMs, endMs, spellID, isChannel, delayMs, isTradeskill, rank, noInterrupt)
     cb.startTime = startMs
     cb.endTime = endMs
     cb.isChannel = isChannel
@@ -97,7 +97,10 @@ pfUI:RegisterModule("castbar", function ()
     cb:SetAlpha(1)
     cb.fadeout = nil
 
-    cb.bar:SetStatusBarColor(GetStringColor(C.appearance.castbar[isChannel and "channelcolor" or "castbarcolor"]))
+    -- Shield an uninterruptible cast. Not on the player's own bar: the flag is
+    -- measured against the reader's own interrupts and silences, so on your own
+    -- cast it answers a question nobody asked.
+    SetCastbarShield(cb.bar, cb.icon, noInterrupt and cb.unitstr ~= "player", isChannel)
 
     -- Rank: prefer the value the UNIT_SPELLCAST_* event delivered (arg5, passed
     -- through by RefreshBar). Only the retarget re-poll has no event in hand, so
@@ -152,10 +155,10 @@ pfUI:RegisterModule("castbar", function ()
       ClearBar(cb)
       return
     end
-    local name, _, tex, startMs, endMs, isTradeskill, _, _, spellID, _, delayMs = C_Spell.UnitCastingInfo(query)
+    local name, _, tex, startMs, endMs, isTradeskill, _, noInterrupt, spellID, _, delayMs = C_Spell.UnitCastingInfo(query)
     local isChan
     if not name then
-      name, _, tex, startMs, endMs, _, _, spellID = C_Spell.UnitChannelInfo(query)
+      name, _, tex, startMs, endMs, _, noInterrupt, spellID = C_Spell.UnitChannelInfo(query)
       isChan = true
     end
     -- Synthetic fallback for abilities the engine treats as instant-cast but
@@ -169,7 +172,7 @@ pfUI:RegisterModule("castbar", function ()
       end
     end
     if name and startMs and endMs then
-      StampBar(cb, name, tex, startMs, endMs, spellID, isChan, delayMs, isTradeskill, rank)
+      StampBar(cb, name, tex, startMs, endMs, spellID, isChan, delayMs, isTradeskill, rank, noInterrupt)
     else
       ClearBar(cb)
     end

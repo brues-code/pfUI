@@ -1333,6 +1333,32 @@ function pfUI.api.CreateBackdropShadow(f)
   f.backdrop_shadow:SetBackdropBorderColor(0, 0, 0, tonumber(pfUI_config.appearance.border.shadow_intensity))
 end
 
+-- [ Set Castbar Shield ]
+-- Colors a castbar for a cast that none of the player's own interrupts or
+-- silences can stop. The bar and the icon's border both take the shield color,
+-- so the state still reads on a bar configured without an icon. Not shielded
+-- restores the normal cast/channel color and the configured border.
+-- 'bar'        [frame]     the castbar statusbar
+-- 'icon'       [frame]     the icon frame, or nil for a bar without one
+-- 'shielded'   [bool]      whether the cast is uninterruptible
+-- 'isChannel'  [bool]      selects the unshielded color
+function pfUI.api.SetCastbarShield(bar, icon, shielded, isChannel)
+  if shielded then
+    bar:SetStatusBarColor(pfUI.api.GetStringColor(C.appearance.castbar.shieldcolor))
+  else
+    bar:SetStatusBarColor(pfUI.api.GetStringColor(C.appearance.castbar[isChannel and "channelcolor" or "castbarcolor"]))
+  end
+
+  local iconborder = icon and icon.backdrop
+  if not iconborder then return end
+
+  if shielded then
+    iconborder:SetBackdropBorderColor(pfUI.api.GetStringColor(C.appearance.castbar.shieldcolor))
+  else
+    iconborder:SetBackdropBorderColor(pfUI.api.GetStringColor(C.appearance.border.color))
+  end
+end
+
 -- [ Bar Layout Options ] --
 -- 'barsize'  size of bar in number of buttons
 -- returns:   array of options as strings for pfUI.gui.bar

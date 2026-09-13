@@ -77,10 +77,10 @@ pfUI:RegisterModule("nameplates", function ()
   -- vs channel itself. Never called per frame.
   local function PollCastInfo(unit)
     if not unit then return nil end
-    local name, _, texture, startMs, endMs, _, _, _, spellID = C_Spell.UnitCastingInfo(unit)
+    local name, _, texture, startMs, endMs, _, _, noInterrupt, spellID = C_Spell.UnitCastingInfo(unit)
     local isChannel
     if not name then
-      name, _, texture, startMs, endMs, _, _, spellID = C_Spell.UnitChannelInfo(unit)
+      name, _, texture, startMs, endMs, _, noInterrupt, spellID = C_Spell.UnitChannelInfo(unit)
       isChannel = true
     end
     if not name or not startMs or not endMs then return nil end
@@ -92,6 +92,7 @@ pfUI:RegisterModule("nameplates", function ()
       endTime   = endMs / 1000,
       duration  = (endMs - startMs) / 1000,
       isChannel = isChannel,
+      noInterrupt = noInterrupt,
     }
   end
 
@@ -1751,7 +1752,7 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       -- Relative 0..duration range to avoid float precision loss with large
       -- absolute timestamps.
       nameplate.castbar:SetMinMaxValues(0, duration)
-      nameplate.castbar:SetStatusBarColor(GetStringColor(C.appearance.castbar[(isChannel and "channelcolor" or "castbarcolor")]))
+      SetCastbarShield(nameplate.castbar, nameplate.castbar.icon, castInfo.noInterrupt, isChannel)
       if castInfo.icon then
         nameplate.castbar.icon.tex:SetTexture(castInfo.icon)
         nameplate.castbar.icon.tex:SetTexCoord(.1,.9,.1,.9)
