@@ -89,6 +89,13 @@ pfUI:RegisterModule("energytick", function()
     return C.unitframes.player.pwidth ~= "-1" and C.unitframes.player.pwidth or C.unitframes.player.width
   end
 
+  local rawborder, default_border = GetBorderSize("unitframes")
+  local cbtexture = pfUI.media[C.appearance.castbar.texture]
+
+  -- style is read once: switching it in the GUI needs a /reload, same as the
+  -- other structural (not cosmetic) toggles in this file
+  local fsrOverlay = C.unitframes.player.fsrstyle == "1"
+
   -- was this gain the regen tick? if so, re-anchor the sweep on it
   local function lockTick(frame)
     local now, period = GetTime(), getAdjustedTickTimer()
@@ -199,11 +206,21 @@ pfUI:RegisterModule("energytick", function()
     end
     this.tick = GetTime() + 0.020  -- ~50 FPS
 
-    -- five-second rule drains to nothing
+    -- five-second rule drains to nothing. The display is cosmetic and can be
+    -- hidden on its own; the window itself (fsrEnd/fsrGain) keeps running
+    -- either way -- it still dims the sweep spark below.
     local remaining = this.fsrEnd and (this.fsrEnd - GetTime()) or 0
     if this.mode == "MANA" and remaining > 0 then
-      this.fsrbar:SetWidth(getBarWidth() * remaining / FIVE_SECOND_RULE)
-      this.fsrbar:Show()
+      if C.unitframes.player.showfsr == "1" then
+        if fsrOverlay then
+          this.fsrbar:SetWidth(getBarWidth() * remaining / FIVE_SECOND_RULE)
+        else
+          this.fsrbar:SetValue(remaining)
+        end
+        this.fsrbar:Show()
+      else
+        this.fsrbar:Hide()
+      end
     else
       this.fsrSpell, this.fsrEnd, this.fsrGain = nil, nil, nil
       this.fsrbar:Hide()
@@ -240,10 +257,26 @@ pfUI:RegisterModule("energytick", function()
     this.spark:SetPoint("LEFT", pos - ((C.unitframes.player.pheight + 5) / 2), 0)
   end)
 
-  energytick.fsrbar = energytick:CreateTexture(nil, "ARTWORK")
-  energytick.fsrbar:SetTexture(1, 1, 1, .15)
-  energytick.fsrbar:SetPoint("TOPLEFT", 0, 0)
-  energytick.fsrbar:SetPoint("BOTTOMLEFT", 0, 0)
+  if fsrOverlay then
+    -- classic style: a translucent shade on top of the power bar's own fill
+    energytick.fsrbar = energytick:CreateTexture(nil, "ARTWORK")
+    energytick.fsrbar:SetTexture(1, 1, 1, .15)
+    energytick.fsrbar:SetPoint("TOPLEFT", 0, 0)
+    energytick.fsrbar:SetPoint("BOTTOMLEFT", 0, 0)
+  else
+    -- a real bar below the power bar, not an overlay on top of it -- the same
+    -- treatment nameplate castbars get relative to the health bar, so the
+    -- window can't be mistaken for missing mana
+    energytick.fsrbar = CreateFrame("StatusBar", nil, pfUI.uf.player)
+    energytick.fsrbar:SetStatusBarTexture(cbtexture)
+    energytick.fsrbar:SetMinMaxValues(0, FIVE_SECOND_RULE)
+    energytick.fsrbar:SetPoint("TOPLEFT", pfUI.uf.player.power.bar, "BOTTOMLEFT", 0, -default_border * 2)
+    energytick.fsrbar:SetPoint("TOPRIGHT", pfUI.uf.player.power.bar, "BOTTOMRIGHT", 0, -default_border * 2)
+    energytick.fsrbar:SetHeight(tonumber(C.unitframes.player.fsrheight) or 4)
+    energytick.fsrbar:SetStatusBarColor(GetStringColor(C.appearance.castbar.fsrcolor))
+    CreateBackdrop(energytick.fsrbar, default_border)
+    CreateBackdropShadow(energytick.fsrbar)
+  end
   energytick.fsrbar:Hide()
 
   energytick.spark = energytick:CreateTexture(nil, "OVERLAY")
@@ -256,6 +289,10 @@ pfUI:RegisterModule("energytick", function()
   function pfUI.uf.player.UpdateConfig()
     energytick.spark:SetHeight(C.unitframes.player.pheight + 15)
     energytick.spark:SetWidth(C.unitframes.player.pheight + 5)
+    if not fsrOverlay then
+      energytick.fsrbar:SetHeight(tonumber(C.unitframes.player.fsrheight) or 4)
+      energytick.fsrbar:SetStatusBarColor(GetStringColor(C.appearance.castbar.fsrcolor))
+    end
     hookUpdateConfig(pfUI.uf.player)
   end
 end)
