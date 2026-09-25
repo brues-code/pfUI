@@ -18,12 +18,7 @@ local ItemQuality = Enum.ItemQuality
 local function SortCategoryPrefix(itemId, classID, quality)
   if itemId == HEARTHSTONE_ITEM_ID     then return "00" end
   if quality == ItemQuality.Poor       then return "13" end  -- gray always last
-  if classID == ItemClass.Weapon or classID == ItemClass.Armor then
-    if quality and quality >= ItemQuality.Epic then return "01" end  -- Epic+ gear
-    if quality == ItemQuality.Rare             then return "02" end  -- Rare gear
-    if quality == ItemQuality.Uncommon         then return "03" end  -- Uncommon gear
-    return "04"                                                      -- Common/poor gear
-  end
+  if classID == ItemClass.Weapon or classID == ItemClass.Armor then return "01" end
   if classID == ItemClass.Consumable then return "05" end
   if classID == ItemClass.Reagent    then return "06" end
   if classID == ItemClass.Tradegoods then return "07" end
@@ -42,12 +37,40 @@ local function SortCountSuffix(count)
   return string.sub(s, -6)
 end
 
-local function SortKey(itemId, name, classID, subClassID, quality, count)
-  -- Zero-pad the class/subclass so the secondary grouping sorts numerically
-  -- (as a string, "10" would otherwise precede "2").
-  return SortCategoryPrefix(itemId, classID, quality)
-    .. string.format("%02d|%02d|", classID or 99, subClassID or 99)
-    .. (name or "zzz") .. "|" .. SortCountSuffix(count)
+-- Gear's slot order, keyed by the equipLoc token (INVTYPE_*). Not the
+-- token's alphabetical order, which puts chest before head, and not its
+-- INVTYPE number, which parts robe (20) from chest (5). Same order as
+-- ClassicAPI's C_Container.SortBags, taken from Baganator: weapons by hand,
+-- ranged and ammo, then armor with shields and off-hands first, head to
+-- feet, then jewelry, shirt and tabard.
+local SLOT_ORDER = {
+  "INVTYPE_2HWEAPON", "INVTYPE_WEAPON", "INVTYPE_WEAPONMAINHAND",
+  "INVTYPE_SHIELD", "INVTYPE_HOLDABLE", "INVTYPE_RANGEDRIGHT",
+  "INVTYPE_WEAPONOFFHAND", "INVTYPE_RANGED", "INVTYPE_THROWN",
+  "INVTYPE_AMMO", "INVTYPE_QUIVER", "INVTYPE_RELIC",
+  "INVTYPE_HEAD", "INVTYPE_SHOULDER", "INVTYPE_CLOAK", "INVTYPE_CHEST",
+  "INVTYPE_ROBE", "INVTYPE_WRIST", "INVTYPE_HAND", "INVTYPE_WAIST",
+  "INVTYPE_LEGS", "INVTYPE_FEET",
+  "INVTYPE_NECK", "INVTYPE_FINGER", "INVTYPE_TRINKET", "INVTYPE_BODY",
+  "INVTYPE_TABARD", "INVTYPE_BAG",
+}
+local SLOT_RANK = {}
+for i, token in ipairs(SLOT_ORDER) do SLOT_RANK[token] = i end
+
+local function SortKey(itemId, name, classID, subClassID, quality, count, equipLoc)
+  -- Zero-pad the numeric fields so they sort numerically as strings ("10"
+  -- would otherwise precede "2").
+  local key = SortCategoryPrefix(itemId, classID, quality)
+    .. string.format("%02d|", classID or 99)
+  if classID == ItemClass.Weapon or classID == ItemClass.Armor then
+    -- Gear: slot, then subtype, then best quality first, so all helms sit
+    -- together, then all shoulders.
+    key = key .. string.format("%02d|%02d|%d|",
+      SLOT_RANK[equipLoc] or 99, subClassID or 99, 9 - (quality or 0))
+  else
+    key = key .. string.format("%02d|", subClassID or 99)
+  end
+  return key .. (name or "zzz") .. "|" .. SortCountSuffix(count)
 end
 
 local function ClearSortData()
@@ -168,10 +191,10 @@ local function BuildSortGrid()
           -- sit at positions 12/13. We categorize on those numeric class IDs
           -- rather than the localized itemType/itemSubType strings. (pfUI's
           -- shimmed global GetItemInfo is only 10 fields and lacks them.)
-          local name, _, quality, _, _, _, _, _, _, _, _, classID, subClassID = C_Item.GetItemInfo(itemId)
+          local name, _, quality, _, _, _, _, _, equipLoc, _, _, classID, subClassID = C_Item.GetItemInfo(itemId)
           local _, count = GetContainerItemInfo(bag, slot)
           local item = {
-            key     = SortKey(itemId, name, classID, subClassID, quality, count),
+            key     = SortKey(itemId, name, classID, subClassID, quality, count, equipLoc),
             -- vanilla items carry at most one family bit, so equality
             -- against a bag family suffices (no bit.band needed).
             family  = C_Item.GetItemFamily(itemId) or 0,
