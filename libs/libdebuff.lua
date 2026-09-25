@@ -937,7 +937,7 @@ if hasNampower then
       local numMissed = arg7 or 0
 
       -- Fire registered SPELL_GO_SELF hooks BEFORE miss guard
-      -- (Swingtimer needs to see ALL casts, even misses, for swing reset)
+      -- (Swingtimer needs to see ALL casts, even misses, to clear its queue color)
       if event == "SPELL_GO_SELF" and pfUI.libdebuff_spell_go_hooks then
         for _, fn in pairs(pfUI.libdebuff_spell_go_hooks) do
           fn(spellId, arg1, arg2, arg3, arg4, arg5, arg6, arg7)

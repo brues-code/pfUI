@@ -1,10 +1,6 @@
 pfUI:RegisterModule("swingtimer", function ()
   local rawborder, border = GetBorderSize()
 
-  -- HitInfo flags (EVENTS.md)
-  local HITINFO_LEFTSWING  = 4      -- 4: Off-hand attack
-  local HITINFO_NOACTION   = 65536  -- 65536: server did not advance the swing clock
-
   -- SPELL_QUEUE_EVENT codes (EVENTS.md)
   local ON_SWING_QUEUED       = 0
   local ON_SWING_QUEUE_POPPED = 1
@@ -19,8 +15,6 @@ pfUI:RegisterModule("swingtimer", function ()
     lastMhMarkerX = -1, lastOhMarkerX = -1, lastRaMarkerX = -1,
     autoAttackActive = false,
     inCombat = false,
-    pendingCastSpellId = nil,
-    mhFrozenAt = nil,
     hsQueued = false, cleaveQueued = false, maulQueued = false,
     hsSeenCurrent = false, cleaveSeenCurrent = false, maulSeenCurrent = false,
     isWarrior = false,
@@ -30,13 +24,6 @@ pfUI:RegisterModule("swingtimer", function ()
     swingThrottle = 0,
     onSwingCache = {},
   }
-
-  -- Wand "Shoot" runs on the ranged bar but is INDEPENDENT of the melee
-  -- swing clock — casters melee-weave between mainhand swings and wand
-  -- fires, both timers tick concurrently. Every other ranged-auto-attack
-  -- (Hunter Auto Shot, any future auto-repeat ranged spell) replaces MH.
-  local WAND_SHOOT_SPELLID = 5019
-  local THROW_SPELLID      = 2764  -- one-shot ranged, not auto-repeat
 
   -- On-next-swing spells replace the next auto-attack swing.
   -- Covers Raptor Strike, Maul, Mongoose Bite, Holy Strike, etc. automatically.
@@ -304,45 +291,37 @@ pfUI:RegisterModule("swingtimer", function ()
     S.raSpeed = (rs and rs > 0) and rs or 0
   end
 
-  -- Reset MH countdown to full speed (server confirmed swing)
-  local function ResetMH()
-    if S.mhFrozenAt then
-      S.mhFrozenAt = nil
-    end
+  -- Start* restart a countdown from a PLAYER_SWING reset. `remaining` can be
+  -- shorter than the weapon speed (parry haste, ranged wind-up), so the bar
+  -- length stays the full swing and the fill starts part-way along.
+  local function StartMH(remaining)
     UpdateWeaponSpeeds()
     pfUI.swingtimer.mhGraceAt = nil  -- cancel any pending hide
-    S.mhTimerMax = S.mhSpeed
-    S.mhTimer    = S.mhSpeed
+    S.mhTimerMax = math.max(S.mhSpeed, remaining)
+    S.mhTimer    = remaining
     S.mhActive   = true
     pfUI.swingtimer.mainhand:Show()
     pfUI.swingtimer:Show()
   end
 
-  -- Reset OH countdown to full speed
-  local function ResetOH()
+  local function StartOH(remaining)
     UpdateWeaponSpeeds()
+    -- The off-hand attack time stays set with a shield equipped
     if S.ohSpeed <= 0 then return end
     pfUI.swingtimer.ohGraceAt = nil  -- cancel any pending hide
-    S.ohTimerMax = S.ohSpeed
-    S.ohTimer    = S.ohSpeed
+    S.ohTimerMax = math.max(S.ohSpeed, remaining)
+    S.ohTimer    = remaining
     S.ohActive   = true
     if sw_showoh then pfUI.swingtimer.offhand:Show() end
     pfUI.swingtimer:Show()
   end
 
-  -- Reset ranged countdown. replaceMH=true (Hunter Auto Shot, Throw) stops
-  -- the melee swing clock while ranged ticks; replaceMH=false (wand Shoot)
-  -- leaves it running for melee weaving.
-  local function ResetRanged(replaceMH)
+  local function StartRanged(remaining)
     if not sw_showranged then return end
     UpdateWeaponSpeeds()
     if S.raSpeed <= 0 then return end
-    if replaceMH then
-      S.mhActive = false
-      pfUI.swingtimer.mainhand:Hide()
-    end
-    S.raTimerMax = S.raSpeed
-    S.raTimer    = S.raSpeed
+    S.raTimerMax = math.max(S.raSpeed, remaining)
+    S.raTimer    = remaining
     S.raActive   = true
 
     if isHunter then
@@ -486,23 +465,17 @@ pfUI:RegisterModule("swingtimer", function ()
     local anyActive = false
 
     -- Tick timers down. When a timer expires we give a short grace period before
-    -- hiding the bar, to bridge the 1-2 frame gap until AUTO_ATTACK_SELF arrives.
-    -- If AUTO_ATTACK_SELF arrives during the grace period it resets the timer
+    -- hiding the bar, to bridge the 1-2 frame gap until PLAYER_SWING arrives.
+    -- If PLAYER_SWING arrives during the grace period it resets the timer
     -- normally and the grace timer is cleared. If not (e.g. auto-attack was
     -- turned off), the bar hides after the grace period ends.
     local GRACE = 0.15  -- seconds to wait after timer hits 0 before hiding
 
     if S.mhActive then
-      -- Don't tick while frozen (swing-delay spell like Slam is being cast)
-      if not S.mhFrozenAt then
-        S.mhTimer = S.mhTimer - delta
-      end
+      S.mhTimer = S.mhTimer - delta
       if S.mhTimer <= 0 then
         S.mhTimer = 0
-        if S.mhFrozenAt then
-          -- Swing-delay spell cast in progress: bar holds at 0, skip grace/hide.
-          -- SPELL_GO handler will unfreeze and add cast duration to timer.
-        elseif not pfUI.swingtimer.mhGraceAt then
+        if not pfUI.swingtimer.mhGraceAt then
           pfUI.swingtimer.mhGraceAt = GetTime() + GRACE
         elseif GetTime() >= pfUI.swingtimer.mhGraceAt then
           pfUI.swingtimer.mhGraceAt = nil
@@ -722,80 +695,13 @@ pfUI:RegisterModule("swingtimer", function ()
     end
   end)
 
-  -- SPELL_START_SELF: fires only for cast-time spells, never instants
-  local spellStartFrame = CreateFrame("Frame")
-  spellStartFrame:RegisterEvent("SPELL_START_SELF")
-  spellStartFrame:SetScript("OnEvent", function()
-    if not (arg1 and arg1 > 0) then return end
-    S.pendingCastSpellId = arg1
-    -- Freeze the swing timer for cast-time spells that DON'T reset auto-
-    -- attack on completion (Slam, Hammer of Wrath on Turtle, etc.) — those
-    -- let the swing resume from where it paused. C_Spell.ResetsMeleeSwing
-    -- mirrors the server rule; spells that reset don't need freezing (they
-    -- reset on SPELL_GO_SELF). Subsumes the old hardcoded swingDelaySpells
-    -- list (no list maintenance for new Slam-style spells).
-    if S.mhActive then
-      if not C_Spell.ResetsMeleeSwing(arg1) then
-        S.mhFrozenAt = GetTime()
-      end
-    end
-  end)
-
-  -- Cast cancel/fail/interrupt: unfreeze swing timer if a delay spell was interrupted
-  local spellFailFrame = CreateFrame("Frame")
-  spellFailFrame:RegisterEvent("SPELLCAST_FAILED")
-  spellFailFrame:RegisterEvent("SPELLCAST_INTERRUPTED")
-  spellFailFrame:SetScript("OnEvent", function()
-    if S.mhFrozenAt then
-      S.mhFrozenAt = nil
-    end
-    S.pendingCastSpellId = nil
-  end)
-
-  -- SPELL_GO hook via libdebuff
+  -- SPELL_GO hook via libdebuff: an on-next-swing ability (HS / Cleave /
+  -- Maul) resolving consumes the queue, so drop the queued color.
   pfUI.libdebuff_spell_go_hooks = pfUI.libdebuff_spell_go_hooks or {}
   pfUI.libdebuff_spell_go_hooks["swingtimer"] = function(spellId)
-    -- C_Spell.IsRangedAutoAttackSpell catches both Auto Shot (75) and
-    -- wand Shoot (5019) via Spell.dbc's AUTO_REPEAT attribute (covers
-    -- any future auto-repeat ranged spell automatically). Wand is the
-    -- one independent of the MH swing — everything else replaces it.
-    -- Throw isn't auto-repeat (single-shot) so it's handled explicitly.
-    if C_Spell.IsRangedAutoAttackSpell(spellId) then
-      ResetRanged(spellId ~= WAND_SHOOT_SPELLID)
-      return
-    elseif spellId == THROW_SPELLID then
-      ResetRanged(true)
-      return
-    elseif IsOnSwingSpell(spellId) then
-      -- On-next-swing ability (HS / Cleave / Maul / Raptor Strike / etc.)
-      -- — the swing fires as the spell consumes it. Drop the queued color.
+    if IsOnSwingSpell(spellId) then
       S.hsQueued = false; S.cleaveQueued = false; S.maulQueued = false
-      ResetMH()
-    else
-      -- C_Spell.ResetsMeleeSwing mirrors the server rule (Turtle's
-      -- Spell::IsMeleeAttackResetSpell): InterruptFlags has AUTOATTACK and
-      -- AttributesEx2 lacks NOT_RESET_AUTO_ACTIONS. When the spell resets the
-      -- swing, snap the timers to full. Otherwise (elseif) a frozen-swing-
-      -- during-cast is a Slam-style cast — push the timer forward by the cast
-      -- duration so the bar resumes from where it paused.
-      if C_Spell.ResetsMeleeSwing(spellId) then
-        if S.mhActive and S.mhSpeed > 0 then
-          UpdateWeaponSpeeds()
-          S.mhTimerMax = S.mhSpeed
-          S.mhTimer    = S.mhSpeed
-        end
-        if S.ohActive and S.ohSpeed > 0 then
-          S.ohTimerMax = S.ohSpeed
-          S.ohTimer    = S.ohSpeed
-        end
-      elseif S.mhFrozenAt then
-        local castDuration = GetTime() - S.mhFrozenAt
-        S.mhTimer = S.mhTimer + castDuration
-        S.mhTimerMax = S.mhTimerMax + castDuration
-        S.mhFrozenAt = nil
-      end
     end
-    S.pendingCastSpellId = nil
   end
 
   -- SPELL_CAST_EVENT hook: HS/Cleave/Maul queue tracking
@@ -809,8 +715,7 @@ pfUI:RegisterModule("swingtimer", function ()
 
 
   local events = CreateFrame("Frame")
-  events:RegisterEvent("AUTO_ATTACK_SELF")
-  events:RegisterEvent("AUTO_ATTACK_OTHER")
+  events:RegisterEvent("PLAYER_SWING")
   events:RegisterEvent("PLAYER_ENTERING_WORLD")
   events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")  -- ClassicAPI: per-slot, equipment-only
   events:RegisterEvent("PLAYER_REGEN_DISABLED")
@@ -822,64 +727,16 @@ pfUI:RegisterModule("swingtimer", function ()
   events:RegisterEvent("STOP_AUTOATTACK")
 
   events:SetScript("OnEvent", function()
-    if event == "AUTO_ATTACK_SELF" then
-      local hitInfo  = arg4 or 0
-      local isOffhand = bit.band(hitInfo, HITINFO_LEFTSWING) ~= 0
-      local noAction  = bit.band(hitInfo, HITINFO_NOACTION) ~= 0
-      -- NOACTION means server did not advance swing clock (dodge/parry/miss).
-      -- Only skip if the timer is already running - if it's not active yet
-      -- (first swing ever), we still want to start it so the bar appears.
-      if noAction then
-        if isOffhand and S.ohActive then return end
-        if not isOffhand and S.mhActive then return end
-      end
-
-      -- Extra attack detection: if timer still has >20% remaining for that hand,
-      -- the server did NOT reset the swing clock -> this is an extra attack, skip.
-      -- Use 20% here (SP_SwingTimer's ShouldResetTimer threshold).
-      -- Exception: if timer is already at 0 (expired), always accept.
-      if isOffhand then
-        local pct = S.ohActive and (S.ohTimer / S.ohTimerMax) or 0
-        if S.ohActive and S.ohTimer > 0 and pct > 0.20 then
-          return
-        end
-        ResetOH()
-      else
-        local pct = S.mhActive and (S.mhTimer / S.mhTimerMax) or 0
-        if S.mhActive and S.mhTimer > 0 and pct > 0.20 then
-          return
-        end
-        ResetMH()
-      end
-
-    elseif event == "AUTO_ATTACK_OTHER" then
-      -- Parry haste: enemy attacked the player and player parried
-      local targetGuid = arg2
-      if not targetGuid or not IsPlayerGuid(targetGuid) then return end
-      local victimState = arg5 or 0
-      -- VICTIMSTATE_PARRY = 3
-      -- Vanilla: parry reduces the NEXT swing timer by 40% of weapon speed,
-      -- minimum 20% of weapon speed remaining (SP_SwingTimer approach)
-      if victimState == 3 then
-        -- Apply to whichever swing comes next (smallest % remaining = closest to firing)
-        if S.ohActive and S.ohSpeed > 0 and (S.ohTimer / S.ohTimerMax) < (S.mhTimer / S.mhTimerMax) then
-          local minimum = S.ohSpeed * 0.20
-          if S.ohTimer > minimum then
-            local reduct = S.ohSpeed * 0.40
-            local before = S.ohTimer
-            S.ohTimer = S.ohTimer - reduct
-            if S.ohTimer < minimum then S.ohTimer = minimum end
-          end
-        elseif S.mhActive and S.mhSpeed > 0 then
-          local minimum = S.mhSpeed * 0.20
-          if S.mhTimer > minimum then
-            local reduct = S.mhSpeed * 0.40
-            local before = S.mhTimer
-            S.mhTimer = S.mhTimer - reduct
-            if S.mhTimer < minimum then S.mhTimer = minimum end
-          end
-        else
-        end
+    if event == "PLAYER_SWING" then
+      -- ClassicAPI tracks the server's swing clock (white hits, on-next-swing
+      -- abilities, swing-reset casts, parry haste, extra attacks, weapon
+      -- swaps) and hands over the seconds left until the next swing.
+      if arg2 == Enum.PlayerSwingType.MainHand then
+        StartMH(arg1)
+      elseif arg2 == Enum.PlayerSwingType.OffHand then
+        StartOH(arg1)
+      elseif arg2 == Enum.PlayerSwingType.Ranged then
+        StartRanged(arg1)
       end
 
     elseif event == "SPELL_QUEUE_EVENT" then
