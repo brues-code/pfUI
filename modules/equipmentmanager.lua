@@ -783,6 +783,129 @@ pfUI:RegisterModule("equipmentmanager", function()
   PaperDollFrame:HookScript("OnHide", UpdatePopouts)
 
   -- ============================================================
+  -- Item tooltips: "Equipment Sets: <names>"
+  -- Lets a set piece be recognized before it's sold or destroyed,
+  -- which otherwise needs opening the manager and checking each set.
+  -- ============================================================
+
+  -- ClassicAPI's GetItemIDs follows the 4.3.4 convention of filling an
+  -- optional result table; accept a returned table too.
+  local function GetSetTable(func, setID)
+    local result = {}
+    local returned = func(setID, result)
+    if type(returned) == "table" then return returned end
+    return result
+  end
+
+  -- A profile that predates this option has no value for it, and the
+  -- checkbox reads "1" as on, so seed it rather than reading nil as off.
+  if not C.character.inventory.settooltip then
+    C.character.inventory.settooltip = "1"
+  end
+
+  -- Rebuilt lazily; dropped by every event that can move an item or
+  -- change a set (see the events frame below).
+  local setCache = nil
+
+  local function BuildSetCache()
+    setCache = {}
+    if not C_EquipmentSet.GetItemIDs then return end
+
+    for _, setID in ipairs(C_EquipmentSet.GetEquipmentSetIDs() or {}) do
+      local name = C_EquipmentSet.GetEquipmentSetInfo(setID)
+      if name then
+        local entry = { name = name, items = {} }
+
+        for _, itemID in pairs(GetSetTable(C_EquipmentSet.GetItemIDs, setID)) do
+          -- Anything at or below EQUIPMENT_SET_IGNORED_SLOT is a
+          -- sentinel (missing / empty / ignored), not an item ID.
+          if itemID > EQUIPMENT_SET_IGNORED_SLOT then entry.items[itemID] = true end
+        end
+
+        table.insert(setCache, entry)
+      end
+    end
+  end
+
+  -- Matched on the item ID, so with two copies of one item both are
+  -- named. That over-reports a duplicate rather than staying quiet
+  -- about a piece that really is in a set, which is the safer
+  -- direction for a line meant to stop set members being sold.
+  local function GetSetNamesForItem(itemID)
+    if not itemID then return nil end
+    if not setCache then BuildSetCache() end
+
+    local names = nil
+    for _, entry in ipairs(setCache) do
+      if entry.items[itemID] then
+        names = names and (names .. ", " .. entry.name) or entry.name
+      end
+    end
+    return names
+  end
+
+  local EQUIPMENT_SETS_FORMAT = EQUIPMENT_SETS or "Equipment Sets: |cffffffff%s|r"
+
+  -- Bag replacements (Bagshui, aux, ...) load item tooltips with
+  -- SetHyperlink and pass a bare "item:19019:0:0:0" rather than a full
+  -- link, so parse the ID instead of relying on GetItemInfoInstant
+  -- accepting that form.
+  local function ItemIDFromLink(link)
+    if type(link) ~= "string" then return nil end
+    local _, _, id = string.find(link, "item:(%d+)")
+    return tonumber(id)
+  end
+
+  local function AddSetLine(tooltip, itemID)
+    if C.character.inventory.settooltip ~= "1" then return end
+
+    local names = GetSetNamesForItem(itemID)
+    if not names then return end
+
+    tooltip:AddLine(string.format(EQUIPMENT_SETS_FORMAT, names))
+    tooltip:Show()
+  end
+
+  -- Each entry resolves the tooltip setter's arguments into an item ID;
+  -- returning nothing skips the line.
+  local TooltipHooks = {
+    SetBagItem = function(bag, slot)
+      return C_Container.GetContainerItemID(bag, slot)
+    end,
+    SetInventoryItem = function(unit, invSlot)
+      if unit ~= "player" then return nil end
+      return GetInventoryItemID(unit, invSlot)
+    end,
+    SetHyperlink = function(link)
+      return ItemIDFromLink(link)
+    end,
+  }
+
+  -- Save-and-replace rather than hooksecurefunc: ClassicAPI's version
+  -- runs the callback through lua_pcall and pops the error message
+  -- without reporting it, so any fault in here would disappear with no
+  -- line and no error. Chaining by hand keeps errors visible, and is
+  -- what the other addons on this client do (OctoPawn, Aegis).
+  local function HookTooltipSetter(tooltip, setter, resolve)
+    local orig = tooltip[setter]
+    if type(orig) ~= "function" then return end
+
+    tooltip[setter] = function(self, a1, a2, a3, a4, a5)
+      -- The original resets the tooltip, so our line has to come after.
+      -- Its results are passed through: SetBagItem and SetInventoryItem
+      -- return hasCooldown/repairCost that callers rely on.
+      local r1, r2, r3 = orig(self, a1, a2, a3, a4, a5)
+      AddSetLine(self, resolve(a1, a2))
+      return r1, r2, r3
+    end
+  end
+
+  for setter, resolve in pairs(TooltipHooks) do
+    HookTooltipSetter(GameTooltip, setter, resolve)
+    HookTooltipSetter(ItemRefTooltip, setter, resolve)
+  end
+
+  -- ============================================================
   -- Refresh
   -- ============================================================
 
@@ -885,6 +1008,9 @@ pfUI:RegisterModule("equipmentmanager", function()
   events:RegisterEvent("BAG_UPDATE_DELAYED")
   events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
   events:SetScript("OnEvent", function()
+    -- Every event here either changes a set or moves an item, so the
+    -- tooltip lookup is stale either way; rebuilt on the next tooltip.
+    setCache = nil
     if not frame:IsShown() then return end
     pfUI.equipmentmanager.Refresh()
   end)
