@@ -7,29 +7,30 @@ pfUI:RegisterModule("skin", function ()
 
     local left = UIParent.left
     local center = UIParent.center
-    local rbpos, ropos
-
-    -- detect outer frame backdrops
-    if left and not left.rightObj then
-      left.rightObj = left.backdrop or left
-      for _, frame in pairs({left:GetChildren()}) do
-        rbpos = frame.backdrop and frame.backdrop.GetRight and frame.backdrop:GetRight()
-        ropos = left.rightObj  and left.rightObj.GetRight  and left.rightObj:GetRight()
-        if rbpos and ropos and rbpos > ropos then
-          left.rightObj = frame.backdrop
-        end
-      end
-    end
-
-    -- reset anchors
     if not left or not left:IsShown() or not center or not center:IsShown() then
-      UIParent.pfLeftAligned = nil
       return
     elseif center and center:IsShown() and left and left:IsShown() then
-      local width = left.rightObj:GetRight()
-      if width and width ~= UIParent.pfLeftAligned then
-        center:SetPoint("TOPLEFT", "UIParent", "TOPLEFT", width + 10, -104)
-        UIParent.pfLeftAligned = width
+      -- Include visible children that extend beyond the panel backdrop, such
+      -- as the Spellbook skill-line tabs. Recalculate this while both panels
+      -- are visible because a child may have been hidden during an earlier
+      -- alignment pass.
+      local width = left.backdrop and left.backdrop:GetRight() or left:GetRight()
+      for _, frame in pairs({left:GetChildren()}) do
+        local object = frame.backdrop or frame
+        local right = frame:IsShown() and object.GetRight and object:GetRight()
+        if right and (not width or right > width) then
+          width = right
+        end
+      end
+
+      -- Blizzard's initial center-panel position may already clear the left
+      -- panel (the Spellbook tabs occupy its otherwise empty right inset).
+      -- Never pull such a panel back to the left; only correct real overlap.
+      local centerObject = center.backdrop or center
+      local centerLeft = centerObject.GetLeft and centerObject:GetLeft()
+      local current = center:GetLeft()
+      if width and centerLeft and current and centerLeft < width then
+        center:SetPoint("TOPLEFT", "UIParent", "TOPLEFT", current + width - centerLeft + 10, -104)
       end
     end
   end)
