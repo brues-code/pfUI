@@ -9,17 +9,9 @@ pfUI:RegisterSkin("Quest Log", function ()
     QuestLogQuestCount:ClearAllPoints()
     QuestLogQuestCount:SetPoint("TOPRIGHT", -10, -30)
 
-    -- Blizzard re-anchors this doublewide panel whenever another panel opens
-    -- beside it; give its panel manager the same offsets as the OnShow hook.
-    if UIPanelWindows["QuestLogFrame"] then
-      UIPanelWindows["QuestLogFrame"].xoffset = 10
-      UIPanelWindows["QuestLogFrame"].yoffset = -10
-    end
-
-    hooksecurefunc("QuestLog_OnShow", function()
-      QuestLogFrame:ClearAllPoints()
-      QuestLogFrame:SetPoint("TOPLEFT", 10, -114)
-    end)
+    -- let the panel manager anchor this doublewide panel at 10, -114
+    UIPanelWindows["QuestLogFrame"].xoffset = 10
+    UIPanelWindows["QuestLogFrame"].yoffset = -10
 
     -- match the 430px height and top edge of the other skinned panels
     QuestLogFrame:SetSize(676, 430)
