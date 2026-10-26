@@ -122,6 +122,7 @@ pfUI:RegisterModule("panel", function()
         local gcmb = gckb and gckb > 0 and round((gckb or 0)/1000, 2) .. " MB" or UNAVAILABLE
 
         local nin, nout, nping = GetNetStats()
+        local screenWidth, screenHeight = GetPhysicalScreenSize()
 
         GameTooltip:AddDoubleLine(T["Active Addons"], "|cffffffff" .. active .. "|cff555555 / |cffffffff" .. GetNumAddOns())
         GameTooltip:AddLine(" ")
@@ -133,7 +134,7 @@ pfUI:RegisterModule("panel", function()
         GameTooltip:AddDoubleLine(T["Network Latency"], "|cffffffff" .. nping .. "ms")
         GameTooltip:AddLine(" ")
         GameTooltip:AddDoubleLine(T["Graphic Renderer"], "|cffffffff" .. GetCVar("gxApi"))
-        GameTooltip:AddDoubleLine(T["Screen Resolution"], "|cffffffff" .. GetCVar("gxResolution"))
+        GameTooltip:AddDoubleLine(T["Screen Resolution"], "|cffffffff" .. screenWidth .. 'x' .. screenHeight)
         GameTooltip:AddDoubleLine(T["UI-Scale"], "|cffffffff" .. round(UIParent:GetEffectiveScale(),2))
         GameTooltip:Show()
       end

@@ -190,35 +190,18 @@ pfUI:RegisterModule("swingtimer", function ()
   CreateBackdropShadow(pfUI.swingtimer.offhand)
 
   -- Ranged bar
-  pfUI.swingtimer.ranged = CreateFrame("Frame", "pfSwingTimerRanged", UIParent)
+  -- Hunters fill from the center: the bar drains toward the middle during
+  -- the reload, then the auto shot deadzone grows back out in the warn color.
+  pfUI.swingtimer.ranged = CreateFrame("StatusBar", "pfSwingTimerRanged", UIParent)
   pfUI.swingtimer.ranged:SetPoint("BOTTOM", UIParent, "CENTER", -189, 83)
   pfUI.swingtimer.ranged:SetWidth(sw_width)
   pfUI.swingtimer.ranged:SetHeight(sw_height)
+  pfUI.swingtimer.ranged:SetMinMaxValues(0, 1)
+  pfUI.swingtimer.ranged:SetValue(0)
+  pfUI.swingtimer.ranged:SetStatusBarTexture(sw_texture)
+  pfUI.swingtimer.ranged:SetStatusBarColor(raR, raG, raB, raA)
+  pfUI.swingtimer.ranged:SetFillStyle(isHunter and "CENTER" or "STANDARD")
   pfUI.swingtimer.ranged:Hide()
-
-  pfUI.swingtimer.ranged.left = pfUI.swingtimer.ranged:CreateTexture(nil, "ARTWORK")
-  pfUI.swingtimer.ranged.left:SetTexture(sw_texture)
-  pfUI.swingtimer.ranged.left:SetPoint("RIGHT", pfUI.swingtimer.ranged, "CENTER", 0, 0)
-  pfUI.swingtimer.ranged.left:SetHeight(sw_height)
-  pfUI.swingtimer.ranged.left:SetWidth(sw_width / 2)
-  pfUI.swingtimer.ranged.left:SetTexCoord(0, 0.5, 0, 1)
-  pfUI.swingtimer.ranged.left:SetVertexColor(raR, raG, raB, raA)
-
-  pfUI.swingtimer.ranged.right = pfUI.swingtimer.ranged:CreateTexture(nil, "ARTWORK")
-  pfUI.swingtimer.ranged.right:SetTexture(sw_texture)
-  pfUI.swingtimer.ranged.right:SetPoint("LEFT", pfUI.swingtimer.ranged, "CENTER", 0, 0)
-  pfUI.swingtimer.ranged.right:SetHeight(sw_height)
-  pfUI.swingtimer.ranged.right:SetWidth(sw_width / 2)
-  pfUI.swingtimer.ranged.right:SetTexCoord(0.5, 1, 0, 1)
-  pfUI.swingtimer.ranged.right:SetVertexColor(raR, raG, raB, raA)
-
-  pfUI.swingtimer.ranged.warn = pfUI.swingtimer.ranged:CreateTexture(nil, "ARTWORK")
-  pfUI.swingtimer.ranged.warn:SetTexture(sw_texture)
-  pfUI.swingtimer.ranged.warn:SetPoint("CENTER", pfUI.swingtimer.ranged, "CENTER", 0, 0)
-  pfUI.swingtimer.ranged.warn:SetHeight(sw_height)
-  pfUI.swingtimer.ranged.warn:SetWidth(1)
-  pfUI.swingtimer.ranged.warn:SetVertexColor(rwR, rwG, rwB, rwA)
-  pfUI.swingtimer.ranged.warn:Hide()
 
   pfUI.swingtimer.ranged.text = pfUI.swingtimer.ranged:CreateFontString("Status", "DIALOG", "GameFontNormal")
   pfUI.swingtimer.ranged.text:SetPoint("CENTER", pfUI.swingtimer.ranged, "CENTER", 0, 0)
@@ -324,26 +307,8 @@ pfUI:RegisterModule("swingtimer", function ()
     S.raTimer    = remaining
     S.raActive   = true
 
-    if isHunter then
-      pfUI.swingtimer.ranged.left:ClearAllPoints()
-      pfUI.swingtimer.ranged.left:SetPoint("RIGHT", pfUI.swingtimer.ranged, "CENTER", 0, 0)
-      pfUI.swingtimer.ranged.left:SetWidth(sw_width / 2)
-      pfUI.swingtimer.ranged.left:SetTexCoord(0, 0.5, 0, 1)
-      pfUI.swingtimer.ranged.right:SetWidth(sw_width / 2)
-      pfUI.swingtimer.ranged.right:SetTexCoord(0.5, 1, 0, 1)
-    else
-      pfUI.swingtimer.ranged.left:ClearAllPoints()
-      pfUI.swingtimer.ranged.left:SetPoint("TOPLEFT", pfUI.swingtimer.ranged, "TOPLEFT", 0, 0)
-      pfUI.swingtimer.ranged.left:SetWidth(0.1)
-      pfUI.swingtimer.ranged.left:Hide()
-      pfUI.swingtimer.ranged.left:SetTexCoord(0, 0, 0, 1)
-      pfUI.swingtimer.ranged.right:SetWidth(0.1)
-      pfUI.swingtimer.ranged.right:Hide()
-    end
-    pfUI.swingtimer.ranged.left:SetVertexColor(raR, raG, raB, raA)
-    pfUI.swingtimer.ranged.right:SetVertexColor(raR, raG, raB, raA)
-    pfUI.swingtimer.ranged.warn:SetWidth(1)
-    pfUI.swingtimer.ranged.warn:Hide()
+    pfUI.swingtimer.ranged:SetStatusBarColor(raR, raG, raB, raA)
+    pfUI.swingtimer.ranged:SetValue(isHunter and 1 or 0)
     pfUI.swingtimer.ranged:Show()
     pfUI.swingtimer:Show()
   end
@@ -614,30 +579,12 @@ pfUI:RegisterModule("swingtimer", function ()
       local remaining = S.raTimer
       if isHunter then
         local DEADZONE = 0.5
-        local halfW = sw_width / 2
         if remaining > DEADZONE then
-          local elapsed   = S.raTimerMax - remaining
-          local phase1dur = S.raTimerMax - DEADZONE
-          local p = elapsed / phase1dur
-          local w = halfW * (1 - p)
-          if w < 1 then w = 1 end
-          pfUI.swingtimer.ranged.left:Show()
-          pfUI.swingtimer.ranged.left:SetWidth(w)
-          pfUI.swingtimer.ranged.left:SetTexCoord(0, (1 - p) * 0.5, 0, 1)
-          pfUI.swingtimer.ranged.left:SetVertexColor(raR, raG, raB, raA)
-          pfUI.swingtimer.ranged.right:Show()
-          pfUI.swingtimer.ranged.right:SetWidth(w)
-          pfUI.swingtimer.ranged.right:SetTexCoord(1 - (1 - p) * 0.5, 1, 0, 1)
-          pfUI.swingtimer.ranged.right:SetVertexColor(raR, raG, raB, raA)
-          pfUI.swingtimer.ranged.warn:Hide()
+          pfUI.swingtimer.ranged:SetStatusBarColor(raR, raG, raB, raA)
+          pfUI.swingtimer.ranged:SetValue((remaining - DEADZONE) / (S.raTimerMax - DEADZONE))
         else
-          local p = 1 - (remaining / DEADZONE)
-          local w = sw_width * p
-          if w < 1 then w = 1 end
-          pfUI.swingtimer.ranged.left:Hide()
-          pfUI.swingtimer.ranged.right:Hide()
-          pfUI.swingtimer.ranged.warn:SetWidth(w)
-          pfUI.swingtimer.ranged.warn:Show()
+          pfUI.swingtimer.ranged:SetStatusBarColor(rwR, rwG, rwB, rwA)
+          pfUI.swingtimer.ranged:SetValue(1 - (remaining / DEADZONE))
         end
         if sw_showtext then
           if remaining <= 0.5 then
@@ -647,14 +594,7 @@ pfUI:RegisterModule("swingtimer", function ()
           end
         end
       else
-        local progress = 1 - (remaining / S.raTimerMax)
-        local w = sw_width * progress
-        if w < 1 then w = 1 end
-        pfUI.swingtimer.ranged.left:Show()
-        pfUI.swingtimer.ranged.left:SetWidth(w)
-        pfUI.swingtimer.ranged.left:SetTexCoord(0, progress, 0, 1)
-        pfUI.swingtimer.ranged.right:Hide()
-        pfUI.swingtimer.ranged.warn:Hide()
+        pfUI.swingtimer.ranged:SetValue(1 - (remaining / S.raTimerMax))
         if sw_showtext then
           pfUI.swingtimer.ranged.text:SetFormattedText("%.1f", math.floor(remaining * 10) / 10)
         end
@@ -695,25 +635,6 @@ pfUI:RegisterModule("swingtimer", function ()
     end
   end)
 
-  -- SPELL_GO hook via libdebuff: an on-next-swing ability (HS / Cleave /
-  -- Maul) resolving consumes the queue, so drop the queued color.
-  pfUI.libdebuff_spell_go_hooks = pfUI.libdebuff_spell_go_hooks or {}
-  pfUI.libdebuff_spell_go_hooks["swingtimer"] = function(spellId)
-    if IsOnSwingSpell(spellId) then
-      S.hsQueued = false; S.cleaveQueued = false; S.maulQueued = false
-    end
-  end
-
-  -- SPELL_CAST_EVENT hook: HS/Cleave/Maul queue tracking
-  pfUI.libdebuff_spell_cast_hooks = pfUI.libdebuff_spell_cast_hooks or {}
-  pfUI.libdebuff_spell_cast_hooks["swingtimer"] = function(success, spellId)
-    local kind = ClassifyOnSwingSpell(spellId)
-    if not kind then return end
-    S.useSpellQueueEvent = true
-    SetQueuedKind(kind)
-  end
-
-
   local events = CreateFrame("Frame")
   events:RegisterEvent("PLAYER_SWING")
   events:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -721,7 +642,9 @@ pfUI:RegisterModule("swingtimer", function ()
   events:RegisterEvent("PLAYER_REGEN_DISABLED")
   events:RegisterEvent("PLAYER_REGEN_ENABLED")
   events:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
-  events:RegisterUnitEvent("UNIT_DIED", UnitGUID("player"))
+  events:RegisterEvent("PLAYER_DEAD")
+  events:RegisterUnitEvent("UNIT_SPELLCAST_SENT", "player")
+  events:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
   events:RegisterEvent("SPELL_QUEUE_EVENT")
   events:RegisterEvent("START_AUTOATTACK")
   events:RegisterEvent("STOP_AUTOATTACK")
@@ -737,6 +660,21 @@ pfUI:RegisterModule("swingtimer", function ()
         StartOH(arg1)
       elseif arg2 == Enum.PlayerSwingType.Ranged then
         StartRanged(arg1)
+      end
+
+    elseif event == "UNIT_SPELLCAST_SENT" then
+      -- arg4 = spellID: an on-next-swing ability (HS / Cleave / Maul) queued
+      local kind = ClassifyOnSwingSpell(arg4)
+      if kind then
+        S.useSpellQueueEvent = true
+        SetQueuedKind(kind)
+      end
+
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+      -- arg3 = spellID: the on-next-swing ability resolved, which consumes
+      -- the queue, so drop the queued color
+      if IsOnSwingSpell(arg3) then
+        S.hsQueued = false; S.cleaveQueued = false; S.maulQueued = false
       end
 
     elseif event == "SPELL_QUEUE_EVENT" then
@@ -788,10 +726,8 @@ pfUI:RegisterModule("swingtimer", function ()
       S.cleaveQueued = false
       S.maulQueued   = false
 
-    elseif event == "UNIT_DIED" then
-      if IsPlayerGuid(arg1) then
-        ResetAll()
-      end
+    elseif event == "PLAYER_DEAD" then
+      ResetAll()
     end
   end)
 

@@ -130,15 +130,6 @@ pfUI:RegisterModule("unlock", function ()
     return frames
   end
 
-  local function DraggerOnUpdate()
-    this.text:SetAlpha(this.text:GetAlpha() -0.05)
-    if this.text:GetAlpha() < 0.1 then
-      this.text:SetText(strsub(this:GetParent():GetName(),3))
-      this.text:SetAlpha(1)
-      this:SetScript("OnUpdate", function() return end)
-    end
-  end
-
   local function SaveScale(frame, scale)
     frame:SetScale(scale)
 
@@ -148,9 +139,8 @@ pfUI:RegisterModule("unlock", function ()
     C.position[frame:GetName()]["scale"] = scale
 
     frame.drag.text:SetText(T["Scale"] .. ": " .. scale)
-    frame.drag.text:SetAlpha(1)
-
-    frame.drag:SetScript("OnUpdate", DraggerOnUpdate)
+    frame.drag.fade:Stop()
+    frame.drag.fade:Play()
   end
 
   local function SavePosition(frame)
@@ -454,6 +444,15 @@ pfUI:RegisterModule("unlock", function ()
     d.text:SetAllPoints(d)
     d.text:SetPoint("CENTER", 0, 0)
     d.text:SetFontObject(GameFontWhite)
+
+    -- Fades out the scale readout, then puts the frame name back
+    d.fade = d.text:CreateAnimationGroup()
+    local fade = d.fade:CreateAnimation("Alpha")
+    fade:SetChange(-1)
+    fade:SetDuration(.3)
+    d.fade:SetScript("OnFinished", function()
+      d.text:SetText(strsub(f:GetName(),3))
+    end)
 
     d.frame = f
     d.fname = fname

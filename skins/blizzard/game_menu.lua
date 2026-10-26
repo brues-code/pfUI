@@ -19,24 +19,20 @@ pfUI:RegisterSkin("Game Menu", function ()
     pfUI.gui:Show()
     HideUIPanel(GameMenuFrame)
   end)
-  SkinButton(pfUIButton)
 
   local point, relativeTo, relativePoint, xOffset, yOffset = GameMenuButtonOptions:GetPoint()
   GameMenuButtonOptions:SetPoint(point, relativeTo, relativePoint, xOffset, yOffset - 22)
 
-  local buttons = {
-    GameMenuButtonOptions,
-    GameMenuButtonSoundOptions,
-    GameMenuButtonUIOptions,
-    GameMenuButtonKeybindings,
-    GameMenuButtonMacros,
-    GameMenuButtonRatings,
-    GameMenuButtonLogout,
-    GameMenuButtonQuit,
-    GameMenuButtonContinue,
-  }
-
-  for _, button in pairs(buttons) do
-    if button then SkinButton(button) end
+  -- skin every button on the menu, including ones other addons add later
+  local function SkinMenuButtons()
+    for _, child in pairs({GameMenuFrame:GetChildren()}) do
+      if child:GetFrameType() == "Button" and not child._pfMenuSkinned then
+        SkinButton(child)
+        child._pfMenuSkinned = true
+      end
+    end
   end
+
+  SkinMenuButtons()
+  GameMenuFrame:HookScript("OnShow", SkinMenuButtons)
 end)

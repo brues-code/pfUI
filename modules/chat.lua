@@ -526,10 +526,10 @@ pfUI:RegisterModule("chat", function ()
 
       if pfUI.chat.hideLock then return end
 
-      if MouseIsOver(pfUI.chat.left, 10, -10, -10, 10) then
+      if pfUI.chat.left:IsMouseOver(10, -10, -10, 10) then
         pfUI.chat.left.panelTop:Show()
         FCF_DockUpdate()
-      elseif MouseIsOver(pfUI.chat.right, 10, -10, -10, 10) then
+      elseif pfUI.chat.right:IsMouseOver(10, -10, -10, 10) then
         -- disable while dock is active
         if pfUI.chat.right:GetAlpha() == 0 then return end
 
@@ -782,16 +782,6 @@ pfUI:RegisterModule("chat", function ()
   local r,g,b = GetStringColor(C.chat.text.unknowncolor)
   local unknowncolorhex = rgbhex(r,g,b)
 
-  -- Suppress FriendsFrame's WHO_LIST_UPDATE handling for our DLL-issued
-  -- name lookups so they don't pop the friends panel. User-issued /who
-  -- still works because IsWhoQueryPending only reports true for queries
-  -- issued via C_FriendList.SendWhoQueryByName.
-  local original_FriendsFrame_OnEvent = FriendsFrame_OnEvent
-  _G.FriendsFrame_OnEvent = function()
-    if _G.event == "WHO_LIST_UPDATE" and C_FriendList.IsWhoQueryPending() then return end
-    return original_FriendsFrame_OnEvent()
-  end
-
   local function GetPlayerLevel(name)
     if not pfUI_playerDB then return nil end
     if not pfUI_playerDB[name] then return nil end
@@ -805,6 +795,10 @@ pfUI:RegisterModule("chat", function ()
     if frame.pfCombatLog then
       return frame:HookAddMessage(text, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17)
     end
+
+    -- payload of the CHAT_MSG event printing this line; nil for lines
+    -- that don't come from one (system text, addon output, history)
+    local event, _, sender, _, _, _, _, _, _, _, _, _, guid = GetCurrentChatEvent()
 
     -- Remove prat CLINKs
     text = gsub(text, "{CLINK:(%x+):([%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-):([^}]-)}", "|c%1|Hitem:%2|h[%3]|h|r") -- tbc
@@ -821,67 +815,64 @@ pfUI:RegisterModule("chat", function ()
       text = pfUI.chat:HandleLink(text)
     end
 
-    -- display class colors if already indexed
-    if C.chat.text.classcolor == "1" then
-      for name in gfind(text, "|Hplayer:(.-)|h") do
-        local real, _ = strsplit(":", name)
-        local color = unknowncolorhex
-        local match = false
-        local _, class, _, raceKey, sex = C_PlayerCache.GetPlayerInfoByName(real)
-        -- local guid = GetCurrentChatGUID()
-        -- if guid then
-        --   _, class = GetPlayerInfoByGUID(guid)
-        -- end
-        if not class then
-          class = GetUnitInfo(real)
-        end
-        if class then
-          if class ~= UNKNOWN then
-            color = "|c" .. PFUI_CLASS_COLORS[class].colorStr
-            match = true
-          end
-        elseif C.chat.text.whosearchunknown == "1" then
-          C_FriendList.SendWhoQueryByName(name) -- cooldown + state managed by DLL
-        end
-
-        if C.chat.text.tintunknown == "1" or match then
-          local icon = ""
-          if match and C.chat.text.playericons == "1" then
-            icon = GetFactionIcon(raceKey) .. GetRaceIcon(raceKey, sex)
-          end
-          text = string.gsub(text, "|Hplayer:"..name.."|h%["..real.."%]|h(.-:-)",
-            left..icon..color.."|Hplayer:"..name.."|h" .. color .. real .. "|h|r"..right.."%1")
-        end
+    -- display class colors and player levels if already indexed
+    local classcolor = C.chat.text.classcolor == "1"
+    local playerlevel = C.chat.text.playerlevel == "1"
+    if classcolor or playerlevel then
+      -- the engine name-queries a chat sender before the event fires,
+      -- so the sender's GUID always resolves; other names in the text
+      -- fall back to the name-keyed lookups
+      local _, senderClass, senderRace, senderSex
+      if classcolor and guid and guid ~= "" then
+        _, senderClass, _, senderRace, senderSex = GetPlayerInfoByGUID(guid)
       end
-    end
 
-    -- display player levels if available
-    if C.chat.text.playerlevel == "1" then
       for name in gfind(text, "|Hplayer:(.-)|h") do
         local real, _ = strsplit(":", name)
-        local level = GetPlayerLevel(real)
+        local color, icon = "", ""
 
+        if classcolor then
+          local class, raceKey, sex
+          if senderClass and real == sender then
+            class, raceKey, sex = senderClass, senderRace, senderSex
+          else
+            _, class, _, raceKey, sex = C_PlayerCache.GetPlayerInfoByName(real)
+          end
+          if not class then
+            class = GetUnitInfo(real)
+          end
+          if class and class ~= UNKNOWN then
+            color = "|c" .. PFUI_CLASS_COLORS[class].colorStr
+            if C.chat.text.factionicons == "1" then
+              icon = GetFactionIcon(raceKey)
+            end
+            if C.chat.text.raceicons == "1" then
+              icon = icon .. GetRaceIcon(raceKey, sex)
+            end
+          elseif C.chat.text.tintunknown == "1" then
+            color = unknowncolorhex
+          end
+        end
+
+        local suffix = ""
+        local level = playerlevel and GetPlayerLevel(real)
         if level and level > 0 then
-          local levelcolor = rgbhex(GetDifficultyColor(level))
-          -- Add level after the player name, before the closing bracket
-          text = string.gsub(text, "(|Hplayer:" .. name .. "|h.-|h|r)" .. right,
-            "%1 " .. levelcolor .. level .. "|r" .. right)
-        elseif level and level <= 0 then
+          suffix = " " .. rgbhex(GetDifficultyColor(level)) .. level .. "|r"
+        elseif level then
           -- Show ?? for unknown levels (e.g. -1 from UnitLevel)
-          text = string.gsub(text, "(|Hplayer:" .. name .. "|h.-|h|r)" .. right,
-            "%1 |cffff0000??|r" .. right)
+          suffix = " |cffff0000??|r"
+        end
+
+        if color ~= "" or suffix ~= "" then
+          text = string.gsub(text, "|Hplayer:"..name.."|h%["..real.."%]|h(.-:-)",
+            left..icon..color.."|Hplayer:"..name.."|h" .. color .. real .. "|h|r"..suffix..right.."%1")
         end
       end
     end
 
     -- reduce channel name to number
-    if C.chat.text.channelnumonly == "1" then
-      local channel = string.gsub(text, ".*%[(.-)%]%s+(.*|Hplayer).+", "%1")
-      if string.find(channel, "%d+%. ") then
-        channel = string.gsub(channel, "(%d+)%..*", "channel%1")
-        channel = string.gsub(channel, "channel", "")
-        text = string.gsub(text, "%[%d+%..-%]%s+(.*|Hplayer)", left .. channel .. right .. " %1")
-      end
+    if C.chat.text.channelnumonly == "1" and event == "CHAT_MSG_CHANNEL" then
+      text = string.gsub(text, "%[(%d+)%..-%] ", left .. "%1" .. right .. " ", 1)
     end
 
     -- detect the whisper prefix BEFORE prepending a timestamp; the timestamp

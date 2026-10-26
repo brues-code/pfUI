@@ -25,7 +25,7 @@ pfUI:RegisterModule("nampower", function ()
       pfUI.spellqueue:SetPoint("CENTER", UIParent, "CENTER", 100, -100)
     end
 
-    pfUI.spellqueue.icon = pfUI.spellqueue:CreateTexture("OVERLAY")
+    pfUI.spellqueue.icon = pfUI.spellqueue:CreateTexture(nil, "OVERLAY")
     pfUI.spellqueue.icon:SetAllPoints(pfUI.spellqueue)
     pfUI.spellqueue.icon:SetTexCoord(.08, .92, .08, .92)
 

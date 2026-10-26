@@ -293,14 +293,6 @@ function pfUI.api.GetFactionIcon(raceKey)
   return FACTION_ICON[info.faction] or ""
 end
 
--- [ GetPlayerRaceIcons ]
--- Returns the faction and race emblems of the player character.
--- return:      [string]        both inline textures, or an empty string
-function pfUI.api.GetPlayerRaceIcons()
-  local _, raceKey = UnitRace("player")
-  return pfUI.api.GetFactionIcon(raceKey) .. pfUI.api.GetRaceIcon(raceKey, UnitSex("player"))
-end
-
 -- [ strvertical ]
 -- Creates vertical text using linebreaks. Multibyte char friendly.
 -- 'str'        [string]        String to columnize.
@@ -1543,6 +1535,18 @@ function pfUI.api.BarButtonAnchor(button,basename,buttonindex,barsize,formfactor
   return button._anchor
 end
 
+-- [ MouseIsOverHitRect ] --
+-- Like frame:IsMouseOver(), but tests the frame's hit rect, the area the
+-- engine uses for mouse focus and OnEnter/OnLeave. CreateBackdrop widens
+-- that rect by the border, so plain IsMouseOver misses a band around it.
+-- 'frame'      the frame to test
+-- return       true when the cursor is inside the frame's hit rect
+function pfUI.api.MouseIsOverHitRect(frame)
+  if not frame.GetHitRectInsets then return frame:IsMouseOver() end
+  local left, right, top, bottom = frame:GetHitRectInsets()
+  return frame:IsMouseOver(-top, bottom, left, -right)
+end
+
 -- [ Enable Autohide ] --
 -- 'frame'  the frame that should be hidden
 function pfUI.api.EnableAutohide(frame, timeout, combat)
@@ -1555,11 +1559,20 @@ function pfUI.api.EnableAutohide(frame, timeout, combat)
   frame.hover.parent = frame
   frame.hover:Show()
 
+  if not frame.hover.fade then
+    frame.hover.fade = frame:CreateAnimationGroup()
+    local fade = frame.hover.fade:CreateAnimation("Alpha")
+    fade:SetChange(-1)
+    fade:SetDuration(1)
+    frame.hover.fade:SetScript("OnFinished", function() frame:SetAlpha(0) end)
+  end
+
   if combat then
     frame.hover:RegisterEvent("PLAYER_REGEN_ENABLED")
     frame.hover:RegisterEvent("PLAYER_REGEN_DISABLED")
     frame.hover:SetScript("OnEvent", function()
       if event == "PLAYER_REGEN_DISABLED" then
+        this.fade:Stop()
         this.parent:SetAlpha(1)
         this.activeTo = "keep"
       elseif event == "PLAYER_REGEN_ENABLED" then
@@ -1575,13 +1588,13 @@ function pfUI.api.EnableAutohide(frame, timeout, combat)
 
     if this.activeTo == "keep" then return end
 
-    if MouseIsOver(this, 10, -10, -10, 10) then
+    if this:IsMouseOver(10, -10, -10, 10) then
       this.activeTo = GetTime() + timeout
+      this.fade:Stop()
       this.parent:SetAlpha(1)
     elseif this.activeTo then
-      if this.activeTo < GetTime() and this.parent:GetAlpha() > 0 then
-        local fps = (60 / math.max(GetFramerate(), 1))
-        this.parent:SetAlpha(this.parent:GetAlpha() - 0.05*fps)
+      if this.activeTo < GetTime() and this.parent:GetAlpha() > 0 and not this.fade:IsPlaying() then
+        this.fade:Play()
       end
     else
       this.activeTo = GetTime() + timeout
@@ -1598,6 +1611,7 @@ function pfUI.api.DisableAutohide(frame)
   frame.hover:SetScript("OnEvent", nil)
   frame.hover:SetScript("OnUpdate", nil)
   frame.hover:Hide()
+  frame.hover.fade:Stop()
   frame:SetAlpha(1)
 end
 

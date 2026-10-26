@@ -103,30 +103,32 @@ pfUI:RegisterModule("minimap", function ()
       this.highlight:SetAllPoints(this)
       this.highlight:SetFrameLevel(this:GetFrameLevel() + 1)
 
-      this.highlight.tex = this.highlight:CreateTexture("OVERLAY")
+      this.highlight.tex = this.highlight:CreateTexture(nil, "OVERLAY")
       this.highlight.tex:SetTexture(pfUI.media["img:mail"])
       this.highlight.tex:SetPoint("TOPLEFT", MiniMapMailIcon, "TOPLEFT", -2, 2)
       this.highlight.tex:SetPoint("BOTTOMRIGHT", MiniMapMailIcon, "BOTTOMRIGHT", 2, -2)
       this.highlight.tex:SetVertexColor(1,.5,.5)
 
-      this.highlight:SetScript("OnUpdate", function()
-        if not this.count then this.count = 0 end
-        if not this.modifier then this.modifier = 1 end
-        if this.count >= 10 then this:Hide() end
-
-        this:SetAlpha(this:GetAlpha() + this.modifier)
-
-        if this:GetAlpha() <= 0.1 then
-          this.modifier = 0.05
-          this.count = this.count + 1
-        elseif this:GetAlpha() >= 0.9 then
-          this.modifier = -0.05
-        end
-      end)
+      -- Blink ten times between .9 and .1, then hide
+      local highlight = this.highlight
+      highlight:SetAlpha(.9)
+      highlight.blink = highlight:CreateAnimationGroup()
+      for i = 1, 10 do
+        local down = highlight.blink:CreateAnimation("Alpha")
+        down:SetChange(-.8)
+        down:SetDuration(.3)
+        down:SetOrder(i * 2 - 1)
+        local up = highlight.blink:CreateAnimation("Alpha")
+        up:SetChange(.8)
+        up:SetDuration(.3)
+        up:SetOrder(i * 2)
+      end
+      highlight.blink:SetScript("OnFinished", function() highlight:Hide() end)
     end
 
-    this.highlight.count = 0
     this.highlight:Show()
+    this.highlight.blink:Stop()
+    this.highlight.blink:Play()
   end)
 
   -- Create coordinates text frame with location configurable

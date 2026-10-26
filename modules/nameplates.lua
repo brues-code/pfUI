@@ -130,8 +130,8 @@ pfUI:RegisterModule("nameplates", function ()
     cfg.targetcastbar = C.nameplates["targetcastbar"] == "1"
     cfg.notargalpha = tonumber(C.nameplates.notargalpha) or 0.5
     if cfg.notargalpha > 1 then cfg.notargalpha = cfg.notargalpha / 100 end
-    -- Clamp to 0.99 so non-target plates never reach 1.0 (used for target detection)
-    if cfg.notargalpha > 0.99 then cfg.notargalpha = 0.99 end
+    -- Clamp to 1.0 so a 100% setting yields full opacity (target detection is GUID-based)
+    if cfg.notargalpha > 1 then cfg.notargalpha = 1 end
     cfg.namefightcolor = C.nameplates.namefightcolor == "1"
     cfg.spellname = C.nameplates.spellname == "1"
     cfg.showhp = C.nameplates.showhp == "1"
@@ -159,6 +159,7 @@ pfUI:RegisterModule("nameplates", function ()
     cfg.debufftimers = C.nameplates.debufftimers == "1"
     cfg.debuffanim = tonumber(C.nameplates.debuffanim) or 0
     cfg.debufftext = tonumber(C.nameplates.debufftext) or 1
+    cfg.debreverse = tonumber(C.nameplates.debreverse) or 0
 
     -- Throttle delays, resolved once instead of per plate per tick.
     -- libthrottle:Get walks the saved-variable table, a defaults fallback and a
@@ -280,10 +281,6 @@ pfUI:RegisterModule("nameplates", function ()
     return color
   end
 
-  local function DoNothing()
-    return
-  end
-
   local function DisableObject(object)
     if not object then return end
     if not object.GetObjectType then return end
@@ -381,16 +378,23 @@ pfUI:RegisterModule("nameplates", function ()
   end
 
 
-  local function GetUnitType(red, green, blue)
-    if red > .9 and green < .2 and blue < .2 then
-      return "ENEMY_NPC"
-    elseif red > .9 and green > .9 and blue < .2 then
-      return "NEUTRAL_NPC"
-    elseif red < .2 and green < .2 and blue > 0.9 then
-      return "FRIENDLY_PLAYER"
-    elseif red < .2 and green > .9 and blue < .2 then
-      return "FRIENDLY_NPC"
-    end
+  -- UnitSelectionType: 0 hostile, 1 unfriendly, 2 neutral, 3 friendly (or a
+  -- PvP-flagged player), 4 unflagged player. Type 3 is ambiguous, so callers
+  -- still promote *_NPC to *_PLAYER from their own player check.
+  local selectionTypes = {
+    [0] = "ENEMY_NPC",
+    [1] = "ENEMY_NPC",
+    [2] = "NEUTRAL_NPC",
+    [3] = "FRIENDLY_NPC",
+    [4] = "FRIENDLY_PLAYER",
+  }
+
+  local function GetUnitType(plate)
+    -- an unresolved token reads as the player's own type (4), so never ask
+    -- without a GUID
+    local guid = plate.cachedGuid
+    if not guid or guid == "" then return "ENEMY_NPC" end
+    return selectionTypes[UnitSelectionType(guid)]
   end
 
   local filter, list, cache
@@ -437,25 +441,12 @@ pfUI:RegisterModule("nameplates", function ()
     plate.debuffs[index].stacks:SetJustifyV("BOTTOM")
     plate.debuffs[index].stacks:SetTextColor(1,1,0)
 
-    -- PERF: Use lightweight fake cooldown frame when animation disabled
-    -- The Model-based CooldownFrameTemplate causes major lag with many nameplates
-    if cfg.debuffanim ~= 1 then
-      plate.debuffs[index].cd = CreateFrame("Frame", plate.platename.."Debuff"..index.."Cooldown", plate.debuffs[index])
-      plate.debuffs[index].cd:SetAllPoints(plate.debuffs[index])
-      plate.debuffs[index].cd:SetFrameLevel(6)
-      plate.debuffs[index].cd:SetScript("OnUpdate", CooldownFrame_OnUpdateModel)
-      plate.debuffs[index].cd.AdvanceTime = DoNothing
-      plate.debuffs[index].cd.SetSequence = DoNothing
-      plate.debuffs[index].cd.SetSequenceTime = DoNothing
-    else
-      -- Use CooldownFrameTemplate for animation
-      plate.debuffs[index].cd = CreateFrame("Model", plate.platename.."Debuff"..index.."Cooldown", plate.debuffs[index], "CooldownFrameTemplate")
-      plate.debuffs[index].cd:SetAllPoints(plate.debuffs[index])
-      plate.debuffs[index].cd:SetFrameLevel(6)
-    end
+    plate.debuffs[index].cd = CreateFrame("Cooldown", plate.platename.."Debuff"..index.."Cooldown", plate.debuffs[index], "CooldownFrameTemplate")
+    plate.debuffs[index].cd:SetFrameLevel(6)
 
     -- Set initial config flags (will be cached per-cooldown later)
     plate.debuffs[index].cd.pfCooldownStyleAnimation = cfg.debuffanim
+    plate.debuffs[index].cd.pfCooldownReverse = cfg.debreverse or 0
     plate.debuffs[index].cd.pfCooldownStyleText = cfg.debufftext
     plate.debuffs[index].cd.pfCooldownType = "ALL"
   end
@@ -497,6 +488,7 @@ pfUI:RegisterModule("nameplates", function ()
       local cooldown_anim = tonumber(C.nameplates.debuffanim) or 0
       nameplate.debuffs[i].cd.pfCooldownStyleText = cooldown_text
       nameplate.debuffs[i].cd.pfCooldownStyleAnimation = cooldown_anim
+      nameplate.debuffs[i].cd.pfCooldownReverse = tonumber(C.nameplates.debreverse) or 0
       
     end
   end
@@ -519,6 +511,10 @@ nameplates:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
 -- plate's own frame, against its own token -- see OnCreate and
 -- NAME_PLATE_UNIT_ADDED.
 nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
+-- The interruptible flips only fire for target and focus, not nameplate
+-- tokens. castState is keyed by GUID, so they still reach those units' plates.
+nameplates:RegisterUnitEvent("UNIT_SPELLCAST_INTERRUPTIBLE", "target", "focus")
+nameplates:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "target", "focus")
   
   nameplates:SetScript("OnEvent", function()
     -- Stop event handling during logout to prevent crash 132
@@ -531,9 +527,11 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       end
       -- The plates hold their own unit subscriptions now, so silencing this
       -- frame alone would leave them dispatching through logout -- exactly what
-      -- this branch exists to prevent.
+      -- this branch exists to prevent. Leaving the world destroys the units
+      -- before PLAYER_LOGOUT fires, and a destroyed plate already dropped its
+      -- events and lost its methods, so only the live ones need silencing.
       for plate in pairs(registry) do
-        if plate.nameplate then
+        if plate.nameplate and plate.nameplate.UnregisterAllEvents then
           plate.nameplate:UnregisterAllEvents()
           plate.nameplate:SetScript("OnEvent", nil)
         end
@@ -679,6 +677,17 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       end
       -- Also propagate to all plates for alpha/strata updates
       this.eventcache = true
+
+    elseif event == "UNIT_SPELLCAST_INTERRUPTIBLE" or event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE" then
+      local guid = UnitGUID(arg1)
+      local info = guid and castState[guid]
+      local plate = info and plateByGuid[guid]
+      if plate and plate.castbar then
+        info.noInterrupt = event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE"
+        -- UpdateCastbar only restyles on a new cast; force it
+        plate.castbar.lastEndTime = nil
+        plate.castUpdate = true
+      end
 
     elseif event == "PLAYER_COMBO_POINTS" or event == "UNIT_COMBO_POINTS" then
       -- Only flag the target's plate for combo point update
@@ -859,7 +868,7 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
         combopoints[i] = CreateFrame("Frame", nil, nameplate)
         combopoints[i]:Hide()
         combopoints[i]:SetFrameLevel(8)
-        combopoints[i].tex = combopoints[i]:CreateTexture("OVERLAY")
+        combopoints[i].tex = combopoints[i]:CreateTexture(nil, "OVERLAY")
         combopoints[i].tex:SetAllPoints()
 
         if i < 3 then
@@ -960,6 +969,7 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     nameplate.name:SetJustifyH(nameTextPos)
 
     nameplate.health:SetOrientation(orientation)
+    nameplate.health:SetRotatesTexture(orientation == "VERTICAL")
     -- Bar anchors to the plate directly so the name's JustifyH (configurable
     -- below) can shift left/right without dragging the bar with it.
     nameplate.health:ClearAllPoints()
@@ -1082,8 +1092,7 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
       levelFromDB = true
     end
 
-    local red, green, blue = plate.original.healthbar:GetStatusBarColor()
-    local unittype = GetUnitType(red, green, blue) or "ENEMY_NPC"
+    local unittype = GetUnitType(plate)
     local font_size = C.nameplates.use_unitfonts == "1" and C.global.font_unit_size or C.global.font_size
 
     -- ignore players with npc names if plate level is lower than player level
@@ -1390,12 +1399,14 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
             local cd = plate.debuffs[index].cd
             cd:Show()
             if not cachedStart or abs(cachedStart - newStart) > 0.5 then
-              if not cd.configCached or cd.cachedAnim ~= cfg.debuffanim or cd.cachedText ~= cfg.debufftext then
+              if not cd.configCached or cd.cachedAnim ~= cfg.debuffanim or cd.cachedText ~= cfg.debufftext or cd.cachedReverse ~= cfg.debreverse then
                 cd.pfCooldownStyleAnimation = cfg.debuffanim
                 cd.pfCooldownStyleText = cfg.debufftext
+                cd.pfCooldownReverse = cfg.debreverse or 0
                 cd:SetAlpha(cfg.debuffanim == 1 and 1 or 0)
                 cd.cachedAnim = cfg.debuffanim
                 cd.cachedText = cfg.debufftext
+                cd.cachedReverse = cfg.debreverse
                 cd.configCached = true
               end
               CooldownFrame_SetTimer(cd, newStart, effDuration, 1)
@@ -1439,11 +1450,10 @@ nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
     if not hasEventUpdate and (nameplate.lasttick or 0) + cfg.throttle_min > now then return end
 
     -- PERF: Intelligent throttling based on target/castbar status and plate count
-    -- Use GUID comparison as primary target detection: instant, immune to alpha transitions,
+    -- Use GUID comparison for target detection: instant, immune to alpha transitions,
     -- and immediately correct on de-target (unlike istarget which updates one tick later)
     local targetGuid = state and state.targetGuid
-    local target = (targetGuid and nameplate.cachedGuid and targetGuid == nameplate.cachedGuid) or
-                   (state and state.targetGuid and frame:GetAlpha() >= 0.99) or nil
+    local target = (targetGuid and nameplate.cachedGuid and targetGuid == nameplate.cachedGuid) or nil
     -- Target plate castbar runs on its own dedicated frame (nameplates.castbarFrame).
     -- For non-target plates with castbar active, use castbar throttle to ensure
     -- smooth animation without overloading the central loop.

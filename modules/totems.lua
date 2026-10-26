@@ -113,8 +113,9 @@ pfUI:RegisterModule("totems", function ()
       self.bar[i].cdbg = self.bar[i].cdbg or CreateFrame("Frame", nil, self.bar[i])
       self.bar[i].cdbg:SetSize(self.iconsize - 3, self.iconsize - 3)
       self.bar[i].cdbg:SetPoint("CENTER", self.bar[i], "CENTER", 0, 0)
-      self.bar[i].cd = self.bar[i].cd or CreateFrame("Model", "pfTotemsBar"..i.."Cooldown", self.bar[i].cdbg, "CooldownFrameTemplate")
+      self.bar[i].cd = self.bar[i].cd or CreateFrame("Cooldown", "pfTotemsBar"..i.."Cooldown", self.bar[i].cdbg, "CooldownFrameTemplate")
       self.bar[i].cd.pfCooldownStyleAnimation = 1
+      self.bar[i].cd.pfCooldownReverse = tonumber(pfUI_config.totems.cooldown_reverse) or 0
       self.bar[i].cd.pfCooldownType = "ALL"
 
       self.bar[i]:RegisterForClicks("LeftButtonUp", "RightButtonUp")

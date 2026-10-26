@@ -180,7 +180,7 @@ pfUI:RegisterModule("map", function ()
           my = (( my + height / 2 ) - ( y / scale )) / height * 100
         end
 
-        if mx and my and MouseIsOver(WorldMapButton) then
+        if mx and my and WorldMapButton:IsMouseOver() then
           WorldMapButton.coords.text:SetFormattedText('%.1f / %.1f', mx, my)
         else
           WorldMapButton.coords.text:SetText("")

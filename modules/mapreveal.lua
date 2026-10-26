@@ -31,7 +31,6 @@ pfUI:RegisterModule("mapreveal", function ()
   end)
 
   local explorecaches = {}
-  local alreadyknown = {} -- per-zone accumulator: { [zone] = { [texName] = true } }
 
   -- Own texture pool - separate from Blizzard's WorldMapOverlay textures
   local overlayPool = CreateTexturePool(WorldMapDetailFrame, "BORDER", nil, nil, function(_, tex)
@@ -93,43 +92,45 @@ pfUI:RegisterModule("mapreveal", function ()
     -- clear stale caches
     for k in pairs(explorecaches) do explorecaches[k] = nil end
 
-    -- hide all our textures from last frame
+    -- hide all our textures and icons from last frame
     overlayPool:ReleaseAll()
+    explorePool:ReleaseAll()
+
+    local showExplore = C.appearance.worldmap.mapexploration == "1"
+    local showReveal = C.appearance.worldmap.mapreveal == "1"
+    if not showExplore and not showReveal then return end
 
     local r,g,b,a = GetStringColor(C.appearance.worldmap.mapreveal_color)
     local mapFileName = GetMapInfo()
     if not mapFileName then mapFileName = "World" end
 
-    local numOverlays = GetNumMapOverlays()
-
-    -- accumulate explored overlays per zone (never clear, only add)
-    if not alreadyknown[mapFileName] then alreadyknown[mapFileName] = {} end
-    for i = 1, numOverlays do
-      local texName = GetMapOverlayInfo(i)
-      if texName then alreadyknown[mapFileName][string.upper(texName)] = true end
-    end
-
-    local zoneKnown = alreadyknown[mapFileName]
-
-    -- hide explore icons
-    explorePool:ReleaseAll()
-
     -- ClassicAPI: full overlay list for the viewed zone (explored + unexplored),
     -- read straight from WorldMapOverlay.dbc. Replaces the hand-measured pfMapOverlayData.
     local zoneData = C_Map.GetMapOverlays() or {}
 
+    -- ClassicAPI: the unexplored subset of the viewed zone, using the engine's
+    -- own explored-bit test. Replaces the alreadyknown accumulator, which
+    -- replayed the explored-only GetMapOverlayInfo view. Keyed by the bare
+    -- texture name, the same key the icon cache below uses.
+    local unknown = {}
+    if showExplore then
+      for _, overlay in ipairs(C_MapExplorationInfo.GetUnexploredMapTextures() or {}) do
+        if overlay.textureName and overlay.textureName ~= "" then
+          unknown[string.upper(overlay.textureName)] = true
+        end
+      end
+    end
+
     for _, overlay in ipairs(zoneData) do
       local name          = overlay.textureName   -- bare, e.g. "DRYGULCHRAVINE"
-      local textureName   = overlay.texturePath   -- full engine path (for SetTexture)
       local textureWidth  = overlay.textureWidth
       local textureHeight = overlay.textureHeight
       local offsetX       = overlay.offsetX
       local offsetY       = overlay.offsetY
 
-      -- explore magnifying glass icon. `alreadyknown` stores the FULL paths
-      -- GetMapOverlayInfo returns, so compare with the full path, not the bare
-      -- name.
-      if C.appearance.worldmap.mapexploration == "1" and not zoneKnown[string.upper(textureName)] then
+      -- explore magnifying glass icon for overlays the engine still
+      -- counts as unexplored.
+      if showExplore and unknown[string.upper(name)] then
         local explore = explorePool:Acquire()
         explore:SetPoint("TOPLEFT", "WorldMapDetailFrame", "TOPLEFT", offsetX + textureWidth/2, -offsetY - textureHeight/2)
         explore.name = mapFileName .. " (" .. name .. ")"
@@ -147,7 +148,7 @@ pfUI:RegisterModule("mapreveal", function ()
       -- disambiguated from the actual BLP dimensions. No 256px grid
       -- math here — deriving the grid from textureWidth/Height is
       -- exactly what shears quirky overlays (e.g. Icepoint's Kaneq'nuun).
-      if C.appearance.worldmap.mapreveal == "1" then
+      if showReveal then
         for _, tile in ipairs(overlay.tiles) do
           local tex = overlayPool:Acquire()
 
@@ -173,5 +174,16 @@ pfUI:RegisterModule("mapreveal", function ()
     origUpdate(unpack(arg))
     pfWorldMapFrame_Update()
   end
+
+  -- live refresh while the map is open: exploration changes arrive on this
+  -- event. Zone switches, zoom and (re)opens still come through the hook
+  -- above, so nothing is redrawn while the map is closed — the next open
+  -- rebuilds from the current state.
+
+  EventRegistry:RegisterFrameEventAndCallback("MAP_EXPLORATION_UPDATED", function()
+    if WorldMapFrame and WorldMapFrame:IsShown() then
+      pfWorldMapFrame_Update()
+    end
+  end)
 
 end)

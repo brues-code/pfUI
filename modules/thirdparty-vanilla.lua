@@ -866,9 +866,6 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
     if C.thirdparty.supermacro.enable == "0" then return end
     if not pfUI.bars then return end
 
-    -- skin game menu button
-    SkinButton(GameMenuButtonSuperMacro)
-
     -- hook events to include SuperMacro refreshs
     local ButtonFullUpdate = pfUI.bars.ButtonFullUpdate
     pfUI.bars.ButtonFullUpdate = function(button)
@@ -1197,16 +1194,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
   HookAddonOrVariable("LunaUnitFrames", EnableHealComm)
   HookAddonOrVariable("NotGrid", EnableHealComm)
 
-  HookAddonOrVariable("MoveAnything", function()
-    SkinButton(GameMenuButtonMoveAnything)
-  end)
-
-  HookAddonOrVariable("MCP", function()
-    SkinButton(GameMenuButtonAddOns)
-  end)
-
   HookAddonOrVariable("HardcoreDeath", function()
-    SkinButton(GameMenuButtonHardcoreDeathLogGUI)
     GameMenuFrame:SetHeight(GameMenuFrame:GetHeight() + 20)
   end)
 

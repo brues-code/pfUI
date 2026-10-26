@@ -10,10 +10,93 @@ pfUI.uf.frames = {}
 -- Scans run back to back and consume the buffer before the next refill.
 local auraSlots = {}
 
--- Separate buffer for the tooltip handlers. They run from OnEnter, which can
--- fire while RefreshUnit is showing/hiding icons under the cursor, so they must
--- not share the refresh buffer.
-local tooltipSlots = {}
+-- Aura block corner -> { icon anchor point, x direction, y direction, below frame }
+local auraCorners = {
+  TOPLEFT     = { "BOTTOMLEFT",   1,  1 },
+  BOTTOMLEFT  = { "TOPLEFT",      1, -1, true },
+  TOPRIGHT    = { "BOTTOMRIGHT", -1,  1 },
+  BOTTOMRIGHT = { "TOPRIGHT",    -1, -1, true },
+}
+
+-- Flows the shown icons of an aura block outward from the frame edge, starting
+-- `offset` away from it (its own row gap when nil): `perrow` icons per row,
+-- each row as tall as its largest icon. The first `icons.own` icons are the
+-- player's (C_UnitAuras lists them first) and use `icons.ownsize`. Returns the
+-- offset just past the block's last row, where a block sharing the same corner
+-- continues.
+local function LayoutAuraBlock(unit, icons, offset)
+  local corner = auraCorners[icons.pos]
+  local anchor = unit.config.portraitheight ~= "-1" and unit.hp or unit
+  if anchor == unit.hp and corner[4] then anchor = unit.power end
+
+  offset = offset or icons.gapy
+
+  local x, rowsize, col = 0, 0, 0
+  local i = 1
+  while icons[i] and icons[i]:IsShown() do
+    if col == icons.perrow then
+      offset = offset + rowsize + icons.gapy
+      x, rowsize, col = 0, 0, 0
+    end
+
+    local size = i <= icons.own and icons.ownsize or icons.size
+    icons[i]:SetSize(size, size)
+    icons[i]:ClearAllPoints()
+    icons[i]:SetPoint(corner[1], anchor, icons.pos, corner[2] * x, corner[3] * offset)
+
+    x = x + size + icons.gapx
+    if size > rowsize then rowsize = size end
+    col = col + 1
+    i = i + 1
+  end
+
+  if col > 0 then offset = offset + rowsize + icons.gapy end
+  return offset
+end
+
+-- Buffs and debuffs sharing a corner stack in one column: buffs first on
+-- friendly units, debuffs first on neutral and hostile ones.
+local function LayoutAuras(unit, unitstr)
+  local first, second = unit.buffs, unit.debuffs
+  if not UnitIsFriend("player", unitstr) then first, second = second, first end
+
+  if not first then first, second = second, nil end
+  if not first then return end
+
+  local offset = LayoutAuraBlock(unit, first)
+  if second then
+    LayoutAuraBlock(unit, second, second.pos == first.pos and offset or nil)
+  end
+end
+
+-- Returns the cooldown start and duration of an aura, 0, 0 when it has none.
+-- Start is capped to now: talent-extended auras run past their Spell.dbc base
+-- duration, and a start in the future trips the cooldown text's 2^32
+-- wraparound branch.
+local function AuraTimer(duration, expirationTime)
+  if expirationTime <= 0 then return 0, 0 end
+
+  local now = GetTime()
+  local start, dur = expirationTime - duration, duration
+  if start > now or dur <= 0 then
+    start, dur = now, expirationTime - now
+  end
+
+  if dur <= 0 then return 0, 0 end
+  return start, dur
+end
+
+-- Starts the timers RefreshUnit stored on the shown icons of an aura block.
+local function StartAuraTimers(icons)
+  if not icons then return end
+
+  local i = 1
+  while icons[i] and icons[i]:IsShown() do
+    local dur = icons[i].auraDuration
+    CooldownFrame_SetTimer(icons[i].cd, icons[i].auraStart, dur, dur > 0 and 1 or 0)
+    i = i + 1
+  end
+end
 
 -- ============================================================================
 -- GUID-based Roster Tracking for Smart Updates
@@ -78,10 +161,6 @@ local glow2 = {
   insets = {left = 0, right = 0, top = 0, bottom = 0},
 }
 
-local function DoNothing()
-  return
-end
-
 local function BuffOnEnter()
   local parent = this:GetParent()
   if not parent.label then return end
@@ -119,32 +198,8 @@ local function DebuffOnEnter()
   local unitstr = this:GetParent().label .. this:GetParent().id
   GameTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT")
 
-  if this:GetParent().label ~= "player" then
-    local parent = this:GetParent()
-
-    -- selfdebuff filters the displayed list to player-cast harmful auras, but
-    -- SetUnitAura's index has to be into the unfiltered HARMFUL list. Look up
-    -- the displayed aura via the PLAYER filter, then find its position in the
-    -- unfiltered list by name + sourceGUID.
-    --
-    -- The unfiltered list is NOT capped at 16: once a unit's 16 debuff slots
-    -- are full the server parks further debuffs in buff slots, and C_UnitAuras
-    -- reports those as harmful too. So enumerate however many the unit has.
-    if parent.config and parent.config.selfdebuff == "1" then
-      local ownAura = C_UnitAuras.GetAuraDataByIndex(unitstr, this.id, "HARMFUL|PLAYER")
-      if ownAura then
-        local n = ScanAuraSlots(unitstr, "HARMFUL", tooltipSlots)
-        for i = 1, n do
-          local check = C_UnitAuras.GetAuraDataBySlot(unitstr, tooltipSlots[i])
-          if check and check.name == ownAura.name and check.sourceGUID == ownAura.sourceGUID then
-            GameTooltip:SetUnitAura(unitstr, i, "HARMFUL")
-            return
-          end
-        end
-      end
-    end
-  end
-
+  -- C_UnitAuras lists the player's own auras first, so the selfdebuff
+  -- (HARMFUL|PLAYER) list is a prefix of the HARMFUL list: same index.
   GameTooltip:SetUnitAura(unitstr, this.id, "HARMFUL")
 end
 
@@ -217,27 +272,6 @@ function pfUI.api.UnitHasAggro(unit)
   end
 
   return data.state
-end
-
-pfUI.uf.glow = CreateFrame("Frame", nil, UIParent)
-pfUI.uf.glow:SetScript("OnUpdate", function()
-  local fpsmod = GetFramerate() / 30
-  if not this.val or this.val >= .8 then
-    this.mod = -0.01 / fpsmod
-  elseif this.val <= .4 then
-    this.mod = 0.01  / fpsmod
-  end
-  this.val = this.val + this.mod
-end)
-
-pfUI.uf.glow.mod = 0
-pfUI.uf.glow.val = 0.6
-
-function pfUI.uf.glow.UpdateGlowAnimation()
-  local val = pfUI.uf.glow.val or 0.6
-  if val < 0.4 then val = 0.4 end
-  if val > 0.8 then val = 0.8 end
-  this:SetAlpha(val)
 end
 
 function pfUI.uf:UpdateVisibility()
@@ -313,10 +347,16 @@ function pfUI.uf:UpdateVisibility()
     self._label, self._id = nil, nil
   end
 
-  local unitstr = ("%s%s"):format(self.label or "", self.id or "")
-  self.unitstr = unitstr ~= "" and unitstr or nil
-  self:SetAttribute("unit", self.unitstr)
-  local visibility = ("[target=%s,exists] show; hide"):format(unitstr)
+  -- this runs for every frame five times a second, so only touch the
+  -- attribute when the unit actually changed
+  local unitstr = (self.label or "") .. (self.id or "")
+  local unit = unitstr ~= "" and unitstr or nil
+  if unit ~= self.unitstr then
+    self.unitstr = unit
+    self:SetAttribute("unit", unit)
+  end
+  -- anything but "show"/"hide" means "show if the unit exists"
+  local visibility = "exists"
 
   -- Group frames are redundant when the group is already shown as a raid grid:
   -- either an actual raid, or a party promoted to the raid grid via
@@ -425,9 +465,12 @@ function pfUI.uf:UpdateConfig()
   local C = pfUI_config
   local rawborder, default_border = GetBorderSize("unitframes")
   local spacing = f.config.pspace * GetPerfectPixel()
+  -- aura icon backdrops sit outside the icon, so gaps clear both borders
+  local aura_border = (C.appearance.border.force_blizz == "1" and 1 or 2) * default_border
 
   local cooldown_text = tonumber(f.config.cooldown_text)
   local cooldown_anim = tonumber(f.config.cooldown_anim)
+  local cooldown_reverse = tonumber(f.config.cooldown_reverse) or 0
 
   local relative_point = "BOTTOM"
   if f.config.panchor == "TOPLEFT" then
@@ -451,7 +494,6 @@ function pfUI.uf:UpdateConfig()
   f.glow:SetBackdrop(glow2)
   f.glow:SetPoint("TOPLEFT", f, "TOPLEFT", -6 - default_border,6 + default_border)
   f.glow:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 6 + default_border,-6 - default_border)
-  f.glow:SetScript("OnUpdate", pfUI.uf.glow.UpdateGlowAnimation)
   f.glow:Hide()
 
   f.combat:SetSize(tonumber(f.config.squaresize), tonumber(f.config.squaresize))
@@ -757,12 +799,16 @@ function pfUI.uf:UpdateConfig()
     f.buffs = nil
   else
     f.buffs = f.buffs or {}
+    f.buffs.pos = f.config.buffs
+    f.buffs.size = tonumber(f.config.buffsize)
+    f.buffs.ownsize = f.config.ownbuffsize == "-1" and f.buffs.size or tonumber(f.config.ownbuffsize)
+    f.buffs.perrow = tonumber(f.config.buffperrow)
+    f.buffs.gapx = aura_border + tonumber(f.config.buffspacingx)
+    f.buffs.gapy = aura_border + tonumber(f.config.buffspacingy)
+    f.buffs.own = 0
 
     for i=1, 32 do
       if i > tonumber(f.config.bufflimit) then break end
-
-      local perrow = f.config.buffperrow
-      local row = floor((i-1) / perrow)
 
       f.buffs[i] = f.buffs[i] or CreateFrame("Button", "pfUI" .. f.fname .. "Buff" .. i, f)
       f.buffs[i].texture = f.buffs[i].texture or f.buffs[i]:CreateTexture()
@@ -778,61 +824,13 @@ function pfUI.uf:UpdateConfig()
 
       f.buffs[i]:SetFrameLevel(12)
       f.buffs[i]:RegisterForClicks("RightButtonUp")
-      f.buffs[i]:ClearAllPoints()
 
-      local invert_h, invert_v, af
-      if f.config.buffs == "TOPLEFT" then
-        invert_h = 1
-        invert_v = 1
-        af = "BOTTOMLEFT"
-      elseif f.config.buffs == "BOTTOMLEFT" then
-        invert_h = -1
-        invert_v = 1
-        af = "TOPLEFT"
-      elseif f.config.buffs == "TOPRIGHT" then
-        invert_h = 1
-        invert_v = -1
-        af = "BOTTOMRIGHT"
-      elseif f.config.buffs == "BOTTOMRIGHT" then
-        invert_h = -1
-        invert_v = -1
-        af = "TOPRIGHT"
-      end
-
-      local anchor = f.config.portraitheight ~= "-1" and f.hp or f
-      if anchor == f.hp and (f.config.buffs == "BOTTOMLEFT" or f.config.buffs == "BOTTOMRIGHT") then
-        anchor = f.power
-      end
-      local multiply = C.appearance.border.force_blizz == "1" and 1 or 2
-      f.buffs[i]:SetPoint(af, anchor, f.config.buffs,
-      invert_v * (i-1-row*perrow)*(multiply*default_border + f.config.buffsize + 1),
-      invert_h * (row*(multiply*default_border + f.config.buffsize + 1) + (multiply*default_border + 1)))
-
-      f.buffs[i]:SetSize(f.config.buffsize, f.config.buffsize)
-      
-      -- Create CD frame if it doesn't exist
-      if not f.buffs[i].cd then
-        if cooldown_anim == 1 then
-          -- Animation enabled: Use Model frame with CooldownFrameTemplate
-          f.buffs[i].cd = CreateFrame("Model", f.buffs[i]:GetName() .. "Cooldown", f.buffs[i], "CooldownFrameTemplate")
-        else
-          -- Animation disabled: Use regular Frame with dummy functions
-          f.buffs[i].cd = CreateFrame("Frame", f.buffs[i]:GetName() .. "Cooldown", f.buffs[i])
-          f.buffs[i].cd.AdvanceTime = DoNothing
-          f.buffs[i].cd.SetSequence = DoNothing
-          f.buffs[i].cd.SetSequenceTime = DoNothing
-        end
-      end
-      
-      -- Always update CD properties (in case size changed)
-      local cdScale = f.config.buffsize / 32
-      f.buffs[i].cd:ClearAllPoints()
-      f.buffs[i].cd:SetScale(cdScale)
-      f.buffs[i].cd:SetAllPoints(f.buffs[i])
+      f.buffs[i].cd = f.buffs[i].cd or CreateFrame("Cooldown", f.buffs[i]:GetName() .. "Cooldown", f.buffs[i], "CooldownFrameTemplate")
       f.buffs[i].cd:SetFrameLevel(14)
       f.buffs[i].cd.pfCooldownType = "ALL"
       f.buffs[i].cd.pfCooldownStyleText = cooldown_text
       f.buffs[i].cd.pfCooldownStyleAnimation = cooldown_anim
+      f.buffs[i].cd.pfCooldownReverse = cooldown_reverse
       f.buffs[i].cd:SetAlpha(cooldown_anim == 1 and 1 or 0)
       
       -- immediately show/hide existing cooldown text
@@ -861,6 +859,13 @@ function pfUI.uf:UpdateConfig()
     f.debuffs = nil
   else
     f.debuffs = f.debuffs or {}
+    f.debuffs.pos = f.config.debuffs
+    f.debuffs.size = tonumber(f.config.debuffsize)
+    f.debuffs.ownsize = f.config.owndebuffsize == "-1" and f.debuffs.size or tonumber(f.config.owndebuffsize)
+    f.debuffs.perrow = tonumber(f.config.debuffperrow)
+    f.debuffs.gapx = aura_border + tonumber(f.config.debuffspacingx)
+    f.debuffs.gapy = aura_border + tonumber(f.config.debuffspacingy)
+    f.debuffs.own = 0
 
     for i=1, 32 do
       if i > tonumber(f.config.debufflimit) then break end
@@ -879,33 +884,14 @@ function pfUI.uf:UpdateConfig()
 
       f.debuffs[i]:SetFrameLevel(12)
       f.debuffs[i]:RegisterForClicks("RightButtonUp")
-      f.debuffs[i]:ClearAllPoints()
-      f.debuffs[i]:SetSize(f.config.debuffsize, f.config.debuffsize)
       f.debuffs[i]:SetNormalTexture(nil)
       
-      -- Create CD frame if it doesn't exist
-      if not f.debuffs[i].cd then
-        if cooldown_anim == 1 then
-          -- Animation enabled: Use Model frame with CooldownFrameTemplate
-          f.debuffs[i].cd = CreateFrame("Model", f.debuffs[i]:GetName() .. "Cooldown", f.debuffs[i], "CooldownFrameTemplate")
-        else
-          -- Animation disabled: Use regular Frame with dummy functions
-          f.debuffs[i].cd = CreateFrame("Frame", f.debuffs[i]:GetName() .. "Cooldown", f.debuffs[i])
-          f.debuffs[i].cd.AdvanceTime = DoNothing
-          f.debuffs[i].cd.SetSequence = DoNothing
-          f.debuffs[i].cd.SetSequenceTime = DoNothing
-        end
-      end
-      
-      -- Always update CD properties (in case size changed)
-      local cdScale = f.config.debuffsize / 32
-      f.debuffs[i].cd:ClearAllPoints()
-      f.debuffs[i].cd:SetScale(cdScale)
-      f.debuffs[i].cd:SetAllPoints(f.debuffs[i])
+      f.debuffs[i].cd = f.debuffs[i].cd or CreateFrame("Cooldown", f.debuffs[i]:GetName() .. "Cooldown", f.debuffs[i], "CooldownFrameTemplate")
       f.debuffs[i].cd:SetFrameLevel(14)
       f.debuffs[i].cd.pfCooldownType = "ALL"
       f.debuffs[i].cd.pfCooldownStyleText = cooldown_text
       f.debuffs[i].cd.pfCooldownStyleAnimation = cooldown_anim
+      f.debuffs[i].cd.pfCooldownReverse = cooldown_reverse
       f.debuffs[i].cd:SetAlpha(cooldown_anim == 1 and 1 or 0)
       
       -- immediately show/hide existing cooldown text
@@ -942,32 +928,6 @@ function pfUI.uf.OnShow()
   pfUI.uf:RefreshUnit(this, "portrait")
   pfUI.uf:RefreshUnit(this, "base")
 end
-
--- GUID-keyed aura start-time tracker, fed by Nampower's BUFF_ADDED_OTHER /
--- BUFF_REMOVED_OTHER. Non-player units have aura.expirationTime == 0 (server
--- doesn't broadcast time), so we reconstruct the swirl from "when we saw it
--- applied" + aura.duration (Spell.dbc base). Only auras we actually witnessed
--- being cast get tracked — pre-existing auras (already on a unit when you
--- target them) intentionally show no timer rather than a fabricated one.
-pfUI.uf.aura_starts = {}  -- {[guid] = {[spellId] = startTime}}
-
-local auraTracker = CreateFrame("Frame", "pfUF_AuraTracker", UIParent)
-auraTracker:RegisterEvent("BUFF_ADDED_OTHER")
-auraTracker:RegisterEvent("BUFF_REMOVED_OTHER")
-auraTracker:SetScript("OnEvent", function()
-  -- Nampower arg layout: arg1=guid, arg3=spellId. State code 0=added, 1=removed,
-  -- 2=modified; we treat any added/modified as "reset start = now" and let the
-  -- REMOVED event clear the entry.
-  if not arg1 or not arg3 or arg3 == 0 then return end
-  if event == "BUFF_REMOVED_OTHER" then
-    if pfUI.uf.aura_starts[arg1] then
-      pfUI.uf.aura_starts[arg1][arg3] = nil
-    end
-  else
-    pfUI.uf.aura_starts[arg1] = pfUI.uf.aura_starts[arg1] or {}
-    pfUI.uf.aura_starts[arg1][arg3] = GetTime()
-  end
-end)
 
 function pfUI.uf.OnEvent()
   -- Handle shutdown to prevent crash 132
@@ -1140,14 +1100,11 @@ function pfUI.uf.OnUpdate()
         end
       else
         pfUI.uf:RefreshUnitState(this)
-        -- [PerfFix] Raid/party icons (leader, loot, raid mark, ...) are already
-        -- refreshed by events through update_indicators (PARTY_LEADER_CHANGED,
-        -- PARTY_LOOT_METHOD_CHANGED, RAID_TARGET_UPDATE, roster updates). For
-        -- those frames the poll is only a safety net, so run it every 3s instead
-        -- of every tick. Frames whose unit changes without events (target,
-        -- focus, ...) keep polling every tick as before.
-        local lbl = this.label
-        if lbl == "raid" or lbl == "party" or lbl == "raidpet" or lbl == "partypet" then
+        -- group frames get their leader/loot/raid mark icons refreshed by
+        -- events through update_indicators, so polling them is only a safety
+        -- net; frames whose unit changes without events keep polling per tick
+        local label = this.label
+        if label == "raid" or label == "party" or label == "raidpet" or label == "partypet" then
           if (this.lastIndicatorPoll or 0) < now then
             this.lastIndicatorPoll = now + 3
             pfUI.uf:RefreshIndicators(this)
@@ -1506,7 +1463,18 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
   end
 
   f.glow = CreateFrame("Frame", nil, f)
-  f.combat = CreateFrame("Frame", nil, f.hp.bar)
+  -- Pulse between .8 and .4 for good. The group only advances while the glow
+  -- is shown, so a hidden glow costs nothing.
+  f.glow:SetAlpha(.8)
+  f.glow.pulse = f.glow:CreateAnimationGroup()
+  f.glow.pulse:SetLooping("BOUNCE")
+  local fade = f.glow.pulse:CreateAnimation("Alpha")
+  fade:SetChange(-.4)
+  fade:SetDuration(1.3)
+  fade:SetSmoothing("IN_OUT")
+  f.glow.pulse:Play()
+
+  f.combat =CreateFrame("Frame", nil, f.hp.bar)
   f.combat.tex = f.combat:CreateTexture(nil, "OVERLAY")
   f.combat.tex:SetAllPoints()
 
@@ -1776,77 +1744,22 @@ function pfUI.uf:RefreshUnit(unit, component)
           unit.buffs[i].stacks:SetText("")
         end
 
-        if expirationTime > 0 then
-          -- pfUI's cooldown text falls into a 2^32 wraparound branch when start > GetTime(),
-          -- which happens for talent-extended buffs where the real duration exceeds the
-          -- Spell.dbc base. Anchor start to now in that case to keep the remaining math sane.
-          local now = GetTime()
-          local start = expirationTime - duration
-          local dur = duration
-          if start > now or dur <= 0 then
-            start, dur = now, expirationTime - now
-          end
-          if dur > 0 then
-            CooldownFrame_SetTimer(unit.buffs[i].cd, start, dur, 1)
-          else
-            CooldownFrame_SetTimer(unit.buffs[i].cd, 0, 0, 0)
-          end
-        elseif duration > 0 then
-          local guid = UnitGUID(unitstr)
-          local guidStarts = guid and pfUI.uf.aura_starts[guid]
-          local start = guidStarts and guidStarts[spellId]
-          if start then
-            CooldownFrame_SetTimer(unit.buffs[i].cd, start, duration, 1)
-          else
-            CooldownFrame_SetTimer(unit.buffs[i].cd, 0, 0, 0)
-          end
-        else
-          CooldownFrame_SetTimer(unit.buffs[i].cd, 0, 0, 0)
-        end
+        unit.buffs[i].auraStart, unit.buffs[i].auraDuration = AuraTimer(duration, expirationTime)
       else
         unit.buffs[i]:Hide()
       end
+    end
+
+    -- own buffs lead the list; count them only when they're drawn larger
+    if unit.buffs.ownsize ~= unit.buffs.size then
+      unit.buffs.own = ScanAuraSlots(unitstr, "HELPFUL|PLAYER", auraSlots, unit.config.bufflimit)
     end
   end
 
   -- debuffs
   if unit.debuffs and ( component == "all" or component == "aura" ) then
     local texture, stacks, dtype
-    local perrow = unit.config.debuffperrow
-    local bperrow = unit.config.buffperrow
     local selfdebuff = unit.config.selfdebuff
-
-    local invert_h, invert_v, af
-    if unit.config.debuffs == "TOPLEFT" then
-      invert_h = 1
-      invert_v = 1
-      af = "BOTTOMLEFT"
-    elseif unit.config.debuffs == "BOTTOMLEFT" then
-      invert_h = -1
-      invert_v = 1
-      af = "TOPLEFT"
-    elseif unit.config.debuffs == "TOPRIGHT" then
-      invert_h = 1
-      invert_v = -1
-      af = "BOTTOMRIGHT"
-    elseif unit.config.debuffs == "BOTTOMRIGHT" then
-      invert_h = -1
-      invert_v = -1
-      af = "TOPRIGHT"
-    end
-
-    local buffrow, reposition = 0, ( component == "all" and true or nil )
-    if unit.config.buffs == unit.config.debuffs then
-      if unit.buffs[0*bperrow+1] and unit.buffs[0*bperrow+1]:IsShown() then buffrow = buffrow + 1 end
-      if unit.buffs[1*bperrow+1] and unit.buffs[1*bperrow+1]:IsShown() then buffrow = buffrow + 1 end
-      if unit.buffs[2*bperrow+1] and unit.buffs[2*bperrow+1]:IsShown() then buffrow = buffrow + 1 end
-      if unit.buffs[3*bperrow+1] and unit.buffs[3*bperrow+1]:IsShown() then buffrow = buffrow + 1 end
-    end
-
-    if buffrow ~= unit.lastbuffrow then
-      unit.lastbuffrow = buffrow
-      reposition = true
-    end
 
     -- selfdebuff narrows to player-cast harmful auras via the PLAYER filter.
     -- Player-frame debuffs aren't gated on it (it'd hide most party-applied
@@ -1857,19 +1770,6 @@ function pfUI.uf:RefreshUnit(unit, component)
 
     for i=1, unit.config.debufflimit do
       if not unit.debuffs[i] then break end
-
-      local row = floor((i-1) / unit.config.debuffperrow)
-
-      if reposition then
-        local anchor = unit.config.portraitheight ~= "-1" and unit.hp or unit
-        if anchor == unit.hp and (unit.config.debuffs == "BOTTOMLEFT" or unit.config.debuffs == "BOTTOMRIGHT") then
-          anchor = unit.power
-        end
-        local multiply = C.appearance.border.force_blizz == "1" and 1 or 2
-        unit.debuffs[i]:SetPoint(af, anchor, unit.config.debuffs,
-        invert_v * (i-1-row*perrow)*(multiply*default_border + unit.config.debuffsize + 1),
-        invert_h * ((row+buffrow)*(multiply*default_border + unit.config.debuffsize + 1) + (multiply*default_border + 1)))
-      end
 
       -- positional read by slot id allocates nothing
       local name, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
@@ -1887,24 +1787,7 @@ function pfUI.uf:RefreshUnit(unit, component)
       if texture then
         unit.debuffs[i]:Show()
 
-        if expirationTime > 0 then
-          -- Cap start to now so talent-extended debuffs (expirationTime past
-          -- the dbc base duration) don't push start into the future and trip
-          -- CooldownFrame_SetTimer's 2^32-wraparound branch.
-          local now = GetTime()
-          local start = expirationTime - duration
-          local dur = duration
-          if start > now or dur <= 0 then
-            start, dur = now, expirationTime - now
-          end
-          if dur > 0 then
-            CooldownFrame_SetTimer(unit.debuffs[i].cd, start, dur, 1)
-          else
-            CooldownFrame_SetTimer(unit.debuffs[i].cd, 0, 0, 0)
-          end
-        else
-          CooldownFrame_SetTimer(unit.debuffs[i].cd, 0, 0, 0)
-        end
+        unit.debuffs[i].auraStart, unit.debuffs[i].auraDuration = AuraTimer(duration, expirationTime)
 
         if stacks > 1 then
           unit.debuffs[i].stacks:SetText(stacks)
@@ -1915,6 +1798,18 @@ function pfUI.uf:RefreshUnit(unit, component)
         unit.debuffs[i]:Hide()
       end
     end
+
+    -- own debuffs lead the list; count them only when they're drawn larger
+    if unit.debuffs.ownsize ~= unit.debuffs.size then
+      unit.debuffs.own = ScanAuraSlots(unitstr, "HARMFUL|PLAYER", auraSlots, unit.config.debufflimit)
+    end
+  end
+
+  -- timers start after the layout so each cooldown text is sized to its icon
+  if component == "all" or component == "aura" then
+    LayoutAuras(unit, unitstr)
+    StartAuraTimers(unit.buffs)
+    StartAuraTimers(unit.debuffs)
   end
 
   -- indicators
@@ -2345,7 +2240,7 @@ function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
   if not frame.icon[pos] then
     frame.icon[pos] = CreateFrame("Frame", nil, frame.icon)
     frame.icon[pos]:SetParent(frame)
-    frame.icon[pos].tex = frame.icon[pos]:CreateTexture("OVERLAY")
+    frame.icon[pos].tex = frame.icon[pos]:CreateTexture(nil, "OVERLAY")
     frame.icon[pos].tex:SetAllPoints(frame.icon[pos])
     frame.icon[pos].tex:SetTexCoord(.08, .92, .08, .92)
     frame.icon[pos].stacks = frame.icon[pos]:CreateFontString(nil, "OVERLAY")
@@ -2353,17 +2248,7 @@ function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
     frame.icon[pos].stacks:SetJustifyH("RIGHT")
     frame.icon[pos].stacks:SetJustifyV("BOTTOM")
 
-    -- Check if parent frame has cooldown animation enabled
-    local parent_cooldown_anim = frame.config and tonumber(frame.config.cooldown_anim) or 1
-    if parent_cooldown_anim == 1 then
-      frame.icon[pos].cd = CreateFrame("Model", nil, frame.icon[pos])
-    else
-      frame.icon[pos].cd = CreateFrame("Frame", nil, frame.icon[pos])
-      frame.icon[pos].cd.AdvanceTime = DoNothing
-      frame.icon[pos].cd.SetSequence = DoNothing
-      frame.icon[pos].cd.SetSequenceTime = DoNothing
-    end
-    
+    frame.icon[pos].cd = CreateFrame("Cooldown", nil, frame.icon[pos], "CooldownFrameTemplate")
     frame.icon[pos].cd.pfCooldownStyleAnimation = 0
     frame.icon[pos].cd.pfCooldownType = "ALL"
     frame.icon[pos].cd:SetFrameLevel(48)
@@ -2671,7 +2556,7 @@ function pfUI.uf:GetStatusValue(unit, pos)
   elseif config == "healthmax" then
     return unit:GetColor("health") .. pfUI.api.Abbreviate(rhpmax)
   elseif config == "healthperc" then
-    return unit:GetColor("health") .. ceil(hp / hpmax * 100)
+    return unit:GetColor("health") .. ceil(hp / hpmax * 100) .. "%"
   elseif config == "healthmiss" then
     local health = ceil(rhp - rhpmax)
     if UnitIsDead(unitstr) then
@@ -2724,7 +2609,7 @@ function pfUI.uf:GetStatusValue(unit, pos)
     return unit:GetColor("power") .. pfUI.api.Abbreviate(mpmax)
   elseif config == "powerperc" then
     local perc = UnitPowerMax(unitstr) > 0 and ceil(mp / mpmax * 100) or 0
-    return unit:GetColor("power") .. perc
+    return unit:GetColor("power") .. perc .. "%"
   elseif config == "powermiss" then
     local power = ceil(mp - mpmax)
     if power == 0 then

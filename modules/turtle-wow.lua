@@ -98,11 +98,9 @@ pfUI:RegisterModule("turtle-wow", function ()
       GameMenuButtonOptions:ClearAllPoints()
       GameMenuButtonOptions:SetPoint("TOP", GameMenuButtonShop, "BOTTOM", 0, -16)
 
-      -- apply pfUI skin to the new shop button
+      -- match the shop button's text to the other skinned menu buttons
       if pfUI.skin["Game Menu"] and pfUI_config["disabled"]["skin_Game Menu"] ~= "1" then
-        local font = GameMenuButtonShop:GetFontString()
-        font:SetTextColor(1,1,1,1)
-        SkinButton(GameMenuButtonShop)
+        GameMenuButtonShop:GetFontString():SetTextColor(1,1,1,1)
       end
     end
 

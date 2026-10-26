@@ -28,12 +28,12 @@ pfUI:RegisterSkin("Petition", function ()
 
   local texture = "StationeryTest"
   if date("%m%d") == "0223" then texture = "Stationery_Val" end
-  local tex_Left = PetitionFrame:CreateTexture("BACKGROUND")
+  local tex_Left = PetitionFrame:CreateTexture(nil, "BACKGROUND")
   tex_Left:SetTexture("Interface\\Stationery\\"..texture.."1")
   tex_Left:SetPoint("TOPLEFT", 23, -81)
   tex_Left:SetWidth(tex_Left:GetWidth() + 10)
   tex_Left:SetHeight(330)
-  local tex_Right = PetitionFrame:CreateTexture("BACKGROUND")
+  local tex_Right = PetitionFrame:CreateTexture(nil, "BACKGROUND")
   tex_Right:SetTexture("Interface\\Stationery\\"..texture.."2")
   tex_Right:SetPoint("LEFT", tex_Left, "RIGHT", 0, 0)
   tex_Right:SetWidth(tex_Right:GetWidth() + 10)

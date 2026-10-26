@@ -19,7 +19,7 @@ pfUI:RegisterModule("buff", function ()
   local function RefreshBuffButton(buff)
     if buff.btype == "HELPFUL" then
       if C.buffs.separateweapons == "1" then
-        buff.id = buff.gid - (buff.weapon ~= nill and buff.gid or 0)
+        buff.id = buff.gid - (buff.weapon ~= nil and buff.gid or 0)
       else
         buff.id = buff.gid - pfUI.buff.wepbuffs.count
       end
@@ -33,7 +33,7 @@ pfUI:RegisterModule("buff", function ()
     end
 
     local slots = buff.btype == "HELPFUL" and helpfulSlots or harmfulSlots
-    local name, icon, count, dispelType, _, expirationTime, _, _, _, spellId = C_UnitAuras.UnitAuraBySlot("player", slots[buff.id])
+    local name, icon, count, dispelType, duration, expirationTime, _, _, _, spellId = C_UnitAuras.UnitAuraBySlot("player", slots[buff.id])
 
     --detect weapon buffs
     if buff.btype == "HELPFUL" and ((C.buffs.separateweapons == "0" and buff.gid <= pfUI.buff.wepbuffs.count) or (pfUI.buff.wepbuffs.count > 0 and buff.weapon ~= nil)) then
@@ -84,6 +84,28 @@ pfUI:RegisterModule("buff", function ()
       return
     end
 
+    -- drive the sweep from the aura duration (weapon enchants and permanent
+    -- auras report no usable total, so those buttons stay text-only)
+    if buff.mode == buff.btype and duration and duration > 0 and expirationTime and expirationTime > 0 then
+      local now = GetTime()
+      local timeleft = expirationTime - now
+      if timeleft > 0 then
+        local effDuration = duration > timeleft and duration or timeleft
+        local newStart = now + timeleft - effDuration
+        if buff.cdStart == nil or abs(buff.cdStart - newStart) > .5 or buff.cdDuration ~= effDuration then
+          CooldownFrame_SetTimer(buff.cd, newStart, effDuration, 1)
+          buff.cdStart = newStart
+          buff.cdDuration = effDuration
+        end
+      else
+        CooldownFrame_SetTimer(buff.cd, 0, 0, 0)
+        buff.cdStart = nil
+      end
+    else
+      CooldownFrame_SetTimer(buff.cd, 0, 0, 0)
+      buff.cdStart = nil
+    end
+
     buff:Show()
   end
 
@@ -106,16 +128,32 @@ pfUI:RegisterModule("buff", function ()
     buff.texture:SetTexCoord(.07,.93,.07,.93)
     buff.texture:SetAllPoints(buff)
 
-    buff.timer = buff:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    -- overlay lifts the texts above the sweep: a child frame renders above
+    -- all of its parent's own regions, so the timer would dim under the
+    -- dark wedge otherwise (same reason pfCooldownText is its own frame)
+    buff.overlay = CreateFrame("Frame", nil, buff)
+    buff.overlay:SetAllPoints(buff)
+
+    buff.timer = buff.overlay:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     buff.timer:SetTextColor(1,1,1,1)
     buff.timer:SetJustifyH("CENTER")
     buff.timer:SetJustifyV("CENTER")
 
-    buff.stacks = buff:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    buff.stacks = buff.overlay:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     buff.stacks:SetTextColor(1,1,1,1)
     buff.stacks:SetJustifyH("RIGHT")
     buff.stacks:SetJustifyV("BOTTOM")
     buff.stacks:SetAllPoints(buff)
+
+    -- radial sweep (the template covers the button and starts hidden;
+    -- the cooldown hook drives it from here, text stays with buff.timer)
+    buff.cd = CreateFrame("Cooldown", buttonName .. "Cooldown", buff, "CooldownFrameTemplate")
+    buff.cd:SetFrameLevel(buff:GetFrameLevel() + 1)
+    buff.overlay:SetFrameLevel(buff:GetFrameLevel() + 2)
+    buff.cd.pfCooldownType = "ALL"
+    buff.cd.pfCooldownStyleText = 0
+    buff.cd.pfCooldownStyleAnimation = tonumber(C.buffs.cooldown_anim) or 0
+    buff.cd.pfCooldownReverse = tonumber(C.buffs.cooldown_reverse) or 0
 
     buff:RegisterForClicks("RightButtonUp")
 
@@ -307,6 +345,8 @@ pfUI:RegisterModule("buff", function ()
       offsetY = -(rowcount) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+buffSize+2*buffSpacing)
     end
     buff:SetSize(buffSize, buffSize)
+    buff.cd.pfCooldownStyleAnimation = tonumber(C.buffs.cooldown_anim) or 0
+    buff.cd.pfCooldownReverse = tonumber(C.buffs.cooldown_reverse) or 0
     buff:ClearAllPoints()
     buff:SetPoint("TOPRIGHT", relFrame, "TOPRIGHT",offsetX, offsetY)
 

@@ -34,4 +34,25 @@ pfUI:RegisterModule("unusable", function ()
   hooksecurefunc("BankFrameItemButton_UpdateLock", function()
     pfUI.unusable:UpdateSlot(-1, this:GetID())
   end)
+
+  -- requirement changes (level, proficiency/skill, required spell, reputation,
+  -- honor rank) don't touch the bags; queue a full rebag through pfUI.bag's
+  -- coalesced delay, whose UpdateSlot resets the tint before we reapply it
+  local refresh = CreateFrame("Frame")
+  refresh:RegisterEvent("PLAYER_LEVEL_UP")
+  refresh:RegisterEvent("SKILL_LINES_CHANGED")
+  refresh:RegisterEvent("SPELLS_CHANGED")
+  refresh:RegisterEvent("FACTION_STANDING_CHANGED")
+  refresh:RegisterEvent("PLAYER_PVP_RANK_CHANGED")
+  refresh:SetScript("OnEvent", function()
+    for _, bag in pairs(pfUI.BACKPACK) do
+      pfUI.bag.delay.UpdateBag[bag] = true
+    end
+    -- the bank frame is only created on first bank visit
+    if pfUI.bag.left and pfUI.bag.left:IsShown() then
+      for _, bag in pairs(pfUI.BANK) do
+        pfUI.bag.delay.UpdateBag[bag] = true
+      end
+    end
+  end)
 end)

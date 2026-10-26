@@ -95,7 +95,7 @@ pfUI:RegisterModule("mapcolors", function ()
     local tooltipText = ""
     if unit_button_name == 'WorldMap' then
       -- check player
-      if MouseIsOver(WorldMapPlayer) then
+      if WorldMapPlayer:IsMouseOver() then
         ColorizeName(WorldMapPlayer)
         tooltipText = WorldMapPlayer.name
       end
@@ -104,7 +104,7 @@ pfUI:RegisterModule("mapcolors", function ()
     -- check party
     for i=1, MAX_PARTY_MEMBERS do
       local frame = _G[unit_button_name.."Party"..i]
-      if frame:IsVisible() and MouseIsOver(frame) then
+      if frame:IsVisible() and frame:IsMouseOver() then
         ColorizeName(frame)
         tooltipText = tooltipText.."\n"..frame.name
       end
@@ -113,7 +113,7 @@ pfUI:RegisterModule("mapcolors", function ()
     --check Raid
     for i=1, MAX_RAID_MEMBERS do
       local frame = _G[unit_button_name.."Raid"..i]
-      if frame:IsVisible() and MouseIsOver(frame) then
+      if frame:IsVisible() and frame:IsMouseOver() then
         ColorizeName(frame)
         tooltipText = tooltipText.."\n"..frame.name
       end

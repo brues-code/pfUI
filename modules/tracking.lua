@@ -30,9 +30,17 @@ pfUI:RegisterModule("tracking", function ()
   pfUI.tracking:SetWidth(size)
   pfUI.tracking:SetHeight(size)
 
-  pfUI.tracking.icon = pfUI.tracking:CreateTexture("BACKGROUND")
+  pfUI.tracking.icon = pfUI.tracking:CreateTexture(nil, "BACKGROUND")
   pfUI.tracking.icon:SetTexCoord(.08, .92, .08, .92)
   pfUI.tracking.icon:SetAllPoints(pfUI.tracking)
+
+  -- Pulses the icon while no tracking spell is active
+  pfUI.tracking.pulse = pfUI.tracking.icon:CreateAnimationGroup()
+  pfUI.tracking.pulse:SetLooping("BOUNCE")
+  local fade = pfUI.tracking.pulse:CreateAnimation("Alpha")
+  fade:SetChange(-.5)
+  fade:SetDuration(.5)
+  fade:SetSmoothing("IN_OUT")
 
   pfUI.tracking.menu = CreateFrame("Frame", "pfUIDropDownMenuTracking", nil, "UIDropDownMenuTemplate")
 
@@ -46,19 +54,6 @@ pfUI:RegisterModule("tracking", function ()
     end
     this:RefreshSpells()
     this:RefreshMenu()
-  end)
-
-  pfUI.tracking:SetScript("OnUpdate", function()
-    if this.pulse then
-      local _,_,_,alpha = this.icon:GetVertexColor()
-      local fpsmod = GetFramerate() / 30
-      if not alpha or alpha >= 0.9 then
-        this.modifier = -0.03 / fpsmod
-      elseif alpha <= .5 then
-        this.modifier = 0.03  / fpsmod
-      end
-      this.icon:SetVertexColor(1,1,1,alpha + this.modifier)
-    end
   end)
 
   pfUI.tracking:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -113,20 +108,18 @@ pfUI:RegisterModule("tracking", function ()
     local texture = GetTrackingTexture()
     if texture and texture ~= state.texture then
       state.texture = texture
-      pfUI.tracking.pulse = nil
+      pfUI.tracking.pulse:Stop()
       pfUI.tracking.icon:SetTexture(texture)
-      pfUI.tracking.icon:SetVertexColor(1,1,1,1)
       pfUI.tracking:Show()
     elseif not texture then
       state.texture = nil
 
       if pulse and next(state.spells) ~= nil then
-        pfUI.tracking.pulse = true
         pfUI.tracking.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-        pfUI.tracking.icon:SetVertexColor(1,1,1,1)
+        if not pfUI.tracking.pulse:IsPlaying() then pfUI.tracking.pulse:Play() end
         pfUI.tracking:Show()
       else
-        pfUI.tracking.pulse = nil
+        pfUI.tracking.pulse:Stop()
         pfUI.tracking:Hide()
       end
     end

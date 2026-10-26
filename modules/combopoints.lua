@@ -23,7 +23,7 @@ pfUI:RegisterModule("combopoints", function ()
       pfUI.combopoints[point]:SetPoint("CENTER", UIParent, "CENTER", (point - 3) * (combo_width + border*3), 10 )
     end
 
-    pfUI.combopoints[point].tex = pfUI.combopoints[point]:CreateTexture("OVERLAY")
+    pfUI.combopoints[point].tex = pfUI.combopoints[point]:CreateTexture(nil, "OVERLAY")
     pfUI.combopoints[point].tex:SetAllPoints(pfUI.combopoints[point])
 
     if point < 3 then

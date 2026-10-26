@@ -9,7 +9,6 @@ pfUI:RegisterModule("addons", function ()
     pfUI.addons:Show()
     HideUIPanel(GameMenuFrame)
   end)
-  SkinButton(pfUIAddonButton)
 
   local point, relativeTo, relativePoint, xOffset, yOffset = GameMenuButtonOptions:GetPoint()
   GameMenuButtonOptions:SetPoint(point, relativeTo, relativePoint, xOffset, yOffset - 22)

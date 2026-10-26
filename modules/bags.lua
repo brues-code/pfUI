@@ -396,14 +396,15 @@ pfUI:RegisterModule("bags", function ()
       if tpl == "BankItemButtonGenericTemplate" then
         local bankslot = pfUI.bags[bag].slots[slot].frame
         local name = "pfBag" .. bag .. "item" .. slot .. "Cooldown"
-        bankslot.cd = CreateFrame("Model", name, bankslot, "CooldownFrameTemplate")
-        bankslot.cd:SetAllPoints(bankslot)
+        bankslot.cd = CreateFrame("Cooldown", name, bankslot, "CooldownFrameTemplate")
         bankslot.cd.pfCooldownStyleAnimation = 1
-        bankslot.cd.pfCooldownType = "ALL"
+        bankslot.cd.pfCooldownReverse = tonumber(C.appearance.bags.cooldown_reverse) or 0
+        bankslot.cd.pfCooldownType = "NOGCD"
       else
         local bagslot = pfUI.bags[bag].slots[slot].frame
         bagslot.cd = _G[bagslot:GetName().."Cooldown"]
-        bagslot.cd.pfCooldownType = "ALL"
+        bagslot.cd.pfCooldownType = "NOGCD"
+        bagslot.cd.pfCooldownReverse = tonumber(C.appearance.bags.cooldown_reverse) or 0
       end
 
       if not pfUI.bags[bag].slots[slot].frame.backdrop then

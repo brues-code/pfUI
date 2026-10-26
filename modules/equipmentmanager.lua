@@ -176,8 +176,8 @@ pfUI:RegisterModule("equipmentmanager", function()
   rowMenu:RegisterEvent("GLOBAL_MOUSE_DOWN")
   rowMenu:SetScript("OnEvent", function()
     if not this:IsShown() then return end
-    if MouseIsOver(this) then return end
-    if this.anchorBtn and MouseIsOver(this.anchorBtn) then return end
+    if MouseIsOverHitRect(this) then return end
+    if this.anchorBtn and MouseIsOverHitRect(this.anchorBtn) then return end
     this:Hide()
   end)
   tinsert(UISpecialFrames, "pfEqMgrRowMenu")  -- Escape closes it
@@ -313,10 +313,10 @@ pfUI:RegisterModule("equipmentmanager", function()
 
     -- Show the gear and tooltip while the cursor is over the row or its
     -- gear child. The gear sits inside the row's rectangle, so a single
-    -- MouseIsOver(row) check covers both. OnLeave on the row and the gear
-    -- catches every exit path, so no OnUpdate poll is needed.
+    -- MouseIsOverHitRect(row) check covers both. OnLeave on the row and the
+    -- gear catches every exit path, so no OnUpdate poll is needed.
     local function HideRowHover()
-      if MouseIsOver(row) then return end
+      if MouseIsOverHitRect(row) then return end
       GameTooltip:Hide()
       row.gear:Hide()
     end
@@ -596,6 +596,7 @@ pfUI:RegisterModule("equipmentmanager", function()
       if i <= num then
         local location = ordered[i]
         b.specialAction = nil; b.bag = nil; b.slot = nil; b.invSlot = nil
+        local quality
         if location == PLACEINBAGS_LOCATION then
           b.specialAction = "placeInBags"
           b.texture:SetTexture(pfUI.path.."\\img\\UI-GearManager-ItemIntoBag")
@@ -612,14 +613,22 @@ pfUI:RegisterModule("equipmentmanager", function()
           local loc = EquipmentManager_GetLocationData(location)
           if loc.isBags then
             b.bag = loc.bag; b.slot = loc.slot
-            local tex, count = GetContainerItemInfo(loc.bag, loc.slot)
+            local tex, count, _, q = GetContainerItemInfo(loc.bag, loc.slot)
+            quality = q
             b.texture:SetTexture(tex)
             if count and count > 1 then b.count:SetText(count) else b.count:SetText("") end
           else  -- isPlayer (equipped in some other slot)
             b.invSlot = loc.slot
             b.texture:SetTexture(GetInventoryItemTexture("player", loc.slot))
             b.count:SetText("")
+            quality = GetInventoryItemQuality("player", loc.slot)
           end
+        end
+        -- Quality border, matching the character slots
+        if quality and quality > 0 then
+          b.backdrop:SetBackdropBorderColor(GetItemQualityColor(quality))
+        else
+          b.backdrop:SetBackdropBorderColor(pfUI.cache.er, pfUI.cache.eg, pfUI.cache.eb, pfUI.cache.ea)
         end
         local col = math.mod(i - 1, FLYOUT_COLS)
         local row = math.floor((i - 1) / FLYOUT_COLS)

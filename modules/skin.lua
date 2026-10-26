@@ -1,39 +1,4 @@
 pfUI:RegisterModule("skin", function ()
-  -- align UIParent panels
-  pfUI.panelalign = CreateFrame("Frame", "pfUIParentPanelAlign", UIParent)
-  pfUI.panelalign:SetScript("OnUpdate", function()
-    -- throttle to 5 updates per second instead of every frame
-    if (this.tick or 0.2) > GetTime() then return else this.tick = GetTime() + 0.2 end
-
-    local left = UIParent.left
-    local center = UIParent.center
-    local rbpos, ropos
-
-    -- detect outer frame backdrops
-    if left and not left.rightObj then
-      left.rightObj = left.backdrop or left
-      for _, frame in pairs({left:GetChildren()}) do
-        rbpos = frame.backdrop and frame.backdrop.GetRight and frame.backdrop:GetRight()
-        ropos = left.rightObj  and left.rightObj.GetRight  and left.rightObj:GetRight()
-        if rbpos and ropos and rbpos > ropos then
-          left.rightObj = frame.backdrop
-        end
-      end
-    end
-
-    -- reset anchors
-    if not left or not left:IsShown() or not center or not center:IsShown() then
-      UIParent.pfLeftAligned = nil
-      return
-    elseif center and center:IsShown() and left and left:IsShown() then
-      local width = left.rightObj:GetRight()
-      if width and width ~= UIParent.pfLeftAligned then
-        center:SetPoint("TOPLEFT", "UIParent", "TOPLEFT", width + 10, -104)
-        UIParent.pfLeftAligned = width
-      end
-    end
-  end)
-
   -- durability frame
   pfUI.durability = CreateFrame("Frame", "pfDurability", UIParent)
   if pfUI.minimap then

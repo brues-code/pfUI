@@ -6,9 +6,9 @@ pfUI:RegisterSkin("Spellbook", function ()
   CreateBackdrop(SpellBookFrame, nil, nil, .75)
   CreateBackdropShadow(SpellBookFrame)
 
-  SpellBookFrame.backdrop:SetPoint("TOPLEFT", 12, -12)
+  SpellBookFrame.backdrop:SetPoint("TOPLEFT", 10, -10)
   SpellBookFrame.backdrop:SetPoint("BOTTOMRIGHT", -30, 72)
-  SpellBookFrame:SetHitRectInsets(12,30,12,72)
+  SpellBookFrame:SetHitRectInsets(10,30,10,72)
   EnableMovable(SpellBookFrame)
 
   SpellBookTitleText:ClearAllPoints()

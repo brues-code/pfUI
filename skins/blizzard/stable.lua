@@ -22,19 +22,27 @@ pfUI:RegisterSkin("Pet Stable Master", function ()
   PetStablePetInfo:ClearAllPoints()
   PetStablePetInfo:SetPoint("TOPLEFT", PetStableModel, "TOPLEFT", 10, 0)
 
-  local buttons = {"PetStableCurrentPet", "PetStableStabledPet1", "PetStableStabledPet2"}
-  for _,v in pairs(buttons) do
-    local button = _G[v]
+  -- Servers differ in stable size (Turtle WoW has 4 slots), so collect
+  -- every PetStableStabledPetN the client created.
+  local buttons = { PetStableCurrentPet }
+  local i = 1
+  while _G["PetStableStabledPet"..i] do
+    table.insert(buttons, _G["PetStableStabledPet"..i])
+    i = i + 1
+  end
+
+  for _, button in pairs(buttons) do
     StripTextures(button)
     SkinButton(button, nil, nil, nil, _G[button:GetName().."IconTexture"])
 
-    button.Enable = function()
-      button:SetBackdropColor()
-      button.locked = false
+    local b = button
+    b.Enable = function()
+      b:SetBackdropColor()
+      b.locked = false
     end
-    button.Disable = function()
-      button:SetBackdropColor(1, .1, .1, .3)
-      button.locked = true
+    b.Disable = function()
+      b:SetBackdropColor(1, .1, .1, .3)
+      b.locked = true
     end
   end
 

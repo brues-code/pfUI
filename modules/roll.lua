@@ -100,7 +100,7 @@ pfUI:RegisterModule("roll", function ()
     f.icon:SetWidth(esize)
     f.icon:SetHeight(esize)
 
-    f.icon.tex = f.icon:CreateTexture("OVERLAY")
+    f.icon.tex = f.icon:CreateTexture(nil, "OVERLAY")
     f.icon.tex:SetTexCoord(.08, .92, .08, .92)
     f.icon.tex:SetAllPoints(f.icon)
 

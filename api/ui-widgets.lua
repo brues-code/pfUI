@@ -170,7 +170,7 @@ do -- dropdown
   end
 
   local function MenuOnUpdate()
-    if not MouseIsOver(this, 100, -100, -100, 100) then
+    if not this:IsMouseOver(100, -100, -100, 100) then
       this.button:HideMenu()
     end
   end
@@ -661,7 +661,7 @@ function pfUI.api.SkinButton(button, cr, cg, cb, icon, disableHighlight)
   end
 
   b.UnlockHighlight = function()
-    if not MouseIsOver(b) then
+    if not MouseIsOverHitRect(b) then
       b:SetBackdropBorderColor(GetStringColor(pfUI_config.appearance.border.color))
     end
     b.locked = false
@@ -683,6 +683,7 @@ function pfUI.api.SkinCollapseButton(button, all)
   b.icon:SetSize(size, size)
   b.icon:SetPoint("LEFT", 2, 2)
   CreateBackdrop(b.icon)
+  b.icon:EnableMouse(false)
   b.icon.text = b.icon:CreateFontString(nil, "OVERLAY")
   b.icon.text:SetFontObject(GameFontWhite)
   b.icon.text:SetPoint("CENTER", -1, 0)
@@ -1160,18 +1161,22 @@ function pfUI.api.CreateInfoBox(text, time, parent, height)
     infobox = CreateFrame("Button", "pfInfoBox", UIParent)
     infobox:Hide()
 
+    infobox.fade = infobox:CreateAnimationGroup()
+    local fade = infobox.fade:CreateAnimation("Alpha")
+    fade:SetChange(-1)
+    fade:SetDuration(.3)
+    infobox.fade:SetScript("OnFinished", function()
+      infobox:Hide()
+      infobox:SetAlpha(1)
+    end)
+
     infobox:SetScript("OnUpdate", function()
       local time = infobox.lastshow + infobox.duration - GetTime()
       infobox.timeout:SetValue(time)
 
       if GetTime() > infobox.lastshow + infobox.duration then
-        infobox:SetAlpha(infobox:GetAlpha()-0.05)
-
-        if infobox:GetAlpha() <= 0.1 then
-          infobox:Hide()
-          infobox:SetAlpha(1)
-        end
-      elseif MouseIsOver(this) then
+        if not infobox.fade:IsPlaying() then infobox.fade:Play() end
+      elseif MouseIsOverHitRect(this) then
         this:SetAlpha(max(0.4, this:GetAlpha() - .1))
       else
         this:SetAlpha(min(1, this:GetAlpha() + .1))
@@ -1214,6 +1219,7 @@ function pfUI.api.CreateInfoBox(text, time, parent, height)
   infobox:SetParent(parent)
 
   infobox:SetFrameStrata("FULLSCREEN_DIALOG")
+  infobox.fade:Stop()
   infobox:Show()
 end
 

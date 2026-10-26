@@ -399,15 +399,16 @@ pfUI:RegisterModule("addonbuttons", function ()
 
   -- Initial setup on the next frame, once other addons' minimap buttons exist
   RunNextFrame(function()
-    -- check if the panel should be shown by default
+    -- rescan before deciding whether the panel should be shown by default
+    pfUI.addonbuttons:ProcessButtons()
+
     if C.abuttons.showdefault == "1" and GetNumButtons() > 0 then
       pfUI.addonbuttons:Show()
     else
       pfUI.addonbuttons:Hide()
     end
 
-    -- update all buttons and apply workarounds
-    pfUI.addonbuttons:ProcessButtons()
+    -- apply workarounds
     for k, v in pairs(pfUI.addonbuttons.overrides) do
       _G[k] = v
     end
