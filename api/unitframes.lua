@@ -1140,7 +1140,21 @@ function pfUI.uf.OnUpdate()
         end
       else
         pfUI.uf:RefreshUnitState(this)
-        pfUI.uf:RefreshIndicators(this)
+        -- [PerfFix] Raid/party icons (leader, loot, raid mark, ...) are already
+        -- refreshed by events through update_indicators (PARTY_LEADER_CHANGED,
+        -- PARTY_LOOT_METHOD_CHANGED, RAID_TARGET_UPDATE, roster updates). For
+        -- those frames the poll is only a safety net, so run it every 3s instead
+        -- of every tick. Frames whose unit changes without events (target,
+        -- focus, ...) keep polling every tick as before.
+        local lbl = this.label
+        if lbl == "raid" or lbl == "party" or lbl == "raidpet" or lbl == "partypet" then
+          if (this.lastIndicatorPoll or 0) < now then
+            this.lastIndicatorPoll = now + 3
+            pfUI.uf:RefreshIndicators(this)
+          end
+        else
+          pfUI.uf:RefreshIndicators(this)
+        end
       end
 
       if this.config and this.config.glowaggro == "1" and pfUI.api.UnitHasAggro(unitstr) > 0 then
@@ -1154,8 +1168,18 @@ function pfUI.uf.OnUpdate()
       end
 
       -- update everything on eventless frames (targettarget, etc)
+      -- [PerfFix] "all" rescans every aura and re-checks the 3D portrait model.
+      -- Do that only when the unit behind the frame changes (GUID) or once a
+      -- second; the other ticks refresh health/power/name ("base") only.
       if this.tick then
-        pfUI.uf:RefreshUnit(this, "all")
+        local guid = UnitGUID(unitstr)
+        if guid ~= this.tickGuid or (this.tickFull or 0) < now then
+          this.tickGuid = guid
+          this.tickFull = now + 1
+          pfUI.uf:RefreshUnit(this, "all")
+        else
+          pfUI.uf:RefreshUnit(this, "base")
+        end
       end
     end
     
