@@ -13,6 +13,12 @@ pfUI:RegisterModule("actionbar", function ()
   local updatecache = { } -- contains a list of buttons slots that shall be refreshed later -> [slot] = true
   local buttoncache = { } -- contains a list of all buttons ever created -> [slot] = frame
 
+  -- ClassicAPI's left/right modifier state, which unlike IsShiftKeyDown is
+  -- corrected for keys released while the game was in the background
+  local function ShiftDown() return IsLeftShiftKeyDown() or IsRightShiftKeyDown() end
+  local function CtrlDown() return IsLeftControlKeyDown() or IsRightControlKeyDown() end
+  local function AltDown() return IsLeftAltKeyDown() or IsRightAltKeyDown() end
+
   -- try to assume based on the current mouse positions if a button drag
   -- should happen even if action-on-key-down is used. By that replace the
   -- cast events by reverting the active buttons to the old mouse-up state.
@@ -25,13 +31,13 @@ pfUI:RegisterModule("actionbar", function ()
     -- skip if always shift-drag is not enabled
     if C.bars.shiftdrag ~= "1" then return end
 
-    if drag_await and not drag_active and IsShiftKeyDown() then
+    if drag_await and not drag_active and ShiftDown() then
       drag_active = true
       -- set all buttons to regular on release clicks
       for id, button in pairs(buttoncache) do
         button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
       end
-    elseif drag_active and not IsShiftKeyDown() then
+    elseif drag_active and not ShiftDown() then
       drag_active = nil
       -- set all buttons back to their defaults
       for id, button in pairs(buttoncache) do
@@ -39,6 +45,7 @@ pfUI:RegisterModule("actionbar", function ()
       end
     end
   end
+  pfUI.events:RegisterFrameEventAndCallback("MODIFIER_STATE_CHANGED", AssumeButtonDrag)
 
   -- hide blizzard bars
   local function kill(f, killshow)
@@ -333,8 +340,9 @@ pfUI:RegisterModule("actionbar", function ()
   local function ButtonEnter(self)
     self = self or this
 
-    -- indicate that dragging could get enabled
+    -- indicate that dragging could get enabled, at once if shift is held
     drag_await = true
+    AssumeButtonDrag()
 
     GameTooltip:ClearLines()
     GameTooltip_SetDefaultAnchor(GameTooltip, self)
@@ -644,9 +652,6 @@ pfUI:RegisterModule("actionbar", function ()
     if (this.tick_main or 0) > GetTime() then return end
     this.tick_main = GetTime() + 0.025
 
-    -- update buttons whenever a button drag is assumed
-    AssumeButtonDrag()
-
     if pfUI.unlock then
       -- update all bars when entering unlock
       if pfUI.unlock:IsShown() ~= unlock then
@@ -851,14 +856,9 @@ pfUI:RegisterModule("actionbar", function ()
     if class == "DRUID" then
       pageswitch:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
     end
-    pageswitch:SetScript("OnEvent", function()
-      if event == "PLAYER_LOGOUT" then
-        this:UnregisterAllEvents()
-        this:SetScript("OnEvent", nil)
-        this:SetScript("OnUpdate", nil)
-        return
-      end
 
+    -- tracks prowl and shadowform from the page switch frame's events
+    local function UpdateFormPaging()
       if class == "PRIEST" then
         if event == "UPDATE_SHAPESHIFT_FORM" or event == "PLAYER_ENTERING_WORLD" then
           formpaging = InShadowform()
@@ -906,33 +906,50 @@ pfUI:RegisterModule("actionbar", function ()
           formpaging = nil
         end
       end
-    end)
+    end
 
-    pageswitch:SetScript("OnUpdate", function()
+    -- sets the page the held modifier and the form ask for. It also runs on
+    -- every page change, so a page switched by other means snaps back.
+    local function UpdatePage()
+      local page = _G.CURRENT_ACTIONBAR_PAGE
+
       -- switch actionbar page depending on meta key that is pressed
-      if C.bars.pagemastershift == "1" and IsShiftKeyDown() then
-        SwitchBar(shift)
-        return
-      elseif C.bars.pagemasterctrl == "1" and IsControlKeyDown() then
-        SwitchBar(ctrl)
-        return
-      elseif C.bars.pagemasteralt == "1" and IsAltKeyDown() then
-        SwitchBar(alt)
-        return
+      if C.bars.pagemastershift == "1" and ShiftDown() then
+        page = shift
+      elseif C.bars.pagemasterctrl == "1" and CtrlDown() then
+        page = ctrl
+      elseif C.bars.pagemasteralt == "1" and AltDown() then
+        page = alt
       elseif C.bars.pagemasteralt == "1" or C.bars.pagemasterctrl == "1" or C.bars.pagemastershift == "1" then
-        SwitchBar(default)
+        page = default
       end
 
       -- switch actionbar page while druid stealth / priest shadowform is active
       if (class == "DRUID" and C.bars.druidstealth == "1")
       or (class == "PRIEST" and C.bars.priestshadow == "1") then
-        if formpaging and _G.CURRENT_ACTIONBAR_PAGE == 1 then
-          SwitchBar(formpage)
-        elseif not formpaging and _G.CURRENT_ACTIONBAR_PAGE == 8 then
-          SwitchBar(default)
+        if formpaging and page == default then
+          page = formpage
+        elseif not formpaging and page == formpage then
+          page = default
         end
       end
+
+      SwitchBar(page)
+    end
+
+    pageswitch:SetScript("OnEvent", function()
+      if event == "PLAYER_LOGOUT" then
+        this:UnregisterAllEvents()
+        this:SetScript("OnEvent", nil)
+        return
+      end
+
+      UpdateFormPaging()
+      UpdatePage()
     end)
+
+    pfUI.events:RegisterFrameEventAndCallback("MODIFIER_STATE_CHANGED", UpdatePage)
+    pfUI.events:RegisterFrameEventAndCallback("ACTIONBAR_PAGE_CHANGED", UpdatePage)
   end
 
   local function CreateActionButton(parent, bar, button)
