@@ -92,33 +92,11 @@ gfind = string.gmatch or string.gfind
 mod = math.mod or mod
 
 -- [ strsplit ]
--- Splits a string using a delimiter. Self-contained on purpose: it does NOT
--- delegate to the global strsplit / string.split, because third-party addons
--- clobber those (e.g. BigWigs' SpellRequests redefines string:split to return
--- a table, which would make this return a single table instead of r,g,b,a and
--- break color/version parsing depending on load order). Delimiter chars are
--- treated as a set (any one char splits), and empty fields are preserved
--- ("a,,b" -> "a", "", "b"), matching real strsplit semantics.
--- 'delimiter'  [string]        characters that will be interpreted as delimiter
---                              characters (bytes) in the string.
--- 'subject'    [string]        String to split.
--- return:      [list]          a list of strings.
-local sfind, ssub, sgsub = string.find, string.sub, string.gsub
-function pfUI.api.strsplit(delimiter, subject)
-  if not subject then return nil end
-  -- a character class of the delimiter bytes, each escaped so % ] ^ - stay
-  -- literal
-  local set = "[" .. sgsub(delimiter or ":", "(%W)", "%%%1") .. "]"
-  local fields, start = {}, 1
-  local pos = sfind(subject, set)
-  while pos do
-    table.insert(fields, ssub(subject, start, pos - 1))
-    start = pos + 1
-    pos = sfind(subject, set, start)
-  end
-  table.insert(fields, ssub(subject, start))
-  return unpack(fields)
-end
+-- ClassicAPI's strsplit, taken from the ClassicAPI table, which no addon can
+-- overwrite. Third-party addons replace the global strsplit / string.split
+-- (e.g. BigWigs' SpellRequests makes string:split return a table), and bare
+-- strsplit calls inside the pfUI environment resolve to this copy.
+pfUI.api.strsplit = ClassicAPI.strsplit
 
 -- [ isempty ]
 -- Returns true if a table is empty or not existing, otherwise false.

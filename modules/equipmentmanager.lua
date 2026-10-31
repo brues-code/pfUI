@@ -1303,7 +1303,7 @@ pfUI:RegisterModule("equipmentmanager", function()
   local function InForm(value)
     local formID = GetShapeshiftFormID() or 0
     if value == "any" then return formID ~= 0 end
-    for _, id in ipairs({ strsplit(",", value) }) do
+    for _, id in ipairs({ strsplit(",", value or "") }) do
       if tonumber(id) == formID then return true end
     end
     return false
