@@ -17,24 +17,24 @@ pfUI:RegisterModule("infight", function ()
   end)
   pulse:Play()
 
-  -- Combat, health and death come from events. Aggro has no event, so a
-  -- ticker polls it while that glow is enabled.
-  local combat, health, dead, aggro, poll
+  -- Combat, health, death and aggro all come from events.
+  local combat, health, dead, aggro
 
   local function Refresh()
     pfUI.infight:SetShown((combat or health or aggro) and not dead)
   end
 
+  local function UpdateAggro()
+    aggro = C.appearance.infight.aggro == "1" and UnitHasAggro("player") > 0
+    Refresh()
+  end
+
+  -- a combat drop is also when an attacker that left view is let go
   local function UpdatePlayer()
     combat = C.appearance.infight.screen == "1" and UnitAffectingCombat("player")
     health = C.appearance.infight.health == "1" and UnitHealth("player") / UnitHealthMax("player") <= .25
     dead = UnitIsDeadOrGhost("player")
-    Refresh()
-  end
-
-  local function UpdateAggro()
-    aggro = UnitHasAggro("player") > 0
-    Refresh()
+    UpdateAggro()
   end
 
   pfUI.infight:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -47,15 +47,16 @@ pfUI:RegisterModule("infight", function ()
   pfUI.infight:RegisterUnitEvent("UNIT_MAXHEALTH", "player")
   pfUI.infight:SetScript("OnEvent", UpdatePlayer)
 
+  pfUI.events:RegisterCallback("aggro:changed", function(_, old, new)
+    local player = UnitGUID("player")
+    if old == player or new == player then UpdateAggro() end
+  end, "infight")
+
   pfUI.infight.UpdateConfig = function(self)
     pfUI.infight:SetBackdrop({
       edgeFile = pfUI.media["img:glow"], edgeSize = tonumber(C.appearance.infight.intensity),
       insets = {left = 0, right = 0, top = 0, bottom = 0},
     })
-
-    if poll then poll:Cancel() end
-    poll = C.appearance.infight.aggro == "1" and C_Timer.NewTicker(.3, UpdateAggro)
-    aggro = nil
 
     UpdatePlayer()
   end

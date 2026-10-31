@@ -247,9 +247,12 @@ C_Timer.NewTicker(.2, function()
 end)
 
 -- Re-check every unit frame, for the changes no event reports: unlock mode
--- and /pftest.
+-- and /pftest, which also lift the range and offline fade.
 function pfUI.uf:UpdateAllVisibility()
-  for frame in pairs(visibilityframes) do frame:UpdateVisibility() end
+  for frame in pairs(visibilityframes) do
+    frame:UpdateVisibility()
+    if frame.label then pfUI.uf:RefreshUnitState(frame) end
+  end
 end
 
 -- the events that can bring a frame's unit into or out of existence
@@ -275,94 +278,70 @@ function pfUI.api.GetUnitStats(unitstr)
          powerType
 end
 
-local aggrodata = { }
+-- Who each hostile unit attacks, by the attacker's GUID. UNIT_TARGET fires for
+-- every unit in view (SuperWoW registers them all for unit events), so this
+-- sees every attacker, not only the ones some token reaches. The server
+-- clears a unit's target when it dies or stops attacking. A unit that comes
+-- into view mid-fight fires nothing until it retargets, so it is noted when a
+-- token first reaches it; one that leaves view fires nothing either, so
+-- UnitHasAggro drops the attackers that are gone.
+local attacking = {}
 
--- every unit whose target or target's target UnitHasAggro checks, as static
--- { u, t, tt } triples so the hot scan allocates nothing
-local aggroScan = { }
-do
-  local function add(u)
-    local t = u .. "target"
-    table.insert(aggroScan, { u = u, t = t, tt = t .. "target" })
-  end
-
-  add("pet")
-  add("player")
-  add("target")
-  add("mouseover")
-
-  add("focus")
-  add("focustarget")
-  add("focustargettarget")
-
-  add("pettarget")
-  add("playertarget")
-  add("targettarget")
-  add("mouseovertarget")
-  add("targettargettarget")
-
-  for i=1,4 do
-    add("party" .. i)
-    add("party" .. i .. "target")
-    add("partypet" .. i)
-    add("partypet" .. i .. "target")
-  end
-
-  for i=1,40 do
-    add("raid" .. i)
-    add("raid" .. i .. "target")
-
-    add("raidpet" .. i)
-    add("raidpet" .. i .. "target")
-
-    add("nameplate" .. i)
-    add("nameplate" .. i .. "target")
-  end
+-- note what `unit` attacks now, and tell the old and the new victim
+local function NoteAttacker(unit)
+  local attacker = UnitGUID(unit)
+  if not attacker then return end
+  local victim = unit .. "target"
+  victim = UnitCanAttack(unit, victim) and UnitIsFriend(victim, "player") and UnitGUID(victim) or nil
+  local old = attacking[attacker]
+  if victim == old then return end
+  attacking[attacker] = victim
+  pfUI.events:TriggerEvent("aggro:changed", old, victim)
 end
 
+-- the number of hostile units attacking the friendly `unit`
 function pfUI.api.UnitHasAggro(unit)
-  local now = GetTime()
-  local data = aggrodata[unit]
-  -- Cache positive results 1s (so aggro clears fast) AND negative results 0.3s
-  -- (so we don't rescan the whole unit table on every call while nothing has aggro).
-  if data and now < data.check + (data.state > 0 and 1 or 0.3) then
-    return data.state
-  end
+  local guid = UnitGUID(unit)
+  if not guid or not UnitIsFriend(unit, "player") then return 0 end
 
-  if not data then data = { }; aggrodata[unit] = data end
-  data.check = now
-  data.state = 0
-  data.guid = UnitGUID(unit)
-
-  if UnitExists(unit) and UnitIsFriend(unit, "player") then
-    for i = 1, table.getn(aggroScan) do
-      local s = aggroScan[i]
-      if UnitExists(s.t) and UnitIsUnit(s.t, unit) and UnitCanAttack(s.u, unit) then
-        data.state = data.state + 1
-      end
-      if UnitExists(s.tt) and UnitIsUnit(s.tt, unit) and UnitCanAttack(s.t, unit) then
-        data.state = data.state + 1
+  local count = 0
+  for attacker, victim in pairs(attacking) do
+    if victim == guid then
+      if UnitGUID(attacker .. "target") == guid then
+        count = count + 1
+      else
+        -- out of view, where nothing fires
+        attacking[attacker] = nil
       end
     end
   end
-
-  return data.state
+  return count
 end
 
--- A unit turned to someone else, so two kinds of cached answer may be stale:
--- every unit that had aggro (the attacker may have left it) and the new
--- target. Those recompute on their next read instead of riding out the
--- cache; the rest stay cached, since the retarget changes nothing for them.
--- Units without a token of their own (a raid member's target) still fire it
--- with their GUID, which composes with "target" like any token.
 pfUI.events:RegisterFrameEventAndCallback("UNIT_TARGET", function(_, unit)
-  local target = UnitGUID(unit .. "target")
-  for _, data in pairs(aggrodata) do
-    if data.state > 0 or (target and data.guid == target) then
-      data.check = 0
+  NoteAttacker(unit)
+  -- the new target may have come into view mid-fight
+  NoteAttacker(unit .. "target")
+end)
+pfUI.events:RegisterFrameEventAndCallback("PLAYER_TARGET_CHANGED", function() NoteAttacker("target") end)
+pfUI.events:RegisterFrameEventAndCallback("PLAYER_FOCUS_CHANGED", function() NoteAttacker("focus") end)
+pfUI.events:RegisterFrameEventAndCallback("UPDATE_MOUSEOVER_UNIT", function() NoteAttacker("mouseover") end)
+pfUI.events:RegisterFrameEventAndCallback("NAME_PLATE_UNIT_ADDED", function(_, unit) NoteAttacker(unit) end)
+
+-- a loading screen leaves every attacker behind
+pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", function() attacking = {} end)
+
+-- a frame showing the old or the new victim redraws its aggro
+pfUI.events:RegisterCallback("aggro:changed", function(_, old, new)
+  for frame in pairs(visibilityframes) do
+    if frame.aggro then
+      local guid = UnitGUID(frame.label .. frame.id)
+      if guid and (guid == old or guid == new) then
+        frame.update_combat = true
+      end
     end
   end
-end)
+end, "unitframes")
 
 function pfUI.uf:UpdateVisibility()
   local self = self or this
@@ -786,8 +765,20 @@ function pfUI.uf:UpdateConfig()
     f.feedbackText:Hide()
     f.combatfeedback = nil
   end
-  -- RegisterUnitEvents owns UNIT_COMBAT; clearing the cached unit makes the
-  -- next UpdateVisibility re-run it against the new combatfeedback state.
+
+  -- range fade: UnitInRange's answer comes as an event, a UnitXP threshold
+  -- has none and is polled. With the 40y check off a frame fades by sight,
+  -- which UNIT_DISTANCE_CHECK_UPDATE reports.
+  local fade = f.config.faderange == "1" and C.unitframes.rangecheck == "1"
+  local unitxp = C.unitframes.rangecheck_mode == "unitxp" and _G.UnitXP
+  f.rangeevent = fade and not unitxp or nil
+  f.rangepoll = fade and unitxp and true or nil
+
+  -- aggro:changed reaches only the frames that show aggro
+  f.aggro = (f.config.squareaggro == "1" or f.config.glowaggro == "1") or nil
+
+  -- RegisterUnitEvents owns UNIT_COMBAT and UNIT_IN_RANGE_UPDATE; clearing the
+  -- cached unit makes the next UpdateVisibility re-run it against the new state.
   f.eventunit = nil
 
   f.hpLeftText:SetFontObject(GameFontWhite)
@@ -1100,10 +1091,6 @@ function pfUI.uf.OnEvent()
     else
       this.update_full = true
     end
-  elseif ( this.label == "raid" or this.label == "party" ) and event == "PARTY_MEMBER_ENABLE" then
-    this.update_full = true
-  elseif ( this.label == "raid" or this.label == "party" ) and event == "PARTY_MEMBER_DISABLE" then
-    this.update_full = true
   elseif ( this.label == "raid" or this.label == "party" ) and event == "RAID_ROSTER_UPDATE" then
     -- Note: Smart GUID-based updates are handled in raid.lua OnUpdate
     -- after frame IDs are reassigned. We don't set update_full here anymore
@@ -1119,6 +1106,10 @@ function pfUI.uf.OnEvent()
     this.update_aura = true
   elseif this.label == "pet" and event == "UNIT_HAPPINESS" then
     this.update_full = true
+  elseif event == "UNIT_IN_RANGE_UPDATE" then
+    -- registered for the frame's unit alone, and fired in the filter's lower
+    -- case spelling, which a GUID's compare below would miss
+    pfUI.uf:RefreshUnitState(this)
   -- UNIT_XXX Events. RegisterUnitEvents means arg1 can only be the unit this
   -- frame follows -- its token, or a chained unit's GUID; the compare is kept
   -- for the case the filter sits out, which is when arg1 is not a string. These
@@ -1145,7 +1136,18 @@ function pfUI.uf.OnEvent()
         this.update_base = true
       end
     elseif event == "UNIT_FACTION" then
-      this.update_pvp = true
+      -- the PvP flag, the reaction colour and the tapped grey
+      this.update_indicators = true
+      this.update_base = true
+    elseif event == "UNIT_FLAGS" then
+      this.update_combat = true
+    elseif event == "UNIT_DISTANCE_CHECK_UPDATE" then
+      -- the portrait trades the question mark for the model, the frame fades
+      -- by sight, and an attacker that left with the member is let go
+      this.update_portrait = true
+      this.update_combat = true
+    elseif event == "UNIT_CONNECTION" then
+      this.update_full = true
     elseif event == "UNIT_COMBAT" then
       CombatFeedback_OnCombatEvent(arg2, arg3, arg4, arg5)
     elseif event == "INCOMING_RESURRECT_CHANGED" then
@@ -1163,8 +1165,8 @@ local _GetTime = GetTime
 pfUI.uf.now = 0
 
 -- ============================================================================
--- OnUpdate - eventless per-frame work (range check, aggro glow) and draining
--- the event-set update flags. Frames refresh on events only; no polling.
+-- OnUpdate - draining the event-set update flags, heal prediction, and the
+-- two polls no event replaces (a UnitXP range threshold, the pet frames).
 -- ============================================================================
 function pfUI.uf.OnUpdate()
   local now = _GetTime()
@@ -1181,83 +1183,43 @@ function pfUI.uf.OnUpdate()
     this.throttleTick = now + 0.1  -- Default: 10 FPS
   end
 
-  -- ============================================================================
-  -- EVENTLESS ACTIONS (Range Check, Online/Offline, Aggro) - MUST RUN ALWAYS
-  -- These run on their own timer, independent of event-based updates
-  -- ============================================================================
   if this.label then
-    -- Combat/Aggro Indicators (throttled to 0.2s)
-    if not this.lastCombatCheck then this.lastCombatCheck = now + 0.2 end
-    if this.lastCombatCheck < now then
-      this.lastCombatCheck = now + 0.2
-      
-      if this.config and this.config.squareaggro == "1" and pfUI.api.UnitHasAggro(this.label .. this.id) > 0 then
-        this.combat.tex:SetColorTexture(1,.2,0)
-        this.combat:Show()
-      elseif this.config and this.config.squarecombat == "1" and UnitAffectingCombat(this.label .. this.id) then
-        this.combat.tex:SetColorTexture(1,1,.2)
-        this.combat:Show()
-      elseif this.combat then
-        this.combat:Hide()
+    -- what no event reports: a UnitXP range threshold, and the pet frames
+    -- (created with a tick)
+    if this.rangepoll or this.tick then
+      -- Validate tick value - it should be an interval (e.g. 0.5), not a timestamp
+      local tickInterval = this.tick
+      if tickInterval and tickInterval > 10 then
+        -- tick is a timestamp, not an interval - ignore it
+        tickInterval = nil
       end
-    end
-
-    -- Range Check / Online-Offline State (throttled)
-    -- Validate tick value - it should be an interval (e.g. 0.5), not a timestamp
-    local tickInterval = this.tick
-    if tickInterval and tickInterval > 10 then
-      -- tick is a timestamp, not an interval - ignore it
-      tickInterval = nil
-    end
-    -- Reset lastTick if it's invalid (much larger than now, e.g. from corrupted state)
-    if this.lastTick and this.lastTick > now + 10 then
-      this.lastTick = nil
-    end
-    if not this.lastTick then this.lastTick = now + (tickInterval or .5) end
-    if this.lastTick < now then
-      local unitstr = this.label .. this.id
-      this.lastTick = now + (tickInterval or .5)
-
-      pfUI.uf:RefreshUnitState(this)
-      -- group frames get their leader/loot/raid mark icons refreshed by
-      -- events through update_indicators, so polling them is only a safety
-      -- net; the other frames keep polling per tick
-      local label = this.label
-      if label == "raid" or label == "party" or label == "raidpet" or label == "partypet" then
-        if (this.lastIndicatorPoll or 0) < now then
-          this.lastIndicatorPoll = now + 3
-          pfUI.uf:RefreshIndicators(this)
-        end
-      else
-        pfUI.uf:RefreshIndicators(this)
+      -- Reset lastTick if it's invalid (much larger than now, e.g. from corrupted state)
+      if this.lastTick and this.lastTick > now + 10 then
+        this.lastTick = nil
       end
+      if not this.lastTick then this.lastTick = now + (tickInterval or .5) end
+      if this.lastTick < now then
+        local unitstr = this.label .. this.id
+        this.lastTick = now + (tickInterval or .5)
 
-      if this.config and this.config.glowaggro == "1" and pfUI.api.UnitHasAggro(unitstr) > 0 then
-        this.glow:SetBackdropBorderColor(1,.2,0)
-        this.glow:Show()
-      elseif this.config and this.config.glowcombat == "1" and UnitAffectingCombat(unitstr) then
-        this.glow:SetBackdropBorderColor(1,1,.2)
-        this.glow:Show()
-      elseif this.glow then
-        this.glow:Hide()
-      end
+        if this.rangepoll then pfUI.uf:RefreshUnitState(this) end
 
-      -- update polled frames (the pets, created with a tick). A full refresh
-      -- rescans every aura and the portrait, so only do it when the unit
-      -- behind the frame changes or once a second; other ticks refresh the
-      -- bars only.
-      if this.tick then
-        local guid = UnitGUID(unitstr)
-        if guid ~= this.tickGuid or (this.tickFull or 0) < now then
-          this.tickGuid = guid
-          this.tickFull = now + 1
-          pfUI.uf:RefreshUnit(this, "all")
-        else
-          pfUI.uf:RefreshUnit(this, "base")
+        -- A pet's full refresh rescans every aura and the portrait, so only
+        -- do it when the unit behind the frame changes or once a second;
+        -- other ticks refresh the bars only.
+        if this.tick then
+          local guid = UnitGUID(unitstr)
+          if guid ~= this.tickGuid or (this.tickFull or 0) < now then
+            this.tickGuid = guid
+            this.tickFull = now + 1
+            pfUI.uf:RefreshUnit(this, "all")
+          else
+            pfUI.uf:RefreshUnit(this, "base")
+          end
         end
       end
     end
-    
+
     -- Heal Prediction (throttled to 0.1s for responsiveness)
     if libpredict and this.incHeal then
       if not this.lastHealTick then this.lastHealTick = now end
@@ -1317,15 +1279,9 @@ function pfUI.uf.OnUpdate()
   -- ============================================================================
   
 
-  -- process indicator update events
-  if this.update_indicators then
-    pfUI.uf:RefreshIndicators(this)
-    this.update_indicators = nil
-  end
-
   -- process all queued unit events
   if this.update_full then
-    -- process full updates
+    -- process full updates, indicators and combat state included
     pfUI.uf:RefreshUnit(this, "all")
 
     -- clear update caches
@@ -1334,8 +1290,19 @@ function pfUI.uf.OnUpdate()
     this.update_aura = nil
     this.update_auratime = nil
     this.update_portrait = nil
-    this.update_pvp = nil
+    this.update_indicators = nil
+    this.update_combat = nil
   else
+    if this.update_indicators then
+      pfUI.uf:RefreshIndicators(this)
+      this.update_indicators = nil
+    end
+
+    if this.update_combat then
+      pfUI.uf:RefreshCombat(this)
+      this.update_combat = nil
+    end
+
     -- process individual events; a rebuild re-times the icons as well
     if this.update_aura then
       pfUI.uf:RefreshUnit(this, "aura")
@@ -1351,11 +1318,6 @@ function pfUI.uf.OnUpdate()
       pfUI.uf:RefreshUnit(this, "portrait")
       this.update_portrait = nil
       this.update_base = true
-    end
-
-    if this.update_pvp then
-      pfUI.uf:RefreshUnit(this, "pvp")
-      this.update_pvp = nil
     end
 
     if this.update_base then
@@ -1385,14 +1347,20 @@ local UNIT_EVENTS = {
   "UNIT_HEALTH", "UNIT_MAXHEALTH",
   "UNIT_PORTRAIT_UPDATE", "UNIT_MODEL_CHANGED",
   "UNIT_FACTION",
+  "UNIT_FLAGS", -- frame=combat, frame=glow
   "INCOMING_RESURRECT_CHANGED", -- frame=ressIcon
 }
 
 -- Auras and power. ClassicAPI's UNIT_AURA_DELTA also reports refreshes and new
 -- durations and says what changed; its generic power events name the power, so
 -- a frame skips the ones it does not draw. Both fire for tokens only, so a
--- chained unit, followed by GUID, keeps 1.12's events instead.
-local TOKEN_EVENTS = { "UNIT_AURA_DELTA", "UNIT_POWER_UPDATE", "UNIT_MAXPOWER" }
+-- chained unit, followed by GUID, keeps 1.12's events instead. A group
+-- member's connection and sight come with them, and a chained unit has
+-- neither event.
+local TOKEN_EVENTS = {
+  "UNIT_AURA_DELTA", "UNIT_POWER_UPDATE", "UNIT_MAXPOWER",
+  "UNIT_CONNECTION", "UNIT_DISTANCE_CHECK_UPDATE",
+}
 local GUID_EVENTS = {
   "UNIT_AURA",
   "UNIT_MANA", "UNIT_MAXMANA",
@@ -1430,13 +1398,20 @@ function pfUI.uf:RegisterUnitEvents(unit)
     end
   end
 
-  -- UNIT_COMBAT rides along only while the frame draws combat feedback text.
-  -- UpdateConfig clears eventunit when it toggles that, so the next
+  -- UNIT_COMBAT rides along only while the frame draws combat feedback text,
+  -- and UNIT_IN_RANGE_UPDATE only while it fades by UnitInRange, since
+  -- ClassicAPI checks each unit registered for it every frame; it takes a GUID
+  -- too. UpdateConfig clears eventunit when it toggles either, so the next
   -- UpdateVisibility re-runs this.
   if unit and self.combatfeedback then
     self:RegisterUnitEvent("UNIT_COMBAT", unit)
   else
     self:UnregisterEvent("UNIT_COMBAT")
+  end
+  if unit and self.rangeevent then
+    self:RegisterUnitEvent("UNIT_IN_RANGE_UPDATE", unit)
+  else
+    self:UnregisterEvent("UNIT_IN_RANGE_UPDATE")
   end
 end
 
@@ -1763,6 +1738,34 @@ function pfUI.uf:RefreshUnitState(unit)
     elseif disptype == "1" then
       indicator:SetAlpha(.2)
     end
+  end
+end
+
+-- the combat square and glow, where aggro shows over combat
+function pfUI.uf:RefreshCombat(unit)
+  local unitstr = unit.label .. unit.id
+  local config = unit.config
+  local aggro = unit.aggro and pfUI.api.UnitHasAggro(unitstr) > 0
+  local combat = UnitAffectingCombat(unitstr)
+
+  if config.squareaggro == "1" and aggro then
+    unit.combat.tex:SetColorTexture(1,.2,0)
+    unit.combat:Show()
+  elseif config.squarecombat == "1" and combat then
+    unit.combat.tex:SetColorTexture(1,1,.2)
+    unit.combat:Show()
+  else
+    unit.combat:Hide()
+  end
+
+  if config.glowaggro == "1" and aggro then
+    unit.glow:SetBackdropBorderColor(1,.2,0)
+    unit.glow:Show()
+  elseif config.glowcombat == "1" and combat then
+    unit.glow:SetBackdropBorderColor(1,1,.2)
+    unit.glow:Show()
+  else
+    unit.glow:Hide()
   end
 end
 
@@ -2214,6 +2217,12 @@ function pfUI.uf:RefreshUnit(unit, component)
         end
       end
     end
+  end
+
+  -- a new unit brings its own icons and combat state
+  if component == "all" then
+    pfUI.uf:RefreshIndicators(unit)
+    pfUI.uf:RefreshCombat(unit)
   end
 
   -- base frame
