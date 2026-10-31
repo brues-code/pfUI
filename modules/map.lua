@@ -67,14 +67,14 @@ pfUI:RegisterModule("map", function ()
 
       WorldMapFrame:HookScript("OnMouseWheel", function()
         if IsShiftKeyDown() then
-          alpha = clamp(WorldMapFrame:GetAlpha() + arg1/10, 0.1, 1.0)
+          alpha = Clamp(WorldMapFrame:GetAlpha() + arg1/10, 0.1, 1.0)
           WorldMapFrame:SetAlpha(alpha)
         end
 
         if IsControlKeyDown() then
           local oldscale = WorldMapFrame:GetScale()
           local point, rel, relpoint, offx, offy = WorldMapFrame:GetPoint()
-          scale = clamp(oldscale + arg1/10, 0.1, 2.0)
+          scale = Clamp(oldscale + arg1/10, 0.1, 2.0)
 
           -- recalculate world frame position based on old and new scale
           if point == "TOPLEFT" and relpoint == "TOPLEFT" then

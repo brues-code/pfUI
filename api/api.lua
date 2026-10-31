@@ -84,14 +84,6 @@ mod = math.mod or mod
 -- strsplit calls inside the pfUI environment resolve to this copy.
 pfUI.api.strsplit = ClassicAPI.strsplit
 
--- [ isempty ]
--- Returns true if a table is empty or not existing, otherwise false.
--- 'tbl'         [table]        the table that shall be checked
--- return:      [boolean]       result of the check.
-function pfUI.api.isempty(tbl)
-  return next(tbl or {}) == nil
-end
-
 -- [ checkversion ]
 -- Compares a given version (major,minor,fix) and compares it to the current
 -- 'chkmajor'   [number]        the major number to check
@@ -269,28 +261,6 @@ function pfUI.api.round(input, places)
     for i = 1, places do pow = pow * 10 end
     return floor(input * pow + 0.5) / pow
   end
-end
-
--- [ clamp ]
--- Clamps a number between given range.
--- 'x'          [number]        the number that should be clamped.
--- 'min'        [number]        minimum value.
--- 'max'        [number]        maximum value.
--- returns:     [number]        clamped value: 'x', 'min' or 'max' value itself.
-function pfUI.api.clamp(x, min, max)
-  if type(x) == "number" and type(min) == "number" and type(max) == "number" then
-    return x < min and min or x > max and max or x
-  else
-    return x
-  end
-end
-
--- [ modf ]
--- Returns integral and fractional part of a number.
--- 'f'          [float]        the number to breakdown.
--- returns:     [int],[float]  whole and fractional part.
-function pfUI.api.modf(f)
-  return math.modf(f)
 end
 
 -- [ GetServerEpoch ]
