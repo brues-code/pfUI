@@ -83,4 +83,5 @@
   <Include file="..\modules\newitem.lua"/>
   <Include file="..\modules\friendnotes.lua"/>
   <Include file="..\modules\lossofcontrol.lua"/>
+  <Include file="..\modules\radar.lua"/>
 </Ui>
