@@ -74,39 +74,35 @@ pfUI:RegisterModule("questitem", function ()
     frame:Show()
   end
 
-  pfUI.questitem = CreateFrame("Frame", "pfQuestItemScanner", UIParent)
-  pfUI.questitem:RegisterEvent("PLAYER_ENTERING_WORLD")
-  pfUI.questitem:RegisterEvent("QUEST_LOG_UPDATE")
-  pfUI.questitem:RegisterEvent("QUEST_ACCEPTED")
-  pfUI.questitem:RegisterEvent("QUEST_REMOVED")
-  pfUI.questitem:SetScript("OnEvent", function()
+  -- Seed half a second after the last trigger; each trigger pushes it back.
+  local seeding, timer
+  local function QueueSeed()
     if C.tooltip.questitem.showquest ~= "1" then return end
-    if event == "QUEST_ACCEPTED" then          -- arg1 = logIndex, arg2 = questID
-      if not AddQuest(arg2) then                -- cache cold (rare) -> reseed
-        this.seeding = true
-        this.run = GetTime() + .5
-      end
-    elseif event == "QUEST_REMOVED" then        -- arg1 = questID
-      RemoveQuest(arg1)
-    elseif event == "PLAYER_ENTERING_WORLD" then
-      this.seeding = true                       -- seed pre-existing quests
-      this.run = GetTime() + .5
-    elseif event == "QUEST_LOG_UPDATE" and this.seeding then
-      this.run = GetTime() + .5                 -- keep retrying while cache warms
-    end
-  end)
-
-  pfUI.questitem:SetScript("OnUpdate", function()
-    if not this.run or GetTime() < this.run then return end
-    this.run = nil
-    if Seed() then this.seeding = nil end
-  end)
-
-  pfUI.questitem.UpdateConfig = function()
-    if C.tooltip.questitem.showquest ~= "1" then return end
-    pfUI.questitem.seeding = true
-    pfUI.questitem.run = GetTime() + .5
+    seeding = true
+    if timer then timer:Cancel() end
+    timer = C_Timer.NewTimer(.5, function()
+      if Seed() then seeding = nil end
+    end)
   end
+
+  -- seed pre-existing quests
+  pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", QueueSeed)
+
+  -- keep retrying while the quest cache warms
+  pfUI.events:RegisterFrameEventAndCallback("QUEST_LOG_UPDATE", function()
+    if seeding then QueueSeed() end
+  end)
+
+  -- a cold cache (rare) needs a full reseed
+  pfUI.events:RegisterFrameEventAndCallback("QUEST_ACCEPTED", function(_, _, questID)
+    if not AddQuest(questID) then QueueSeed() end
+  end)
+
+  pfUI.events:RegisterFrameEventAndCallback("QUEST_REMOVED", function(_, questID)
+    RemoveQuest(questID)
+  end)
+
+  pfUI.questitem = { UpdateConfig = QueueSeed }
 
   pfUI.questitem.tooltip = CreateFrame("Frame", "pfQuestItems", GameTooltip)
   pfUI.questitem.tooltip:SetScript("OnShow", function()

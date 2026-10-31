@@ -117,7 +117,7 @@ pfUI:RegisterModule("raid", function ()
 
     self:LayoutPets()
 
-    self:Show()
+    self:QueueUpdate(0)
   end
 
   function pfUI.uf.raid:LayoutPets()
@@ -177,6 +177,12 @@ pfUI:RegisterModule("raid", function ()
     end
   end
 
+  -- run UpdateRoster after delay; a newer request replaces a pending one
+  function pfUI.uf.raid:QueueUpdate(delay)
+    if self.timer then self.timer:Cancel() end
+    self.timer = C_Timer.NewTimer(delay, function() self:UpdateRoster() end)
+  end
+
   pfUI.uf.raid:UpdateConfig()
 
   local function SetRaidIndex(frame, id)
@@ -205,7 +211,6 @@ pfUI:RegisterModule("raid", function ()
     end
   end
 
-  pfUI.uf.raid:Hide()
   pfUI.uf.raid:RegisterEvent("RAID_ROSTER_UPDATE")
   pfUI.uf.raid:RegisterEvent("PARTY_MEMBERS_CHANGED")
   pfUI.uf.raid:RegisterEvent("PARTY_LEADER_CHANGED")
@@ -218,23 +223,15 @@ pfUI:RegisterModule("raid", function ()
       end
       return
     end
-    this:Show()
     -- Debounce: delay update by 0.5s to batch rapid roster changes (mass swaps)
-    this.pendingUpdate = GetTime() + 0.5
+    this:QueueUpdate(.5)
   end)
-  pfUI.uf.raid:SetScript("OnUpdate", function()
-    -- Wait for debounce: don't update until 0.5s after last event
-    if this.pendingUpdate and GetTime() < this.pendingUpdate then return end
-    -- Throttle raid roster updates to 1 FPS max
-    if (this.tick or 0) > GetTime() then return end
-    this.tick = GetTime() + 1.0
-    this.pendingUpdate = nil
 
+  function pfUI.uf.raid:UpdateRoster()
     -- Without a raid there is nothing to sort, but a party shown as a raid
     -- grid still needs its pet frames placed and mapped to the party pets.
     if not IsInRaid() then
-      this:LayoutPets()
-      this:Hide()
+      self:LayoutPets()
       return
     end
 
@@ -257,7 +254,7 @@ pfUI:RegisterModule("raid", function ()
       end
     end
 
-    this:LayoutPets()
+    self:LayoutPets()
 
     -- Smart GUID-based updates: only refresh frames where unit changed
     if pfUI.uf.guidTracker then
@@ -284,9 +281,7 @@ pfUI:RegisterModule("raid", function ()
     if pfUI.uf.RebuildUnitmap then
       pfUI.uf.RebuildUnitmap()
     end
-
-    this:Hide()
-  end)
+  end
 
   -- raid popup option to toggle tank role
   for _, menu in pairs({"RAID", "PARTY"}) do
@@ -305,7 +300,7 @@ pfUI:RegisterModule("raid", function ()
 
     if button and pfUI.uf.raid.tanksfirst[button] and name then
       pfUI.uf.raid.tankrole[name] = not pfUI.uf.raid.tankrole[name]
-      pfUI.uf.raid:Show()
+      pfUI.uf.raid:QueueUpdate(0)
     end
   end)
 end)
