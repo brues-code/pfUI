@@ -78,10 +78,7 @@ pfUI:RegisterModule("turtle-wow", function ()
     end)
   end
 
-  local delay = CreateFrame("Frame")
-  delay:SetScript("OnUpdate", function()
-    this:Hide()
-
+  RunNextFrame(function()
     -- correct positions of new game menu layout
     if GameMenuButtonShop and (GameMenuButtonPFUI or GameMenuButtonPFUIAddOns) then
       -- calculate new offset for the shop button

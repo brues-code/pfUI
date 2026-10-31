@@ -33,6 +33,10 @@ pfUI:RegisterModule("map", function ()
   local alpha = C.position["WorldMapFrame"].alpha
   local scale = C.position["WorldMapFrame"].scale
 
+  -- the hooks go on once, however often the loader runs: turtle-wow.lua also
+  -- calls it, outside of an event
+  local hooked
+
   local pfMapLoader = CreateFrame("Frame")
   pfMapLoader:RegisterEvent("PLAYER_ENTERING_WORLD")
   pfMapLoader:SetScript("OnEvent", function()
@@ -46,9 +50,8 @@ pfUI:RegisterModule("map", function ()
     WorldMapFrame:EnableMouse(true)
     WorldMapFrame:RegisterForDrag("LeftButton")
 
-    -- make sure the hooks get only applied once
-    if not this.hooked then
-      this.hooked = true
+    if not hooked then
+      hooked = true
 
       WorldMapFrame:HookScript("OnShow", function()
         -- customize
