@@ -1536,7 +1536,7 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   engineEvents:RegisterEvent("PLAYER_ENTERING_WORLD")
   engineEvents:RegisterEvent("PLAYER_LEAVING_WORLD")
-  engineEvents:RegisterUnitEvent("UNIT_AURA", "player") -- mounted, stealth, dining
+  engineEvents:RegisterUnitEvent("UNIT_AURA_DELTA", "player") -- mounted, stealth, dining
   engineEvents:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
   engineEvents:RegisterEvent("ZONE_CHANGED")
   engineEvents:RegisterEvent("ZONE_CHANGED_INDOORS")

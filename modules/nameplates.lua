@@ -501,7 +501,7 @@ nameplates:RegisterEvent("NAME_PLATE_CREATED")
 nameplates:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 nameplates:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 nameplates:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
--- UNIT_AURA / UNIT_FLAGS / UNIT_SPELLCAST_* are registered per plate, on the
+-- UNIT_AURA_DELTA / UNIT_FLAGS / UNIT_SPELLCAST_* are registered per plate, on the
 -- plate's own frame, against its own token -- see OnCreate and
 -- NAME_PLATE_UNIT_ADDED.
 nameplates:RegisterEvent("PLAYER_GUILD_UPDATE")
@@ -606,7 +606,7 @@ nameplates:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "target", "focu
         -- Point this plate's own subscriptions at the token it just took. On a
         -- recycled frame these replace the previous unit rather than stacking:
         -- RegisterUnitEvent on an already-filtered registration swaps the units.
-        plate.nameplate:RegisterUnitEvent("UNIT_AURA", arg1)
+        plate.nameplate:RegisterUnitEvent("UNIT_AURA_DELTA", arg1)
         plate.nameplate:RegisterUnitEvent("UNIT_FLAGS", arg1)
         plate.nameplate:RegisterUnitEvent("UNIT_TARGET", arg1)
         plate.nameplate:RegisterUnitEvent("UNIT_SPELLCAST_START", arg1)
@@ -760,7 +760,7 @@ nameplates:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "target", "focu
     -- new token; _REMOVED drops it, which matters because freed slots are
     -- reused and a stale token would feed this frame another unit's events.
     nameplate:SetScript("OnEvent", function()
-      if event == "UNIT_AURA" then
+      if event == "UNIT_AURA_DELTA" then
         -- a fresh C_UnitAuras read next tick rather than waiting out the 0.5s
         -- throttle -- covers expiry, dispels, refreshes and stack changes
         this.auraUpdate = true

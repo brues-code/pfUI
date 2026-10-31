@@ -98,6 +98,25 @@ local function StartAuraTimers(icons)
   end
 end
 
+-- Re-reads the stacks and timer of each shown icon of an aura block from the
+-- slot RefreshUnit filled it from, then restarts the timers. For auras that
+-- refreshed or restacked in place, which leaves every aura in its slot.
+local function RetimeAuras(icons, unitstr)
+  if not icons then return end
+
+  local i = 1
+  while icons[i] and icons[i]:IsShown() do
+    local _, _, count, _, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, icons[i].slot)
+    if count then
+      icons[i].stacks:SetText(count > 1 and count or "")
+      icons[i].auraStart, icons[i].auraDuration = AuraTimer(duration, expirationTime)
+    end
+    i = i + 1
+  end
+
+  StartAuraTimers(icons)
+end
+
 -- ============================================================================
 -- GUID-based Roster Tracking for Smart Updates
 -- Only updates frames where the unit actually changed, not ALL 40 frames
@@ -1110,6 +1129,14 @@ function pfUI.uf.OnEvent()
       this.update_portrait = true
     elseif event == "UNIT_AURA" then
       this.update_aura = true
+    elseif event == "UNIT_AURA_DELTA" then
+      -- an aura that only refreshed or restacked leaves every aura in its
+      -- slot, so the icons need their timers and stacks, not a rebuild
+      if arg2.isFullUpdate or arg2.addedAuraInstanceIDs or arg2.removedAuraInstanceIDs then
+        this.update_aura = true
+      else
+        this.update_auratime = true
+      end
     elseif event == "UNIT_FACTION" then
       this.update_pvp = true
     elseif event == "UNIT_COMBAT" then
@@ -1298,14 +1325,19 @@ function pfUI.uf.OnUpdate()
     this.update_full = nil
     this.update_base = nil
     this.update_aura = nil
+    this.update_auratime = nil
     this.update_portrait = nil
     this.update_pvp = nil
   else
-    -- process individual events
+    -- process individual events; a rebuild re-times the icons as well
     if this.update_aura then
       pfUI.uf:RefreshUnit(this, "aura")
       this.update_aura = nil
+      this.update_auratime = nil
       this.update_base = true
+    elseif this.update_auratime then
+      pfUI.uf:RefreshUnit(this, "auratime")
+      this.update_auratime = nil
     end
 
     if this.update_portrait then
@@ -1350,7 +1382,6 @@ local UNIT_EVENTS = {
   "UNIT_FOCUS",
   "UNIT_PORTRAIT_UPDATE", "UNIT_MODEL_CHANGED",
   "UNIT_FACTION",
-  "UNIT_AURA", -- frame=buff, frame=debuff
   "INCOMING_RESURRECT_CHANGED", -- frame=ressIcon
 }
 
@@ -1368,6 +1399,18 @@ function pfUI.uf:RegisterUnitEvents(unit)
     else
       self:UnregisterEvent(UNIT_EVENTS[i])
     end
+  end
+
+  -- auras (frame=buff, frame=debuff, indicators): UNIT_AURA_DELTA, which also
+  -- reports refreshes and new durations and says what changed. It fires for
+  -- tokens only, so a chained unit, followed by GUID, keeps UNIT_AURA.
+  local aura, other = "UNIT_AURA_DELTA", "UNIT_AURA"
+  if self.chain then aura, other = other, aura end
+  self:UnregisterEvent(other)
+  if unit then
+    self:RegisterUnitEvent(aura, unit)
+  else
+    self:UnregisterEvent(aura)
   end
 
   -- UNIT_COMBAT rides along only while the frame draws combat feedback text.
@@ -1830,6 +1873,7 @@ function pfUI.uf:RefreshUnit(unit, component)
       local name, icon, count, _, duration, expirationTime, _, _, _, spellId = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
 
       if name then
+        unit.buffs[i].slot = auraSlots[i]
         unit.buffs[i].texture:SetTexture(icon)
         unit.buffs[i]:Show()
 
@@ -1880,6 +1924,7 @@ function pfUI.uf:RefreshUnit(unit, component)
       unit.debuffs[i].backdrop:SetBackdropBorderColor(dispelColor:GetRGBA())
 
       if texture then
+        unit.debuffs[i].slot = auraSlots[i]
         unit.debuffs[i]:Show()
 
         unit.debuffs[i].auraStart, unit.debuffs[i].auraDuration = AuraTimer(duration, expirationTime)
@@ -1905,6 +1950,10 @@ function pfUI.uf:RefreshUnit(unit, component)
     LayoutAuras(unit, unitstr)
     StartAuraTimers(unit.buffs)
     StartAuraTimers(unit.debuffs)
+    pfUI.events:TriggerEvent("unitframe:auras", unit)
+  elseif component == "auratime" then
+    RetimeAuras(unit.buffs, unitstr)
+    RetimeAuras(unit.debuffs, unitstr)
   end
 
   -- indicators
@@ -2026,7 +2075,10 @@ function pfUI.uf:RefreshUnit(unit, component)
     elseif unit.hp.bar.debuffindicators then
       unit.hp.bar.debuffindicators:Hide()
     end
+  end
 
+  -- buff indicators carry timers and stacks, so a re-time redraws them too
+  if component == "all" or component == "aura" or component == "auratime" then
     if not unit.indicators and unit.config.buff_indicator == "1" then
       unit.indicators = pfUI.uf:SetupBuffIndicators(unit.config)
     elseif not unit.indicators then

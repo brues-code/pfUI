@@ -103,6 +103,7 @@ pfUI:RegisterModule("buffwatch", function ()
         fcache[tostring(config)] = nil -- invalidate so the new entry takes effect immediately
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ffcc" .. skill .. "|r" .. T["is now blacklisted."])
       end
+      this.parent.Refresh()
     elseif this.parent.unit == "player" then
       local aura = C_UnitAuras.GetAuraDataByIndex("player", this.id, this.type)
       if aura and aura.spellId then C_Spell.CancelSpellByID(aura.spellId) end
@@ -246,7 +247,7 @@ pfUI:RegisterModule("buffwatch", function ()
     table.sort(frame.buffs, frame.buffcmp)
 
     -- create a buff bar for each below threshold
-    local bar = 1
+    local bar, crossing = 1, nil
     for id, data in pairs(frame.buffs) do
       if data[1] and ((data[1] ~= 0 and data[1] < frame.threshold) or frame.threshold == -1) -- timeleft checks
         and data[3] and data[3] ~= "" -- buff has a name
@@ -340,6 +341,10 @@ pfUI:RegisterModule("buffwatch", function ()
 
         frame.bars[bar]:Show()
         bar = bar + 1
+      elseif data[1] and data[1] > 0 and data[3] and data[4] and frame.threshold ~= -1 then
+        -- still above the threshold: its bar shows once it drops under
+        local wait = data[1] - frame.threshold
+        if not crossing or wait < crossing then crossing = wait end
       end
     end
 
@@ -347,13 +352,11 @@ pfUI:RegisterModule("buffwatch", function ()
     for i = bar, table.getn(frame.bars) do
       frame.bars[i]:Hide()
     end
-  end
 
-  -- Create a new Buff Bar
-  local function BuffBarFrameOnUpdate()
-    if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + .4 end
-    RefreshBuffBarFrame(this)
-    this:RefreshPosition()
+    -- no event marks an aura's time left dropping under the threshold, so
+    -- wake when the next one does
+    if frame.crossing then frame.crossing:Cancel() end
+    frame.crossing = crossing and C_Timer.NewTimer(crossing + .1, frame.Refresh) or nil
   end
 
   local function RefreshPosition(self)
@@ -373,6 +376,19 @@ pfUI:RegisterModule("buffwatch", function ()
     end
   end
 
+  -- every watch frame: one stacks on the bars of another, so all of them
+  -- re-anchor together
+  local watched = {}
+  local function RefreshPositions()
+    for _, frame in pairs(watched) do frame:RefreshPosition() end
+  end
+
+  -- the bars sit above their unit frame's aura rows, which move when the
+  -- rows lay out again
+  pfUI.events:RegisterCallback("unitframe:auras", function(_, unit)
+    if unit == pfUI.uf.player or unit == pfUI.uf.target then RefreshPositions() end
+  end, "buffwatch")
+
   local function CreateBuffBarFrame(unit, type)
     local framename = "pf" .. unit .. ( type == "HARMFUL" and "Debuff" or "Buff" ) .. "Bar"
     local frame = _G[framename] or CreateFrame("Frame", framename, UIParent)
@@ -388,9 +404,22 @@ pfUI:RegisterModule("buffwatch", function ()
     end
 
     frame.RefreshPosition = RefreshPosition
+    frame.Refresh = function()
+      RefreshBuffBarFrame(frame)
+      RefreshPositions()
+    end
 
-    -- OnEvent (UNIT_AURA) doesn't trigger properly on buff refresh
-    frame:SetScript("OnUpdate", BuffBarFrameOnUpdate)
+    -- UNIT_AURA_DELTA reports refreshes and new durations as well, so the bars
+    -- follow the auras on events alone. A new target is another unit, whose
+    -- auras no delta describes.
+    frame:RegisterUnitEvent("UNIT_AURA_DELTA", frame.unit)
+    frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    if frame.unit == "target" then frame:RegisterEvent("PLAYER_TARGET_CHANGED") end
+    frame:SetScript("OnEvent", frame.Refresh)
+    table.insert(watched, frame)
+
+    -- the first read waits until the caller has configured the frame
+    RunNextFrame(frame.Refresh)
 
     return frame
   end

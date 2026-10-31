@@ -69,10 +69,10 @@ pfUI:RegisterModule("lossofcontrol", function ()
     self:Show()
   end
 
-  -- a refreshed debuff (UNIT_AURA) or a second kick on the same school
+  -- a refreshed debuff (UNIT_AURA_DELTA) or a second kick on the same school
   -- (SPELL_UPDATE_COOLDOWN) changes the timer without a loss of control event
   frame:SetScript("OnShow", function()
-    this:RegisterUnitEvent("UNIT_AURA", "player")
+    this:RegisterUnitEvent("UNIT_AURA_DELTA", "player")
     this:RegisterEvent("SPELL_UPDATE_COOLDOWN")
   end)
   frame:SetScript("OnHide", function()
