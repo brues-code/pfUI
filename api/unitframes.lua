@@ -1719,7 +1719,7 @@ function pfUI.uf:RefreshUnitState(unit)
     unit.power.bar:SetMinMaxValues(0, 100)
     SetBarValue(unit.hp.bar, 0)
     SetBarValue(unit.power.bar, 0)
-  elseif unit.config.faderange == "1" and not pfUI.api.UnitInRange(unit.label .. unit.id, 4) and not unlock then
+  elseif unit.config.faderange == "1" and not pfUI.api.UnitInRange(unit.label .. unit.id) and not unlock then
     alpha = unit.alpha_outrange
   end
 

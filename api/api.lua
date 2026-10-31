@@ -150,8 +150,7 @@ function pfUI.api.checkversion(chkmajor, chkminor, chkfix)
 end
 
 -- [ UnitInRange ]
--- Returns whether a party/raid member is nearby.
--- It takes care of the rangecheck module if existing.
+-- Returns whether a party/raid member is nearby, by the configured range check.
 -- unit         [string]        A unit to query (string, unitID)
 -- return:      [bool]          "1" if in range otherwise "nil"
 function pfUI.api.UnitInRange(unit)
@@ -166,20 +165,21 @@ function pfUI.api.UnitInRange(unit)
   -- returned nil above, matching the pre-collapse behavior.
   if C.unitframes.rangecheck == "0" then return 1 end
 
-  -- UnitXP precise mode: skip librange entirely, use direct distance check
+  -- UnitXP precise mode: direct distance check against the configured range
   if C.unitframes.rangecheck_mode == "unitxp" and _G.UnitXP then
     local threshold = tonumber(C.unitframes.rangecheck_distance) or 40
     local success, distance = pcall(_G.UnitXP, "distanceBetween", "player", unit)
     if success and distance then
       return distance <= threshold and 1 or nil
     end
-    -- fallthrough to librange if UnitXP fails
+    -- fallthrough to the 40y check if UnitXP fails
   end
 
-  if pfUI.api.librange then
-    return pfUI.api.librange:UnitInSpellRange(unit)
-  end
-  return nil
+  -- ClassicAPI's 40y check, _G-qualified since the bare name is this function
+  -- inside the pfUI environment. A unit it can't place (outside the client's
+  -- sync range) counts as in range.
+  local inRange, checked = _G.UnitInRange(unit)
+  return (inRange or not checked) and 1 or nil
 end
 
 -- [ UnitHasBuff ]
