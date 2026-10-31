@@ -128,6 +128,7 @@ pfUI_translation["frFR"] = {
   ["Click Action"] = "Action au clic",
   ["Click Casting"] = "Clique sur le lancement de sort",
   ["Click to undress"] = nil,
+  ["Undress"] = nil,
   ["Clock"] = "Horloge",
   ["Close"] = "Fermer",
   ["Collapse Empty Slots"] = nil,

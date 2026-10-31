@@ -128,6 +128,7 @@ pfUI_translation["ruRU"] = {
   ["Click Action"] = "Действие при нажатии",
   ["Click Casting"] = "Каст по нажатию",
   ["Click to undress"] = nil,
+  ["Undress"] = nil,
   ["Clock"] = "Часы",
   ["Close"] = "Закрыть",
   ["Collapse Empty Slots"] = nil,

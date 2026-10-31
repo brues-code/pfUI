@@ -128,6 +128,7 @@ pfUI_translation["koKR"] = {
   ["Click Action"] = "클릭 액션",
   ["Click Casting"] = nil,
   ["Click to undress"] = nil,
+  ["Undress"] = nil,
   ["Clock"] = "시계",
   ["Close"] = "닫기",
   ["Collapse Empty Slots"] = nil,

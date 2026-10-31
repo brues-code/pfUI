@@ -32,7 +32,7 @@ pfUI:RegisterSkin("Dress Up Frame", function ()
 
   local undress = CreateFrame("Button", "pfDressUpFrameUndressButton", DressUpFrame, "UIPanelButtonTemplate")
   undress:SetSize(80, 22)
-  undress:SetText(UNDRESS)
+  undress:SetText(T["Undress"])
   undress:SetPoint("RIGHT", DressUpFrameResetButton, "LEFT", -2*bpad, 0)
   undress:SetScript("OnClick", function()
     DressUpModel:Undress()

@@ -134,6 +134,7 @@ pfUI_translation["enUS"] = {
   ["Click Action"] = nil,
   ["Click Casting"] = nil,
   ["Click to undress"] = nil,
+  ["Undress"] = nil,
   ["Clock"] = nil,
   ["Close"] = nil,
   ["Collapse Empty Slots"] = nil,

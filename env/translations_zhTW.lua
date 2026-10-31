@@ -128,6 +128,7 @@ pfUI_translation["zhTW"] = {
   ["Click Action"] = "點擊操作",
   ["Click Casting"] = nil,
   ["Click to undress"] = nil,
+  ["Undress"] = nil,
   ["Clock"] = "時間",
   ["Close"] = "關閉",
   ["Collapse Empty Slots"] = nil,

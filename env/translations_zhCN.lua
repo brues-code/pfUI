@@ -128,6 +128,7 @@ pfUI_translation["zhCN"] = {
   ["Click Action"] = "点击操作",
   ["Click Casting"] = "点击施法",
   ["Click to undress"] = nil,
+  ["Undress"] = nil,
   ["Clock"] = "时间",
   ["Close"] = "关闭",
   ["Collapse Empty Slots"] = nil,
