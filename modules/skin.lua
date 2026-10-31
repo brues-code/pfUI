@@ -15,18 +15,6 @@ pfUI:RegisterModule("skin", function ()
   DurabilityFrame:SetFrameLevel(1)
   DurabilityFrame.SetPoint = function() return end
 
-  if C.appearance.cd.blizzard == "1" then
-    hooksecurefunc("PaperDollItemSlotButton_Update", function()
-      local cooldown = _G[this:GetName().."Cooldown"]
-      if cooldown then cooldown.pfCooldownType = "BLIZZARD" end
-    end)
-
-    hooksecurefunc("SpellButton_UpdateButton", function()
-      local cooldown = _G[this:GetName().."Cooldown"]
-      if cooldown then cooldown.pfCooldownType = "BLIZZARD" end
-    end)
-  end
-
   for i = 1, UIDROPDOWNMENU_MAXLEVELS do
     CreateBackdrop(_G["DropDownList"..i.."MenuBackdrop"], nil, true, .8)
     CreateBackdropShadow(_G["DropDownList"..i.."MenuBackdrop"])

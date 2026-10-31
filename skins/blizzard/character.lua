@@ -193,6 +193,15 @@ pfUI:RegisterSkin("Character", function ()
 
       HandleIcon(frame.backdrop, _G["Character"..slotName.."IconTexture"])
 
+      -- native cooldown frame in place of the template's indicator Model,
+      -- which has no countdown numbers. PaperDollItemSlotButton_Update reads
+      -- the "<button>Cooldown" global on every update. 1.12 binds a frame's
+      -- name only while that global is unset, so the global is rebound by
+      -- hand; the Model starts hidden and nothing reaches it after that
+      local cdname = "Character"..slotName.."Cooldown"
+      _G[cdname] = CreateFrame("Cooldown", cdname, frame, "CooldownFrameTemplate")
+      _G[cdname].pfCooldownType = C.appearance.cd.blizzard == "1" and "BLIZZARD" or nil
+
       CreateFontString(frame, "scoreText", "OVERLAY", 12)
       frame.scoreText:SetPoint("TOPRIGHT", 0, 0)
 

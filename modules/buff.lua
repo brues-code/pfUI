@@ -130,7 +130,7 @@ pfUI:RegisterModule("buff", function ()
 
     -- overlay lifts the texts above the sweep: a child frame renders above
     -- all of its parent's own regions, so the timer would dim under the
-    -- dark wedge otherwise (same reason pfCooldownText is its own frame)
+    -- dark wedge otherwise
     buff.overlay = CreateFrame("Frame", nil, buff)
     buff.overlay:SetAllPoints(buff)
 
@@ -148,8 +148,9 @@ pfUI:RegisterModule("buff", function ()
     -- radial sweep (the template covers the button and starts hidden).
     -- RefreshBuffButton drives it through the frame's own methods, never
     -- CooldownFrame_SetTimer, so the cooldown module's hook leaves it alone;
-    -- text stays with buff.timer
+    -- text stays with buff.timer, so the frame's own numbers are hidden
     buff.cd = CreateFrame("Cooldown", buttonName .. "Cooldown", buff, "CooldownFrameTemplate")
+    buff.cd:SetHideCountdownNumbers(true)
     buff.cd:SetFrameLevel(buff:GetFrameLevel() + 1)
     buff.overlay:SetFrameLevel(buff:GetFrameLevel() + 2)
 

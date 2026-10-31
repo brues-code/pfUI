@@ -1597,6 +1597,7 @@ pfUI:RegisterModule("gui", function ()
     end)
 
     CreateGUIEntry(T["Settings"], T["Cooldown"], function()
+      CreateConfig(nil, COUNTDOWN_FOR_COOLDOWNS_TEXT, "CVAR", "countdownForCooldowns", "checkbox")
       CreateConfig(U["buff"], T["Show Milliseconds When Timer Runs Out"], C.appearance.cd, "milliseconds", "checkbox")
       CreateConfig(nil, T["Cooldown Color (Less than 3 Sec)"], C.appearance.cd, "lowcolor", "color")
       CreateConfig(nil, T["Cooldown Color (Seconds)"], C.appearance.cd, "normalcolor", "color")

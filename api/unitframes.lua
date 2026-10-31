@@ -928,12 +928,10 @@ function pfUI.uf:UpdateConfig()
       f.buffs[i].cd:SetDrawSwipe(cooldown_anim == 1)
       f.buffs[i].cd:SetDrawBling(cooldown_anim == 1)
       f.buffs[i].cd:SetReverse(cooldown_reverse)
-      
+
       -- immediately show/hide existing cooldown text
-      if f.buffs[i].cd.pfCooldownText then
-        f.buffs[i].cd.pfCooldownText:SetShown(cooldown_text == 1)
-      end
-      
+      f.buffs[i].cd:SetHideCountdownNumbers(cooldown_text == 0)
+
       f.buffs[i].id = i
       f.buffs[i]:Hide()
 
@@ -990,12 +988,10 @@ function pfUI.uf:UpdateConfig()
       f.debuffs[i].cd:SetDrawSwipe(cooldown_anim == 1)
       f.debuffs[i].cd:SetDrawBling(cooldown_anim == 1)
       f.debuffs[i].cd:SetReverse(cooldown_reverse)
-      
+
       -- immediately show/hide existing cooldown text
-      if f.debuffs[i].cd.pfCooldownText then
-        f.debuffs[i].cd.pfCooldownText:SetShown(cooldown_text == 1)
-      end
-      
+      f.debuffs[i].cd:SetHideCountdownNumbers(cooldown_text == 0)
+
       f.debuffs[i].id = i
       f.debuffs[i]:Hide()
 

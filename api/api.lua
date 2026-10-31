@@ -1425,70 +1425,52 @@ function pfUI.api.DisableAutohide(frame)
   frame:SetAlpha(1)
 end
 
+-- [ GetCountdownFormatter ] --
+-- The C_StringUtil formatter behind pfUI's times: the number in its unit's
+-- cooldown color, rounded up, with a unit (m/h/d) once the unit below
+-- passes 99. Cooldown frames share it instead of copying it, so new
+-- breakpoints reach every countdown on its next update.
+-- return        the shared NumericRuleFormatter
+local countdown_formatter
+
+local function ColorCode(color)
+  local r, g, b = pfUI.api.GetStringColor(color)
+  return pfUI.api.rgbhex(r, g, b)
+end
+
+local function UpdateCountdownFormatter()
+  local cd = C.appearance.cd
+  local up = Enum.NumericRuleFormatRounding.Up
+  local tenths = cd.milliseconds == "1"
+
+  countdown_formatter:SetBreakpoints({
+    { threshold = 0, step = tenths and .1 or 1, rounding = up, format = ColorCode(cd.lowcolor) .. (tenths and "%.1f" or "%d") .. "|r" },
+    { threshold = 5, step = 1, rounding = up, format = ColorCode(cd.normalcolor) .. "%d|r" },
+    { threshold = 99, format = ColorCode(cd.minutecolor) .. "%d|rm", components = { { div = 60, step = 1, rounding = up } } },
+    { threshold = 5940, format = ColorCode(cd.hourcolor) .. "%d|rh", components = { { div = 3600, step = 1, rounding = up } } },
+    { threshold = 356400, format = ColorCode(cd.daycolor) .. "%d|rd", components = { { div = 86400, step = 1, rounding = up } } },
+  })
+end
+
+function pfUI.api.GetCountdownFormatter()
+  if not countdown_formatter then
+    countdown_formatter = C_StringUtil.CreateNumericRuleFormatter()
+    UpdateCountdownFormatter()
+  end
+  return countdown_formatter
+end
+
+pfUI.events:RegisterCallback("config:changed", function(_, category)
+  if countdown_formatter and category == C.appearance.cd then
+    UpdateCountdownFormatter()
+  end
+end)
+
 -- [ GetColoredTime ] --
 -- 'remaining'   the time in seconds that should be converted
 -- return        a colored string including a time unit (m/h/d)
-local color_day, color_hour, color_minute, color_low, color_normal
 function pfUI.api.GetColoredTimeString(remaining)
-  if not remaining then return "" end
-
-  -- Show days if remaining is > 99 Hours (99 * 60 * 60)
-  if remaining > 356400 then
-    if not color_day then
-      local r,g,b,a = pfUI.api.GetStringColor(C.appearance.cd.daycolor)
-      color_day = pfUI.api.rgbhex(r,g,b)
-    end
-
-    return color_day .. round(remaining / 86400) .. "|rd"
-
-  -- Show hours if remaining is > 99 Minutes (99 * 60)
-  elseif remaining > 5940 then
-    if not color_hour then
-      local r,g,b,a = pfUI.api.GetStringColor(C.appearance.cd.hourcolor)
-      color_hour = pfUI.api.rgbhex(r,g,b)
-    end
-
-    return color_hour .. round(remaining / 3600) .. "|rh"
-
-  -- Show minutes if remaining is > 99 Seconds (99)
-  elseif remaining > 99 then
-    if not color_minute then
-      local r,g,b,a = pfUI.api.GetStringColor(C.appearance.cd.minutecolor)
-      color_minute = pfUI.api.rgbhex(r,g,b)
-    end
-
-    return color_minute .. round(remaining / 60) .. "|rm"
-
-  -- Show milliseconds on low
-  elseif remaining <= 5 and pfUI_config.appearance.cd.milliseconds == "1" then
-    if not color_low then
-      local r,g,b,a = pfUI.api.GetStringColor(C.appearance.cd.lowcolor)
-      color_low = pfUI.api.rgbhex(r,g,b)
-    end
-
-    return color_low .. string.format("%.1f", round(remaining,1))
-
-  -- Show seconds on low
-  elseif remaining <= 5 then
-    if not color_low then
-      local r,g,b,a = pfUI.api.GetStringColor(C.appearance.cd.lowcolor)
-      color_low = pfUI.api.rgbhex(r,g,b)
-    end
-
-    return color_low .. round(remaining)
-
-  -- Show seconds on normal
-  elseif remaining >= 0 then
-    if not color_normal then
-      local r, g, b, a = pfUI.api.GetStringColor(C.appearance.cd.normalcolor)
-      color_normal = pfUI.api.rgbhex(r,g,b)
-    end
-    return color_normal .. round(remaining)
-
-  -- Return empty
-  else
-    return ""
-  end
+  return pfUI.api.GetCountdownFormatter():FormatNumber(remaining)
 end
 
 -- [ GetColorGradient ] --

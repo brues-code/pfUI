@@ -467,6 +467,7 @@ function pfUI.SetupCVars()
 
   SetCVar("autoSelfCast", "1")
   SetCVar("profanityFilter", "0")
+  SetCVar("countdownForCooldowns", "1")
 
   MultiActionBar_ShowAllGrids()
   ALWAYS_SHOW_MULTIBARS = "1"
