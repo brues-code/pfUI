@@ -2,63 +2,30 @@
 setfenv(1, pfUI:GetEnvironment())
 
 do -- statusbars
-  local animations = {}
-  local stepsize
-
   -- native StatusBar methods the bar overrides
   local statusbar = CreateFrame("StatusBar")
   local SetValue, SetMinMaxValues = statusbar.SetValue, statusbar.SetMinMaxValues
   local SetOrientation, SetFrameLevel = statusbar.SetOrientation, statusbar.SetFrameLevel
 
-  local animate = CreateFrame("Frame", "pfStatusBarAnimation", UIParent)
-  animate:SetScript("OnUpdate", function()
-    stepsize = tonumber(pfUI_config.unitframes.animation_speed)
-
-    for bar in pairs(animations) do
-      if not bar.val_ or abs(bar.val_ - bar.val) < stepsize then
-        bar:DisplayValue(bar.val)
-      elseif bar.val ~= bar.val_ then
-        bar:DisplayValue(bar.val_ + min((bar.val-bar.val_) / stepsize, max(bar.val-bar.val_, 30 / GetFramerate())))
-      end
-    end
-  end)
-
+  -- SmoothStatusBarMixin animates the bar through SetValue, so this is the
+  -- shown value; SetSmoothedValue sets the target
   local handlers = {
-    ["DisplayValue"] = function(self, val)
+    ["SetValue"] = function(self, val)
       local smin, smax = self:GetMinMaxValues()
       val = Clamp(val, smin, smax)
-
-      -- remove animation queue
-      if val == self.val_ then
-        animations[self] = nil
-      end
-
-      -- set current visible value
-      self.val_ = val
       SetValue(self, val)
 
       -- the background fills the missing part, all of an empty range
       self.bg:SetValue(smax > smin and (smax - val) / (smax - smin) or 1)
     end,
 
-    ["SetMinMaxValues"] = function(self, smin, smax, smooth)
-      -- smoothen the transition by keeping the value at the same percentage as before
-      local _, oldmax = self:GetMinMaxValues()
-      if smooth and oldmax > 0 and smax > 0 and oldmax ~= smax then
-        self.val_ = (self.val_ or self.val) / oldmax * smax
-      end
-
+    -- the fill keeps its share of the bar, so a new range doesn't make it
+    -- jump before the smoothed value moves on from there
+    ["SetMinMaxValues"] = function(self, smin, smax)
+      local oldmin, oldmax = self:GetMinMaxValues()
+      local share = oldmax > oldmin and (self:GetValue() - oldmin) / (oldmax - oldmin) or 0
       SetMinMaxValues(self, smin, smax)
-      self:DisplayValue(self.val_ or self.val)
-    end,
-
-    ["SetValue"] = function(self, val)
-      self.val = val or 0
-
-      -- start animation on difference
-      if self.val_ ~= self.val then
-        animations[self] = true
-      end
+      self:SetValue(smin + share * (smax - smin))
     end,
 
     ["SetStatusBarBackgroundColor"] = function(self, r, g, b, a)
@@ -82,7 +49,6 @@ do -- statusbars
     local f = CreateFrame("StatusBar", name, parent)
     SetMinMaxValues(f, 0, 100)
     SetValue(f, 0)
-    f.val = 0
 
     f.bg = CreateFrame("StatusBar", nil, f)
     f.bg:SetFrameLevel(f:GetFrameLevel() - 1)
@@ -91,12 +57,7 @@ do -- statusbars
     f.bg:SetMinMaxValues(0, 1)
     f.bg:SetValue(1)
 
-    -- add all handler functions to the object
-    for name, func in pairs(handlers) do
-      f[name] = func
-    end
-
-    return f
+    return Mixin(f, SmoothStatusBarMixin, handlers)
   end
 end
 

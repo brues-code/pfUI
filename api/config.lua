@@ -222,7 +222,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("unitframes", nil,           "ragecolor",        "1,.5,.5,1")
   pfUI:UpdateConfig("unitframes", nil,           "focuscolor",       "1,1,.75,1")
 
-  pfUI:UpdateConfig("unitframes", nil,           "animation_speed",  "5")
+  pfUI:UpdateConfig("unitframes", nil,           "animatebars",      "1")
   pfUI:UpdateConfig("unitframes", nil,           "portraitalpha",    "0.1")
   pfUI:UpdateConfig("unitframes", nil,           "always2dportrait", "0")
   pfUI:UpdateConfig("unitframes", nil,           "portraittexture",  "1")
@@ -1140,25 +1140,6 @@ function pfUI:MigrateConfig()
         pfUI_config.unitframes[unitframe].txthpright = pfUI_config.unitframes[unitframe].txtright
         pfUI_config.unitframes[unitframe].txtright = nil
       end
-    end
-  end
-
-  -- migrating animation_speed (> 3.1.2)
-  if checkversion(3, 1, 2) then
-    if tonumber(pfUI_config.unitframes.animation_speed) >= 13 then
-      pfUI_config.unitframes.animation_speed = "13"
-    elseif tonumber(pfUI_config.unitframes.animation_speed) >= 8 then
-      pfUI_config.unitframes.animation_speed = "8"
-    elseif tonumber(pfUI_config.unitframes.animation_speed) >= 5 then
-      pfUI_config.unitframes.animation_speed = "5"
-    elseif tonumber(pfUI_config.unitframes.animation_speed) >= 3 then
-      pfUI_config.unitframes.animation_speed = "3"
-    elseif tonumber(pfUI_config.unitframes.animation_speed) >= 2 then
-      pfUI_config.unitframes.animation_speed = "2"
-    elseif tonumber(pfUI_config.unitframes.animation_speed) >= 1 then
-      pfUI_config.unitframes.animation_speed = "1"
-    else
-      pfUI_config.unitframes.animation_speed = "5"
     end
   end
 

@@ -907,14 +907,6 @@ pfUI:RegisterModule("gui", function ()
         "HORIZONTAL:" .. T["Horizontal"],
         "VERTICAL:" .. T["Vertical"],
       },
-      ["uf_animationspeed"] = {
-        "1:" .. T["Instant"],
-        "2:" .. T["Very Fast"],
-        "3:" .. T["Fast"],
-        "5:" .. T["Medium"],
-        "8:" .. T["Slow"],
-        "13:" .. T["Very Slow"],
-      },
       ["xpanchors"] = {
         "__NONONIL__:" .. T["No Anchor"],
         "pfChatLeft:" .. T["Left Chat Frame"],
@@ -2050,7 +2042,7 @@ pfUI:RegisterModule("gui", function ()
 
     CreateGUIEntry(T["Unit Frames"], T["General"], function()
       CreateConfig(nil, T["Disable pfUI Unit Frames"], C.unitframes, "disable", "checkbox")
-      CreateConfig(nil, T["Healthbar Animation Speed"], C.unitframes, "animation_speed", "dropdown", pfUI.gui.dropdowns.uf_animationspeed)
+      CreateConfig(nil, T["Animate Health And Power Bars"], C.unitframes, "animatebars", "checkbox")
       CreateConfig(nil, T["Portrait Alpha"], C.unitframes, "portraitalpha")
       CreateConfig(nil, T["Always Use 2D Portraits"], C.unitframes, "always2dportrait", "checkbox")
       CreateConfig(nil, T["Enable 2D Portraits As Fallback"], C.unitframes, "portraittexture", "checkbox")

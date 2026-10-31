@@ -1700,6 +1700,15 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
   return f
 end
 
+-- animates a health or power bar to its new value, or sets it at once
+local function SetBarValue(bar, value)
+  if C.unitframes.animatebars == "1" then
+    bar:SetSmoothedValue(value)
+  else
+    bar:ResetSmoothedValue(value)
+  end
+end
+
 function pfUI.uf:RefreshUnitState(unit)
   local alpha = unit.alpha_visible
   local unlock = pfUI.unlock and pfUI.unlock:IsShown() or nil
@@ -1707,10 +1716,10 @@ function pfUI.uf:RefreshUnitState(unit)
   if not UnitIsConnected(unit.label .. unit.id) and not unlock then
     -- offline
     alpha = unit.alpha_offline
-    unit.hp.bar:SetMinMaxValues(0, 100, true)
-    unit.power.bar:SetMinMaxValues(0, 100, true)
-    unit.hp.bar:SetValue(0)
-    unit.power.bar:SetValue(0)
+    unit.hp.bar:SetMinMaxValues(0, 100)
+    unit.power.bar:SetMinMaxValues(0, 100)
+    SetBarValue(unit.hp.bar, 0)
+    SetBarValue(unit.power.bar, 0)
   elseif unit.config.faderange == "1" and not pfUI.api.UnitInRange(unit.label .. unit.id, 4) and not unlock then
     alpha = unit.alpha_outrange
   end
@@ -2237,11 +2246,11 @@ function pfUI.uf:RefreshUnit(unit, component)
       hp = hpmax - hp
     end
 
-    unit.hp.bar:SetMinMaxValues(0, hpmax, true)
-    unit.hp.bar:SetValue(hp)
+    unit.hp.bar:SetMinMaxValues(0, hpmax)
+    SetBarValue(unit.hp.bar, hp)
 
-    unit.power.bar:SetMinMaxValues(0, powermax, true)
-    unit.power.bar:SetValue(power)
+    unit.power.bar:SetMinMaxValues(0, powermax)
+    SetBarValue(unit.power.bar, power)
 
     -- Hide power bar text for NPCs without real power (power == 0)
     local isNPC = not UnitIsPlayer(unitstr) and not UnitPlayerControlled(unitstr)
