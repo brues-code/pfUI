@@ -1040,9 +1040,7 @@ nameplates:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "target", "focu
     local level = plate.original.level:IsShown() and plate.original.level:GetObjectType() == "FontString" and tonumber(plate.original.level:GetText()) or "??"
 
     -- reset per-unit cache when the plate is reassigned. Gate on GUID *and*
-    -- name — name alone misses pool reuse between same-named units (e.g. plate
-    -- held a player "Ironforge Guard" and is now reassigned to the NPC by the
-    -- same name), which would leak a stale "PLAYER" hint into GetUnitInfo.
+    -- name — name alone misses pool reuse between same-named units.
     -- Wipe the whole cache table: the PERF gates below ("only update X when
     -- X changed") would otherwise skip bar/color/text updates when the new
     -- unit happens to share a cached value with the previous occupant
@@ -1065,27 +1063,26 @@ nameplates:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "target", "focu
     if event == "PLAYER_TARGET_CHANGED" then unitstr = nil end
 
     -- remove unitstr when it doesn't resolve to this plate's unit (stale istarget,
-    -- stale mouseover guid or a despawned unit). Must run before the cache fills
-    -- below -- an unrelated unitstr would poison cache.player/minion with the
-    -- *other* unit's answer, and the nil-gate would then never recompute it.
+    -- stale mouseover guid or a despawned unit)
     if unitstr and UnitName(unitstr) ~= name then unitstr = nil end
 
-    -- resolve player vs npc from plate's own unit so libunitscan can't return
-    -- a player record for an NPC sharing the same name (e.g. Chromie). Stored
-    -- as true/false/nil so it doubles as the GetUnitInfo hint.
-    if plate.cache.player == nil and unitstr then
-      plate.cache.player = UnitIsPlayer(unitstr) and true or false
+    -- the plate's own unit token says who it is; a player too high to show a
+    -- level keeps the one the player database last saw
+    local unit = plate.unit
+    local player, class, elite, guild, ulevel
+    if unit then
+      player = UnitIsPlayer(unit)
+      class = player and UnitClassBase(unit)
+      elite = UnitClassification(unit)
+      guild = player and GetGuildInfo(unit) or UnitSubName(unit)
+      ulevel = UnitLevel(unit)
+      if player and ulevel <= 0 then
+        local _
+        _, ulevel = GetUnitInfo(name)
+      end
     end
-    if plate.cache.minion == nil and unitstr then
-      plate.cache.minion = UnitIsMinion(unitstr) and true or false
-    end
-    local class, ulevel, elite, player, guild
-    if not plate.cache.minion then
-      class, ulevel, elite, player, guild = GetUnitInfo(name, true, plate.cache.player)
-    end
-    if plate.cache.player ~= nil then player = plate.cache.player or nil end
 
-    -- Use database level ONLY if current level is ?? (fixes ?? after reload, but doesn't override visible levels)
+    -- Use the unit's level ONLY if current level is ?? (fixes ?? after reload, but doesn't override visible levels)
     local levelFromDB = false
     if level == "??" and ulevel and ulevel > 0 then
       level = ulevel
@@ -1095,13 +1092,9 @@ nameplates:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "target", "focu
     local unittype = GetUnitType(plate)
     local font_size = C.nameplates.use_unitfonts == "1" and C.global.font_unit_size or C.global.font_size
 
-    -- ignore players with npc names if plate level is lower than player level
-    if ulevel and ulevel > (level == "??" and -1 or level) then player = nil end
-
     if player and unittype == "ENEMY_NPC" then unittype = "ENEMY_PLAYER" end
     if player and unittype == "FRIENDLY_NPC" then unittype = "FRIENDLY_PLAYER" end
     elite = plate.original.levelicon:IsShown() and not player and "boss" or elite
-    if not class and not plate.cache.minion then plate.wait_for_scan = true end
 
     -- skip data updates on invisible frames
     if not visible then return end
@@ -1219,7 +1212,6 @@ nameplates:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "target", "focu
 
     if cfg.showhp then
       local rhp, rhpmax, estimated
-      local unit = plate.unit
       if unit then
         local npHp = UnitHealth(unit)
         local npMaxHp = UnitHealthMax(unit)
@@ -1491,7 +1483,6 @@ nameplates:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "target", "focu
     
     local update
     local original = nameplate.original
-    local name = original.name:GetText()
     local mouseover = nameplate.cachedGuid and nameplate.cachedGuid == frameState.mouseoverGuid or nil
 
     -- trigger queued event update
@@ -1572,16 +1563,6 @@ nameplates:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "target", "focu
     -- queue update on visual mouseover update
     if nameplate.cache.mouseover ~= mouseover then
       nameplate.cache.mouseover = mouseover
-      update = true
-    end
-
-    -- trigger update when unit was found. Pass the cached player hint so the
-    -- retry probes the same table OnDataChanged will read on the next pass —
-    -- otherwise an NPC sharing a name with a known player flips wait_for_scan
-    -- off here, then OnDataChanged re-sets it, every frame until the mob scan
-    -- lands.
-    if nameplate.wait_for_scan and not nameplate.cache.minion and GetUnitInfo(name, true, nameplate.cache.player) then
-      nameplate.wait_for_scan = nil
       update = true
     end
 
