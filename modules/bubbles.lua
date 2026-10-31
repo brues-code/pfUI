@@ -2,7 +2,7 @@ pfUI:RegisterModule("bubbles", function ()
 
   local alpha = tonumber(C.chat.bubbles.alpha)
 
-  pfUI.bubbles = CreateFrame("Frame", "pfChatBubbles", UIParent)
+  pfUI.bubbles = Mixin(CreateFrame("Frame", "pfChatBubbles", UIParent), DirtiableMixin)
   pfUI.bubbles:RegisterEvent("CHAT_MSG_SAY")
   pfUI.bubbles:RegisterEvent("CHAT_MSG_YELL")
   pfUI.bubbles:RegisterEvent("CHAT_MSG_PARTY")
@@ -10,12 +10,6 @@ pfUI:RegisterModule("bubbles", function ()
   pfUI.bubbles:RegisterEvent("CHAT_MSG_MONSTER_SAY")
   pfUI.bubbles:RegisterEvent("CHAT_MSG_MONSTER_YELL")
   pfUI.bubbles:RegisterEvent("CHAT_MSG_MONSTER_PARTY")
-
-  pfUI.bubbles:SetScript("OnEvent", function()
-    -- Bubble frames are attached to WorldFrame after the chat event fires,
-    -- so wait one tick before scanning.
-    RunNextFrame(function() pfUI.bubbles:ScanBubbles() end)
-  end)
 
   function pfUI.bubbles:ProcessBubble(f)
     f.text:Hide()
@@ -62,4 +56,9 @@ pfUI:RegisterModule("bubbles", function ()
         end
     end
   end
+
+  -- Bubble frames are attached to WorldFrame after the chat event fires, so
+  -- the scan waits a frame, and runs once for all of that frame's messages.
+  pfUI.bubbles:SetDirtyMethod(pfUI.bubbles.ScanBubbles)
+  pfUI.bubbles:SetScript("OnEvent", pfUI.bubbles.MarkDirty)
 end)
