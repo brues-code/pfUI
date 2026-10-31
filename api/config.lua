@@ -224,7 +224,7 @@ function pfUI:LoadConfig()
 
   pfUI:UpdateConfig("unitframes", nil,           "animatebars",      "1")
   pfUI:UpdateConfig("unitframes", nil,           "portraitalpha",    "0.1")
-  pfUI:UpdateConfig("unitframes", nil,           "always2dportrait", "0")
+  pfUI:UpdateConfig("unitframes", nil,           "portraitstyle",    "3d")
   pfUI:UpdateConfig("unitframes", nil,           "portraittexture",  "1")
   pfUI:UpdateConfig("unitframes", nil,           "layout",           "default")
   pfUI:UpdateConfig("unitframes", nil,           "rangecheck",       "0")
@@ -1407,6 +1407,15 @@ function pfUI:MigrateConfig()
       pfUI_config.unitframes.comboheight = pfUI_config.unitframes.combosize
       pfUI_config.unitframes.combosize = nil
     end
+  end
+
+  -- migrate "Always Use 2D Portraits" to the portrait style; keyed on the old
+  -- setting rather than the version, which dev installs stamp as 999.999.999
+  if pfUI_config.unitframes.always2dportrait then
+    if pfUI_config.unitframes.always2dportrait == "1" then
+      pfUI_config.unitframes.portraitstyle = "2d"
+    end
+    pfUI_config.unitframes.always2dportrait = nil
   end
 
   -- Remove "Show only own debuffs" from unitframes and nameplates

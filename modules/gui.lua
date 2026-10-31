@@ -957,6 +957,12 @@ pfUI:RegisterModule("gui", function ()
         "TOP:" .. T["Center"],
         "TOPRIGHT:" .. T["Right"]
       },
+      ["uf_portrait_style"] = {
+        "3d:" .. T["3D"],
+        "2d:" .. T["2D"],
+        "classround:" .. T["Class Icon (Round)"],
+        "classsquare:" .. T["Class Icon (Square)"]
+      },
       ["uf_portrait_position"] = {
         "bar:" .. T["Healthbar Embedded"],
         "left:" .. T["Left"],
@@ -2044,7 +2050,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Disable pfUI Unit Frames"], C.unitframes, "disable", "checkbox")
       CreateConfig(nil, T["Animate Health And Power Bars"], C.unitframes, "animatebars", "checkbox")
       CreateConfig(nil, T["Portrait Alpha"], C.unitframes, "portraitalpha")
-      CreateConfig(nil, T["Always Use 2D Portraits"], C.unitframes, "always2dportrait", "checkbox")
+      CreateConfig(nil, T["Portrait Style"], C.unitframes, "portraitstyle", "dropdown", pfUI.gui.dropdowns.uf_portrait_style)
       CreateConfig(nil, T["Enable 2D Portraits As Fallback"], C.unitframes, "portraittexture", "checkbox")
       CreateConfig(nil, T["Unit Frame Layout"], C.unitframes, "layout", "dropdown", pfUI.gui.dropdowns.uf_layout)
       CreateConfig(nil, T["Combopoint Width"], C.unitframes, "combowidth")

@@ -684,7 +684,6 @@ function pfUI.uf:UpdateConfig()
   end
 
   f.portrait.tex:SetAllPoints(f.portrait)
-  f.portrait.tex:SetTexCoord(.1, .9, .1, .9)
   f.portrait.model:SetAllPoints(f.portrait)
 
   if f.config.portrait == "bar" then
@@ -1870,6 +1869,35 @@ function pfUI.uf:UpdateDruidMana(unit)
   bar:Show()
 end
 
+-- the class icon sheets of the class portrait styles, both laid out by
+-- CLASS_ICON_TCOORDS: pfUI's round icons and the stock character creation ones
+local classicons = {
+  ["classround"] = "img:classicons",
+  ["classsquare"] = "Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes",
+}
+
+-- shows the portrait as a texture: a player's class icon with a class style,
+-- the 2D portrait otherwise
+local function ShowPortraitTexture(portrait, unitstr)
+  local _, class = UnitClass(unitstr)
+  local sheet = classicons[C.unitframes.portraitstyle]
+  local coords = sheet and UnitIsPlayer(unitstr) and CLASS_ICON_TCOORDS[class]
+
+  if coords then
+    -- crop the icon's rim the way the 2D portrait is cropped
+    local left, right, top, bottom = unpack(coords)
+    local x, y = (right - left) * .1, (bottom - top) * .1
+    portrait.tex:SetTexture(pfUI.media[sheet])
+    portrait.tex:SetTexCoord(left + x, right - x, top + y, bottom - y)
+  else
+    portrait.tex:SetTexCoord(.1, .9, .1, .9)
+    SetPortraitTexture(portrait.tex, unitstr)
+  end
+
+  portrait.tex:Show()
+  portrait.model:Hide()
+end
+
 function pfUI.uf:RefreshUnit(unit, component)
   -- break early on misconfigured UF's
   if not unit.label then return end
@@ -2185,44 +2213,38 @@ function pfUI.uf:RefreshUnit(unit, component)
 
   -- portrait
   if unit.portrait and ( component == "all" or component == "portrait" ) then
-    if C.unitframes.always2dportrait == "1" then
-      unit.portrait.tex:Show()
-      unit.portrait.model:Hide()
-      SetPortraitTexture(unit.portrait.tex, unitstr)
-    else
-      if not UnitIsVisible(unitstr) or not UnitIsConnected(unitstr) then
-        if unit.config.portrait == "bar" then
-          unit.portrait.tex:Hide()
-          unit.portrait.model:Hide()
-        elseif C.unitframes.portraittexture == "1" then
-          unit.portrait.tex:Show()
-          unit.portrait.model:Hide()
-          SetPortraitTexture(unit.portrait.tex, unitstr)
-        else
-          unit.portrait.tex:Hide()
-          unit.portrait.model:Show()
-          unit.portrait.model:SetModelScale(4.25)
-          unit.portrait.model:SetPosition(0, 0, -1)
-          unit.portrait.model:SetModel("Interface\\Buttons\\talktomequestionmark.mdx")
-        end
+    if C.unitframes.portraitstyle ~= "3d" then
+      ShowPortraitTexture(unit.portrait, unitstr)
+    elseif not UnitIsVisible(unitstr) or not UnitIsConnected(unitstr) then
+      if unit.config.portrait == "bar" then
+        unit.portrait.tex:Hide()
+        unit.portrait.model:Hide()
+      elseif C.unitframes.portraittexture == "1" then
+        ShowPortraitTexture(unit.portrait, unitstr)
       else
-        if unit.config.portrait == "bar" then
-          unit.portrait:SetAlpha(C.unitframes.portraitalpha)
-        else
-          unit.portrait:SetAlpha(1)
-        end
         unit.portrait.tex:Hide()
         unit.portrait.model:Show()
+        unit.portrait.model:SetModelScale(4.25)
+        unit.portrait.model:SetPosition(0, 0, -1)
+        unit.portrait.model:SetModel("Interface\\Buttons\\talktomequestionmark.mdx")
+      end
+    else
+      if unit.config.portrait == "bar" then
+        unit.portrait:SetAlpha(C.unitframes.portraitalpha)
+      else
+        unit.portrait:SetAlpha(1)
+      end
+      unit.portrait.tex:Hide()
+      unit.portrait.model:Show()
 
-        if component == "portrait" then
-          -- regular portrait update after event
+      if component == "portrait" then
+        -- regular portrait update after event
+        unit.portrait.model.update = unitstr
+      else
+        -- detect portrait change without events
+        unit.portrait.model.next:SetUnit(unitstr)
+        if unit.portrait.model.lastUnit ~= UnitName(unitstr) or unit.portrait.model:GetModel() ~= unit.portrait.model.next:GetModel() then
           unit.portrait.model.update = unitstr
-        else
-          -- detect portrait change without events
-          unit.portrait.model.next:SetUnit(unitstr)
-          if unit.portrait.model.lastUnit ~= UnitName(unitstr) or unit.portrait.model:GetModel() ~= unit.portrait.model.next:GetModel() then
-            unit.portrait.model.update = unitstr
-          end
         end
       end
     end
