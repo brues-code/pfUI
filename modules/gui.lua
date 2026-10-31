@@ -2134,6 +2134,10 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Druid Mana Bar Texture"], C.unitframes, "druidmanatexture", "dropdown", pfUI.gui.dropdowns.uf_bartexture, nil, nil, nil)
 
 
+      CreateConfig(nil, T["Target Indicators"], nil, nil, "header")
+      CreateConfig(nil, T["Target Indicator Font Size"], C.unitframes, "indicator_font_size", nil, nil, nil, nil, nil)
+      CreateConfig(nil, T["Show Line of Sight Indicator"], C.unitframes, "los_indicator", "checkbox", nil, nil, nil, nil)
+
       CreateConfig(nil, T["SuperWoW Settings"], nil, nil, "header")
       CreateConfig(nil, T["Track Group on Minimap"], C.unitframes, "track_group", "checkbox", nil, nil, nil, nil)
 
@@ -2144,8 +2148,6 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Reactive Indicator Size"], C.unitframes, "reactive_size", nil, nil, nil, nil, nil)
 
       CreateConfig(nil, T["UnitXP Settings"], nil, nil, "header")
-      CreateConfig(nil, T["Font Size for all UnitXP texts"], C.unitframes, "unitxp_font_size", nil, nil, nil, nil, nil)
-      CreateConfig(nil, T["Show Line of Sight Indicator"], C.unitframes, "los_indicator", "checkbox", nil, nil, nil, nil)
       CreateConfig(nil, T["Show Behind Indicator"], C.unitframes, "behind_indicator", "checkbox", nil, nil, nil, nil)
       CreateConfig(nil, T["Show Distance of Target"], C.unitframes, "distance_indicator", "checkbox", nil, nil, nil, nil)
       CreateConfig(nil, T["Hide yd characters"], C.unitframes, "hide_distance_yd", "checkbox", nil, nil, nil, nil)

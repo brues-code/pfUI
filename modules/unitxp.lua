@@ -1,5 +1,5 @@
 -- UnitXP_SP3 integration module
--- Provides Line of Sight indicator, OS notifications, and enhanced targeting
+-- Provides behind and distance indicators, OS notifications, and enhanced targeting
 -- Requires UnitXP_SP3 DLL: https://github.com/allfoxwy/UnitXP_SP3
 
 pfUI:RegisterModule("unitxp", function ()
@@ -15,7 +15,7 @@ pfUI:RegisterModule("unitxp", function ()
 
     local h = pfUI.uf.target:GetHeight() or 30
     local slot = h / 3  -- divide frame into thirds
-    local fontSize = tonumber(C.unitframes.unitxp_font_size) or (C.global.font_size + 2)
+    local fontSize = tonumber(C.unitframes.indicator_font_size) or (C.global.font_size + 2)
     local suffix = (C.unitframes.hide_distance_yd == "1") and "" or " yd"
 
     -- Behind Indicator for all units (MIDDLE)
@@ -46,36 +46,6 @@ pfUI:RegisterModule("unitxp", function ()
       end)
 
       pfUI.uf.target.behindIndicator = behindFrame
-    end
-
-    -- Line of Sight Indicator on Target Frame (BELOW BEHIND)
-    if C.unitframes.los_indicator == "1" and not pfUI.uf.target.losIndicator then
-      local losFrame = CreateFrame("Frame", "pfLoSIndicator", pfUI.uf.target)
-      losFrame:SetAllPoints(pfUI.uf.target)
-      losFrame:SetFrameLevel(pfUI.uf.target:GetFrameLevel() + 10)
-
-      losFrame.text = losFrame:CreateFontString(nil, "OVERLAY")
-      losFrame.text:SetFont(pfUI.font_default, fontSize, "OUTLINE")
-      losFrame.text:SetPoint("RIGHT", losFrame, "RIGHT", -1, -slot)
-      losFrame.text:SetTextColor(1, 0.3, 0.3, 1)
-      losFrame.text:SetText(T["NO LOS"])
-      losFrame.text:Hide()
-
-      local lastCheck = 0
-      losFrame:SetScript("OnUpdate", function()
-        if GetTime() - lastCheck < 0.2 then return end
-        lastCheck = GetTime()
-
-        if not UnitExists("target") then
-          this.text:Hide()
-          return
-        end
-
-        local success, inSight = pcall(UnitXP, "inSight", "player", "target")
-        this.text:SetShown(success and inSight == false)
-      end)
-
-      pfUI.uf.target.losIndicator = losFrame
     end
 
     -- Distance Indicator
@@ -185,9 +155,7 @@ pfUI:RegisterModule("unitxp", function ()
               return
             end
 
-            local successL, inSight = pcall(UnitXP, "inSight", "player", "target")
-            local alpha = (successL and inSight == false) and 0.5 or 1.0
-            f.text:SetAlpha(alpha)
+            f.text:SetAlpha(UnitInLineOfSight("target") == false and 0.5 or 1.0)
 
             local r, g, b = 1.0, 0.2, 0.2
             for i = 1, table.getn(thresholds) do
@@ -224,9 +192,6 @@ pfUI:RegisterModule("unitxp", function ()
       if pfUI.uf and pfUI.uf.target then
         if pfUI.uf.target.behindIndicator then
           pfUI.uf.target.behindIndicator:SetScript("OnUpdate", nil)
-        end
-        if pfUI.uf.target.losIndicator then
-          pfUI.uf.target.losIndicator:SetScript("OnUpdate", nil)
         end
         if pfUI.uf.target.distanceIndicator then
           pfUI.uf.target.distanceIndicator:SetScript("OnUpdate", nil)
@@ -337,10 +302,6 @@ pfUI:RegisterModule("unitxp", function ()
     local successB, behind = pcall(UnitXP, "behind", "player", "target")
     chat:AddMessage("  Behind check: success=" .. tostring(successB) .. " value=" .. tostring(behind) .. " type=" .. type(behind))
 
-    -- Test LOS
-    local successL, inSight = pcall(UnitXP, "inSight", "player", "target")
-    chat:AddMessage("  LOS check: success=" .. tostring(successL) .. " value=" .. tostring(inSight) .. " type=" .. type(inSight))
-
     -- Check if indicator frames exist
     if pfUI.uf and pfUI.uf.target then
       chat:AddMessage("  Target frame: |cff00ff00exists|r")
@@ -348,11 +309,6 @@ pfUI:RegisterModule("unitxp", function ()
         chat:AddMessage("  Behind indicator: |cff00ff00created|r, visible=" .. tostring(pfUI.uf.target.behindIndicator:IsVisible()))
       else
         chat:AddMessage("  Behind indicator: |cffff0000NOT created|r (check settings)")
-      end
-      if pfUI.uf.target.losIndicator then
-        chat:AddMessage("  LOS indicator: |cff00ff00created|r")
-      else
-        chat:AddMessage("  LOS indicator: |cffff0000NOT created|r (check settings)")
       end
     else
       chat:AddMessage("  Target frame: |cffff0000NOT found|r")

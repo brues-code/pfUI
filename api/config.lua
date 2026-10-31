@@ -286,9 +286,11 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("unitframes", nil,           "reactive_size",    "28")
   pfUI:UpdateConfig("unitframes", nil,           "damage_tracking",  "0")
 
-  -- UnitXP Settings
-  pfUI:UpdateConfig("unitframes", nil,           "unitxp_font_size",    "13")
+  -- Target Indicators
+  pfUI:UpdateConfig("unitframes", nil,           "indicator_font_size", "13")
   pfUI:UpdateConfig("unitframes", nil,           "los_indicator",    "0")
+
+  -- UnitXP Settings
   pfUI:UpdateConfig("unitframes", nil,           "behind_indicator", "0")
   pfUI:UpdateConfig("unitframes", nil,           "hide_distance_yd", "0")
   pfUI:UpdateConfig("unitframes", nil,           "unitxp_notify",    "0")
