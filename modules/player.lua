@@ -61,7 +61,7 @@ pfUI:RegisterModule("player", function ()
     MAGE    = 7, WARLOCK = 6,
   }
 
-  -- Compute and cache the haste/SP text; called from OnUpdate, throttled to 0.25s
+  -- Compute the haste/SP text; called on haste, spell power and config changes
   local function UpdateInfoText()
     local cfg = playerFrame.config
     if not cfg then
@@ -124,9 +124,13 @@ pfUI:RegisterModule("player", function ()
     end)
   end
 
-  -- Haste / spell-power overlay text — refreshes 4×/sec on its own ticker,
-  -- independent of the unit frame's OnUpdate cadence.
-  C_Timer.NewTicker(0.25, UpdateInfoText)
+  -- PLAYER_DAMAGE_DONE_MODS fires on the MOD_DAMAGE_DONE fields that
+  -- GetSpellBonusDamage reads, so gear, buffs and talents all reach it.
+  pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", UpdateInfoText)
+  pfUI.events:RegisterFrameEventAndCallback("PLAYER_DAMAGE_DONE_MODS", UpdateInfoText)
+  pfUI.events:RegisterFrameEventAndCallback("UNIT_SPELL_HASTE", function(_, unit)
+    if unit == "player" then UpdateInfoText() end
+  end)
 
   -- Replace default's RESET_INSTANCES button with an always working one
   UnitPopupButtons["RESET_INSTANCES_FIX"] = { text = RESET_INSTANCES, dist = 0 }
