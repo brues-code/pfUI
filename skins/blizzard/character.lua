@@ -42,7 +42,7 @@ pfUI:RegisterSkin("Character", function ()
   CharacterFrame.backdrop:SetPoint("TOPLEFT", 10, -10)
   CharacterFrame.backdrop:SetPoint("BOTTOMRIGHT", -30, 72)
   CharacterFrame:SetHitRectInsets(10,30,10,72)
-  EnableMovable("CharacterFrame", nil, CHARACTERFRAME_SUBFRAMES)
+  EnableMovable("CharacterFrame", CHARACTERFRAME_SUBFRAMES)
 
   SkinCloseButton(CharacterFrameCloseButton, CharacterFrame.backdrop, -6, -6)
 

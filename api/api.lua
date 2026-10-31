@@ -669,48 +669,23 @@ end
 -- [ Enable Movable ]
 -- Set all necessary functions to make a already existing frame movable.
 -- 'name'       [frame/string]  Name of the Frame that should be movable
--- 'addon'      [string]        Addon that must be loaded before being able to access the frame
 -- 'blacklist'  [table]         A list of frames that should be deactivated for mouse usage
 local function OnDragStart() this:StartMoving() end
 local function OnDragStop() this:StopMovingOrSizing() end
-function pfUI.api.EnableMovable(name, addon, blacklist)
-  if addon then
-    local scan = CreateFrame("Frame")
-    scan:RegisterEvent("ADDON_LOADED")
-    scan:SetScript("OnEvent", function()
-      if arg1 == addon then
-        local frame = _G[name]
-
-        if blacklist then
-          for _, disable in pairs(blacklist) do
-            _G[disable]:EnableMouse(false)
-          end
-        end
-
-        frame:SetMovable(true)
-        frame:EnableMouse(true)
-        frame:RegisterForDrag("LeftButton")
-        frame:SetScript("OnDragStart", OnDragStart)
-        frame:SetScript("OnDragStop", OnDragStop)
-
-        this:UnregisterAllEvents()
-      end
-    end)
-  else
-    if blacklist then
-      for _, disable in pairs(blacklist) do
-        _G[disable]:EnableMouse(false)
-      end
+function pfUI.api.EnableMovable(name, blacklist)
+  if blacklist then
+    for _, disable in pairs(blacklist) do
+      _G[disable]:EnableMouse(false)
     end
-
-    local frame = name
-    if type(name) == "string" then frame = _G[name] end
-    frame:SetMovable(true)
-    frame:EnableMouse(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", OnDragStart)
-    frame:SetScript("OnDragStop", OnDragStop)
   end
+
+  local frame = name
+  if type(name) == "string" then frame = _G[name] end
+  frame:SetMovable(true)
+  frame:EnableMouse(true)
+  frame:RegisterForDrag("LeftButton")
+  frame:SetScript("OnDragStart", OnDragStart)
+  frame:SetScript("OnDragStop", OnDragStop)
 end
 
 -- [ Copy Table ]

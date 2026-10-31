@@ -33,7 +33,7 @@ pfUI:RegisterSkin("Inspect", function ()
     InspectFrame.backdrop:SetPoint("TOPLEFT", 10, -10)
     InspectFrame.backdrop:SetPoint("BOTTOMRIGHT", -30, 72)
     InspectFrame:SetHitRectInsets(10,30,10,72)
-    EnableMovable("InspectFrame", "Blizzard_InspectUI", INSPECTFRAME_SUBFRAMES)
+    EnableMovable("InspectFrame", INSPECTFRAME_SUBFRAMES)
 
     SkinCloseButton(InspectFrameCloseButton, InspectFrame.backdrop, -6, -6)
 
