@@ -2,7 +2,7 @@ pfUI:RegisterModule("easteregg", function ()
   local today = date("%m%d")
 
   -- A full screen scene for the time the player is AFK on a holiday. The
-  -- night fades in, and a click or coming back hides it again.
+  -- night fades in, and a click or coming back clears AFK and hides it.
   local function CreateScene(name, greeting, info)
     local scene = CreateFrame("Button", name, WorldFrame)
     scene:SetFrameStrata("DIALOG")
@@ -46,7 +46,9 @@ pfUI:RegisterModule("easteregg", function ()
       this:StopAnimating()
     end)
 
+    -- /afk toggles, so send it only while AFK is still set
     scene:SetScript("OnClick", function()
+      if IsChatAFK() then SendChatMessage("", "AFK") end
       this:Hide()
     end)
 
