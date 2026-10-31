@@ -132,8 +132,7 @@ pfUI:RegisterModule("energytick", function()
   energytick:SetAllPoints(pfUI.uf.player.power.bar)
   energytick:RegisterEvent("PLAYER_ENTERING_WORLD")
   energytick:RegisterUnitEvent("UNIT_DISPLAYPOWER", "player")
-  energytick:RegisterUnitEvent("UNIT_ENERGY", "player")
-  energytick:RegisterUnitEvent("UNIT_MANA", "player")
+  energytick:RegisterUnitEvent("UNIT_POWER_UPDATE", "player")
   energytick:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
   energytick:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", "player")
   energytick:RegisterEvent("SPELLS_CHANGED")
@@ -147,6 +146,7 @@ pfUI:RegisterModule("energytick", function()
       this.mode = "ENERGY"
       this:Show()
     else
+      this.mode = nil
       this:Hide()
     end
 
@@ -155,7 +155,8 @@ pfUI:RegisterModule("energytick", function()
       return
     end
 
-    if event == "PLAYER_ENTERING_WORLD" then
+    -- a shift swaps the power the gains are measured on
+    if event == "PLAYER_ENTERING_WORLD" or event == "UNIT_DISPLAYPOWER" then
       this.lastPower = UnitPower("player")
     end
 
@@ -179,7 +180,8 @@ pfUI:RegisterModule("energytick", function()
       return
     end
 
-    if (event == "UNIT_MANA" or event == "UNIT_ENERGY") and arg1 == "player" then
+    -- only the shown power: a cat druid's mana regen is not an energy gain
+    if event == "UNIT_POWER_UPDATE" and arg2 == this.mode then
       local power = UnitPower("player")
       local diff = this.lastPower and (power - this.lastPower) or 0
       this.lastPower = power

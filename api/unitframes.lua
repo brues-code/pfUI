@@ -1137,6 +1137,13 @@ function pfUI.uf.OnEvent()
       else
         this.update_auratime = true
       end
+    elseif event == "UNIT_POWER_UPDATE" or event == "UNIT_MAXPOWER" then
+      -- every power of the unit reports, a cat druid's mana regen too; redraw
+      -- for the one the bar shows, and for mana under a druid mana bar
+      local _, shown = UnitPowerType(arg1)
+      if arg2 == shown or (arg2 == "MANA" and this.druidmana) then
+        this.update_base = true
+      end
     elseif event == "UNIT_FACTION" then
       this.update_pvp = true
     elseif event == "UNIT_COMBAT" then
@@ -1376,13 +1383,22 @@ end
 local UNIT_EVENTS = {
   "UNIT_DISPLAYPOWER",
   "UNIT_HEALTH", "UNIT_MAXHEALTH",
+  "UNIT_PORTRAIT_UPDATE", "UNIT_MODEL_CHANGED",
+  "UNIT_FACTION",
+  "INCOMING_RESURRECT_CHANGED", -- frame=ressIcon
+}
+
+-- Auras and power. ClassicAPI's UNIT_AURA_DELTA also reports refreshes and new
+-- durations and says what changed; its generic power events name the power, so
+-- a frame skips the ones it does not draw. Both fire for tokens only, so a
+-- chained unit, followed by GUID, keeps 1.12's events instead.
+local TOKEN_EVENTS = { "UNIT_AURA_DELTA", "UNIT_POWER_UPDATE", "UNIT_MAXPOWER" }
+local GUID_EVENTS = {
+  "UNIT_AURA",
   "UNIT_MANA", "UNIT_MAXMANA",
   "UNIT_RAGE", "UNIT_MAXRAGE",
   "UNIT_ENERGY", "UNIT_MAXENERGY",
   "UNIT_FOCUS",
-  "UNIT_PORTRAIT_UPDATE", "UNIT_MODEL_CHANGED",
-  "UNIT_FACTION",
-  "INCOMING_RESURRECT_CHANGED", -- frame=ressIcon
 }
 
 -- Point this frame's unit-event subscriptions at `unit` (a token, or a chained
@@ -1401,16 +1417,17 @@ function pfUI.uf:RegisterUnitEvents(unit)
     end
   end
 
-  -- auras (frame=buff, frame=debuff, indicators): UNIT_AURA_DELTA, which also
-  -- reports refreshes and new durations and says what changed. It fires for
-  -- tokens only, so a chained unit, followed by GUID, keeps UNIT_AURA.
-  local aura, other = "UNIT_AURA_DELTA", "UNIT_AURA"
-  if self.chain then aura, other = other, aura end
-  self:UnregisterEvent(other)
-  if unit then
-    self:RegisterUnitEvent(aura, unit)
-  else
-    self:UnregisterEvent(aura)
+  local events, other = TOKEN_EVENTS, GUID_EVENTS
+  if self.chain then events, other = other, events end
+  for i = 1, table.getn(other) do
+    self:UnregisterEvent(other[i])
+  end
+  for i = 1, table.getn(events) do
+    if unit then
+      self:RegisterUnitEvent(events[i], unit)
+    else
+      self:UnregisterEvent(events[i])
+    end
   end
 
   -- UNIT_COMBAT rides along only while the frame draws combat feedback text.

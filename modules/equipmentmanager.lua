@@ -1517,10 +1517,10 @@ pfUI:RegisterModule("equipmentmanager", function()
     -- constantly in combat, so only listen while a dining trigger exists.
     if dining then
       engineEvents:RegisterUnitEvent("UNIT_HEALTH", "player")
-      engineEvents:RegisterUnitEvent("UNIT_MANA", "player")
+      engineEvents:RegisterUnitEvent("UNIT_POWER_UPDATE", "player")
     else
       engineEvents:UnregisterEvent("UNIT_HEALTH")
-      engineEvents:UnregisterEvent("UNIT_MANA")
+      engineEvents:UnregisterEvent("UNIT_POWER_UPDATE")
     end
 
     if poll and not engine.poll then
@@ -1554,7 +1554,8 @@ pfUI:RegisterModule("equipmentmanager", function()
         engine.ready = true
         Schedule()
       end)
-    else
+    elseif event ~= "UNIT_POWER_UPDATE" or arg2 == "MANA" then
+      -- the dining set waits on mana alone, not on rage or energy
       Schedule()
     end
   end)
