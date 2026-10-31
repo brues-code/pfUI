@@ -35,6 +35,9 @@ pfUI:RegisterSkin("Options - Interface", function ()
       SkinCheckbox(control)
     elseif ctype == "Slider" then
       SkinSlider(control)
+    elseif ctype == "EditBox" then
+      StripTextures(control, nil, "BACKGROUND")
+      CreateBackdrop(control, nil, true)
     else
       SkinDropDown(control, nil, nil, nil, true)
     end
