@@ -84,6 +84,13 @@ pfUI.client = INTERFACE_VERSION
 
 -- setup pfUI namespace
 setmetatable(pfUI.env, {__index = getfenv(0)})
+pfUI.env._G = getfenv(0)
+
+-- every pfUI.api entry is also a global of the pfUI environment
+pfUI.api = setmetatable({}, {__newindex = function(api, key, value)
+  rawset(api, key, value)
+  pfUI.env[key] = value
+end})
 
 PFUI_CLASS_COLORS = setmetatable({
   WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
@@ -202,44 +209,42 @@ function pfUI:UpdateFonts()
   end
 end
 
-local translations
+-- the locale table is built on the first call, which comes from the
+-- api files, after the locale files have loaded
 function pfUI:GetEnvironment()
-  -- load api into environment
-  for m, func in pairs(pfUI.api or {}) do
-    pfUI.env[m] = func
-  end
-
-  if pfUI_config and pfUI_config.global and pfUI_config.global.language and not translations then
-    local lang = pfUI_config and pfUI_config.global and pfUI_config.global.language and pfUI_translation[pfUI_config.global.language] and pfUI_config.global.language or GetLocale()
-    pfUI.env.T = setmetatable(pfUI_translation[lang] or {}, { __index = function(tab,key)
-      local value = tostring(key)
-      rawset(tab,key,value)
-      return value
-    end})
-    translations = true
-  end
-
-  pfUI.env._G = getfenv(0)
-  pfUI.env.C = pfUI_config
-  pfUI.env.pfUI_throttle = _G.pfUI_throttle
-  pfUI.env.L = (pfUI_locale[GetLocale()] or pfUI_locale["enUS"])
-  pfUI.env.L["class"] = pfUI.env.L["class"] or tInvert(LOCALIZED_CLASS_NAMES_MALE)
-  if not pfUI.env.L["race"] then
-      pfUI.env.L["race"] = {}
+  if not pfUI.env.L then
+    local L = pfUI_locale[GetLocale()] or pfUI_locale["enUS"]
+    L["class"] = L["class"] or tInvert(LOCALIZED_CLASS_NAMES_MALE)
+    if not L["race"] then
+      L["race"] = {}
       local i = 1
       local raceInfo = C_CreatureInfo.GetRaceInfo(i)
       while raceInfo ~= nil do
-          pfUI.env.L["race"][raceInfo.clientFileString] = {
-              raceName = raceInfo.raceName,
-              raceID = raceInfo.raceID,
-              faction = C_CreatureInfo.GetFactionInfo(i).groupTag,
-          }
-          i = i + 1
-          raceInfo = C_CreatureInfo.GetRaceInfo(i)
+        L["race"][raceInfo.clientFileString] = {
+          raceName = raceInfo.raceName,
+          raceID = raceInfo.raceID,
+          faction = C_CreatureInfo.GetFactionInfo(i).groupTag,
+        }
+        i = i + 1
+        raceInfo = C_CreatureInfo.GetRaceInfo(i)
       end
-   end
+    end
+    pfUI.env.L = L
+  end
 
   return pfUI.env
+end
+
+-- C and T read the saved config, so they are set once it has loaded
+local function SetupConfigEnvironment()
+  local language = pfUI_config.global.language
+  local lang = pfUI_translation[language] and language or GetLocale()
+  pfUI.env.T = setmetatable(pfUI_translation[lang] or {}, { __index = function(tab,key)
+    local value = tostring(key)
+    rawset(tab,key,value)
+    return value
+  end})
+  pfUI.env.C = pfUI_config
 end
 
 -- [ New Module Registry ]
@@ -382,6 +387,7 @@ pfUI:SetScript("OnEvent", function()
 
     pfUI:LoadConfig()
     pfUI:MigrateConfig()
+    SetupConfigEnvironment()
     pfUI:UpdateFonts()
 
     -- load modules

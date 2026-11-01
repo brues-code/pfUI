@@ -16,6 +16,22 @@ API_Check.lua
 
 pfUI.lua
 
+# Client strings: enUS always (the fallback), plus the client's own locale.
+env\locales_enUS.lua
+env\combatlog_enUS.lua
+env\locales_koKR.lua      [AllowLoadTextLocale koKR]
+env\combatlog_koKR.lua    [AllowLoadTextLocale koKR]
+env\locales_frFR.lua      [AllowLoadTextLocale frFR]
+env\combatlog_frFR.lua    [AllowLoadTextLocale frFR]
+env\locales_deDE.lua      [AllowLoadTextLocale deDE]
+env\combatlog_deDE.lua    [AllowLoadTextLocale deDE]
+env\locales_zhCN.lua      [AllowLoadTextLocale zhCN]
+env\combatlog_zhCN.lua    [AllowLoadTextLocale zhCN]
+env\locales_esES.lua      [AllowLoadTextLocale esES]
+env\combatlog_esES.lua    [AllowLoadTextLocale esES]
+env\locales_ruRU.lua      [AllowLoadTextLocale ruRU]
+env\combatlog_ruRU.lua    [AllowLoadTextLocale ruRU]
+
 init\env.xml
 init\api.xml
 init\libs.xml

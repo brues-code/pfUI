@@ -1,5 +1,3 @@
-pfUI.api = { }
-
 -- load pfUI environment
 setfenv(1, pfUI:GetEnvironment())
 
@@ -450,37 +448,32 @@ function pfUI.api.GetBagFamily(bag)
 end
 
 -- [ Abbreviate ]
--- Abbreviates a number from 1234 to 1.23k
+-- Abbreviates a number from 1234 to 1.23k, as the unitframes.abbrevnum
+-- setting asks: "0" full numbers, "1" 2 decimals (4250 -> 4.25k),
+-- "2" 1 decimal rounded down (4250 -> 4.2k)
 -- 'number'     [number]           the number that should be abbreviated
 -- 'returns:    [string]           the abbreviated value
+local function CreateAbbreviateFormatter(step, rounding)
+  local Down = Enum.NumericRuleFormatRounding.Down
+  local formatter = C_StringUtil.CreateNumericRuleFormatter()
+  formatter:SetBreakpoints({
+    { threshold = 0,       format = "%d",  components = { { step = 1, rounding = Down } } },
+    { threshold = 1000,    format = "%gk", components = { { div = 1000,    step = step, rounding = rounding } } },
+    { threshold = 1000000, format = "%gm", components = { { div = 1000000, step = step, rounding = rounding } } },
+  })
+  return formatter
+end
+
+local abbreviateFormatters = {
+  ["1"] = CreateAbbreviateFormatter(0.01, Enum.NumericRuleFormatRounding.Nearest),
+  ["2"] = CreateAbbreviateFormatter(0.1, Enum.NumericRuleFormatRounding.Down),
+}
+
 function pfUI.api.Abbreviate(number)
-  local mode = pfUI_config.unitframes.abbrevnum
-  -- mode "0" = disabled (full numbers)
-  -- mode "1" = 2 decimals (4250 -> 4.25k) [legacy/default]
-  -- mode "2" = 1 decimal (4250 -> 4.2k) - always rounds DOWN
-  
-  if mode == "1" or mode == "2" then
-    local sign = number < 0 and -1 or 1
-    number = math.abs(number)
-
-    if number > 1000000 then
-      if mode == "2" then
-        -- 1 decimal, round DOWN: 4.18m -> 4.1m
-        return (floor(number/100000) / 10 * sign) .. "m"
-      else
-        return pfUI.api.round(number/1000000*sign, 2) .. "m"
-      end
-    elseif number > 1000 then
-      if mode == "2" then
-        -- 1 decimal, round DOWN: 4180 -> 4.1k (not 4.2k)
-        return (floor(number/100) / 10 * sign) .. "k"
-      else
-        return pfUI.api.round(number/1000*sign, 2) .. "k"
-      end
-    end
-  end
-
-  return math.floor(number)
+  local formatter = abbreviateFormatters[pfUI_config.unitframes.abbrevnum]
+  if not formatter then return math.floor(number) end
+  if number < 0 then return "-" .. formatter:FormatNumber(-number) end
+  return formatter:FormatNumber(number)
 end
 
 -- [ SendChatMessageWide ]
