@@ -592,9 +592,7 @@ function pfUI.api.SkinDropDown(frame, cr, cg, cb, useSmall)
     CloseDropDownMenus()
   end
 
-  local funcc = button:GetScript("OnClick")
-  button:SetScript("OnClick", function()
-    if funcc then funcc() end
+  button:HookScript("OnClick", function()
     local DropDownListWidth = DropDownList1:GetWidth()
     local DropDownFrameWidth = frame.backdrop:GetWidth()
     if DropDownListWidth < DropDownFrameWidth then
