@@ -345,14 +345,16 @@ function pfUI:RegisterSkin(name, func, arg3)
   end
 end
 
+-- an error in one module or skin goes to the error handler without
+-- stopping the ones that load after it
 function pfUI:LoadModule(m)
   setfenv(pfUI.module[m], pfUI:GetEnvironment())
-  pfUI.module[m]()
+  securecallfunction(pfUI.module[m])
 end
 
 function pfUI:LoadSkin(s)
   setfenv(pfUI.skin[s], pfUI:GetEnvironment())
-  pfUI.skin[s]()
+  securecallfunction(pfUI.skin[s])
 end
 
 pfUI:SetScript("OnEvent", function()
