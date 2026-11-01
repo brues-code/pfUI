@@ -87,9 +87,7 @@ pfUI:RegisterSkin("Transmog", function ()
     end
   end
 
-  local origOnShow = TransmogFrame:GetScript("OnShow")
-  TransmogFrame:SetScript("OnShow", function()
-    if origOnShow then origOnShow() end
+  TransmogFrame:HookScript("OnShow", function()
     for i = 1, 20 do
       SkinLookButton(_G["TransmogFrameLook" .. i])
     end

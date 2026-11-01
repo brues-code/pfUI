@@ -257,20 +257,8 @@ function pfUI.api.SetHighlight(frame, cr, cg, cb)
   frame.rr, frame.rg, frame.rb, frame.ra = GetStringColor(pfUI_config.appearance.border.color)
 
   if not frame.pfEnterLeave then
-    local enter, leave = frame:GetScript("OnEnter"), frame:GetScript("OnLeave")
-
-    if enter then
-      frame:HookScript("OnEnter", SetHighlightEnter)
-    else
-      frame:SetScript("OnEnter", SetHighlightEnter)
-    end
-
-    if leave then
-      frame:HookScript("OnLeave", SetHighlightLeave)
-    else
-      frame:SetScript("OnLeave", SetHighlightLeave)
-    end
-
+    frame:HookScript("OnEnter", SetHighlightEnter, LE_SCRIPT_BINDING_TYPE_INTRINSIC_POSTCALL)
+    frame:HookScript("OnLeave", SetHighlightLeave, LE_SCRIPT_BINDING_TYPE_INTRINSIC_POSTCALL)
     frame.pfEnterLeave = true
   end
 end

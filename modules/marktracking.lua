@@ -258,9 +258,7 @@ pfUI.marktracking = CreateFrame("Frame", "pfMarkTracking", UIParent)
 
   -- Unlock mode: show fixed 1-row placeholder so positioning works correctly
   if pfUI.unlock then
-    local origShow = pfUI.unlock:GetScript("OnShow")
-    pfUI.unlock:SetScript("OnShow", function()
-      if origShow then origShow() end
+    pfUI.unlock:HookScript("OnShow", function()
       isUnlocked = true
       -- hide all rows, show container at 1-row height as drag handle
       for i = 1, 8 do
@@ -270,9 +268,7 @@ pfUI.marktracking = CreateFrame("Frame", "pfMarkTracking", UIParent)
       pfUI.marktracking:Show()
     end)
 
-    local origHide = pfUI.unlock:GetScript("OnHide")
-    pfUI.unlock:SetScript("OnHide", function()
-      if origHide then origHide() end
+    pfUI.unlock:HookScript("OnHide", function()
       isUnlocked = false
       UpdateDisplay()
     end)

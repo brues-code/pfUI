@@ -62,8 +62,7 @@ pfUI:RegisterSkin("Barbershop", function ()
   -- to prevent SetUnitDebuff crash (TargetFrame is hidden but scripts remain active)
   local savedOnEnter = {}
 
-  local origOnShow = BarbershopFrame:GetScript("OnShow")
-  BarbershopFrame:SetScript("OnShow", function()
+  BarbershopFrame:HookScript("OnShow", function()
     for i = 1, 16 do
       local debuff = _G["TargetFrameDebuff" .. i]
       if debuff then
@@ -71,17 +70,14 @@ pfUI:RegisterSkin("Barbershop", function ()
         debuff:SetScript("OnEnter", nil)
       end
     end
-    if origOnShow then origOnShow() end
-  end)
+  end, LE_SCRIPT_BINDING_TYPE_INTRINSIC_PRECALL)
 
-  local origOnHide = BarbershopFrame:GetScript("OnHide")
-  BarbershopFrame:SetScript("OnHide", function()
+  BarbershopFrame:HookScript("OnHide", function()
     for i = 1, 16 do
       local debuff = _G["TargetFrameDebuff" .. i]
       if debuff and savedOnEnter[i] then
         debuff:SetScript("OnEnter", savedOnEnter[i])
       end
     end
-    if origOnHide then origOnHide() end
-  end)
+  end, LE_SCRIPT_BINDING_TYPE_INTRINSIC_PRECALL)
 end)

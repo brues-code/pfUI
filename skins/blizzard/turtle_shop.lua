@@ -67,11 +67,7 @@ pfUI:RegisterSkin("Turtle Shop", function ()
   -- ============================================================
   SkinEntryFrames()
 
-  local origOnShow = ShopFrame:GetScript("OnShow")
-  ShopFrame:SetScript("OnShow", function()
-    if origOnShow then origOnShow() end
-    SkinEntryFrames()
-  end)
+  ShopFrame:HookScript("OnShow", SkinEntryFrames)
 
   -- ============================================================
   --  ShopDressUpFrame

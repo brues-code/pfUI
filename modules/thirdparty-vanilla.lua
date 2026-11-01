@@ -885,18 +885,15 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
     end
 
     -- hook events to include SuperMacro refreshs
-    local ButtonEnter = pfUI.bars[1][1]:GetScript("OnEnter")
     local function NewButtonEnter()
-      ButtonEnter()
-      local actionid = ActionButton_GetPagedID(this)
-      SM_ActionButton_SetTooltip(actionid)
+      SM_ActionButton_SetTooltip(ActionButton_GetPagedID(this))
     end
 
     -- reassign the new event handler
     for i=1,10 do
       for j=1,12 do
         pfUI.bars[i][j]:SetScript("OnEvent", NewButtonEvent)
-        pfUI.bars[i][j]:SetScript("OnEnter", NewButtonEnter)
+        pfUI.bars[i][j]:HookScript("OnEnter", NewButtonEnter)
       end
     end
 
@@ -1045,9 +1042,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
 
     if pfUI.uf.player then
       -- set tooltip function for player frame
-      local oldfunc = pfUI.uf.player:GetScript("OnEnter")
-      pfUI.uf.player:SetScript("OnEnter", function()
-        oldfunc()
+      pfUI.uf.player:HookScript("OnEnter", function()
         mrpDisplayTooltip("player", "PLAYER")
       end)
     end

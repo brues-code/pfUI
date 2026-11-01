@@ -96,12 +96,10 @@ end
 libpredict:RegisterEvent("PLAYER_ENTERING_WORLD")
 libpredict:RegisterEvent("RAID_ROSTER_UPDATE")
 libpredict:RegisterEvent("PARTY_MEMBERS_CHANGED")
-local origOnEvent = libpredict:GetScript("OnEvent")
-libpredict:SetScript("OnEvent", function()
+libpredict:HookScript("OnEvent", function()
   if event == "PLAYER_ENTERING_WORLD" or event == "RAID_ROSTER_UPDATE" or event == "PARTY_MEMBERS_CHANGED" then
     cacheRaidNames()
   end
-  if origOnEvent then origOnEvent() end
 end)
 
 -- Own cast-time spell started (heals + rez)
