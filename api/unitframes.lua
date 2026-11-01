@@ -19,11 +19,11 @@ local auraCorners = {
 }
 
 -- Flows the shown icons of an aura block outward from the frame edge, starting
--- `offset` away from it (its own row gap when nil): `perrow` icons per row,
--- each row as tall as its largest icon. The first `icons.own` icons are the
--- player's (C_UnitAuras lists them first) and use `icons.ownsize`. Returns the
--- offset just past the block's last row, where a block sharing the same corner
--- continues.
+-- `offset` away from it (its own row gap when nil) and shifted on screen by
+-- `offx`/`offy`: `perrow` icons per row, each row as tall as its largest icon.
+-- The first `icons.own` icons are the player's (C_UnitAuras lists them first)
+-- and use `icons.ownsize`. Returns the offset just past the block's last
+-- shifted row, where a block sharing the same corner continues.
 local function LayoutAuraBlock(unit, icons, offset)
   local corner = auraCorners[icons.pos]
   local anchor = unit.config.portraitheight ~= "-1" and unit.hp or unit
@@ -42,7 +42,7 @@ local function LayoutAuraBlock(unit, icons, offset)
     local size = i <= icons.own and icons.ownsize or icons.size
     icons[i]:SetSize(size, size)
     icons[i]:ClearAllPoints()
-    icons[i]:SetPoint(corner[1], anchor, icons.pos, corner[2] * x, corner[3] * offset)
+    icons[i]:SetPoint(corner[1], anchor, icons.pos, icons.offx + corner[2] * x, icons.offy + corner[3] * offset)
 
     x = x + size + icons.gapx
     if size > rowsize then rowsize = size end
@@ -50,7 +50,7 @@ local function LayoutAuraBlock(unit, icons, offset)
     i = i + 1
   end
 
-  if col > 0 then offset = offset + rowsize + icons.gapy end
+  if col > 0 then offset = offset + rowsize + icons.gapy + corner[3] * icons.offy end
   return offset
 end
 
@@ -877,6 +877,8 @@ function pfUI.uf:UpdateConfig()
     f.buffs.size = tonumber(f.config.buffsize)
     f.buffs.ownsize = f.config.ownbuffsize == "-1" and f.buffs.size or tonumber(f.config.ownbuffsize)
     f.buffs.perrow = tonumber(f.config.buffperrow)
+    f.buffs.offx = tonumber(f.config.buffoffx)
+    f.buffs.offy = tonumber(f.config.buffoffy)
     f.buffs.gapx = aura_border + tonumber(f.config.buffspacingx)
     f.buffs.gapy = aura_border + tonumber(f.config.buffspacingy)
     f.buffs.own = 0
@@ -927,6 +929,8 @@ function pfUI.uf:UpdateConfig()
     f.debuffs.size = tonumber(f.config.debuffsize)
     f.debuffs.ownsize = f.config.owndebuffsize == "-1" and f.debuffs.size or tonumber(f.config.owndebuffsize)
     f.debuffs.perrow = tonumber(f.config.debuffperrow)
+    f.debuffs.offx = tonumber(f.config.debuffoffx)
+    f.debuffs.offy = tonumber(f.config.debuffoffy)
     f.debuffs.gapx = aura_border + tonumber(f.config.debuffspacingx)
     f.debuffs.gapy = aura_border + tonumber(f.config.debuffspacingy)
     f.debuffs.own = 0
