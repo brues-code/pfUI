@@ -441,6 +441,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("unitframes", "raidpet",     "raidlayout",       "8x5")
   pfUI:UpdateConfig("unitframes", "raidpet",     "raidpadding",      "3")
   pfUI:UpdateConfig("unitframes", "raidpet",     "raidfill",         "VERTICAL")
+  pfUI:UpdateConfig("unitframes", "raid",        "raidreverse",      "0")
 
   pfUI:UpdateConfig("unitframes", "raid",        "portrait",         "off")
   pfUI:UpdateConfig("unitframes", "raid",        "width",            "50")
