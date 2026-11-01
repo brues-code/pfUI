@@ -1,11 +1,6 @@
 pfUI_locale["zhCN"] = {}
 
 
-pfUI_locale["zhCN"]["healduration"] = {
-  ["Rejuvenation"] = "使你的回春术的持续时间延长3秒。",
-  ["Renew"] = "使你的恢复术的持续时间延长3秒。",
-}
-
 pfUI_locale["zhCN"]["customcast"] = {
   ["AIMEDSHOT"] = "瞄准射击",
   ["MULTISHOT"] = "多重射击",

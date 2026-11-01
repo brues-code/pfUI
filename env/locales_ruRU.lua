@@ -1,11 +1,6 @@
 pfUI_locale["ruRU"] = {}
 
 
-pfUI_locale["ruRU"]["healduration"] = {
-  ["Rejuvenation"] = "Увеличивает время действия \"Омоложения\" на 3 сек.",
-  ["Renew"] = "Продлевает действие \"Обновления\" на 3 сек.",
-}
-
 pfUI_locale["ruRU"]["customcast"] = {
   ["AIMEDSHOT"] = "Прицельный выстрел",
   ["MULTISHOT"] = "Залп",

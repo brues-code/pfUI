@@ -632,7 +632,27 @@ end
 
 local realm = GetRealmName()
 local resetcache = CreateFrame("Frame")
-local hotsetbonus = libtipscan:GetScanner("hotsetbonus")
+
+-- set bonus spells that lengthen a HoT
+local REJUVENATION_SET_BONUS = 21871 -- Stormrage Raiment (8)
+local RENEW_SET_BONUS = 26171        -- Garments of the Oracle (5)
+
+-- the set bonus spells the equipped gear grants
+local function GetActiveSetBonuses()
+  local pieces = {}
+  for slot = 1, 19 do
+    local setID = C_Item.GetItemSetID({ equipmentSlotIndex = slot })
+    if setID then pieces[setID] = (pieces[setID] or 0) + 1 end
+  end
+
+  local active = {}
+  for setID, count in pairs(pieces) do
+    for _, bonus in ipairs(C_Item.GetItemSetInfo(setID).bonuses) do
+      if count >= bonus.threshold then active[bonus.spellID] = true end
+    end
+  end
+  return active
+end
 resetcache:RegisterEvent("PLAYER_ENTERING_WORLD")
 resetcache:RegisterEvent("LEARNED_SPELL_IN_TAB")
 resetcache:RegisterEvent("CHARACTER_POINTS_CHANGED")
@@ -657,19 +677,9 @@ resetcache:SetScript("OnEvent", function()
     if gear == gear_string then return end
     gear_string = gear
 
-    local setBonusCounter
-    setBonusCounter = 0
-    for i=1,10 do --there is no need to check slots above 10
-      hotsetbonus:SetInventoryItem("player", i)
-      if hotsetbonus:Find(L["healduration"]["Rejuvenation"]) then setBonusCounter = setBonusCounter + 1 end
-    end
-    rejuvDuration = setBonusCounter == 8 and 15 or 12
-    setBonusCounter = 0
-    for i =1,10 do
-      hotsetbonus:SetInventoryItem("player", i)
-      if hotsetbonus:Find(L["healduration"]["Renew"]) then setBonusCounter = setBonusCounter + 1 end
-    end
-    renewDuration = setBonusCounter == 5 and 18 or 15
+    local bonuses = GetActiveSetBonuses()
+    rejuvDuration = bonuses[REJUVENATION_SET_BONUS] and 15 or 12
+    renewDuration = bonuses[RENEW_SET_BONUS] and 18 or 15
   end
 
   -- flag all cached heals for renewal

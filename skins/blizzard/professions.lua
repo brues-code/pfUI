@@ -191,13 +191,19 @@ pfUI:RegisterSkin("Profession", function ()
         reagentlabel:SetPoint("TOPLEFT", seltitle, "BOTTOMLEFT", -45, -15)
         reagentlabel:SetTextColor(1,1,1,1)
 
-        local scanner = libtipscan:GetScanner(name)
+        -- the crafted item's tooltip, shown in the detail pane in place of
+        -- the recipe name; the pane's backdrop stands in for its own
+        local preview = CreateFrame("GameTooltip", "pfUI" .. name .. "ItemPreview", detailscrollchild, "GameTooltipTemplate")
+        preview:SetFrameStrata(detailscrollchild:GetFrameStrata())
+        preview:SetBackdrop(nil)
+
         hooksecurefunc(SetSelection, function(id)
           if id and id ~= 0 then
             detailscroll:Show()
             HandleIcon(icon, icon:GetNormalTexture())
 
             if name == "TradeSkill" then
+              preview:Hide()
               local itemlink  = GetTradeSkillItemLink(id)
               if not itemlink then return end
               local _, _, link = string.find(itemlink, "(item:%d+:%d+:%d+:%d+)")
@@ -206,13 +212,15 @@ pfUI:RegisterSkin("Profession", function ()
               reagentlabel:SetPoint("TOPLEFT", seltitle, "BOTTOMLEFT", -45, -15-off)
 
               if link then
-                scanner:SetHyperlink(link)
-                seltitle:SetHeight(0)
-                seltitle:SetText(scanner:FontString())
+                -- line text sits 10px inside the tooltip edge
+                preview:SetOwner(detailscrollchild, "ANCHOR_NONE")
+                preview:SetPoint("TOPLEFT", seltitle, "TOPLEFT", -10, 10)
+                preview:SetHyperlink(link)
 
-                if seltitle:GetHeight() < 30 then
-                  seltitle:SetHeight(35)
-                end
+                -- the title keeps its place in the layout as the spacer the
+                -- preview covers, so the reagents start below it
+                seltitle:SetText("")
+                seltitle:SetHeight(math.max(preview:GetHeight() - 20, 35))
               else
                 detailscroll:Hide()
               end

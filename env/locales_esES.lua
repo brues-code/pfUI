@@ -1,11 +1,6 @@
 pfUI_locale["esES"] = {}
 
 
-pfUI_locale["esES"]["healduration"] = {
-  ["Rejuvenation"] = "Aumenta 3 s la duración de tu hechizo Rejuvenecimiento.",
-  ["Renew"] = "Aumenta en 3 s la duración de tu hechizo Renovar.",
-}
-
 pfUI_locale["esES"]["customcast"] = {
   ["AIMEDSHOT"] = "Disparo de puntería",
   ["MULTISHOT"] = "Multidisparo",
