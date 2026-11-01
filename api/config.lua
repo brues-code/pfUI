@@ -1431,6 +1431,67 @@ function pfUI:MigrateConfig()
     pfUI_config.unitframes.always2dportrait = nil
   end
 
+  -- migrate the scattered cooldown settings into the cooldown table; keyed
+  -- on the old settings rather than the version, like the portrait style
+  local cooldown = pfUI_config.cooldown
+  local cd = pfUI_config.appearance.cd
+  if cd then
+    for _, entry in pairs({ "font", "font_size", "dynamicsize", "threshold", "milliseconds",
+      "lowcolor", "normalcolor", "minutecolor", "hourcolor", "daycolor" }) do
+      cooldown[entry] = cd[entry] or cooldown[entry]
+    end
+
+    cooldown.foreign.text = cd.foreign or cooldown.foreign.text
+    if cd.hideanim then
+      cooldown.foreign.animation = cd.hideanim == "1" and "0" or "1"
+    end
+
+    -- spellbook and character slots took the foreign sweep, and with the
+    -- Blizzard toggle off the foreign numbers too
+    cooldown.blizzard.animation = cooldown.foreign.animation
+    if cd.blizzard == "0" then
+      cooldown.blizzard.text = cooldown.foreign.text
+    end
+
+    pfUI_config.appearance.cd = nil
+  end
+
+  local function move(config, old, kind, entry)
+    if config[old] then
+      cooldown[kind][entry] = config[old]
+      config[old] = nil
+    end
+  end
+
+  move(pfUI_config.bars, "cooldown_reverse", "actionbar", "reverse")
+  move(pfUI_config.appearance.bags, "cooldown_reverse", "bags", "reverse")
+  move(pfUI_config.buffs, "cooldown_anim", "buff", "animation")
+  move(pfUI_config.buffs, "cooldown_reverse", "buff", "reverse")
+  move(pfUI_config.totems, "cooldown_reverse", "totem", "reverse")
+  move(pfUI_config.nameplates, "debufftext", "nameplate", "text")
+  move(pfUI_config.nameplates, "debuffanim", "nameplate", "animation")
+  move(pfUI_config.nameplates, "debreverse", "nameplate", "reverse")
+
+  if pfUI_config.nameplates.debufftimers == "0" then
+    cooldown.nameplate.text, cooldown.nameplate.animation = "0", "0"
+  end
+
+  -- one setting now covers every unit frame: the target frame's auras and
+  -- the raid frames' indicators stand for the rest
+  move(pfUI_config.unitframes.target, "cooldown_text", "unitframe", "text")
+  move(pfUI_config.unitframes.target, "cooldown_anim", "unitframe", "animation")
+  move(pfUI_config.unitframes.target, "cooldown_reverse", "unitframe", "reverse")
+  move(pfUI_config.unitframes.raid, "indicator_time", "indicator", "text")
+
+  for _, unit in pairs(pfUI_config.unitframes) do
+    if type(unit) == "table" then
+      unit.cooldown_text, unit.cooldown_anim, unit.cooldown_reverse, unit.indicator_time = nil, nil, nil, nil
+    end
+  end
+
+  pfUI_config.nameplates.debufftimers = nil
+  pfUI_config.bars.cd_size = nil
+
   -- Remove "Show only own debuffs" from unitframes and nameplates
   -- (feature was removed; only Target Debuff Bar in buffwatch keeps it)
   if pfUI_config.nameplates then
