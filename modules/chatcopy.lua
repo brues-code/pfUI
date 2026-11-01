@@ -85,10 +85,16 @@ pfUI:RegisterModule("chatcopy", function ()
 
         scroll:SetFont(frame:GetFont())
         scroll:SetText(text)
-
-        -- the cursor at the end scrolls the box to the newest line
         scroll:SetFocus()
         scroll:SetCursorPosition(#text)
+
+        -- the edit box lays the text out in this frame's update, so scroll to
+        -- the newest line after it; the caret only scrolls the focused box
+        RunNextFrame(function()
+          local scrollBox = scroll:GetScrollBox()
+          scrollBox:FullUpdate(ScrollBoxConstants.UpdateImmediately)
+          scrollBox:ScrollToEnd(ScrollBoxConstants.NoScrollInterpolation)
+        end)
       end)
 
       frame.scroll = scroll
