@@ -85,7 +85,7 @@ pfUI:RegisterModule("radar", function ()
     for _, yards in ipairs(RANGES) do
       rootDescription:CreateRadio(yards .. " yd", IsRange, SetRange, yards)
     end
-    rootDescription:CreateDivider()
+    CreateMenuDivider(rootDescription)
     rootDescription:CreateButton(HIDE, function() radar:Hide() end)
   end
 

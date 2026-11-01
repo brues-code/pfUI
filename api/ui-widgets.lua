@@ -86,6 +86,25 @@ do
   end
 end
 
+-- [ CreateMenuDivider ]
+-- Adds a divider to a pfUIMenuStyleMixin menu: a 1px line in the border
+-- color in place of the stock divider art. The style itself cannot do this,
+-- as menu entries draw their own art.
+-- 'description'  [table]   the menu description to add the divider to
+-- returns:       [table]   the divider's element description
+do
+  local function SkinDivider(frame)
+    frame.divider:SetHeight(1)
+    frame.divider:SetColorTexture(GetStringColor(pfUI_config.appearance.border.color))
+  end
+
+  function pfUI.api.CreateMenuDivider(description)
+    local divider = description:CreateDivider()
+    divider:AddInitializer(SkinDivider)
+    return divider
+  end
+end
+
 -- [ pfUIDropdownTemplate ]
 -- Mixin of the template in ui-widgets.xml: a dropdown that shows its selection
 -- as text, with pfUI's arrow box at the right.
