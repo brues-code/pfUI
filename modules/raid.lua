@@ -81,6 +81,7 @@ pfUI:RegisterModule("raid", function ()
     local layout = pfUI.uf.raid[1].config.raidlayout
     local padding = tonumber(pfUI.uf.raid[1].config.raidpadding)*GetPerfectPixel()
     local fill = pfUI.uf.raid[1].config.raidfill
+    local reverse = pfUI.uf.raid[1].config.raidreverse == "1"
     local _, _, x, y = string.find(layout,"(.+)x(.+)")
     x, y = tonumber(x), tonumber(y)
 
@@ -98,8 +99,9 @@ pfUI:RegisterModule("raid", function ()
     if fill == "VERTICAL" then
       for r=1, x do for g=1, y do
         if pfUI.uf.raid[i] then
+          local col = reverse and (x-r) or (r-1)
           pfUI.uf.raid[i]:ClearAllPoints()
-          pfUI.uf.raid[i]:SetPoint("BOTTOMLEFT", (r-1)*(padding+width), (g-1)*(padding+height))
+          pfUI.uf.raid[i]:SetPoint("BOTTOMLEFT", col*(padding+width), (g-1)*(padding+height))
           UpdateMovable(pfUI.uf.raid[i], true)
         end
         i = i + 1
@@ -107,8 +109,9 @@ pfUI:RegisterModule("raid", function ()
     else
       for g=1, y do for r=1, x do
         if pfUI.uf.raid[i] then
+          local col = reverse and (x-r) or (r-1)
           pfUI.uf.raid[i]:ClearAllPoints()
-          pfUI.uf.raid[i]:SetPoint("BOTTOMLEFT", (r-1)*(padding+width), (g-1)*(padding+height))
+          pfUI.uf.raid[i]:SetPoint("BOTTOMLEFT", col*(padding+width), (g-1)*(padding+height))
           UpdateMovable(pfUI.uf.raid[i], true)
         end
         i = i + 1
