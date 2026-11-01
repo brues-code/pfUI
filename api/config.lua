@@ -1453,6 +1453,10 @@ function pfUI:MigrateConfig()
       cooldown.blizzard.text = cooldown.foreign.text
     end
 
+    -- pfUI drew its own numbers before; the native countdown shows them
+    -- only with this cvar on, which only the first-run setup sets
+    SetCVar("countdownForCooldowns", "1")
+
     pfUI_config.appearance.cd = nil
   end
 
