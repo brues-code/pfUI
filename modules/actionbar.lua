@@ -967,8 +967,6 @@ pfUI:RegisterModule("actionbar", function ()
     local bind_size = tonumber(C.bars.bind_size)
     local bind_color = { GetStringColor(C.bars.bind_color) }
 
-    local cd_size = tonumber(C.bars.cd_size)
-
     local showempty = C.bars["bar"..bar].showempty
     local showmacro = C.bars["bar"..bar].showmacro
     local showkybind = C.bars["bar"..bar].showkeybind
@@ -978,7 +976,6 @@ pfUI:RegisterModule("actionbar", function ()
     if macro_size == 0 then macro_size = 1 end
     if count_size == 0 then macro_size = 1 end
     if bind_size == 0 then macro_size = 1 end
-    if cd_size == 0 then cd_size = nil end
 
     local button_name = "pfActionBar" .. barnames[bar] .. "Button" .. button
 
@@ -1010,11 +1007,7 @@ pfUI:RegisterModule("actionbar", function ()
       f.slot = id
 
       -- cooldown
-      f.cd = CreateFrame("Cooldown", f:GetName() .. "Cooldown", f, "CooldownFrameTemplate")
-      f.cd.pfCooldownStyleAnimation = 1
-      f.cd:SetReverse(C.bars.cooldown_reverse == "1")
-      f.cd.pfCooldownType = "NOGCD"
-      f.cd.pfCooldownSize = cd_size
+      f.cd = CreateCooldown(f, "actionbar", f:GetName() .. "Cooldown")
 
       -- icon
       f.icon = f:CreateTexture(button_name .. "Icon", "BACKGROUND")

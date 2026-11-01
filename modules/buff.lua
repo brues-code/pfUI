@@ -16,6 +16,25 @@ pfUI:RegisterModule("buff", function ()
     ScanAuraSlots("player", "HARMFUL", harmfulSlots, 16)
   end
 
+  -- weapon enchants report only their time left, and no event as their
+  -- charges and time run down, so the OnUpdate below refreshes their buttons
+  -- too: the charges, and the timer when the enchant was renewed
+  local function RefreshWeaponButton(buff, timeleft, charges)
+    timeleft = (timeleft or 0) / 1000
+    charges = charges or 0
+    buff.stacks:SetText(charges > 1 and charges or "")
+
+    local expires = GetTime() + timeleft
+    if timeleft <= 0 then
+      buff.cd:Clear()
+      buff.cdExpires = nil
+    elseif not buff.cdExpires or abs(buff.cdExpires - expires) > 1 then
+      SetCooldownTimeLeft(buff.cd, timeleft)
+      buff.cdExpires = expires
+    end
+    buff.cdStart = nil
+  end
+
   local function RefreshBuffButton(buff)
     if buff.btype == "HELPFUL" then
       if C.buffs.separateweapons == "1" then
@@ -57,21 +76,22 @@ pfUI:RegisterModule("buff", function ()
           end
         end
 
-      -- Set Weapon Texture and Border
+      -- Set Weapon Texture, Border and Timer
       if buff.mode == "MAINHAND" then
         buff.texture:SetTexture(GetInventoryItemTexture("player", 16))
         buff.backdrop:SetBackdropBorderColor(GetItemQualityColor(GetInventoryItemQuality("player", 16) or 1))
+        RefreshWeaponButton(buff, mhtime, mhcharge)
       elseif buff.mode == "OFFHAND" then
         buff.texture:SetTexture(GetInventoryItemTexture("player", 17))
         buff.backdrop:SetBackdropBorderColor(GetItemQualityColor(GetInventoryItemQuality("player", 17) or 1))
+        RefreshWeaponButton(buff, ohtime, ohcharge)
       end
     elseif name and (( buff.btype == "HARMFUL" and C.buffs.debuffs == "1" ) or ( buff.btype == "HELPFUL" and C.buffs.buffs == "1" )) then
       -- Set Buff Texture and Border
       buff.mode = buff.btype
-      buff.expirationTime = expirationTime
-      buff.stackCount = count
       buff.spellId = spellId
       buff.texture:SetTexture(icon)
+      buff.stacks:SetText((count or 0) > 1 and count or "")
 
       if buff.btype == "HARMFUL" then
         local dispelColor = C_UnitAuras.GetAuraDispelTypeColor(dispelType)
@@ -79,31 +99,21 @@ pfUI:RegisterModule("buff", function ()
       else
         buff.backdrop:SetBackdropBorderColor(br,bg,bb,ba)
       end
+
+      -- start the timer from the aura's duration; permanent auras have none
+      local start, dur = GetAuraTimer(duration, expirationTime)
+      if dur <= 0 then
+        buff.cd:Clear()
+        buff.cdStart = nil
+      elseif buff.cdStart == nil or abs(buff.cdStart - start) > .5 or buff.cdDuration ~= dur then
+        CooldownFrame_SetTimer(buff.cd, start, dur, 1)
+        buff.cdStart = start
+        buff.cdDuration = dur
+      end
+      buff.cdExpires = nil
     else
       buff:Hide()
       return
-    end
-
-    -- drive the sweep from the aura duration (weapon enchants and permanent
-    -- auras report no usable total, so those buttons stay text-only)
-    if C.buffs.cooldown_anim == "1" and buff.mode == buff.btype and duration and duration > 0 and expirationTime and expirationTime > 0 then
-      local now = GetTime()
-      local timeleft = expirationTime - now
-      if timeleft > 0 then
-        local effDuration = duration > timeleft and duration or timeleft
-        local newStart = now + timeleft - effDuration
-        if buff.cdStart == nil or abs(buff.cdStart - newStart) > .5 or buff.cdDuration ~= effDuration then
-          buff.cd:SetCooldown(newStart, effDuration)
-          buff.cdStart = newStart
-          buff.cdDuration = effDuration
-        end
-      else
-        buff.cd:Clear()
-        buff.cdStart = nil
-      end
-    else
-      buff.cd:Clear()
-      buff.cdStart = nil
     end
 
     buff:Show()
@@ -128,16 +138,11 @@ pfUI:RegisterModule("buff", function ()
     buff.texture:SetTexCoord(.07,.93,.07,.93)
     buff.texture:SetAllPoints(buff)
 
-    -- overlay lifts the texts above the sweep: a child frame renders above
-    -- all of its parent's own regions, so the timer would dim under the
-    -- dark wedge otherwise
+    -- overlay lifts the stacks above the sweep: a child frame renders above
+    -- all of its parent's own regions, so they would dim under the dark
+    -- wedge otherwise
     buff.overlay = CreateFrame("Frame", nil, buff)
     buff.overlay:SetAllPoints(buff)
-
-    buff.timer = buff.overlay:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    buff.timer:SetTextColor(1,1,1,1)
-    buff.timer:SetJustifyH("CENTER")
-    buff.timer:SetJustifyV("CENTER")
 
     buff.stacks = buff.overlay:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     buff.stacks:SetTextColor(1,1,1,1)
@@ -145,12 +150,9 @@ pfUI:RegisterModule("buff", function ()
     buff.stacks:SetJustifyV("BOTTOM")
     buff.stacks:SetAllPoints(buff)
 
-    -- radial sweep (the template covers the button and starts hidden).
-    -- RefreshBuffButton drives it through the frame's own methods, never
-    -- CooldownFrame_SetTimer, so the cooldown module's hook leaves it alone;
-    -- text stays with buff.timer, so the frame's own numbers are hidden
-    buff.cd = CreateFrame("Cooldown", buttonName .. "Cooldown", buff, "CooldownFrameTemplate")
-    buff.cd:SetHideCountdownNumbers(true)
+    -- the sweep and the duration numbers (the template covers the button and
+    -- starts hidden); RefreshBuffButton starts its timer
+    buff.cd = CreateCooldown(buff, "buff", buttonName .. "Cooldown")
     buff.cd:SetFrameLevel(buff:GetFrameLevel() + 1)
     buff.overlay:SetFrameLevel(buff:GetFrameLevel() + 2)
 
@@ -230,66 +232,24 @@ pfUI:RegisterModule("buff", function ()
     end
   end)
 
-  -- PERF: Consolidated OnUpdate handler for all buff timers
-  -- This replaces 50 individual OnUpdate handlers with a single one
+  -- the buttons that can show a weapon enchant: the first two buffs, or the
+  -- separate weapon buttons
+  local weaponButtons
+
+  -- weapon enchants, see RefreshWeaponButton
   pfUI.buff:SetScript("OnUpdate", function()
     local now = GetTime()
     if not this.nextUpdate then this.nextUpdate = now + 0.1 end
     if this.nextUpdate > now then return end
     this.nextUpdate = now + 0.1
 
-    -- Cache weapon enchant info once per update cycle
-    local mh, mhtime, mhcharge, oh, ohtime, ohcharge = GetWeaponEnchantInfo()
-
-    -- Update all visible buff buttons
-    local buttons = pfUI.buff.buffs.buttons
-    for i = 1, 32 do
-      local buff = buttons[i]
+    local _, mhtime, mhcharge, _, ohtime, ohcharge = GetWeaponEnchantInfo()
+    for _, buff in ipairs(weaponButtons) do
       if buff:IsShown() then
-        local timeleft, stacks = 0, 0
-        if buff.mode == buff.btype then
-          timeleft = buff.expirationTime > 0 and (buff.expirationTime - now) or 0
-          stacks = buff.stackCount or 0
-        elseif buff.mode == "MAINHAND" then
-          timeleft = mhtime and mhtime / 1000 or 0
-          stacks = mhcharge or 0
+        if buff.mode == "MAINHAND" then
+          RefreshWeaponButton(buff, mhtime, mhcharge)
         elseif buff.mode == "OFFHAND" then
-          timeleft = ohtime and ohtime / 1000 or 0
-          stacks = ohcharge or 0
-        end
-        buff.timer:SetText(timeleft > 0 and GetColoredTimeString(timeleft) or "")
-        buff.stacks:SetText(stacks > 1 and stacks or "")
-      end
-    end
-
-    -- Update all visible debuff buttons
-    buttons = pfUI.buff.debuffs.buttons
-    for i = 1, 16 do
-      local buff = buttons[i]
-      if buff:IsShown() then
-        local timeleft = buff.expirationTime > 0 and (buff.expirationTime - now) or 0
-        local stacks = buff.stackCount or 0
-        buff.timer:SetText(timeleft > 0 and GetColoredTimeString(timeleft) or "")
-        buff.stacks:SetText(stacks > 1 and stacks or "")
-      end
-    end
-
-    -- Update weapon buff buttons if separate
-    if C.buffs.separateweapons == "1" then
-      buttons = pfUI.buff.wepbuffs.buttons
-      for i = 1, 2 do
-        local buff = buttons[i]
-        if buff:IsShown() then
-          local timeleft, stacks = 0, 0
-          if buff.mode == "MAINHAND" then
-            timeleft = mhtime and mhtime / 1000 or 0
-            stacks = mhcharge or 0
-          elseif buff.mode == "OFFHAND" then
-            timeleft = ohtime and ohtime / 1000 or 0
-            stacks = ohcharge or 0
-          end
-          buff.timer:SetText(timeleft > 0 and GetColoredTimeString(timeleft) or "")
-          buff.stacks:SetText(stacks > 1 and stacks or "")
+          RefreshWeaponButton(buff, ohtime, ohcharge)
         end
       end
     end
@@ -320,53 +280,55 @@ pfUI:RegisterModule("buff", function ()
     pfUI.buff.debuffs.buttons[i] = CreateBuffButton(i, "HARMFUL")
   end
 
+  weaponButtons = {
+    pfUI.buff.buffs.buttons[1], pfUI.buff.buffs.buttons[2],
+    pfUI.buff.wepbuffs.buttons[1], pfUI.buff.wepbuffs.buttons[2],
+  }
+
   -- config loading
   function pfUI.buff:UpdateConfigBuffButton(buff)
     local fontsize = C.buffs.fontsize == "-1" and C.global.font_size or C.buffs.fontsize
     local buffSize, buffSpacing = tonumber(C.buffs.size), tonumber(C.buffs.spacing)
+    local rowextra = C.buffs.textinside == "1" and 0 or GetCooldownFontSize(buffSize) * 1.5
     local rowcount, relFrame, offsetX, offsetY
     if buff.btype == "HELPFUL" then
       if buff.weapon == 1 and C.buffs.separateweapons == "1" then
         rowcount = floor((buff.gid-1) / tonumber(C.buffs.wepbuffrowsize))
         relFrame = pfUI.buff.wepbuffs
         offsetX = -(buff.gid-1-rowcount*tonumber(C.buffs.wepbuffrowsize))*(buffSize+2*buffSpacing)
-        offsetY = -(rowcount) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+buffSize+2*buffSpacing)
+        offsetY = -(rowcount) * (rowextra+buffSize+2*buffSpacing)
       else
         rowcount = floor((buff.gid-1) / tonumber(C.buffs.buffrowsize))
         relFrame = pfUI.buff.buffs
         offsetX = -(buff.gid-1-rowcount*tonumber(C.buffs.buffrowsize))*(buffSize+2*buffSpacing)
-        offsetY = -(rowcount) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+buffSize+2*buffSpacing)
+        offsetY = -(rowcount) * (rowextra+buffSize+2*buffSpacing)
       end
     else
       rowcount = floor((buff.gid-1) / tonumber(C.buffs.debuffrowsize))
       relFrame = pfUI.buff.debuffs
       offsetX = -(buff.gid-1-rowcount*tonumber(C.buffs.debuffrowsize))*(buffSize+2*buffSpacing)
-      offsetY = -(rowcount) * ((C.buffs.textinside == "1" and 0 or (fontsize*1.5))+buffSize+2*buffSpacing)
+      offsetY = -(rowcount) * (rowextra+buffSize+2*buffSpacing)
     end
     buff:SetSize(buffSize, buffSize)
-    buff.cd:SetReverse(C.buffs.cooldown_reverse == "1")
     buff:ClearAllPoints()
     buff:SetPoint("TOPRIGHT", relFrame, "TOPRIGHT",offsetX, offsetY)
 
-    buff.timer:SetFont(pfUI.font_default, fontsize, "OUTLINE")
     buff.stacks:SetFont(pfUI.font_default, fontsize+1, "OUTLINE")
 
-    buff.timer:SetHeight(fontsize * 1.3)
-
-    buff.timer:ClearAllPoints()
+    -- the duration numbers sit inside the icon or below it
+    local countdown = buff.cd:GetCountdownFontString()
+    countdown:ClearAllPoints()
     if C.buffs.textinside == "1" then
-      buff.timer:SetAllPoints(buff)
+      countdown:SetPoint("CENTER", buff, "CENTER", 0, 0)
     else
-      buff.timer:SetPoint("TOP", buff, "BOTTOM", 0, -3)
+      countdown:SetPoint("TOP", buff, "BOTTOM", 0, -3)
     end
   end
 
   function pfUI.buff:UpdateConfig()
-    local fontsize = C.buffs.fontsize == "-1" and C.global.font_size or C.buffs.fontsize
-
     local spacing  = tonumber(C.buffs.spacing)
     local cell     = tonumber(C.buffs.size) + 2 * spacing
-    local rowextra = C.buffs.textinside == "1" and 0 or (fontsize * 1.5)
+    local rowextra = C.buffs.textinside == "1" and 0 or GetCooldownFontSize(tonumber(C.buffs.size)) * 1.5
 
     local function SizeBuffFrame(frame, rowsize, count)
       rowsize = tonumber(rowsize)

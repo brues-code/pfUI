@@ -199,8 +199,7 @@ pfUI:RegisterSkin("Character", function ()
       -- name only while that global is unset, so the global is rebound by
       -- hand; the Model starts hidden and nothing reaches it after that
       local cdname = "Character"..slotName.."Cooldown"
-      _G[cdname] = CreateFrame("Cooldown", cdname, frame, "CooldownFrameTemplate")
-      _G[cdname].pfCooldownType = C.appearance.cd.blizzard == "1" and "BLIZZARD" or nil
+      _G[cdname] = CreateCooldown(frame, "blizzard", cdname)
 
       CreateFontString(frame, "scoreText", "OVERLAY", 12)
       frame.scoreText:SetPoint("TOPRIGHT", 0, 0)

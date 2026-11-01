@@ -69,23 +69,6 @@ local function LayoutAuras(unit, unitstr)
   end
 end
 
--- Returns the cooldown start and duration of an aura, 0, 0 when it has none.
--- Start is capped to now: talent-extended auras run past their Spell.dbc base
--- duration, and a start in the future trips the cooldown text's 2^32
--- wraparound branch.
-local function AuraTimer(duration, expirationTime)
-  if expirationTime <= 0 then return 0, 0 end
-
-  local now = GetTime()
-  local start, dur = expirationTime - duration, duration
-  if start > now or dur <= 0 then
-    start, dur = now, expirationTime - now
-  end
-
-  if dur <= 0 then return 0, 0 end
-  return start, dur
-end
-
 -- Starts the timers RefreshUnit stored on the shown icons of an aura block.
 local function StartAuraTimers(icons)
   if not icons then return end
@@ -109,7 +92,7 @@ local function RetimeAuras(icons, unitstr)
     local _, _, count, _, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, icons[i].slot)
     if count then
       icons[i].stacks:SetText(count > 1 and count or "")
-      icons[i].auraStart, icons[i].auraDuration = AuraTimer(duration, expirationTime)
+      icons[i].auraStart, icons[i].auraDuration = GetAuraTimer(duration, expirationTime)
     end
     i = i + 1
   end
@@ -550,10 +533,6 @@ function pfUI.uf:UpdateConfig()
   -- aura icon backdrops sit outside the icon, so gaps clear both borders
   local aura_border = (C.appearance.border.force_blizz == "1" and 1 or 2) * default_border
 
-  local cooldown_text = tonumber(f.config.cooldown_text)
-  local cooldown_anim = tonumber(f.config.cooldown_anim)
-  local cooldown_reverse = f.config.cooldown_reverse == "1"
-
   local relative_point = "BOTTOM"
   if f.config.panchor == "TOPLEFT" then
      relative_point = "BOTTOMLEFT"
@@ -920,17 +899,8 @@ function pfUI.uf:UpdateConfig()
       f.buffs[i]:SetFrameLevel(12)
       f.buffs[i]:RegisterForClicks("RightButtonUp")
 
-      f.buffs[i].cd = f.buffs[i].cd or CreateFrame("Cooldown", f.buffs[i]:GetName() .. "Cooldown", f.buffs[i], "CooldownFrameTemplate")
+      f.buffs[i].cd = f.buffs[i].cd or CreateCooldown(f.buffs[i], "unitframe", f.buffs[i]:GetName() .. "Cooldown")
       f.buffs[i].cd:SetFrameLevel(14)
-      f.buffs[i].cd.pfCooldownType = "ALL"
-      f.buffs[i].cd.pfCooldownStyleText = cooldown_text
-      f.buffs[i].cd.pfCooldownStyleAnimation = cooldown_anim
-      f.buffs[i].cd:SetDrawSwipe(cooldown_anim == 1)
-      f.buffs[i].cd:SetDrawBling(cooldown_anim == 1)
-      f.buffs[i].cd:SetReverse(cooldown_reverse)
-
-      -- immediately show/hide existing cooldown text
-      f.buffs[i].cd:SetHideCountdownNumbers(cooldown_text == 0)
 
       f.buffs[i].id = i
       f.buffs[i]:Hide()
@@ -980,17 +950,8 @@ function pfUI.uf:UpdateConfig()
       f.debuffs[i]:RegisterForClicks("RightButtonUp")
       f.debuffs[i]:SetNormalTexture(nil)
       
-      f.debuffs[i].cd = f.debuffs[i].cd or CreateFrame("Cooldown", f.debuffs[i]:GetName() .. "Cooldown", f.debuffs[i], "CooldownFrameTemplate")
+      f.debuffs[i].cd = f.debuffs[i].cd or CreateCooldown(f.debuffs[i], "unitframe", f.debuffs[i]:GetName() .. "Cooldown")
       f.debuffs[i].cd:SetFrameLevel(14)
-      f.debuffs[i].cd.pfCooldownType = "ALL"
-      f.debuffs[i].cd.pfCooldownStyleText = cooldown_text
-      f.debuffs[i].cd.pfCooldownStyleAnimation = cooldown_anim
-      f.debuffs[i].cd:SetDrawSwipe(cooldown_anim == 1)
-      f.debuffs[i].cd:SetDrawBling(cooldown_anim == 1)
-      f.debuffs[i].cd:SetReverse(cooldown_reverse)
-
-      -- immediately show/hide existing cooldown text
-      f.debuffs[i].cd:SetHideCountdownNumbers(cooldown_text == 0)
 
       f.debuffs[i].id = i
       f.debuffs[i]:Hide()
@@ -1936,7 +1897,7 @@ function pfUI.uf:RefreshUnit(unit, component)
           unit.buffs[i].stacks:SetText("")
         end
 
-        unit.buffs[i].auraStart, unit.buffs[i].auraDuration = AuraTimer(duration, expirationTime)
+        unit.buffs[i].auraStart, unit.buffs[i].auraDuration = GetAuraTimer(duration, expirationTime)
       else
         unit.buffs[i]:Hide()
       end
@@ -1980,7 +1941,7 @@ function pfUI.uf:RefreshUnit(unit, component)
         unit.debuffs[i].slot = auraSlots[i]
         unit.debuffs[i]:Show()
 
-        unit.debuffs[i].auraStart, unit.debuffs[i].auraDuration = AuraTimer(duration, expirationTime)
+        unit.debuffs[i].auraStart, unit.debuffs[i].auraDuration = GetAuraTimer(duration, expirationTime)
 
         if stacks > 1 then
           unit.debuffs[i].stacks:SetText(stacks)
@@ -2151,7 +2112,7 @@ function pfUI.uf:RefreshUnit(unit, component)
     if table.getn(unit.indicators) > 0 then
       local n = ScanAuraSlots(unitstr, "HELPFUL", auraSlots)
       for i=1,n do
-        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
+        local name, icon, count, _, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if not name then break end
         local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
 
@@ -2161,7 +2122,7 @@ function pfUI.uf:RefreshUnit(unit, component)
               local start, duration, prediction = libpredict:GetHotDuration(unitstr, filter.predict)
               pfUI.uf:AddIcon(unit, pos, icon, timeleft or prediction, count, tonumber(start), tonumber(duration))
             else
-              pfUI.uf:AddIcon(unit, pos, icon, timeleft, count)
+              pfUI.uf:AddIcon(unit, pos, icon, timeleft, count, GetAuraTimer(duration, expirationTime))
             end
             pos = pos + 1
             break
@@ -2173,13 +2134,13 @@ function pfUI.uf:RefreshUnit(unit, component)
     if table.getn(unit.indicator_custom) > 0 then
       local n = ScanAuraSlots(unitstr, "HELPFUL", auraSlots)
       for i=1,n do
-        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
+        local name, icon, count, _, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if not name then break end
         local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
         local lowerName = name:lower()
         for _, filter in pairs(unit.indicator_custom) do
           if filter == lowerName then
-            pfUI.uf:AddIcon(unit, pos, icon, timeleft, count)
+            pfUI.uf:AddIcon(unit, pos, icon, timeleft, count, GetAuraTimer(duration, expirationTime))
             pos = pos + 1
             break
           end
@@ -2189,12 +2150,12 @@ function pfUI.uf:RefreshUnit(unit, component)
       local debuffFilter = unit.config.selfdebuff == "1" and "HARMFUL|PLAYER" or "HARMFUL"
       n = ScanAuraSlots(unitstr, debuffFilter, auraSlots)
       for i=1,n do -- scan for custom debuffs
-        local name, icon, count, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
+        local name, icon, count, _, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
         if name then
           local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
           for _, filter in pairs(unit.indicator_custom) do
             if filter == name:lower() then
-              pfUI.uf:AddIcon(unit, pos, icon, timeleft, count)
+              pfUI.uf:AddIcon(unit, pos, icon, timeleft, count, GetAuraTimer(duration, expirationTime))
               pos = pos + 1
               break
             end
@@ -2425,7 +2386,6 @@ function pfUI.uf:EnableClickCast()
 end
 
 function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
-  local showtime = frame.config.indicator_time == "1" and true or nil
   local showstacks = frame.config.indicator_stacks == "1" and true or nil
   local position = frame.config.indicator_pos or "TOPLEFT"
   local iconsize = tonumber(frame.config.indicator_size)
@@ -2448,11 +2408,7 @@ function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
     frame.icon[pos].stacks:SetJustifyH("RIGHT")
     frame.icon[pos].stacks:SetJustifyV("BOTTOM")
 
-    frame.icon[pos].cd = CreateFrame("Cooldown", nil, frame.icon[pos], "CooldownFrameTemplate")
-    frame.icon[pos].cd.pfCooldownStyleAnimation = 0
-    frame.icon[pos].cd:SetDrawSwipe(false)
-    frame.icon[pos].cd:SetDrawBling(false)
-    frame.icon[pos].cd.pfCooldownType = "ALL"
+    frame.icon[pos].cd = CreateCooldown(frame.icon[pos], "indicator")
     frame.icon[pos].cd:SetFrameLevel(48)
   end
 
@@ -2471,11 +2427,12 @@ function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
     frame.icon[pos].icon = icon
   end
 
-  -- show remaining time if config is set
-  if showtime and start and duration and timeleft < 100 and iconsize > 9 then
+  -- start the timer from the aura's duration, or from its time left alone
+  -- when a prediction has no duration; icons this small have no room for it
+  if iconsize > 9 and duration and duration > 0 then
     CooldownFrame_SetTimer(frame.icon[pos].cd, start, duration, 1)
-  elseif showtime and timeleft and timeleft < 100 and iconsize > 9 then
-    CooldownFrame_SetTimer(frame.icon[pos].cd, GetTime(), timeleft, 1)
+  elseif iconsize > 9 and timeleft and timeleft > 0 then
+    SetCooldownTimeLeft(frame.icon[pos].cd, timeleft)
   else
     CooldownFrame_SetTimer(frame.icon[pos].cd, GetTime(), 0, 1)
   end

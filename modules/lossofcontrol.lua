@@ -34,10 +34,8 @@ pfUI:RegisterModule("lossofcontrol", function ()
   frame.icon.tex = frame.icon:CreateTexture(nil, "ARTWORK")
   HandleIcon(frame.icon, frame.icon.tex)
 
-  frame.cd = CreateFrame("Cooldown", nil, frame.icon, "CooldownFrameTemplate")
+  frame.cd = CreateCooldown(frame.icon, "lossofcontrol")
   frame.cd:SetAllPoints(frame.icon.tex)
-  frame.cd.pfCooldownStyleAnimation = 1
-  frame.cd.pfCooldownType = "ALL"
 
   frame.label = frame:CreateFontString(nil, "OVERLAY")
   frame.label:SetFont(pfUI.font_default, 20, "OUTLINE")

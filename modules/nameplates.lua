@@ -155,8 +155,6 @@ pfUI:RegisterModule("nameplates", function ()
     cfg.use_unitfonts = C.nameplates.use_unitfonts == "1"
     cfg.font_size = cfg.use_unitfonts and C.global.font_unit_size or C.global.font_size
     cfg.hptextformat = C.nameplates.hptextformat
-    -- NEW: Cache debuff config
-    cfg.debufftimers = C.nameplates.debufftimers == "1"
 
     -- Throttle delays, resolved once instead of per plate per tick.
     -- libthrottle:Get walks the saved-variable table, a defaults fallback and a
@@ -438,11 +436,8 @@ pfUI:RegisterModule("nameplates", function ()
     plate.debuffs[index].stacks:SetJustifyV("BOTTOM")
     plate.debuffs[index].stacks:SetTextColor(1,1,0)
 
-    plate.debuffs[index].cd = CreateFrame("Cooldown", plate.platename.."Debuff"..index.."Cooldown", plate.debuffs[index], "CooldownFrameTemplate")
+    plate.debuffs[index].cd = CreateCooldown(plate.debuffs[index], "nameplate", plate.platename.."Debuff"..index.."Cooldown")
     plate.debuffs[index].cd:SetFrameLevel(6)
-    -- the display settings come from UpdateDebuffConfig, which runs for
-    -- every new icon before its first timer
-    plate.debuffs[index].cd.pfCooldownType = "ALL"
   end
 
   local function UpdateDebuffConfig(nameplate, i)
@@ -475,16 +470,6 @@ pfUI:RegisterModule("nameplates", function ()
     end
 
     nameplate.debuffs[i]:SetSize(debuffsize, debuffsize)
-    
-    -- Update cooldown display settings
-    local cd = nameplate.debuffs[i].cd
-    cd.pfCooldownStyleText = tonumber(C.nameplates.debufftext) or 1
-    cd.pfCooldownStyleAnimation = tonumber(C.nameplates.debuffanim) or 0
-    -- the draw flags, not alpha: the plate's SetAlpha copies its alpha down
-    -- to every child (ClassicAPI keeps 1.12's alpha under default plates)
-    cd:SetDrawSwipe(C.nameplates.debuffanim == "1")
-    cd:SetDrawBling(C.nameplates.debuffanim == "1")
-    cd:SetReverse(C.nameplates.debreverse == "1")
   end
 
   -- create nameplate core
@@ -1376,7 +1361,7 @@ nameplates:RegisterUnitEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "target", "focu
             plate.debuffs[index].stacks:Hide()
           end
 
-          if duration and timeleft and cfg.debufftimers then
+          if duration and timeleft then
             -- C_UnitAuras returns the Spell.dbc base duration, which talents
             -- can extend past — Shadow Affinity bumps SW:P from 18s to 24s,
             -- so a fresh cast has timeleft > duration and `now + timeleft -

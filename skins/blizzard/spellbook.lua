@@ -39,8 +39,7 @@ pfUI:RegisterSkin("Spellbook", function ()
     -- the global is rebound by hand; the Model starts hidden and nothing
     -- reaches it after that
     local cdname = "SpellButton"..i.."Cooldown"
-    _G[cdname] = CreateFrame("Cooldown", cdname, button, "CooldownFrameTemplate")
-    _G[cdname].pfCooldownType = C.appearance.cd.blizzard == "1" and "BLIZZARD" or nil
+    _G[cdname] = CreateCooldown(button, "blizzard", cdname)
 
     _G["SpellButton"..i.."SubSpellName"]:SetTextColor(1, 1, 1)
     _G["SpellButton"..i.."AutoCastable"]:SetTexture("Interface\\Buttons\\UI-AutoCastableOverlay")

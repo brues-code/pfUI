@@ -724,10 +724,10 @@ local light = {
       ["showicon"] = "1",
     },
   },
+  ["cooldown"] = {
+    ["font"] = "Interface\\AddOns\\pfUI\\fonts\\Myriad-Pro.ttf",
+  },
   ["appearance"] = {
-    ["cd"] = {
-      ["font"] = "Interface\\AddOns\\pfUI\\fonts\\Myriad-Pro.ttf",
-    },
     ["castbar"] = {
       ["texture"] = "Interface\\AddOns\\pfUI\\img\\bar_gradient",
     },

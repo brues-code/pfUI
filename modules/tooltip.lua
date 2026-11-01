@@ -216,28 +216,13 @@ pfUI:RegisterModule("tooltip", function ()
     icon.stacks:SetFont(C.tooltip.font_tooltip, C.tooltip.font_tooltip_size, "OUTLINE")
     icon.stacks:SetTextColor(1, 1, 1, 1)
 
-    icon.timer = icon:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    icon.timer:SetPoint("CENTER", icon, "CENTER", 0, 0)
-    icon.timer:SetFont(C.tooltip.font_tooltip, C.tooltip.font_tooltip_size, "OUTLINE")
-    icon.timer:SetTextColor(1, 1, 1, 1)
+    icon.cd = CreateCooldown(icon, "tooltip")
     return icon
   end
 
   pfUI.tooltip.buffpool = CreateObjectPool(CreateBuffIcon, function(_, icon)
     icon:Hide()
     icon:ClearAllPoints()
-  end)
-
-  -- Tick the remaining-time text on the visible icons. OnUpdate only fires
-  -- while the row is shown, so it stops as soon as the tooltip hides.
-  pfUI.tooltip.buffs:SetScript("OnUpdate", function()
-    local now = GetTime()
-    if (this.tick or 0) > now then return end
-    this.tick = now + 0.1
-    for icon in pfUI.tooltip.buffpool:EnumerateActive() do
-      local timeleft = icon.expirationTime and icon.expirationTime > 0 and (icon.expirationTime - now) or 0
-      icon.timer:SetText(timeleft > 0 and GetColoredTimeString(timeleft) or "")
-    end
   end)
 
   function pfUI.tooltip:UpdateBuffs(unit)
@@ -253,7 +238,7 @@ pfUI:RegisterModule("tooltip", function ()
     -- table and no per-index re-walk of the aura array
     local n = ScanAuraSlots(unit, "HELPFUL", auraSlots, BUFF_MAX)
     for i = 1, n do
-      local name, texture, applications, _, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unit, auraSlots[i])
+      local name, texture, applications, _, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unit, auraSlots[i])
       if not name then break end
 
       count = count + 1
@@ -261,9 +246,8 @@ pfUI:RegisterModule("tooltip", function ()
       icon.texture:SetTexture(texture)
       icon.stacks:SetText(applications and applications > 1 and applications or "")
 
-      icon.expirationTime = expirationTime
-      local timeleft = expirationTime and expirationTime > 0 and (expirationTime - GetTime()) or 0
-      icon.timer:SetText(timeleft > 0 and GetColoredTimeString(timeleft) or "")
+      local start, dur = GetAuraTimer(duration, expirationTime)
+      CooldownFrame_SetTimer(icon.cd, start, dur, dur > 0 and 1 or 0)
 
       if prev then
         icon:SetPoint("LEFT", prev, "RIGHT", BUFF_SPACING, 0)
