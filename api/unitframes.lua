@@ -275,8 +275,15 @@ local SHOWN_EVENTS = {
   "PLAYER_UPDATE_RESTING", -- frame=restIcon
   "PARTY_LOOT_METHOD_CHANGED", -- frame=lootIcon
   "RAID_TARGET_UPDATE", -- frame=raidIcon
-  "UNIT_HAPPINESS", -- label=pet
 }
+
+local function RegisterShownEvents(frame)
+  for i = 1, table.getn(SHOWN_EVENTS) do
+    frame:RegisterEvent(SHOWN_EVENTS[i])
+  end
+  -- label=pet; the player's own pet only, not every pet in view
+  frame:RegisterUnitEvent("UNIT_HAPPINESS", "pet")
+end
 
 -- ============================================================================
 -- GetUnitStats - health + power for a unit token.
@@ -1014,9 +1021,7 @@ function pfUI.uf:UpdateConfig()
 end
 
 function pfUI.uf.OnShow()
-  for i = 1, table.getn(SHOWN_EVENTS) do
-    this:RegisterEvent(SHOWN_EVENTS[i])
-  end
+  RegisterShownEvents(this)
   pfUI.uf:RefreshUnit(this, "all")
 end
 
@@ -1026,6 +1031,7 @@ function pfUI.uf.OnHide()
       this:UnregisterEvent(SHOWN_EVENTS[i])
     end
   end
+  this:UnregisterEvent("UNIT_HAPPINESS")
 end
 
 function pfUI.uf.OnEvent()
@@ -1450,11 +1456,7 @@ function pfUI.uf:EnableEvents()
   for event in pairs(f.idleevents) do
     f:RegisterEvent(event)
   end
-  if f:IsShown() then
-    for i = 1, table.getn(SHOWN_EVENTS) do
-      f:RegisterEvent(SHOWN_EVENTS[i])
-    end
-  end
+  if f:IsShown() then RegisterShownEvents(f) end
 
   f:RegisterForClicks('LeftButtonUp', 'RightButtonUp',
     'MiddleButtonUp', 'Button4Up', 'Button5Up')
