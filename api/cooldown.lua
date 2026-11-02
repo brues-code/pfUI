@@ -1,16 +1,20 @@
 -- load pfUI environment
 setfenv(1, pfUI:GetEnvironment())
 
--- Every pfUI cooldown is a Cooldown frame from CreateCooldown, made for one
--- kind of timer. Settings -> Cooldown (C.cooldown) sets for each kind its
--- countdown numbers, its sweep and the sweep's direction, and shares one font
--- and one formatter between them all. The numbers are the frame's own
--- countdown (ClassicAPI): the engine ticks them, gated by the
--- countdownForCooldowns cvar. Other addons' Cooldown frames take the
--- "foreign" settings as their timers start.
+-- Every pfUI cooldown is a Cooldown frame from CreateCooldown. The settings
+-- of the feature it belongs to pick its timers: none, numbers, sweep or both.
+-- Settings -> Cooldown (C.cooldown) sets one font and one formatter for them
+-- all. The numbers are the frame's own countdown (ClassicAPI): the engine
+-- ticks them, gated by the countdownForCooldowns cvar. Other addons' Cooldown
+-- frames take the "foreign" timers as their timers start.
 
--- kinds that time spells or items: no numbers for the global cooldown
-local spell = { actionbar = true, bags = true, blizzard = true, foreign = true }
+local function ShowNumbers(mode)
+  return mode == "text" or mode == "both"
+end
+
+local function ShowSweep(mode)
+  return mode == "sweep" or mode == "both"
+end
 
 -- every cooldown CreateCooldown made, for UpdateCooldowns
 local cooldowns = {}
@@ -69,34 +73,34 @@ local function OnSizeChanged(cooldown, width, height)
   UpdateFont(cooldown, height)
 end
 
--- applies the settings of its kind to one of pfUI's cooldowns
+-- applies its timers setting to one of pfUI's cooldowns
 local function SetupCooldown(cooldown)
   local kind = cooldown.pfCooldownKind
-  local config = C.cooldown[kind]
-  local sweep = config.animation == "1" and not cooldown.pfTimeLeftOnly
+  local mode = cooldown.pfCooldownConfig[cooldown.pfCooldownKey]
+  local sweep = ShowSweep(mode) and not cooldown.pfTimeLeftOnly
 
-  cooldown:SetHideCountdownNumbers(config.text ~= "1")
+  cooldown:SetHideCountdownNumbers(not ShowNumbers(mode))
   cooldown:SetDrawSwipe(sweep)
   cooldown:SetDrawBling(sweep)
-  cooldown:SetReverse(config.reverse == "1")
-  cooldown:SetMinimumCountdownDuration(spell[kind] and tonumber(C.cooldown.threshold) * 1000 or 0)
+  cooldown:SetReverse(kind == "aura")
+  cooldown:SetMinimumCountdownDuration(kind == "spell" and tonumber(C.cooldown.threshold) * 1000 or 0)
   cooldown:SetCountdownFormatter(GetFormatter())
   UpdateFont(cooldown, cooldown:GetParent():GetHeight())
 end
 
--- applies the "foreign" settings to another addon's cooldown. They only take
+-- applies the "foreign" timers to another addon's cooldown. They only take
 -- the numbers or the sweep away, which the addon may have set up itself, so
 -- turning one back on needs a reload.
 local function SetupForeign(cooldown)
-  local config = C.cooldown.foreign
+  local mode = C.cooldown.foreign_timers
 
-  if config.animation ~= "1" then
+  if not ShowSweep(mode) then
     cooldown:SetDrawSwipe(false)
     cooldown:SetDrawBling(false)
   end
 
   -- omnicc's flag for cooldowns that want no numbers
-  if config.text ~= "1" or cooldown.noCooldownCount then
+  if not ShowNumbers(mode) or cooldown.noCooldownCount then
     cooldown:SetHideCountdownNumbers(true)
     return
   end
@@ -129,17 +133,22 @@ hooksecurefunc("CooldownFrame_SetTimer", function(cooldown)
 end)
 
 -- [ CreateCooldown ] --
--- Creates one of pfUI's cooldowns: a Cooldown frame over all of 'parent'
--- with the settings of its kind. Start it with CooldownFrame_SetTimer.
+-- Creates one of pfUI's cooldowns: a Cooldown frame over all of 'parent'.
+-- Start it with CooldownFrame_SetTimer.
 -- 'parent'   [frame]    the frame the cooldown covers
--- 'kind'     [string]   what it times, a group of C.cooldown: actionbar,
---                       bags, blizzard, unitframe, indicator, nameplate,
---                       buff, tooltip, totem or lossofcontrol
+-- 'kind'     [string]   what it times: "spell" (spells and items: the sweep
+--                       fills, no numbers for the global cooldown), "aura"
+--                       (the sweep drains) or "timer" (the sweep fills)
+-- 'config'   [table]    the settings that hold its timers
+-- 'key'      [string]   the timers setting in 'config': "off", "text",
+--                       "sweep" or "both"
 -- 'name'     [string]   optional frame name
 -- return     [frame]    the Cooldown frame
-function pfUI.api.CreateCooldown(parent, kind, name)
+function pfUI.api.CreateCooldown(parent, kind, config, key, name)
   local cooldown = CreateFrame("Cooldown", name, parent, "CooldownFrameTemplate")
   cooldown.pfCooldownKind = kind
+  cooldown.pfCooldownConfig = config
+  cooldown.pfCooldownKey = key
   cooldown:SetScript("OnSizeChanged", OnSizeChanged)
   table.insert(cooldowns, cooldown)
   SetupCooldown(cooldown)

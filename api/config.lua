@@ -71,6 +71,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("buffs",      nil,           "debuffrowsize",    "16")
   pfUI:UpdateConfig("buffs",      nil,           "textinside",       "0")
   pfUI:UpdateConfig("buffs",      nil,           "fontsize",         "-1")
+  pfUI:UpdateConfig("buffs",      nil,           "timers",           "both")
 
   pfUI:UpdateConfig("buffbar",    "pbuff",       "enable",           "0")
   pfUI:UpdateConfig("buffbar",    "pbuff",       "use_unitfonts",    "0")
@@ -149,38 +150,9 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("cooldown",   nil,           "minutecolor",      ".2,1,1,1")
   pfUI:UpdateConfig("cooldown",   nil,           "hourcolor",        ".2,.5,1,1")
   pfUI:UpdateConfig("cooldown",   nil,           "daycolor",         ".2,.2,1,1")
-  pfUI:UpdateConfig("cooldown",   "actionbar",   "text",             "1")
-  pfUI:UpdateConfig("cooldown",   "actionbar",   "animation",        "1")
-  pfUI:UpdateConfig("cooldown",   "actionbar",   "reverse",          "0")
-  pfUI:UpdateConfig("cooldown",   "bags",        "text",             "1")
-  pfUI:UpdateConfig("cooldown",   "bags",        "animation",        "1")
-  pfUI:UpdateConfig("cooldown",   "bags",        "reverse",          "0")
-  pfUI:UpdateConfig("cooldown",   "blizzard",    "text",             "1")
-  pfUI:UpdateConfig("cooldown",   "blizzard",    "animation",        "1")
-  pfUI:UpdateConfig("cooldown",   "blizzard",    "reverse",          "0")
-  pfUI:UpdateConfig("cooldown",   "unitframe",   "text",             "1")
-  pfUI:UpdateConfig("cooldown",   "unitframe",   "animation",        "0")
-  pfUI:UpdateConfig("cooldown",   "unitframe",   "reverse",          "1")
-  pfUI:UpdateConfig("cooldown",   "indicator",   "text",             "1")
-  pfUI:UpdateConfig("cooldown",   "indicator",   "animation",        "0")
-  pfUI:UpdateConfig("cooldown",   "indicator",   "reverse",          "0")
-  pfUI:UpdateConfig("cooldown",   "nameplate",   "text",             "1")
-  pfUI:UpdateConfig("cooldown",   "nameplate",   "animation",        "0")
-  pfUI:UpdateConfig("cooldown",   "nameplate",   "reverse",          "1")
-  pfUI:UpdateConfig("cooldown",   "buff",        "text",             "1")
-  pfUI:UpdateConfig("cooldown",   "buff",        "animation",        "1")
-  pfUI:UpdateConfig("cooldown",   "buff",        "reverse",          "1")
-  pfUI:UpdateConfig("cooldown",   "tooltip",     "text",             "1")
-  pfUI:UpdateConfig("cooldown",   "tooltip",     "animation",        "0")
-  pfUI:UpdateConfig("cooldown",   "tooltip",     "reverse",          "0")
-  pfUI:UpdateConfig("cooldown",   "totem",       "text",             "1")
-  pfUI:UpdateConfig("cooldown",   "totem",       "animation",        "1")
-  pfUI:UpdateConfig("cooldown",   "totem",       "reverse",          "1")
-  pfUI:UpdateConfig("cooldown",   "lossofcontrol", "text",           "1")
-  pfUI:UpdateConfig("cooldown",   "lossofcontrol", "animation",      "1")
-  pfUI:UpdateConfig("cooldown",   "lossofcontrol", "reverse",        "0")
-  pfUI:UpdateConfig("cooldown",   "foreign",     "text",             "0")
-  pfUI:UpdateConfig("cooldown",   "foreign",     "animation",        "1")
+  pfUI:UpdateConfig("cooldown",   nil,           "blizzard_timers",  "both")
+  pfUI:UpdateConfig("cooldown",   nil,           "lossofcontrol_timers", "both")
+  pfUI:UpdateConfig("cooldown",   nil,           "foreign_timers",   "sweep")
 
   pfUI:UpdateConfig("appearance", "castbar",     "castbarcolor",     ".7,.7,.9,.8")
   pfUI:UpdateConfig("appearance", "castbar",     "channelcolor",     ".9,.9,.7,.8")
@@ -207,6 +179,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("appearance", "bags",        "autoSortOnOpen",   "0")
   pfUI:UpdateConfig("appearance", "bags",        "sortreverse",      "0")
   pfUI:UpdateConfig("appearance", "bags",        "sortprioreverse",  "0")
+  pfUI:UpdateConfig("appearance", "bags",        "timers",           "both")
   pfUI:UpdateConfig("appearance", "minimap",     "size",             "140")
   pfUI:UpdateConfig("appearance", "minimap",     "arrowscale",       "1")
   pfUI:UpdateConfig("appearance", "minimap",     "zonetext",         "off")
@@ -564,6 +537,7 @@ function pfUI:LoadConfig()
     pfUI:UpdateConfig("unitframes", unit,      "debuffoffy",       "0")
     pfUI:UpdateConfig("unitframes", unit,      "debuffspacingx",   "1")
     pfUI:UpdateConfig("unitframes", unit,      "debuffspacingy",   "1")
+    pfUI:UpdateConfig("unitframes", unit,      "aura_timers",      "text")
     pfUI:UpdateConfig("unitframes", unit,      "invert_healthbar", "0")
     pfUI:UpdateConfig("unitframes", unit,      "verticalbar",      "0")
     pfUI:UpdateConfig("unitframes", unit,      "buff_indicator",   "0")
@@ -584,6 +558,7 @@ function pfUI:LoadConfig()
     pfUI:UpdateConfig("unitframes", unit,      "indicator_size",   "10")
     pfUI:UpdateConfig("unitframes", unit,      "indicator_spacing","1")
     pfUI:UpdateConfig("unitframes", unit,      "indicator_pos",    "TOPLEFT")
+    pfUI:UpdateConfig("unitframes", unit,      "indicator_timers", "text")
 
     pfUI:UpdateConfig("unitframes", unit,      "clickcast",        "0")
     pfUI:UpdateConfig("unitframes", unit,      "faderange",        "0")
@@ -714,6 +689,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("bars",       nil,           "count_color",      ".2,1,.8,1")
   pfUI:UpdateConfig("bars",       nil,           "bind_size",        "8")
   pfUI:UpdateConfig("bars",       nil,           "bind_color",       "1,1,0,1")
+  pfUI:UpdateConfig("bars",       nil,           "timers",           "both")
 
   pfUI:UpdateConfig("bars",       "gryphons",    "texture",          "None")
   pfUI:UpdateConfig("bars",       "gryphons",    "color",            ".6,.6,.6,1")
@@ -727,6 +703,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("totems",     nil,           "iconsize",         "26")
   pfUI:UpdateConfig("totems",     nil,           "spacing",          "3")
   pfUI:UpdateConfig("totems",     nil,           "showbg",           "0")
+  pfUI:UpdateConfig("totems",     nil,           "timers",           "both")
 
   pfUI:UpdateConfig("panel",      nil,           "use_unitfonts",    "0")
   pfUI:UpdateConfig("panel",      nil,           "hide_leftchat",    "0")
@@ -839,6 +816,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("tooltip",    "statusbar",   "texture",          "Interface\\AddOns\\pfUI\\img\\bar")
   pfUI:UpdateConfig("tooltip",     nil,          "font_tooltip",     "Interface\\AddOns\\pfUI\\fonts\\Myriad-Pro.ttf")
   pfUI:UpdateConfig("tooltip",     nil,          "font_tooltip_size", "12")
+  pfUI:UpdateConfig("tooltip",     nil,          "aura_timers",      "text")
 
   -- Throttle Settings
 
@@ -963,6 +941,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("nameplates", nil,           "glowcolor",        "1,1,1,1")
   pfUI:UpdateConfig("nameplates", nil,           "targetzoom",       "0")
   pfUI:UpdateConfig("nameplates", nil,           "targetzoomval",    ".40")
+  pfUI:UpdateConfig("nameplates", nil,           "debuff_timers",    "text")
   pfUI:UpdateConfig("nameplates", nil,           "notargalpha",      ".75")
   pfUI:UpdateConfig("nameplates", nil,           "healthtexture",    "Interface\\AddOns\\pfUI\\img\\bar")
   pfUI:UpdateConfig("nameplates", "name",        "fontstyle",        "OUTLINE")
@@ -1436,9 +1415,32 @@ function pfUI:MigrateConfig()
     pfUI_config.unitframes.always2dportrait = nil
   end
 
-  -- migrate the scattered cooldown settings into the cooldown table; keyed
-  -- on the old settings rather than the version, like the portrait style
+  -- migrate the old cooldown settings into each feature's timers setting;
+  -- keyed on the old settings rather than the version, like the portrait
+  -- style. Reverse options are dropped: the direction follows what a
+  -- cooldown times.
   local cooldown = pfUI_config.cooldown
+
+  -- 'mode' with its numbers and sweep replaced by 'text' and 'sweep' ("1" or
+  -- "0"), each kept when nil
+  local function timers(mode, text, sweep)
+    local numbers = mode == "text" or mode == "both"
+    local swipe = mode == "sweep" or mode == "both"
+    if text then numbers = text == "1" end
+    if sweep then swipe = sweep == "1" end
+
+    if numbers and swipe then return "both" end
+    return numbers and "text" or swipe and "sweep" or "off"
+  end
+
+  -- every unit frame's settings
+  local function units(func)
+    for _, unit in pairs(pfUI_config.unitframes) do
+      if type(unit) == "table" and unit.aura_timers then func(unit) end
+    end
+  end
+
+  -- the shared look and the foreign and Blizzard toggles of appearance.cd
   local cd = pfUI_config.appearance.cd
   if cd then
     for _, entry in pairs({ "font", "font_size", "dynamicsize", "threshold", "milliseconds",
@@ -1446,17 +1448,12 @@ function pfUI:MigrateConfig()
       cooldown[entry] = cd[entry] or cooldown[entry]
     end
 
-    cooldown.foreign.text = cd.foreign or cooldown.foreign.text
-    if cd.hideanim then
-      cooldown.foreign.animation = cd.hideanim == "1" and "0" or "1"
-    end
+    local sweep = cd.hideanim and (cd.hideanim == "1" and "0" or "1")
+    cooldown.foreign_timers = timers(cooldown.foreign_timers, cd.foreign, sweep)
 
     -- spellbook and character slots took the foreign sweep, and with the
     -- Blizzard toggle off the foreign numbers too
-    cooldown.blizzard.animation = cooldown.foreign.animation
-    if cd.blizzard == "0" then
-      cooldown.blizzard.text = cooldown.foreign.text
-    end
+    cooldown.blizzard_timers = timers(cooldown.blizzard_timers, cd.blizzard == "0" and (cd.foreign or "0") or nil, sweep)
 
     -- pfUI drew its own numbers before; the native countdown shows them
     -- only with this cvar on, which only the first-run setup sets
@@ -1465,40 +1462,51 @@ function pfUI:MigrateConfig()
     pfUI_config.appearance.cd = nil
   end
 
-  local function move(config, old, kind, entry)
-    if config[old] then
-      cooldown[kind][entry] = config[old]
-      config[old] = nil
+  -- the options of each module
+  local buffs, nameplates = pfUI_config.buffs, pfUI_config.nameplates
+  buffs.timers = timers(buffs.timers, nil, buffs.cooldown_anim)
+  nameplates.debuff_timers = timers(nameplates.debuff_timers, nameplates.debufftext, nameplates.debuffanim)
+  if nameplates.debufftimers == "0" then nameplates.debuff_timers = "off" end
+
+  units(function(unit)
+    unit.aura_timers = timers(unit.aura_timers, unit.cooldown_text, unit.cooldown_anim)
+    unit.indicator_timers = timers(unit.indicator_timers, unit.indicator_time)
+    unit.cooldown_text, unit.cooldown_anim, unit.cooldown_reverse, unit.indicator_time = nil, nil, nil, nil
+  end)
+
+  pfUI_config.bars.cooldown_reverse = nil
+  pfUI_config.appearance.bags.cooldown_reverse = nil
+  pfUI_config.totems.cooldown_reverse = nil
+  buffs.cooldown_anim, buffs.cooldown_reverse = nil, nil
+  nameplates.debufftext, nameplates.debuffanim, nameplates.debreverse, nameplates.debufftimers = nil, nil, nil, nil
+
+  -- the cooldown kinds of Settings -> Cooldown, each with its numbers and
+  -- sweep, into the setting that replaced it
+  local kinds = {
+    actionbar = { pfUI_config.bars, "timers" },
+    bags = { pfUI_config.appearance.bags, "timers" },
+    blizzard = { cooldown, "blizzard_timers" },
+    nameplate = { nameplates, "debuff_timers" },
+    buff = { buffs, "timers" },
+    tooltip = { pfUI_config.tooltip, "aura_timers" },
+    totem = { pfUI_config.totems, "timers" },
+    lossofcontrol = { cooldown, "lossofcontrol_timers" },
+    foreign = { cooldown, "foreign_timers" },
+    unitframe = "aura_timers",
+    indicator = "indicator_timers",
+  }
+
+  for kind, target in pairs(kinds) do
+    local old = cooldown[kind]
+    if type(old) == "table" then
+      if type(target) == "string" then
+        units(function(unit) unit[target] = timers(unit[target], old.text, old.animation) end)
+      else
+        target[1][target[2]] = timers(target[1][target[2]], old.text, old.animation)
+      end
+      cooldown[kind] = nil
     end
   end
-
-  move(pfUI_config.bars, "cooldown_reverse", "actionbar", "reverse")
-  move(pfUI_config.appearance.bags, "cooldown_reverse", "bags", "reverse")
-  move(pfUI_config.buffs, "cooldown_anim", "buff", "animation")
-  move(pfUI_config.buffs, "cooldown_reverse", "buff", "reverse")
-  move(pfUI_config.totems, "cooldown_reverse", "totem", "reverse")
-  move(pfUI_config.nameplates, "debufftext", "nameplate", "text")
-  move(pfUI_config.nameplates, "debuffanim", "nameplate", "animation")
-  move(pfUI_config.nameplates, "debreverse", "nameplate", "reverse")
-
-  if pfUI_config.nameplates.debufftimers == "0" then
-    cooldown.nameplate.text, cooldown.nameplate.animation = "0", "0"
-  end
-
-  -- one setting now covers every unit frame: the target frame's auras and
-  -- the raid frames' indicators stand for the rest
-  move(pfUI_config.unitframes.target, "cooldown_text", "unitframe", "text")
-  move(pfUI_config.unitframes.target, "cooldown_anim", "unitframe", "animation")
-  move(pfUI_config.unitframes.target, "cooldown_reverse", "unitframe", "reverse")
-  move(pfUI_config.unitframes.raid, "indicator_time", "indicator", "text")
-
-  for _, unit in pairs(pfUI_config.unitframes) do
-    if type(unit) == "table" then
-      unit.cooldown_text, unit.cooldown_anim, unit.cooldown_reverse, unit.indicator_time = nil, nil, nil, nil
-    end
-  end
-
-  pfUI_config.nameplates.debufftimers = nil
   pfUI_config.bars.cd_size = nil
 
   -- Remove "Show only own debuffs" from unitframes and nameplates

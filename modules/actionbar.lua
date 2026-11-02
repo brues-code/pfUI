@@ -1007,7 +1007,7 @@ pfUI:RegisterModule("actionbar", function ()
       f.slot = id
 
       -- cooldown
-      f.cd = CreateCooldown(f, "actionbar", f:GetName() .. "Cooldown")
+      f.cd = CreateCooldown(f, "spell", C.bars, "timers", f:GetName() .. "Cooldown")
 
       -- icon
       f.icon = f:CreateTexture(button_name .. "Icon", "BACKGROUND")

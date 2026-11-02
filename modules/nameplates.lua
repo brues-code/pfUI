@@ -684,7 +684,7 @@ pfUI:RegisterModule("nameplates", function ()
     icon.stacks:SetJustifyV("BOTTOM")
     icon.stacks:SetTextColor(1,1,0)
 
-    icon.cd = CreateCooldown(icon, "nameplate", plate.platename.."Debuff"..index.."Cooldown")
+    icon.cd = CreateCooldown(icon, "aura", C.nameplates, "debuff_timers", plate.platename.."Debuff"..index.."Cooldown")
     icon.cd:SetFrameLevel(icon:GetFrameLevel() + 2)
 
     plate.debuffs[index] = icon

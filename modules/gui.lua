@@ -981,6 +981,12 @@ pfUI:RegisterModule("gui", function ()
         "BOTTOMRIGHT:" .. T["Bottom Right"],
         "off:" .. T["Disabled"]
       },
+      ["cooldown_timers"] = {
+        "off:" .. T["None"],
+        "text:" .. T["Numbers"],
+        "sweep:" .. T["Sweep"],
+        "both:" .. T["Numbers And Sweep"]
+      },
       ["uf_debuff_indicator"] = {
         "0:" .. T["Disabled"],
         "1:" .. T["Legacy"],
@@ -1597,23 +1603,6 @@ pfUI:RegisterModule("gui", function ()
     end)
 
     CreateGUIEntry(T["Settings"], T["Cooldown"], function()
-      -- every kind of cooldown CreateCooldown makes, as C.cooldown groups.
-      -- Other addons' cooldowns only lose numbers or sweep (see
-      -- api/cooldown.lua), so giving them back takes a reload
-      local kinds = {
-        { "actionbar", T["Action Bars"] },
-        { "bags", T["Bags"] },
-        { "blizzard", T["Spellbook And Character"] },
-        { "unitframe", T["Unit Frame Auras"] },
-        { "indicator", T["Buff Indicators"] },
-        { "nameplate", T["Nameplate Debuffs"] },
-        { "buff", T["Player Buffs"] },
-        { "tooltip", T["Tooltip Auras"] },
-        { "totem", T["Totems"] },
-        { "lossofcontrol", T["Loss Of Control"] },
-        { "foreign", T["Other Addons"] },
-      }
-
       CreateConfig(nil, COUNTDOWN_FOR_COOLDOWNS_TEXT, "CVAR", "countdownForCooldowns", "checkbox")
       CreateConfig(UpdateCooldowns, T["Font"], C.cooldown, "font", "dropdown", pfUI.gui.dropdowns.fonts)
       CreateConfig(nil, T["Font Size"], C.cooldown, "font_size")
@@ -1626,22 +1615,14 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(UpdateCooldowns, T["Cooldown Color (Hours)"], C.cooldown, "hourcolor", "color")
       CreateConfig(UpdateCooldowns, T["Cooldown Color (Days)"], C.cooldown, "daycolor", "color")
 
-      CreateConfig(nil, T["Show Numbers On"], nil, nil, "header")
-      for _, kind in ipairs(kinds) do
-        CreateConfig(kind[1] ~= "foreign" and UpdateCooldowns or nil, kind[2], C.cooldown[kind[1]], "text", "checkbox")
-      end
-
-      CreateConfig(nil, T["Show Sweep On"], nil, nil, "header")
-      for _, kind in ipairs(kinds) do
-        CreateConfig(kind[1] ~= "foreign" and UpdateCooldowns or nil, kind[2], C.cooldown[kind[1]], "animation", "checkbox")
-      end
-
-      CreateConfig(nil, T["Reverse Sweep On"], nil, nil, "header")
-      for _, kind in ipairs(kinds) do
-        if kind[1] ~= "foreign" then
-          CreateConfig(UpdateCooldowns, kind[2], C.cooldown[kind[1]], "reverse", "checkbox")
-        end
-      end
+      -- the timers of cooldowns no other page covers. Other addons' cooldowns
+      -- only lose numbers or sweep (see api/cooldown.lua), so giving them
+      -- back takes a reload
+      local timers = pfUI.gui.dropdowns.cooldown_timers
+      CreateConfig(nil, T["Timers"], nil, nil, "header")
+      CreateConfig(UpdateCooldowns, T["Spellbook And Character"], C.cooldown, "blizzard_timers", "dropdown", timers)
+      CreateConfig(UpdateCooldowns, T["Loss Of Control"], C.cooldown, "lossofcontrol_timers", "dropdown", timers)
+      CreateConfig(nil, T["Other Addons"], C.cooldown, "foreign_timers", "dropdown", timers)
     end)
 
     CreateGUIEntry(T["Settings"], T["Screenshot"], function()
@@ -2206,6 +2187,7 @@ pfUI:RegisterModule("gui", function ()
         CreateConfig(U[c], T["Automatic Class Text Color"], C.unitframes[c], "classcolor", "checkbox")
 
         CreateConfig(U[c], T["Buffs"], nil, nil, "header")
+        CreateConfig(UpdateCooldowns, T["Buff And Debuff Timers"], C.unitframes[c], "aura_timers", "dropdown", pfUI.gui.dropdowns.cooldown_timers)
         CreateConfig(U[c], T["Buff Position"], C.unitframes[c], "buffs", "dropdown", pfUI.gui.dropdowns.uf_buff_position)
         CreateConfig(U[c], T["Buff Size"], C.unitframes[c], "buffsize")
         CreateConfig(U[c], T["Buff Limit"], C.unitframes[c], "bufflimit")
@@ -2239,6 +2221,7 @@ pfUI:RegisterModule("gui", function ()
         CreateConfig(U[c], T["Buff/Debuff Indicators"], nil, nil, "header")
         CreateConfig(U[c], T["Enable Indicators"], C.unitframes[c], "buff_indicator", "checkbox")
         CreateConfig(U[c], T["Show Stacks"], C.unitframes[c], "indicator_stacks", "checkbox")
+        CreateConfig(UpdateCooldowns, T["Indicator Timers"], C.unitframes[c], "indicator_timers", "dropdown", pfUI.gui.dropdowns.cooldown_timers)
         CreateConfig(U[c], T["Indicator Size"], C.unitframes[c], "indicator_size")
         CreateConfig(U[c], T["Indicator Spacing"], C.unitframes[c], "indicator_spacing", "dropdown", pfUI.gui.dropdowns.spacing)
         CreateConfig(U[c], T["Indicator Position"], C.unitframes[c], "indicator_pos", "dropdown", pfUI.gui.dropdowns.positions)
@@ -2325,6 +2308,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Bagslots Per Row"], C.appearance.bags, "bagrowlength")
       CreateConfig(nil, T["Bankslots Per Row"], C.appearance.bags, "bankrowlength")
       CreateConfig(nil, T["Item Slot Size"], C.appearance.bags, "icon_size")
+      CreateConfig(UpdateCooldowns, T["Cooldown Timers"], C.appearance.bags, "timers", "dropdown", pfUI.gui.dropdowns.cooldown_timers)
       CreateConfig(nil, T["Auto Sell Grey Items"], C.global, "autosell", "checkbox")
       CreateConfig(nil, T["Auto Repair Items"], C.global, "autorepair", "checkbox")
       CreateConfig(nil, T["Auto Sort When Opening Bags"], C.appearance.bags, "autoSortOnOpen", "checkbox")
@@ -2373,6 +2357,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(U["buff"], T["Number Of Weapon Buffs Per Row"], C.buffs, "wepbuffrowsize")
       CreateConfig(U["buff"], T["Number Of Buffs Per Row"], C.buffs, "buffrowsize")
       CreateConfig(U["buff"], T["Number Of Debuffs Per Row"], C.buffs, "debuffrowsize")
+      CreateConfig(UpdateCooldowns, T["Duration Timers"], C.buffs, "timers", "dropdown", pfUI.gui.dropdowns.cooldown_timers)
       CreateConfig(U["buff"], T["Show Duration Inside Buff"], C.buffs, "textinside", "checkbox")
       CreateConfig(U["buff"], T["Stack Count Font Size"], C.buffs, "fontsize")
     end)
@@ -2382,6 +2367,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(U["totems"], T["Icon Size"], C.totems, "iconsize")
       CreateConfig(U["totems"], T["Spacing"], C.totems, "spacing", "dropdown", pfUI.gui.dropdowns.spacing)
       CreateConfig(U["totems"], T["Show Background"], C.totems, "showbg", "checkbox")
+      CreateConfig(UpdateCooldowns, T["Duration Timers"], C.totems, "timers", "dropdown", pfUI.gui.dropdowns.cooldown_timers)
     end)
 
     CreateGUIEntry(T["Buffs"], T["Player Buff Bar"], function()
@@ -2448,6 +2434,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(U["bars"], T["Self Cast: Right Click"], C.bars, "rightself", "checkbox")
       CreateConfig(U["bars"], T["Button Animation"], C.bars, "animation", "dropdown", pfUI.gui.dropdowns.actionbuttonanimations)
       CreateConfig(U["bars"], T["Button Animation Trigger"], C.bars, "animmode", "dropdown", pfUI.gui.dropdowns.animationmode)
+      CreateConfig(UpdateCooldowns, T["Cooldown Timers"], C.bars, "timers", "dropdown", pfUI.gui.dropdowns.cooldown_timers)
       CreateConfig(U["bars"], T["Show Animation On Hidden Bars"], C.bars, "animalways", "checkbox")
       CreateConfig(U["bars"], T["Show Reagent Count"], C.bars, "reagents", "checkbox")
       CreateConfig(U["bars"], T["Highlight Equipped Items"], C.bars, "showequipped", "checkbox")
@@ -2677,6 +2664,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Always Show Health In Percent"], C.tooltip, "alwaysperc", "checkbox")
       CreateConfig(nil, T["Show Movement Speed"], C.tooltip, "movespeed", "checkbox")
       CreateConfig(nil, T["Show Unit Buffs"], C.tooltip, "showbuffs", "checkbox")
+      CreateConfig(UpdateCooldowns, T["Unit Buff Timers"], C.tooltip, "aura_timers", "dropdown", pfUI.gui.dropdowns.cooldown_timers)
       CreateConfig(nil, T["Show Unit IDs"], C.tooltip, "unitid", "checkbox")
     end)
 
@@ -2840,6 +2828,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(U["nameplates"], T["Debuff Icon Offset"], C.nameplates, "debuffoffset")
       CreateConfig(U["nameplates"], T["Debuff Icon Size"], C.nameplates, "debuffsize")
       CreateConfig(U["nameplates"], T["Show Debuff Stacks"], C.nameplates.debuffs, "showstacks", "checkbox")
+      CreateConfig(UpdateCooldowns, T["Debuff Timers"], C.nameplates, "debuff_timers", "dropdown", pfUI.gui.dropdowns.cooldown_timers)
 
       CreateConfig(U["nameplates"], T["Filter Mode"], C.nameplates.debuffs, "filter", "dropdown", pfUI.gui.dropdowns.buffbarfilter)
       CreateConfig(U["nameplates"], T["Blacklist"], C.nameplates.debuffs, "blacklist", "list")

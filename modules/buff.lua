@@ -152,7 +152,7 @@ pfUI:RegisterModule("buff", function ()
 
     -- the sweep and the duration numbers (the template covers the button and
     -- starts hidden); RefreshBuffButton starts its timer
-    buff.cd = CreateCooldown(buff, "buff", buttonName .. "Cooldown")
+    buff.cd = CreateCooldown(buff, "aura", C.buffs, "timers", buttonName .. "Cooldown")
     buff.cd:SetFrameLevel(buff:GetFrameLevel() + 1)
     buff.overlay:SetFrameLevel(buff:GetFrameLevel() + 2)
 

@@ -113,7 +113,7 @@ pfUI:RegisterModule("totems", function ()
       self.bar[i].cdbg = self.bar[i].cdbg or CreateFrame("Frame", nil, self.bar[i])
       self.bar[i].cdbg:SetSize(self.iconsize - 3, self.iconsize - 3)
       self.bar[i].cdbg:SetPoint("CENTER", self.bar[i], "CENTER", 0, 0)
-      self.bar[i].cd = self.bar[i].cd or CreateCooldown(self.bar[i].cdbg, "totem", "pfTotemsBar"..i.."Cooldown")
+      self.bar[i].cd = self.bar[i].cd or CreateCooldown(self.bar[i].cdbg, "aura", C.totems, "timers", "pfTotemsBar"..i.."Cooldown")
 
       self.bar[i]:RegisterForClicks("LeftButtonUp", "RightButtonUp")
       self.bar[i]:SetScript("OnClick", self.OnClick)

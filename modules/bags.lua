@@ -415,7 +415,7 @@ pfUI:RegisterModule("bags", function ()
       -- reaches it after that
       local slotframe = pfUI.bags[bag].slots[slot].frame
       local cdname = slotframe:GetName() .. "Cooldown"
-      slotframe.cd = CreateCooldown(slotframe, "bags", cdname)
+      slotframe.cd = CreateCooldown(slotframe, "spell", C.appearance.bags, "timers", cdname)
       _G[cdname] = slotframe.cd
 
       if not pfUI.bags[bag].slots[slot].frame.backdrop then

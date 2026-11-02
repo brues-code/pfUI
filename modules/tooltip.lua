@@ -216,7 +216,7 @@ pfUI:RegisterModule("tooltip", function ()
     icon.stacks:SetFont(C.tooltip.font_tooltip, C.tooltip.font_tooltip_size, "OUTLINE")
     icon.stacks:SetTextColor(1, 1, 1, 1)
 
-    icon.cd = CreateCooldown(icon, "tooltip")
+    icon.cd = CreateCooldown(icon, "aura", C.tooltip, "aura_timers")
     return icon
   end
 

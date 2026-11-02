@@ -946,7 +946,7 @@ function pfUI.uf:UpdateConfig()
       f.buffs[i]:SetFrameLevel(12)
       f.buffs[i]:RegisterForClicks("RightButtonUp")
 
-      f.buffs[i].cd = f.buffs[i].cd or CreateCooldown(f.buffs[i], "unitframe", f.buffs[i]:GetName() .. "Cooldown")
+      f.buffs[i].cd = f.buffs[i].cd or CreateCooldown(f.buffs[i], "aura", f.config, "aura_timers", f.buffs[i]:GetName() .. "Cooldown")
       f.buffs[i].cd:SetFrameLevel(14)
 
       f.buffs[i].id = i
@@ -999,7 +999,7 @@ function pfUI.uf:UpdateConfig()
       f.debuffs[i]:RegisterForClicks("RightButtonUp")
       f.debuffs[i]:SetNormalTexture(nil)
       
-      f.debuffs[i].cd = f.debuffs[i].cd or CreateCooldown(f.debuffs[i], "unitframe", f.debuffs[i]:GetName() .. "Cooldown")
+      f.debuffs[i].cd = f.debuffs[i].cd or CreateCooldown(f.debuffs[i], "aura", f.config, "aura_timers", f.debuffs[i]:GetName() .. "Cooldown")
       f.debuffs[i].cd:SetFrameLevel(14)
 
       f.debuffs[i].id = i
@@ -2443,6 +2443,7 @@ function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
   local position = frame.config.indicator_pos or "TOPLEFT"
   local iconsize = tonumber(frame.config.indicator_size)
   local spacing = tonumber(frame.config.indicator_spacing)
+  local config = frame.config
 
   if not frame.hp then return end
   local frame = frame.hp.bar
@@ -2461,7 +2462,7 @@ function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
     frame.icon[pos].stacks:SetJustifyH("RIGHT")
     frame.icon[pos].stacks:SetJustifyV("BOTTOM")
 
-    frame.icon[pos].cd = CreateCooldown(frame.icon[pos], "indicator")
+    frame.icon[pos].cd = CreateCooldown(frame.icon[pos], "aura", config, "indicator_timers")
     frame.icon[pos].cd:SetFrameLevel(48)
   end
 

@@ -34,7 +34,7 @@ pfUI:RegisterModule("lossofcontrol", function ()
   frame.icon.tex = frame.icon:CreateTexture(nil, "ARTWORK")
   HandleIcon(frame.icon, frame.icon.tex)
 
-  frame.cd = CreateCooldown(frame.icon, "lossofcontrol")
+  frame.cd = CreateCooldown(frame.icon, "timer", C.cooldown, "lossofcontrol_timers")
   frame.cd:SetAllPoints(frame.icon.tex)
 
   frame.label = frame:CreateFontString(nil, "OVERLAY")
