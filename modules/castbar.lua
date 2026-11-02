@@ -5,36 +5,68 @@ pfUI:RegisterModule("castbar", function ()
   local rawborder, default_border = GetBorderSize("unitframes")
   local cbtexture = pfUI.media[C.appearance.castbar.texture]
 
-  -- Helper function for castbar timer formatting
-  local function FormatCastbarTime(value)
-    if C.unitframes.castbardecimals == "1" then
-      -- 1 decimal, round half up (matches Blizzard spellbook display)
-      return string.format("%.1f", floor(value * 10 + 0.5) / 10)
-    else
-      -- 2 decimals (default)
-      return string.format("%.2f", value)
-    end
+  -- Castbar timer text: 1 decimal rounded half up (matches Blizzard spellbook
+  -- display), or 2 decimals (default)
+  local formatter = C_StringUtil.CreateNumericRuleFormatter()
+  if C.unitframes.castbardecimals == "1" then
+    formatter:AddBreakpoint({ threshold = 0, step = .1, format = "%.1f" })
+  else
+    formatter:AddBreakpoint({ threshold = 0, format = "%.2f" })
   end
 
-  -- Clear cast state on the bar and start the fade-out. On a normal end the bar
-  -- is left at its current fill (a completed cast is already ~full; nothing
-  -- snaps to full, which used to flash for a frame when the next cast stamped
-  -- the bar). When `failed` is set for a cast that was actually in progress, the
-  -- bar flashes full red before fading — the cancelled-cast indicator.
+  -- "cur / max": a cast counts up, a channel counts down
+  local castText = {
+    { property = Enum.DurationTextBindingProperty.ElapsedDuration, formatter = formatter },
+    { property = Enum.DurationTextBindingProperty.TotalDuration, formatter = formatter },
+  }
+  local channelText = {
+    { property = Enum.DurationTextBindingProperty.RemainingDuration, formatter = formatter },
+    { property = Enum.DurationTextBindingProperty.TotalDuration, formatter = formatter },
+  }
+
+  -- The bar's fill and timer text both follow cb.duration on their own; only
+  -- the pushback total in front of the text needs a refresh.
+  local function UpdateTimerText(cb)
+    if not cb.showtimer then return end
+    local prefix = ""
+    if cb.delay > 0 then
+      prefix = "|cffffaaaa" .. (cb.isChannel and "-" or "+") .. formatter:FormatNumber(cb.delay) .. " |r "
+    end
+    cb.timer:SetTextFormat(prefix .. "{} / {}", cb.isChannel and channelText or castText)
+    cb.timer:Enable()
+  end
+
+  -- STOP doesn't arrive for every cast (a synthetic cast has none, a remote
+  -- unit's can be missed out of range), so the bar also clears at its end time.
+  local function ArmExpiry(cb)
+    if cb.expiry then cb.expiry:Cancel() end
+    cb.expiry = C_Timer.NewTimer(cb.duration:GetRemainingDuration(), cb.onExpire)
+  end
+
+  -- Clear cast state on the bar and start the fade-out. The fill freezes where
+  -- the cast stopped (SetMinMaxValues drops the timer). When `failed` is set for
+  -- a cast that was actually in progress, the bar flashes full red before
+  -- fading — the cancelled-cast indicator.
   local function ClearBar(cb, failed)
-    local wasActive = cb.endTime ~= nil
-    cb.startTime, cb.endTime, cb.isChannel = nil, nil, nil
+    if cb.expiry then cb.expiry:Cancel() end
+    cb.expiry = nil
+    cb.timer:Disable()
+    cb:SetScript("OnUpdate", nil)
+    if cb.active then
+      cb.bar:SetMinMaxValues(0, 1)
+      if failed then
+        cb.bar:SetStatusBarColor(GetStringColor(C.appearance.castbar.failcolor))
+        cb.bar:SetValue(1)
+      else
+        cb.bar:SetValue(cb.isChannel and cb.duration:GetRemainingPercent() or cb.duration:GetElapsedPercent())
+      end
+    end
+    cb.active, cb.isChannel = nil, nil
     cb.activeName, cb.spellID = nil, nil
     cb.isTradeskill = nil
     cb.tradeskillTotal, cb.tradeskillCompleted, cb.tradeskillSpellID = nil, nil, nil
-    cb.tradeskillSingleMs, cb.currentCraftStart = nil, nil
-    cb.lastMax = nil
+    cb.tradeskillSingle = nil
     cb.delay = 0
-    if failed and wasActive then
-      cb.bar:SetStatusBarColor(GetStringColor(C.appearance.castbar.failcolor))
-      cb.bar:SetMinMaxValues(0, 1)
-      cb.bar:SetValue(1)
-    end
     if cb.bar.spark then cb.bar.spark:Hide() end
     if cb:IsShown() and not cb.fade:IsPlaying() then cb.fade:Play() end
   end
@@ -51,44 +83,48 @@ pfUI:RegisterModule("castbar", function ()
     end
   end
 
+  -- Per-craft spark position: the current craft's share of the bar's width.
+  -- Snaps back to the left edge each time StartTradeskillCraft restarts it.
+  local function MoveSpark()
+    local x = this.craft:GetElapsedPercent() * this.bar:GetWidth() - 1
+    this.bar.spark:SetPoint("TOP", this.bar, "TOPLEFT", x, 0)
+    this.bar.spark:SetPoint("BOTTOM", this.bar, "BOTTOMLEFT", x, 0)
+  end
+
   -- Stretch the bar to span all queued crafts (Quartz-style merge): the bar
   -- fills continuously across the chain instead of resetting per craft.
   -- Also arms the per-craft spark — a thin marker that crosses the bar once
   -- per craft (so it moves N× faster than the main fill on an N-stack).
-  local function EnterTradeskillMerge(cb, startMs, endMs, count)
+  local function EnterTradeskillMerge(cb, count)
+    local start, single = cb.duration:GetStartTime(), cb.duration:GetTotalDuration()
     cb.tradeskillTotal = count
     cb.tradeskillCompleted = 0
     cb.tradeskillSpellID = cb.spellID
-    local single = endMs - startMs
-    cb.tradeskillSingleMs = single
-    cb.currentCraftStart = startMs
-    local mergedEnd = startMs + single * count
-    cb.endTime = mergedEnd
-    local duration = (mergedEnd - startMs) / 1000
-    cb.bar:SetMinMaxValues(0, duration)
-    cb.lastMax = duration
-    if cb.bar.spark then cb.bar.spark:Show() end
+    cb.tradeskillSingle = single
+    cb.craft:SetTimeFromStart(start, single)
+    cb.duration:SetTimeFromStart(start, single * count)
+    ArmExpiry(cb)
+    cb.bar.spark:Show()
+    cb:SetScript("OnUpdate", MoveSpark)
     UpdateTradeskillLabel(cb)
   end
 
   -- Mark the start of craft 2..N within an active merge (called from the
-  -- UNIT_SPELLCAST_START handler). Resets the per-craft spark to the left
-  -- edge of the bar.
+  -- UNIT_SPELLCAST_START handler) and re-fit the bar's end to the crafts left.
   local function StartTradeskillCraft(cb)
-    cb.currentCraftStart = GetTime() * 1000
-    local remaining = cb.tradeskillTotal - (cb.tradeskillCompleted or 0)
-    cb.endTime = cb.currentCraftStart + cb.tradeskillSingleMs * remaining
-    local duration = (cb.endTime - cb.startTime) / 1000
-    cb.bar:SetMinMaxValues(0, duration)
-    cb.lastMax = duration
+    local now = GetTime()
+    local remaining = cb.tradeskillTotal - cb.tradeskillCompleted
+    cb.craft:SetTimeFromStart(now, cb.tradeskillSingle)
+    cb.duration:SetTimeSpan(cb.duration:GetStartTime(), now + cb.tradeskillSingle * remaining)
+    ArmExpiry(cb)
     UpdateTradeskillLabel(cb)
   end
 
-  -- Stamp the bar with cast data and render text/icon/lag once. OnUpdate
-  -- then animates the fill from this state without touching C_Spell.
+  -- Stamp the bar with cast data and render text/icon/lag once. From here the
+  -- bar's timer and text binding follow cb.duration without any Lua.
   local function StampBar(cb, name, tex, startMs, endMs, spellID, isChannel, delayMs, isTradeskill, rank, noInterrupt)
-    cb.startTime = startMs
-    cb.endTime = endMs
+    cb.duration:SetTimeSpan(startMs / 1000, endMs / 1000)
+    cb.active = true
     cb.isChannel = isChannel
     cb.spellID = spellID
     cb.activeName = name
@@ -124,27 +160,18 @@ pfUI:RegisterModule("castbar", function ()
       cb.icon:Hide()
     end
 
-    local duration = (endMs - startMs) / 1000
     if cb.showlag then
       local _, _, lag = GetNetStats()
-      cb.bar.lag:SetWidth(math.min(cb:GetWidth(), cb:GetWidth() / duration * (lag/1000)))
+      cb.bar.lag:SetWidth(math.min(cb:GetWidth(), cb:GetWidth() / cb.duration:GetTotalDuration() * (lag/1000)))
       cb.bar.lag:Show()
     else
       cb.bar.lag:Hide()
     end
 
-    cb.bar:SetMinMaxValues(0, duration)
-    cb.lastMax = duration
-
-    -- Prime the fill on this frame. StampBar otherwise leaves the previous
-    -- value in place (ClearBar, run on the prior cast's STOP, leaves it full),
-    -- so the bar would flash full for the frame between here and the next
-    -- OnUpdate tick. Reset the throttle too so the timer text updates promptly.
-    local nowSec = GetTime()
-    local cur = isChannel and (endMs / 1000 - nowSec) or (nowSec - startMs / 1000)
-    if cur < 0 then cur = 0 elseif cur > duration then cur = duration end
-    cb.bar:SetValue(cur)
-    cb.tick = 0
+    cb.bar:SetTimerDuration(cb.duration, Enum.StatusBarInterpolation.Immediate,
+      isChannel and Enum.StatusBarTimerDirection.RemainingTime or Enum.StatusBarTimerDirection.ElapsedTime)
+    UpdateTimerText(cb)
+    ArmExpiry(cb)
   end
 
   -- One-shot poll: read C_Spell for the bar's unit, stamp or clear. Called
@@ -186,6 +213,10 @@ pfUI:RegisterModule("castbar", function ()
     cb:SetFrameLevel(8)
 
     cb.unitstr = unitstr
+    cb.delay = 0
+    cb.duration = C_DurationUtil.CreateDuration()
+    cb.craft = C_DurationUtil.CreateDuration() -- the current craft of a tradeskill merge
+    cb.onExpire = function() ClearBar(cb) end
 
     -- icon
     cb.icon = CreateFrame("Frame", nil, cb)
@@ -231,6 +262,10 @@ pfUI:RegisterModule("castbar", function ()
     cb.bar.right:SetFont(font, font_size, "OUTLINE")
     cb.bar.right:SetJustifyH(C.castbar[unitstr].timealign or "RIGHT")
 
+    cb.timer = C_DurationUtil.CreateDurationTextBinding()
+    cb.timer:SetFontString(cb.bar.right)
+    cb.timer:SetDuration(cb.duration)
+
     cb.bar.lag = cb.bar:CreateTexture(nil, "OVERLAY")
     cb.bar.lag:SetPoint("TOPRIGHT", cb.bar, "TOPRIGHT", 0, 0)
     cb.bar.lag:SetPoint("BOTTOMRIGHT", cb.bar, "BOTTOMRIGHT", 0, 0)
@@ -238,7 +273,7 @@ pfUI:RegisterModule("castbar", function ()
 
     -- Per-craft progress spark for tradeskill merge — a thin vertical line
     -- that crosses the bar once per craft in the chain (so on a 5-stack it
-    -- moves 5x faster than the main fill). Position is updated by OnUpdate
+    -- moves 5x faster than the main fill). Position is updated by MoveSpark
     -- while a merge is active; hidden otherwise.
     cb.bar.spark = cb.bar:CreateTexture(nil, "OVERLAY")
     cb.bar.spark:SetColorTexture(1, 1, 1, 0.8)
@@ -247,79 +282,14 @@ pfUI:RegisterModule("castbar", function ()
     cb.bar.spark:SetPoint("BOTTOM", cb.bar, "BOTTOMLEFT", 0, 0)
     cb.bar.spark:Hide()
 
-    -- Fade-out after a cast ends. The bar is hidden while idle, so its OnUpdate
-    -- only runs during a cast; unlock mode keeps it shown for dragging.
-    local function unlocked() return cb.drag and cb.drag:IsShown() end
+    -- Fade-out after a cast ends. The bar is hidden while idle; unlock mode
+    -- keeps it shown for dragging.
     cb.fade = cb:CreateAnimationGroup()
     local fade = cb.fade:CreateAnimation("Alpha")
     fade:SetChange(-1)
     fade:SetDuration(.4)
     cb.fade:SetScript("OnFinished", function()
-      if not unlocked() then cb:Hide() end
-    end)
-
-    -- OnUpdate animates the bar fill. All state transitions (cast start/stop/interrupt, channel start/stop,
-    -- pushback) come from the event handler below — we never poll C_Spell
-    -- here.
-    cb:SetScript("OnUpdate", function()
-      if (this.tick or 0) > GetTime() then return end
-      this.tick = GetTime() + 0.020 -- ~50 FPS
-
-      if unlocked() then
-        this.fade:Stop()
-        return
-      end
-
-      if this.fade:IsPlaying() then return end
-
-      if not this.endTime then
-        this:Hide()
-        return
-      end
-
-      -- Non-player bars: if the unit disappears (target died / detarget),
-      -- drop the bar immediately.
-      if this.unitstr ~= "player" and not UnitExists(this.unitstr) then
-        ClearBar(this)
-        return
-      end
-
-      local now = GetTime()
-      local endSec = this.endTime / 1000
-      if now >= endSec then
-        ClearBar(this)
-        return
-      end
-
-      local startSec = this.startTime / 1000
-      local max = endSec - startSec
-      local cur = this.isChannel and (endSec - now) or (now - startSec)
-      if cur > max then cur = max end
-      if cur < 0 then cur = 0 end
-
-      this.bar:SetValue(cur)
-
-      -- Per-craft spark for a tradeskill merge: position by (now - current
-      -- craft's start) / single-craft duration, clamped to [0, 1]. Snaps back
-      -- to the left edge each time StartTradeskillCraft fires for craft N+1.
-      if this.tradeskillTotal and this.tradeskillSingleMs and this.currentCraftStart then
-        local craftElapsed = now * 1000 - this.currentCraftStart
-        local p = craftElapsed / this.tradeskillSingleMs
-        if p < 0 then p = 0 elseif p > 1 then p = 1 end
-        local x = p * this.bar:GetWidth() - 1
-        this.bar.spark:ClearAllPoints()
-        this.bar.spark:SetPoint("TOP", this.bar, "TOPLEFT", x, 0)
-        this.bar.spark:SetPoint("BOTTOM", this.bar, "BOTTOMLEFT", x, 0)
-      end
-
-      if this.showtimer then
-        if (this.delay or 0) > 0 then
-          local prefix = "|cffffaaaa" .. (this.isChannel and "-" or "+") .. FormatCastbarTime(this.delay) .. " |r "
-          this.bar.right:SetText(prefix .. FormatCastbarTime(cur) .. " / " .. FormatCastbarTime(max))
-        else
-          this.bar.right:SetText(FormatCastbarTime(cur) .. " / " .. FormatCastbarTime(max))
-        end
-      end
+      if not (cb.drag and cb.drag:IsShown()) then cb:Hide() end
     end)
 
     -- Cast lifecycle, entirely on ClassicAPI's UNIT_SPELLCAST_* events. They
@@ -383,7 +353,7 @@ pfUI:RegisterModule("castbar", function ()
           RefreshBar(this, arg5)
           if this.isTradeskill and (this.pendingTradeskillCount or 0) > 1
               and C.castbar.player.mergetradeskill == "1" then
-            EnterTradeskillMerge(this, this.startTime, this.endTime, this.pendingTradeskillCount)
+            EnterTradeskillMerge(this, this.pendingTradeskillCount)
           end
           this.pendingTradeskillCount = nil
         end
@@ -392,7 +362,7 @@ pfUI:RegisterModule("castbar", function ()
         -- count and clear when the chain is done. A no-op for normal casts,
         -- which are cleared by UNIT_SPELLCAST_STOP.
         if this.tradeskillTotal and arg3 == this.tradeskillSpellID then
-          this.tradeskillCompleted = (this.tradeskillCompleted or 0) + 1
+          this.tradeskillCompleted = this.tradeskillCompleted + 1
           if this.tradeskillCompleted >= this.tradeskillTotal then
             ClearBar(this)
           else
@@ -412,35 +382,30 @@ pfUI:RegisterModule("castbar", function ()
       elseif event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
         ClearBar(this, true)
       elseif event == "UNIT_SPELLCAST_INTERRUPTIBLE" or event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE" then
-        if this.endTime then
+        if this.active then
           SetCastbarShield(this.bar, this.icon, event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE", this.isChannel)
         end
       elseif event == "UNIT_SPELLCAST_DELAYED" or event == "UNIT_SPELLCAST_CHANNEL_UPDATE" then
         -- Pushback: a cast delayed later or a channel shortened. Following
-        -- Quartz, re-poll just the times and accumulate the shift into a running
+        -- Quartz, re-read just the times and accumulate the shift into a running
         -- this.delay for the +/- indicator, rather than a full restamp (which
-        -- would reset that total and re-render icon/text). ClassicAPI moves
-        -- endMs (SpellDelayed_h bumps g_cast.endMs; the MSG_CHANNEL_UPDATE
-        -- co-hook rewrites g_channel.endMs) while startMs stays put, so we diff
-        -- endMs. delay is a positive magnitude; OnUpdate signs it "+" for casts
-        -- and "-" for channels. Skipped during a tradeskill merge.
-        if this.endTime and not this.tradeskillTotal then
-          local startMs, endMs
+        -- would reset that total and re-render icon/text). Pushback moves the
+        -- end time while the start stays put, so we diff the end. delay is a
+        -- positive magnitude; UpdateTimerText signs it "+" for casts and "-"
+        -- for channels. Skipped during a tradeskill merge.
+        if this.active and not this.tradeskillTotal then
+          local duration
           if this.isChannel then
-            local _, _, _, s, e = C_Spell.UnitChannelInfo(unit)
-            startMs, endMs = s, e
+            duration = UnitChannelDuration(unit)
           else
-            local _, _, _, s, e = C_Spell.UnitCastingInfo(unit)
-            startMs, endMs = s, e
+            duration = UnitCastingDuration(unit)
           end
-          if startMs and endMs then
-            local shift = this.isChannel and (this.endTime - endMs) or (endMs - this.endTime)
-            this.delay = (this.delay or 0) + shift / 1000
-            this.startTime = startMs
-            this.endTime = endMs
-            local newDuration = (endMs - startMs) / 1000
-            this.bar:SetMinMaxValues(0, newDuration)
-            this.lastMax = newDuration
+          if duration then
+            local shift = duration:GetEndTime() - this.duration:GetEndTime()
+            this.delay = this.delay + (this.isChannel and -shift or shift)
+            this.duration:Assign(duration)
+            UpdateTimerText(this)
+            ArmExpiry(this)
           end
         end
       end

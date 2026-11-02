@@ -907,7 +907,6 @@ pfUI_translation["deDE"] = {
   ["Chat Tab"] = "Chat Tab",
   ["Libpredict"] = "Libpredict",
   ["Panel Alignment"] = "Panel Ausrichtung",
-  ["Nameplate Update Rate"] = "Namensplaketten Aktualisierungsrate",
   ["Target/Casting Plates"] = "Ziel/Cast Plaketten",
   ["Tooltip Update Rate"] = "Tooltip Aktualisierungsrate",
   ["Cursor Follow"] = "Cursor Folgen",

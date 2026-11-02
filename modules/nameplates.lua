@@ -82,7 +82,6 @@ pfUI:RegisterModule("nameplates", function ()
   local threatMemory = {} -- guid -> true once the mob targeted the player
   local raidGuidCache = {}  -- guid -> name of the player's group
   local offtanks = {}
-  local activeCasts = {}  -- overlay -> true while its castbar sweeps
   local zooming = {}      -- overlay -> true while its target zoom animates
   local auraSlots = {}    -- reusable GetAuraSlots buffer for the per-plate aura scan
   local targetGuid
@@ -100,6 +99,7 @@ pfUI:RegisterModule("nameplates", function ()
   -- Config caching
   -- ============================================================================
   local cfg = {}
+  local castFormatter = C_StringUtil.CreateNumericRuleFormatter()
   local debufffilter, debufflist
 
   local function DebuffFilterPopulate()
@@ -158,7 +158,13 @@ pfUI:RegisterModule("nameplates", function ()
     cfg.showguildname = N.showguildname == "1"
     cfg.abbrevname = C.unitframes.abbrevname == "1"
     cfg.friendclassnamec = N.friendclassnamec == "1"
-    cfg.castbardecimals = C.unitframes.castbardecimals == "1"
+    -- the plate castbars' text bindings hold this formatter, so they pick the
+    -- change up on their next tick
+    if C.unitframes.castbardecimals == "1" then
+      castFormatter:SetBreakpoints({ { threshold = 0, step = .1, rounding = Enum.NumericRuleFormatRounding.Down, format = "%.1f" } })
+    else
+      castFormatter:SetBreakpoints({ { threshold = 0, format = "%.2f" } })
+    end
     cfg.fullhealth = N.fullhealth == "1"
     cfg.keeptarget = N.target == "1"
     cfg.critters = N.critters == "1"
@@ -187,8 +193,6 @@ pfUI:RegisterModule("nameplates", function ()
     cfg.rightclick = N.rightclick == "1"
     cfg.hlr, cfg.hlg, cfg.hlb, cfg.hla = GetStringColor(N.highlightcolor)
     cfg.br, cfg.bg, cfg.bb, cfg.ba = GetStringColor(C.appearance.border.color)
-    -- sweep rate of the castbars on plates other than the target's
-    cfg.throttle_castbar = pfUI.throttle:Get("nameplates_castbar")
 
     local c = combatstate
     c.CASTING.r, c.CASTING.g, c.CASTING.b, c.CASTING.a = GetStringColor(N.combatcasting)
@@ -227,22 +231,23 @@ pfUI:RegisterModule("nameplates", function ()
   -- One-shot C_Spell poll. Builds the cast struct for a UNIT_SPELLCAST_* event
   -- (the payload carries no timing) and seeds a plate that binds while its unit
   -- is already mid-cast (its START fired before the plate existed). Picks cast
-  -- vs channel itself.
+  -- vs channel itself. A cast whose start was never seen has no duration.
   local function PollCastInfo(unit)
-    local name, _, texture, startMs, endMs, _, _, noInterrupt, spellID = C_Spell.UnitCastingInfo(unit)
-    local isChannel
-    if not name then
-      name, _, texture, startMs, endMs, _, noInterrupt, spellID = C_Spell.UnitChannelInfo(unit)
+    local name, _, texture, _, _, _, _, noInterrupt, spellID = C_Spell.UnitCastingInfo(unit)
+    local duration, isChannel
+    if name then
+      duration = UnitCastingDuration(unit)
+    else
+      name, _, texture, _, _, _, noInterrupt, spellID = C_Spell.UnitChannelInfo(unit)
+      duration = name and UnitChannelDuration(unit)
       isChannel = true
     end
-    if not name or not startMs or not endMs then return nil end
+    if not duration then return nil end
     return {
       spellName = name,
       spellID   = spellID,
       icon      = texture,
-      startTime = startMs / 1000,
-      endTime   = endMs / 1000,
-      duration  = (endMs - startMs) / 1000,
+      duration  = duration,
       isChannel = isChannel,
       noInterrupt = noInterrupt,
     }
@@ -279,7 +284,7 @@ pfUI:RegisterModule("nameplates", function ()
     local mobTargetGuid = UnitGUID(target)
     local hasTarget = mobTargetGuid and mobTargetGuid ~= NULL_GUID
     local info = castState[guid]
-    local isCasting = info and info.endTime > GetTime()
+    local isCasting = info and not info.duration:HasExpired()
     local targetingPlayer = hasTarget and UnitIsUnit(target, "player")
 
     if targetingPlayer then
@@ -819,8 +824,7 @@ pfUI:RegisterModule("nameplates", function ()
   end
 
   -- ============================================================================
-  -- Animation driver: castbar sweeps and the target zoom. Shown only while
-  -- something moves.
+  -- Animation driver: the target zoom. Shown only while a plate zooms.
   -- ============================================================================
   local driver = CreateFrame("Frame", nil, UIParent)
   driver:Hide()
@@ -841,98 +845,8 @@ pfUI:RegisterModule("nameplates", function ()
     driver:Show()
   end
 
-  -- Skip SetText when the rounded value hasn't changed since last frame.
-  -- `string.format("%.2f", ...)` allocates a fresh string every call; this
-  -- gate compares cheap integers and only formats when the displayed value
-  -- would actually differ. Reset via lastEndTime-changed branch below.
-  local function SetCastbarText(castbar, remaining)
-    local rounded
-    if cfg.castbardecimals then
-      rounded = floor(remaining * 10)
-      if castbar.lastTextTick ~= rounded then
-        castbar.lastTextTick = rounded
-        castbar.text:SetText(rounded / 10)
-      end
-    else
-      rounded = floor(remaining * 100)
-      if castbar.lastTextTick ~= rounded then
-        castbar.lastTextTick = rounded
-        castbar.text:SetFormattedText("%.2f", remaining)
-      end
-    end
-  end
-
-  local function UpdateCastbar(plate, info, now)
-    local castbar = plate.castbar
-    local duration = info.duration
-    if castbar.lastEndTime ~= info.endTime then
-      castbar.lastEndTime = info.endTime
-      castbar.lastTextTick = nil
-      -- Relative 0..duration range to avoid float precision loss with large
-      -- absolute timestamps.
-      castbar:SetMinMaxValues(0, duration)
-      SetCastbarShield(castbar, castbar.icon, info.noInterrupt, info.isChannel)
-      if info.icon then
-        castbar.icon.tex:SetTexture(info.icon)
-        castbar.icon.tex:SetTexCoord(.1,.9,.1,.9)
-      end
-      castbar.spell:SetText(cfg.spellname and info.spellName or "")
-    end
-
-    local value = info.isChannel and (info.endTime - now) or (now - info.startTime)
-    if value < 0 then value = 0 elseif value > duration then value = duration end
-    castbar:SetValue(value)
-    SetCastbarText(castbar, info.endTime - now)
-    if not castbar.isShown then
-      castbar.isShown = true
-      castbar:Show()
-    end
-  end
-
-  function HideCast(plate)
-    activeCasts[plate] = nil
-    local castbar = plate.castbar
-    if castbar.isShown then
-      castbar.isShown = nil
-      castbar.lastEndTime = nil
-      castbar:Hide()
-    end
-  end
-
-  -- Start or stop the plate's castbar from the cast cache and the config.
-  function UpdateCast(plate)
-    local info = castState[plate.guid]
-    if info and cfg.showcastbar and (plate.istarget or not cfg.targetcastbar) then
-      if not activeCasts[plate] then
-        activeCasts[plate] = true
-        plate.casttick = 0
-        driver:Show()
-      end
-      UpdateCastbar(plate, info, GetTime())
-    else
-      HideCast(plate)
-    end
-  end
-
   driver:SetScript("OnUpdate", function()
     local now = GetTime()
-
-    -- The target's bar sweeps every frame; the others at the castbar rate.
-    for plate in pairs(activeCasts) do
-      if plate.istarget or plate.casttick + cfg.throttle_castbar <= now then
-        plate.casttick = now
-        local info = castState[plate.guid]
-        if info and info.endTime > now then
-          UpdateCastbar(plate, info, now)
-        else
-          -- ran out without a STOP: treat it as one
-          castState[plate.guid] = nil
-          HideCast(plate)
-          UpdateCombatColor(plate)
-        end
-      end
-    end
-
     for plate in pairs(zooming) do
       local f = (now - plate.zoomStart) / ZOOM_TIME
       if f >= 1 then
@@ -941,9 +855,56 @@ pfUI:RegisterModule("nameplates", function ()
       end
       SetZoom(plate, plate.zoomIn and f or 1 - f)
     end
-
-    if not next(activeCasts) and not next(zooming) then this:Hide() end
+    if not next(zooming) then this:Hide() end
   end)
+
+  -- ============================================================================
+  -- Castbars: the bar's timer and its text binding follow the cast's duration
+  -- object on their own. Lua only starts, restyles and stops them.
+  -- ============================================================================
+  local function ShowCast(plate, info)
+    local castbar = plate.castbar
+    castbar:SetTimerDuration(info.duration, Enum.StatusBarInterpolation.Immediate,
+      info.isChannel and Enum.StatusBarTimerDirection.RemainingTime or Enum.StatusBarTimerDirection.ElapsedTime)
+    castbar.timer:SetDuration(info.duration)
+    castbar.timer:Enable()
+    SetCastbarShield(castbar, castbar.icon, info.noInterrupt, info.isChannel)
+    if info.icon then
+      castbar.icon.tex:SetTexture(info.icon)
+      castbar.icon.tex:SetTexCoord(.1,.9,.1,.9)
+    end
+    castbar.spell:SetText(cfg.spellname and info.spellName or "")
+    -- armed exactly while the bar shows
+    if castbar.expiry then castbar.expiry:Cancel() end
+    castbar.expiry = C_Timer.NewTimer(info.duration:GetRemainingDuration(), castbar.onExpire)
+    castbar:Show()
+  end
+
+  function HideCast(plate)
+    local castbar = plate.castbar
+    if not castbar.expiry then return end
+    castbar.expiry:Cancel()
+    castbar.expiry = nil
+    castbar.timer:Disable()
+    castbar:Hide()
+  end
+
+  -- Start or stop the plate's castbar from the cast cache and the config.
+  function UpdateCast(plate)
+    local info = castState[plate.guid]
+    if info and not info.duration:HasExpired() and cfg.showcastbar and (plate.istarget or not cfg.targetcastbar) then
+      ShowCast(plate, info)
+    else
+      HideCast(plate)
+    end
+  end
+
+  -- The bar's cast ran out without a STOP: treat it as one.
+  local function ExpireCast(plate)
+    castState[plate.guid] = nil
+    HideCast(plate)
+    UpdateCombatColor(plate)
+  end
 
   -- ============================================================================
   -- Cast events (per plate)
@@ -1281,6 +1242,11 @@ pfUI:RegisterModule("nameplates", function ()
       castbar.text:SetNonSpaceWrap(false)
       castbar.text:SetTextColor(1,1,1,.5)
 
+      castbar.timer = C_DurationUtil.CreateDurationTextBinding()
+      castbar.timer:SetFontString(castbar.text)
+      castbar.timer:SetFormatter(castFormatter)
+      castbar.onExpire = function() ExpireCast(nameplate) end
+
       castbar.spell = castbar:CreateFontString("Status", "DIALOG", "GameFontNormal")
       castbar.spell:SetPoint("CENTER", castbar, "CENTER")
       castbar.spell:SetNonSpaceWrap(false)
@@ -1372,8 +1338,6 @@ pfUI:RegisterModule("nameplates", function ()
     nameplate.castbar:SetStatusBarTexture(cbtexture or hptexture)
     local cbr, cbg, cbb, cba = GetStringColor(C.appearance.castbar.castbarcolor)
     nameplate.castbar:SetStatusBarColor(cbr, cbg, cbb, cba)
-    -- reset endTime cache so color/texture refresh takes effect on next cast
-    nameplate.castbar.lastEndTime = nil
     CreateBackdrop(nameplate.castbar, default_border)
 
     nameplate.castbar.text:SetFont(font, font_size, "OUTLINE")
@@ -1652,8 +1616,6 @@ pfUI:RegisterModule("nameplates", function ()
     local plate = info and plateByGuid[guid]
     if not plate then return end
     info.noInterrupt = event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE"
-    -- UpdateCastbar only restyles on a new cast; force it
-    plate.castbar.lastEndTime = nil
     UpdateCast(plate)
   end
   events.UNIT_SPELLCAST_NOT_INTERRUPTIBLE = events.UNIT_SPELLCAST_INTERRUPTIBLE

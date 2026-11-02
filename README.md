@@ -23,7 +23,7 @@ Provides:
 - C_NamePlate - Event-driven nameplates (no more per-frame WorldFrame scanning) with real per-plate unit tokens and GUIDs
 - C_UnitAuras - Replaces over 3k lines of hand-rolled aura tracking
 - C_Spell - Replaces thousands of hardcoded spell names for each locale and powers castbar
-- Real cast bars - Actual cast/channel timing, spellID and interrupt state for any unit (C_Spell.UnitCastingInfo)
+- Real cast bars - Actual cast/channel timing, spellID and interrupt state for any unit (C_Spell.UnitCastingInfo), filled and counted down engine-side (UnitCastingDuration, StatusBar:SetTimerDuration, duration text bindings) with no Lua OnUpdate
 - Focus - A genuine `focus` unit plus `/focus` and `/clearfocus` (FocusUnit / ClearFocus)
 - C_EquipmentSet - Full Equipment Manager with GUID-tracked gear sets (tells apart duplicate/enchanted items)
 - Instant Bag Sorting - C_Container.MoveItem / SwapItems instead of cursor pickup/drop

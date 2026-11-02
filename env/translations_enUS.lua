@@ -939,7 +939,6 @@ pfUI_translation["enUS"] = {
   ["Chat Tab"] = nil,
   ["Libpredict"] = nil,
   ["Panel Alignment"] = nil,
-  ["Nameplate Update Rate"] = nil,
   ["Target/Casting Plates"] = nil,
   ["Tooltip Update Rate"] = nil,
   ["Cursor Follow"] = nil,
