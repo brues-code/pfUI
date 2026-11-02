@@ -671,7 +671,8 @@ pfUI:RegisterModule("nameplates", function ()
   local function CreateDebuffIcon(plate, index)
     local icon = CreateFrame("Frame", plate.platename.."Debuff"..index, plate)
     icon:Hide()
-    icon:SetFrameLevel(4)
+    -- relative: a raised target plate can grow icons too
+    icon:SetFrameLevel(plate.health:GetFrameLevel())
 
     icon.icon = icon:CreateTexture(nil, "BACKGROUND")
     icon.icon:SetColorTexture(.3,1,.8,1)
@@ -684,7 +685,7 @@ pfUI:RegisterModule("nameplates", function ()
     icon.stacks:SetTextColor(1,1,0)
 
     icon.cd = CreateCooldown(icon, "nameplate", plate.platename.."Debuff"..index.."Cooldown")
-    icon.cd:SetFrameLevel(6)
+    icon.cd:SetFrameLevel(icon:GetFrameLevel() + 2)
 
     plate.debuffs[index] = icon
   end
@@ -799,11 +800,22 @@ pfUI:RegisterModule("nameplates", function ()
     plate:SetAlpha(alpha)
   end
 
-  local function UpdateStrata(plate)
-    local strata = plate.istarget and "LOW" or "BACKGROUND"
-    if plate.strata == strata then return end
-    plate.strata = strata
-    plate:SetFrameStrata(strata)
+  -- The engine's plates draw in the world frame's stratum, under every UI
+  -- stratum, and the overlay inherits it; a SetFrameStrata would lift it into
+  -- the UI's and over the chat. The target rises above the other plates by
+  -- level instead: raise the engine frame, then re-parent the overlay, which
+  -- moves its whole subtree to the new parent level.
+  local TARGET_RAISE = 20
+
+  local function UpdateStacking(plate)
+    local raised = plate.istarget and true or nil
+    if plate.raised == raised then return end
+    plate.raised = raised
+    local parent = plate.parent
+    parent:SetFrameLevel(plate.baselevel + (raised and TARGET_RAISE or 0))
+    -- SetParent does nothing for the same parent, so it goes through nil
+    plate:SetParent(nil)
+    plate:SetParent(parent)
   end
 
   -- ============================================================================
@@ -957,7 +969,7 @@ pfUI:RegisterModule("nameplates", function ()
   -- ============================================================================
   local function SetTarget(plate, istarget)
     plate.istarget = istarget
-    UpdateStrata(plate)
+    UpdateStacking(plate)
     UpdateBorder(plate)
     UpdateLayout(plate)
     UpdateCombo(plate)
@@ -1028,7 +1040,7 @@ pfUI:RegisterModule("nameplates", function ()
     UpdateLayout(plate)
     UpdateDebuffs(plate)
     UpdateCombo(plate)
-    UpdateStrata(plate)
+    UpdateStacking(plate)
     UpdateAlpha(plate)
     UpdateCast(plate)
     if cfg.targetzoom and plate.istarget then StartZoom(plate, true) end
@@ -1160,6 +1172,7 @@ pfUI:RegisterModule("nameplates", function ()
     nameplate.platename = platename
     nameplate:EnableMouse(false)
     nameplate.parent = parent
+    nameplate.baselevel = parent:GetFrameLevel()
     nameplate.cache = {}
 
     -- Each plate watches its own unit. With RegisterUnitEvent the token IS the
