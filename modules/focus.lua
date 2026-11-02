@@ -17,9 +17,10 @@ pfUI:RegisterModule("focus", function ()
   -- PLAYER_FOCUS_CHANGED drives immediate refresh on focus assign / clear.
   -- Between events, ClassicAPI fires UNIT_* (health/mana/aura/...) with
   -- arg1 == "focus", so the bars update event-driven like target.
-  -- focustarget is a chained unit like targettarget: UNIT_TARGET follows the
-  -- focus retargeting, and a new focus only needs its visibility re-checked,
-  -- which queues the full refresh when its target is a different unit.
+  -- focustarget is a chained unit like targettarget, but ClassicAPI fires its
+  -- UNIT_* as "focustarget", and UNIT_TARGET on "focus" follows the focus
+  -- retargeting. A new focus only needs its visibility re-checked, which
+  -- queues the full refresh when its target is a different unit.
   pfUI.events:RegisterFrameEventAndCallback("PLAYER_FOCUS_CHANGED", function()
     pfUI.uf:RefreshUnit(pfUI.uf.focus, "all")
     pfUI.uf.focustarget:UpdateVisibility()

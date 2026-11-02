@@ -248,6 +248,11 @@ local VISIBILITY_EVENTS = {
   UNIT_TARGET = true, -- a link of a chained frame's unit retargeted
 }
 
+-- The units of a chain that unit events name by token, whatever nampower does
+-- with its GUID events: the focus, and the focus's target, whose unit events
+-- ClassicAPI fires as "focustarget" from the unit's own fields.
+local CHAIN_TOKENS = { focus = true, focustarget = true }
+
 -- The events a frame hears hidden or not: the visibility events that concern
 -- the unit it was created for (raid.lua remaps a raid frame's label, so this is
 -- decided once, at creation), and the logout guard. UNIT_TARGET belongs to
@@ -482,7 +487,9 @@ function pfUI.uf:UpdateVisibility()
   --
   -- A chained unit -- another unit's target, "targettarget" or "party1target"
   -- -- has no token that unit events name, so the frame follows it by GUID,
-  -- which every unit event also fires with. It follows the unit only while
+  -- which nampower fires every unit event with too, unless its GUID events
+  -- are off or filtered. The focus's target is named (CHAIN_TOKENS), so that
+  -- frame follows its token instead. It follows the unit only while
   -- the client has it: a link's target can be out of sight, and its coming
   -- back is then a new unit too. The unit changes with no event of its own
   -- whenever a link of the chain retargets; UNIT_TARGET on every link reports
@@ -491,8 +498,9 @@ function pfUI.uf:UpdateVisibility()
   self.chain = visibility ~= "hide" and unitstr:match("^(.+)target$") or nil
   if self.chain then
     local guid = UnitName(unitstr) and UnitGUID(unitstr)
-    if guid ~= self.eventunit then self.update_full = true end
-    self:RegisterUnitEvents(guid)
+    if guid ~= self.unitguid then self.update_full = true end
+    self.unitguid = guid
+    self:RegisterUnitEvents(guid and CHAIN_TOKENS[unitstr] and unitstr or guid)
   else
     self:RegisterUnitEvents(visibility ~= "hide" and unitstr or nil)
   end
@@ -1359,8 +1367,8 @@ local UNIT_EVENTS = {
 
 -- Auras and power. ClassicAPI's UNIT_AURA_DELTA also reports refreshes and new
 -- durations and says what changed; its generic power events name the power, so
--- a frame skips the ones it does not draw. Both fire for tokens only, so a
--- chained unit, followed by GUID, keeps 1.12's events instead. A group
+-- a frame skips the ones it does not draw. Both fire for tokens only, and not
+-- as "focustarget", so a chained unit keeps 1.12's events instead. A group
 -- member's connection and sight come with them, and a chained unit has
 -- neither event.
 local TOKEN_EVENTS = {
@@ -1425,16 +1433,18 @@ end
 -- unit, whose `owner` is the unit it is the target of -- for
 -- "targettargettarget" the links are "targettarget" and "target" -- or drop it
 -- when `owner` is nil. By GUID, since the inner links are no token that events
--- name. Cheap to call repeatedly: it re-registers only when a link changed.
+-- name, save the ones in CHAIN_TOKENS. Cheap to call repeatedly: it
+-- re-registers only when a link changed.
 local chainlinks = {}
 function pfUI.uf:RegisterChainEvents(owner)
   local n, key = 0, nil
   while owner do
     local guid = UnitGUID(owner)
     if guid then
+      local link = CHAIN_TOKENS[owner] and owner or guid
       n = n + 1
-      chainlinks[n] = guid
-      key = key and key .. guid or guid
+      chainlinks[n] = link
+      key = key and key .. link or link
     end
     owner = owner:match("^(.+)target$")
   end
