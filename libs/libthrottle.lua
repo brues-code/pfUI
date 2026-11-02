@@ -31,10 +31,7 @@ libthrottle.presetNames = {
 
 -- Default throttle categories
 libthrottle.defaults = {
-  nameplates           = "custom",
-  nameplates_target    = "custom",
   nameplates_castbar   = "custom",
-  nameplates_mass      = "custom",
   tooltip_cursor       = "fastest",
   chat_tab             = "custom",
   swingtimer           = "custom",
@@ -158,10 +155,7 @@ libthrottle:SetScript("OnEvent", function()
     end
     
     -- Set defaults for custom fields if missing
-    if not _G.pfUI_throttle.nameplates_target_custom then _G.pfUI_throttle.nameplates_target_custom = "50" end
-    if not _G.pfUI_throttle.nameplates_custom then _G.pfUI_throttle.nameplates_custom = "10" end
     if not _G.pfUI_throttle.nameplates_castbar_custom then _G.pfUI_throttle.nameplates_castbar_custom = "100" end
-    if not _G.pfUI_throttle.nameplates_mass_custom then _G.pfUI_throttle.nameplates_mass_custom = "7" end
     if not _G.pfUI_throttle.tooltip_cursor_custom then _G.pfUI_throttle.tooltip_cursor_custom = "10" end
     if not _G.pfUI_throttle.chat_tab_custom then _G.pfUI_throttle.chat_tab_custom = "10" end
     if not _G.pfUI_throttle.swingtimer_custom then _G.pfUI_throttle.swingtimer_custom = "50" end
