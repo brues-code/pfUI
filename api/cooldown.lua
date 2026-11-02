@@ -196,9 +196,10 @@ function pfUI.api.GetAuraTimer(duration, expirationTime)
   return start, dur
 end
 
--- [ GetColoredTimeString ] --
--- 'remaining'   [number]   the time in seconds that should be converted
--- return        [string]   the time as cooldown numbers show it
-function pfUI.api.GetColoredTimeString(remaining)
-  return GetFormatter():FormatNumber(remaining)
+-- [ GetTimeFormatter ] --
+-- The formatter cooldown numbers use, for other timers to show time the same
+-- way. Hold it rather than a copy: a settings change updates it in place.
+-- return        [formatter]   a NumericRuleFormatter
+function pfUI.api.GetTimeFormatter()
+  return GetFormatter()
 end

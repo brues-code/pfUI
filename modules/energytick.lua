@@ -166,8 +166,8 @@ pfUI:RegisterModule("energytick", function()
       local cost = C_Spell.GetSpellPowerCost(arg3)
       cost = cost and cost[1]
       if cost and cost.type == Enum.PowerType.Mana and cost.cost > 0 then
-        this.fsrSpell, this.fsrEnd = arg3, GetTime() + FIVE_SECOND_RULE
-        this.fsrGain = nil
+        this.fsrSpell, this.fsrGain = arg3, nil
+        this.fsr:SetTimeFromStart(GetTime(), FIVE_SECOND_RULE)
       end
       return
     end
@@ -175,7 +175,8 @@ pfUI:RegisterModule("energytick", function()
     -- Unit::Update won't expire the rule while the spending spell still channels
     if event == "UNIT_SPELLCAST_CHANNEL_STOP" and arg1 == "player" then
       if this.fsrSpell and this.fsrSpell == arg3 then
-        this.fsrEnd, this.fsrGain = GetTime() + FIVE_SECOND_RULE, nil
+        this.fsrGain = nil
+        this.fsr:SetTimeFromStart(GetTime(), FIVE_SECOND_RULE)
       end
       return
     end
@@ -189,7 +190,7 @@ pfUI:RegisterModule("energytick", function()
       -- only a gain can be the tick; a spend never touches the phase
       if diff > 0 and lockTick(this) then
         -- a tick inside the window proves regen continues through it
-        if this.fsrEnd and this.fsrEnd > GetTime() then
+        if this.fsr:IsActive() then
           this.fsrGain = true
         end
       end
@@ -208,25 +209,15 @@ pfUI:RegisterModule("energytick", function()
     end
     this.tick = GetTime() + 0.020  -- ~50 FPS
 
-    -- five-second rule drains to nothing. The display is cosmetic and can be
-    -- hidden on its own; the window itself (fsrEnd/fsrGain) keeps running
-    -- either way -- it still dims the sweep spark below.
-    local remaining = this.fsrEnd and (this.fsrEnd - GetTime()) or 0
-    if this.mode == "MANA" and remaining > 0 then
-      if C.unitframes.player.showfsr == "1" then
-        if fsrOverlay then
-          this.fsrbar:SetWidth(getBarWidth() * remaining / FIVE_SECOND_RULE)
-        else
-          this.fsrbar:SetValue(remaining)
-        end
-        this.fsrbar:Show()
-      else
-        this.fsrbar:Hide()
-      end
-    else
-      this.fsrSpell, this.fsrEnd, this.fsrGain = nil, nil, nil
-      this.fsrbar:Hide()
+    -- five-second rule: fsrbar drains from this.fsr by itself. The display is
+    -- cosmetic and can be hidden on its own; the window itself (fsr/fsrGain)
+    -- keeps running either way -- it still dims the sweep spark below.
+    local fsrUp = this.mode == "MANA" and this.fsr:IsActive()
+    if not fsrUp and this.fsrSpell then
+      this.fsrSpell, this.fsrGain = nil, nil
+      this.fsr:Reset()
     end
+    this.fsrbar:SetShown(fsrUp and C.unitframes.player.showfsr == "1")
 
     if not this.start then
       this.spark:SetAlpha(0)
@@ -249,7 +240,7 @@ pfUI:RegisterModule("energytick", function()
     end
 
     -- dim while the rule is up and nothing has ticked inside it yet
-    this.spark:SetAlpha((remaining > 0 and not this.fsrGain) and .4 or 1)
+    this.spark:SetAlpha((fsrUp and not this.fsrGain) and .4 or 1)
 
     if not C.unitframes.player.pheight then
       return
@@ -259,19 +250,21 @@ pfUI:RegisterModule("energytick", function()
     this.spark:SetPoint("LEFT", pos - ((C.unitframes.player.pheight + 5) / 2), 0)
   end)
 
+  energytick.fsr = C_DurationUtil.CreateDuration()
+
   if fsrOverlay then
-    -- classic style: a translucent shade on top of the power bar's own fill
-    energytick.fsrbar = energytick:CreateTexture(nil, "ARTWORK")
-    energytick.fsrbar:SetColorTexture(1, 1, 1, .15)
-    energytick.fsrbar:SetPoint("TOPLEFT", 0, 0)
-    energytick.fsrbar:SetPoint("BOTTOMLEFT", 0, 0)
+    -- classic style: a translucent shade on top of the power bar's own fill,
+    -- under the spark
+    energytick.fsrbar = CreateFrame("StatusBar", nil, pfUI.uf.player.power.bar)
+    energytick.fsrbar:SetAllPoints(energytick)
+    energytick.fsrbar:SetColorFill(1, 1, 1, .15)
+    energytick:SetFrameLevel(energytick.fsrbar:GetFrameLevel() + 1)
   else
     -- a real bar below the power bar, not an overlay on top of it -- the same
     -- treatment nameplate castbars get relative to the health bar, so the
     -- window can't be mistaken for missing mana
     energytick.fsrbar = CreateFrame("StatusBar", nil, pfUI.uf.player)
     energytick.fsrbar:SetStatusBarTexture(cbtexture)
-    energytick.fsrbar:SetMinMaxValues(0, FIVE_SECOND_RULE)
     energytick.fsrbar:SetPoint("TOPLEFT", pfUI.uf.player.power.bar, "BOTTOMLEFT", 0, -default_border * 2)
     energytick.fsrbar:SetPoint("TOPRIGHT", pfUI.uf.player.power.bar, "BOTTOMRIGHT", 0, -default_border * 2)
     energytick.fsrbar:SetHeight(tonumber(C.unitframes.player.fsrheight) or 4)
@@ -279,7 +272,13 @@ pfUI:RegisterModule("energytick", function()
     CreateBackdrop(energytick.fsrbar, default_border)
     CreateBackdropShadow(energytick.fsrbar)
   end
+  energytick.fsrbar:SetTimerDuration(energytick.fsr, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.RemainingTime)
   energytick.fsrbar:Hide()
+
+  -- the bar isn't parented to energytick, and OnUpdate stops with it
+  energytick:SetScript("OnHide", function()
+    this.fsrbar:Hide()
+  end)
 
   energytick.spark = energytick:CreateTexture(nil, "OVERLAY")
   energytick.spark:SetTexture("Interface\\CastingBar\\UI-CastingBar-Spark")

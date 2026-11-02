@@ -238,17 +238,11 @@ pfUI:RegisterModule("roll", function ()
     f.time.bar = CreateFrame("StatusBar", "pfLootRollFrame" .. id .. "TimeBar", f.time)
     f.time.bar:SetAllPoints(f.time)
     f.time.bar:SetStatusBarTexture(pfUI.media["img:bar"])
-    f.time.bar:SetMinMaxValues(0, 100)
     local r, g, b, a = GetStringColor(C.appearance.border.color)
     f.time.bar:SetStatusBarColor(r, g, b)
-    f.time.bar:SetValue(20)
-    f.time.bar:SetScript("OnUpdate", function()
-      if not this:GetParent():GetParent().rollID then return end
-      local left = GetLootRollTimeLeft(this:GetParent():GetParent().rollID)
-      local min, max = this:GetMinMaxValues()
-      if left < min or left > max then left = min end
-      this:SetValue(left)
-    end)
+    -- drains by itself; UpdateLootRoll sets the roll's time span
+    f.time.duration = C_DurationUtil.CreateDuration()
+    f.time.bar:SetTimerDuration(f.time.duration, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.RemainingTime)
 
     return f
   end
@@ -299,7 +293,9 @@ pfUI:RegisterModule("roll", function ()
     pfUI.roll.frames[id].name.text:SetTextColor(color.r, color.g, color.b, 1)
     pfUI.roll.frames[id].icon.tex:SetTexture(texture)
     pfUI.roll.frames[id].backdrop:SetBackdropBorderColor(color.r, color.g, color.b)
-    pfUI.roll.frames[id].time.bar:SetMinMaxValues(0, pfUI.roll.frames[id].rollTime)
+    -- both in milliseconds
+    local left = GetLootRollTimeLeft(pfUI.roll.frames[id].rollID)
+    pfUI.roll.frames[id].time.duration:SetTimeFromEnd(GetTime() + left / 1000, pfUI.roll.frames[id].rollTime / 1000)
 
     if C.loot.raritytimer == "1" then
       pfUI.roll.frames[id].time.bar:SetStatusBarColor(color.r, color.g, color.b, .5)

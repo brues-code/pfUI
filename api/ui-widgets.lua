@@ -834,10 +834,7 @@ function pfUI.api.CreateInfoBox(text, time, parent, height)
     end)
 
     infobox:SetScript("OnUpdate", function()
-      local time = infobox.lastshow + infobox.duration - GetTime()
-      infobox.timeout:SetValue(time)
-
-      if GetTime() > infobox.lastshow + infobox.duration then
+      if infobox.duration:HasExpired() then
         if not infobox.fade:IsPlaying() then infobox.fade:Play() end
       elseif MouseIsOverHitRect(this) then
         this:SetAlpha(max(0.4, this:GetAlpha() - .1))
@@ -857,6 +854,8 @@ function pfUI.api.CreateInfoBox(text, time, parent, height)
     infobox.timeout = CreateFrame("StatusBar", nil, infobox)
     infobox.timeout:SetStatusBarTexture(pfUI.media["img:bar"])
     infobox.timeout:SetStatusBarColor(.3,1,.8,1)
+    infobox.duration = C_DurationUtil.CreateDuration()
+    infobox.timeout:SetTimerDuration(infobox.duration, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.RemainingTime)
 
     infobox:ClearAllPoints()
     infobox.text:SetAllPoints(infobox)
@@ -872,11 +871,7 @@ function pfUI.api.CreateInfoBox(text, time, parent, height)
   end
 
   infobox.text:SetText(text)
-  infobox.timeout:SetMinMaxValues(0, time)
-  infobox.timeout:SetValue(time)
-
-  infobox.duration = time
-  infobox.lastshow = GetTime()
+  infobox.duration:SetTimeFromStart(GetTime(), time)
 
   infobox:SetSize(infobox.text:GetStringWidth() + 50, height)
   infobox:SetParent(parent)

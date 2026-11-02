@@ -130,15 +130,14 @@ pfUI:RegisterModule("buffwatch", function ()
     GameTooltip:Hide()
   end
 
-  local function StatusBarOnUpdate()
-    local remaining = this.endtime - GetTime()
-    this.bar:SetValue(remaining > 0 and remaining or 0)
-
-    if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + .1 end
-    this.time:SetText(remaining > 0 and GetColoredTimeString(remaining) or "")
+  -- an enabled text binding writes every frame, shown or not
+  local function StatusBarOnShow()
+    this.timer:Enable()
+    this.parent:RefreshPosition()
   end
 
-  local function StatusBarRefreshParent()
+  local function StatusBarOnHide()
+    this.timer:Disable()
     this.parent:RefreshPosition()
   end
 
@@ -183,6 +182,16 @@ pfUI:RegisterModule("buffwatch", function ()
     frame.time:SetTextColor(1,1,1,1)
     frame.time:SetJustifyH("RIGHT")
 
+    -- the bar drains and the time counts down from this, engine-side
+    frame.duration = C_DurationUtil.CreateDuration()
+    frame.bar:SetTimerDuration(frame.duration, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.RemainingTime)
+    frame.timer = C_DurationUtil.CreateDurationTextBinding()
+    frame.timer:SetFontString(frame.time)
+    frame.timer:SetFormatter(GetTimeFormatter())
+    frame.timer:SetDuration(frame.duration)
+    frame.timer:SetExpiredText("")
+    frame.timer:SetZeroDurationText("")
+
     frame.icon = frame:CreateTexture(nil, "OVERLAY")
     frame.icon:SetSize(height, height)
     frame.icon:SetPoint("LEFT", frame, "LEFT", 0, 0)
@@ -195,9 +204,8 @@ pfUI:RegisterModule("buffwatch", function ()
     frame.stacks:SetJustifyV("CENTER")
 
     frame.parent = parent
-    frame:SetScript("OnUpdate", StatusBarOnUpdate)
-    frame:SetScript("OnShow", StatusBarRefreshParent)
-    frame:SetScript("OnHide", StatusBarRefreshParent)
+    frame:SetScript("OnShow", StatusBarOnShow)
+    frame:SetScript("OnHide", StatusBarOnHide)
 
     frame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     frame:SetScript("OnClick", StatusBarOnClick)
@@ -261,7 +269,6 @@ pfUI:RegisterModule("buffwatch", function ()
         frame.bars[bar].id = data[2]
         frame.bars[bar].unit = frame.unit
         frame.bars[bar].type = frame.type
-        frame.bars[bar].endtime = GetTime() + ( data[1] > 0 and data[1] or -1 )
 
         -- update max duration the cached remaining values is less than
         -- the real one, indicates a buff renewal
@@ -313,10 +320,12 @@ pfUI:RegisterModule("buffwatch", function ()
           frame.bars[bar].icon:SetTexture(data[4])
         end
 
-        -- cache maxduration
-        if frame.bars[bar].cacheMaxDuration ~= frame.durations[uuid][2] then
-          frame.bars[bar].cacheMaxDuration = frame.durations[uuid][2]
-          frame.bars[bar].bar:SetMinMaxValues(0, frame.durations[uuid][2])
+        -- the bar spans the longest time left seen for this aura; one without
+        -- a time left (threshold -1) shows an empty bar and no time
+        if data[1] > 0 then
+          frame.bars[bar].duration:SetTimeFromEnd(GetTime() + data[1], frame.durations[uuid][2])
+        else
+          frame.bars[bar].duration:Reset()
         end
 
         -- set stacks
