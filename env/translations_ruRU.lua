@@ -359,6 +359,7 @@ pfUI_translation["ruRU"] = {
   ["Group Options"] = "Настройки группы",
   ["Group-Pet"] = "Группа-питомец",
   ["Group-Target"] = "Группа-цель",
+  ["Grow Right To Left"] = nil,
   ["Gryphon"] = nil,
   ["Gryphons"] = nil,
   ["Guild Online"] = "Члены гильдии в сети",

@@ -2294,7 +2294,7 @@ pfUI:RegisterModule("gui", function ()
           CreateConfig(U["raid"], T["Raid Padding"], C.unitframes[c], "raidpadding")
           CreateConfig(U["raid"], T["Raid Layout"], C.unitframes[c], "raidlayout", "dropdown", pfUI.gui.dropdowns.uf_raidlayout)
           CreateConfig(U["raid"], T["Raid Fill Direction"], C.unitframes[c], "raidfill", "dropdown", pfUI.gui.dropdowns.orientation)
-          CreateConfig(U["raid"], T["Reverse Group Order"], C.unitframes[c], "raidreverse", "checkbox")
+          CreateConfig(U["raid"], T["Grow Right To Left"], C.unitframes[c], "raidgrowleft", "checkbox")
           CreateConfig(U["raid"], T["Collapse Empty Slots"], C.unitframes[c], "collapse", "checkbox")
         elseif c == "raidpet" then
           CreateConfig(U[c], T["Layout"], nil, nil, "header")

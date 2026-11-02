@@ -359,6 +359,7 @@ pfUI_translation["koKR"] = {
   ["Group Options"] = nil,
   ["Group-Pet"] = "파티-팻",
   ["Group-Target"] = "파티-타켓",
+  ["Grow Right To Left"] = nil,
   ["Gryphon"] = nil,
   ["Gryphons"] = nil,
   ["Guild Online"] = "접속중인 길드원",

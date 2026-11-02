@@ -369,6 +369,7 @@ pfUI_translation["enUS"] = {
   ["Group Options"] = nil,
   ["Group-Pet"] = nil,
   ["Group-Target"] = nil,
+  ["Grow Right To Left"] = nil,
   ["Gryphon"] = nil,
   ["Gryphons"] = nil,
   ["Guild Online"] = nil,

@@ -30,8 +30,8 @@ pfUI:RegisterModule("raid", function ()
   -- flat pool of pet frames, laid out by LayoutPets (mirror or collapsed)
   pfUI.uf.raid.pets = {}
 
-  -- 1-based grid slot -> (row, col) for the current fill direction, matching
-  -- the raid grid's own fill loops.
+  -- 1-based grid slot -> (col, row) for the current fill direction, shared by
+  -- the raid and pet grids.
   local function SlotToCoord(slot, fill, x, y)
     slot = slot - 1
     if fill == "VERTICAL" then
@@ -75,13 +75,12 @@ pfUI:RegisterModule("raid", function ()
       end
     end
 
-    local i = 1
     local width = pfUI.uf.raid[1]:GetWidth()+2*default_border
     local height = pfUI.uf.raid[1]:GetHeight()+2*default_border
     local layout = pfUI.uf.raid[1].config.raidlayout
     local padding = tonumber(pfUI.uf.raid[1].config.raidpadding)*GetPerfectPixel()
     local fill = pfUI.uf.raid[1].config.raidfill
-    local reverse = pfUI.uf.raid[1].config.raidreverse == "1"
+    local growleft = pfUI.uf.raid[1].config.raidgrowleft == "1"
     local _, _, x, y = string.find(layout,"(.+)x(.+)")
     x, y = tonumber(x), tonumber(y)
 
@@ -96,26 +95,18 @@ pfUI:RegisterModule("raid", function ()
       }
     end
 
-    if fill == "VERTICAL" then
-      for r=1, x do for g=1, y do
-        if pfUI.uf.raid[i] then
-          local col = reverse and (x-r) or (r-1)
-          pfUI.uf.raid[i]:ClearAllPoints()
-          pfUI.uf.raid[i]:SetPoint("BOTTOMLEFT", col*(padding+width), (g-1)*(padding+height))
-          UpdateMovable(pfUI.uf.raid[i], true)
-        end
-        i = i + 1
-      end end
-    else
-      for g=1, y do for r=1, x do
-        if pfUI.uf.raid[i] then
-          local col = reverse and (x-r) or (r-1)
-          pfUI.uf.raid[i]:ClearAllPoints()
-          pfUI.uf.raid[i]:SetPoint("BOTTOMLEFT", col*(padding+width), (g-1)*(padding+height))
-          UpdateMovable(pfUI.uf.raid[i], true)
-        end
-        i = i + 1
-      end end
+    -- right to left mirrors across the columns maxraid can fill, so a smaller
+    -- raid stays next to the anchor instead of the far edge of the layout
+    local cols = min(x, fill == "VERTICAL" and ceil(maxraid / y) or maxraid)
+
+    for i=1, x*y do
+      if pfUI.uf.raid[i] then
+        local r, g = SlotToCoord(i, fill, x, y)
+        if growleft then r = cols - r + 1 end
+        pfUI.uf.raid[i]:ClearAllPoints()
+        pfUI.uf.raid[i]:SetPoint("BOTTOMLEFT", (r-1)*(padding+width), (g-1)*(padding+height))
+        UpdateMovable(pfUI.uf.raid[i], true)
+      end
     end
 
     self:LayoutPets()

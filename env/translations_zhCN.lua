@@ -359,6 +359,7 @@ pfUI_translation["zhCN"] = {
   ["Group Options"] = "队伍选项",
   ["Group-Pet"] = "小队宠物",
   ["Group-Target"] = "小队目标",
+  ["Grow Right To Left"] = nil,
   ["Gryphon"] = "狮鹫",
   ["Gryphons"] = "狮鹫（多个）",
   ["Guild Online"] = "公会在线",

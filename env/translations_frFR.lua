@@ -359,6 +359,7 @@ pfUI_translation["frFR"] = {
   ["Group Options"] = "Options de groupe",
   ["Group-Pet"] = "Groupe des familiers",
   ["Group-Target"] = "Groupe des cibles",
+  ["Grow Right To Left"] = nil,
   ["Gryphon"] = nil,
   ["Gryphons"] = nil,
   ["Guild Online"] = "Membres de guilde connectés",
