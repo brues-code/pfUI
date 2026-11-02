@@ -899,7 +899,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
 
     -- trigger the event whenever SuperMacro got an update
     hooksecurefunc("SM_UpdateActionSpell", function()
-      for slot=1,120 do pfUI.bars.update[slot] = true end
+      for slot=1,120 do pfUI.bars.QueueSlot(slot) end
     end)
   end)
 
