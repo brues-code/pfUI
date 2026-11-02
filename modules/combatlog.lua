@@ -2509,13 +2509,7 @@ pfUI:RegisterModule("combatlog", function ()
     local buttonName, button, textWidth;
     local buttonIndex = 1;
     -- subtract the width of the dropdown button
-    local clogleft, clogright = COMBATLOG:GetRight(), COMBATLOG:GetLeft();
-    local maxWidth;
-    if ( clogleft and clogright ) then
-      maxWidth = (COMBATLOG:GetRight()-COMBATLOG:GetLeft())-31; --Hacky hacky because GetWidth goes crazy when it is docked
-    else
-      maxWidth = COMBATLOG:GetWidth() - 31;
-    end
+    local maxWidth = COMBATLOG:GetUnscaledWidth() - 31;
 
     local additionalFilterButton = CombatLogQuickButtonFrame.AdditionalFilterButton;
 

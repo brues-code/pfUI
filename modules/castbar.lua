@@ -86,7 +86,7 @@ pfUI:RegisterModule("castbar", function ()
   -- Per-craft spark position: the current craft's share of the bar's width.
   -- Snaps back to the left edge each time StartTradeskillCraft restarts it.
   local function MoveSpark()
-    local x = this.craft:GetElapsedPercent() * this.bar:GetWidth() - 1
+    local x = this.craft:GetElapsedPercent() * this.bar:GetUnscaledWidth() - 1
     this.bar.spark:SetPoint("TOP", this.bar, "TOPLEFT", x, 0)
     this.bar.spark:SetPoint("BOTTOM", this.bar, "BOTTOMLEFT", x, 0)
   end

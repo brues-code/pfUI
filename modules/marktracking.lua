@@ -41,7 +41,7 @@ pfUI:RegisterModule("marktracking", function ()
 
   local function ShortenName(name, row)
     if not name or name == "" then return "" end
-    local barWidth = row.health:GetWidth()
+    local barWidth = row.health:GetUnscaledWidth()
     if barWidth < 1 then barWidth = BAR_WIDTH end
     local available = barWidth - 4
     if rm_showpct then available = available - 32 end

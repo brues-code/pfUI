@@ -2042,7 +2042,7 @@ function pfUI.uf:RefreshUnit(unit, component)
       local size
 
       if disptype == "4" or disptype == "3" then
-        size = unit.hp.bar:GetHeight() * tonumber(unit.config.debuff_ind_size)
+        size = unit.hp.bar:GetUnscaledHeight() * tonumber(unit.config.debuff_ind_size)
         if size ~= indicator.size or disptype ~= indicator.disp or indipos ~= indicator.ipos then
           indicator:ClearAllPoints()
           indicator:SetPoint(indipos, 0, 0)
@@ -2447,7 +2447,7 @@ function pfUI.uf:AddIcon(frame, pos, icon, timeleft, stacks, start, duration)
 
   if not frame.hp then return end
   local frame = frame.hp.bar
-  if pos > 6 or pos > ceil(frame:GetWidth() / iconsize) then return end
+  if pos > 6 or pos > ceil(frame:GetUnscaledWidth() / iconsize) then return end
 
   frame.icon = frame.icon or CreateFrame("Frame", nil, frame)
 

@@ -601,7 +601,7 @@ function pfUI.api.SkinDropDown(frame, cr, cg, cb, useSmall)
 
   button:HookScript("OnClick", function()
     local DropDownListWidth = DropDownList1:GetWidth()
-    local DropDownFrameWidth = frame.backdrop:GetWidth()
+    local DropDownFrameWidth = frame.backdrop:GetUnscaledWidth()
     if DropDownListWidth < DropDownFrameWidth then
       local diff = DropDownFrameWidth - DropDownListWidth
       DropDownList1:SetWidth(DropDownList1:GetWidth() + diff)
