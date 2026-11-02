@@ -58,12 +58,15 @@ function pfUI.api.GetCooldownFontSize(height)
   return size
 end
 
--- sizes the numbers to the cooldown's parent; the size follows its height,
--- so a timer start calls this again whenever that height changed
-local function UpdateFont(cooldown)
-  local height = (cooldown:GetParent() or cooldown):GetHeight()
-  cooldown.pfCountdownHeight = height
+-- sizes the numbers to the height of the frame the cooldown covers
+local function UpdateFont(cooldown, height)
   cooldown:GetCountdownFontString():SetFont(pfUI.media[C.cooldown.font], pfUI.api.GetCooldownFontSize(height), "OUTLINE")
+end
+
+-- a pfUI cooldown covers its parent, so it resizes with it; a hidden one is
+-- laid out, and this runs, as it shows
+local function OnSizeChanged(cooldown, width, height)
+  UpdateFont(cooldown, height)
 end
 
 -- applies the settings of its kind to one of pfUI's cooldowns
@@ -78,7 +81,7 @@ local function SetupCooldown(cooldown)
   cooldown:SetReverse(config.reverse == "1")
   cooldown:SetMinimumCountdownDuration(spell[kind] and tonumber(C.cooldown.threshold) * 1000 or 0)
   cooldown:SetCountdownFormatter(GetFormatter())
-  UpdateFont(cooldown)
+  UpdateFont(cooldown, cooldown:GetParent():GetHeight())
 end
 
 -- applies the "foreign" settings to another addon's cooldown. They only take
@@ -100,18 +103,15 @@ local function SetupForeign(cooldown)
 
   cooldown:SetMinimumCountdownDuration(tonumber(C.cooldown.threshold) * 1000)
   cooldown:SetCountdownFormatter(GetFormatter())
-  UpdateFont(cooldown)
+  UpdateFont(cooldown, (cooldown:GetParent() or cooldown):GetHeight())
 end
 
 -- runs as a pfUI cooldown's timer starts: a timer with a total brings back
--- the sweep a time-left-only one took away, and the font follows a changed
--- height
+-- the sweep a time-left-only one took away
 local function StartTimer(cooldown, timeleftOnly)
   if cooldown.pfTimeLeftOnly ~= timeleftOnly then
     cooldown.pfTimeLeftOnly = timeleftOnly
     SetupCooldown(cooldown)
-  elseif cooldown:GetParent():GetHeight() ~= cooldown.pfCountdownHeight then
-    UpdateFont(cooldown)
   end
 end
 
@@ -140,6 +140,7 @@ end)
 function pfUI.api.CreateCooldown(parent, kind, name)
   local cooldown = CreateFrame("Cooldown", name, parent, "CooldownFrameTemplate")
   cooldown.pfCooldownKind = kind
+  cooldown:SetScript("OnSizeChanged", OnSizeChanged)
   table.insert(cooldowns, cooldown)
   SetupCooldown(cooldown)
   return cooldown
