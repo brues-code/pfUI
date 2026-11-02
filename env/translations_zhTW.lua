@@ -359,6 +359,7 @@ pfUI_translation["zhTW"] = {
   ["Group Options"] = nil,
   ["Group-Pet"] = "小隊寵物",
   ["Group-Target"] = "小隊目標",
+  ["Grow Right To Left"] = nil,
   ["Gryphon"] = nil,
   ["Gryphons"] = nil,
   ["Guild Online"] = "公會線上",
