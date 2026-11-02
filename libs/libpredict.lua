@@ -25,7 +25,7 @@ setfenv(1, pfUI:GetEnvironment())
 -- return instantly when another libpredict is already active
 if pfUI.api.libpredict then return end
 
-local heals, events, hots = {}, {}, {}
+local heals, hots = {}, {}
 local spell_queue = { "DUMMY", "DUMMYRank 9", "TARGET" }
 local player = UnitName("player")
 local cache, gear_string = {}, ""
@@ -314,20 +314,11 @@ local function RefreshResFrames(guid)
   end
 end
 
-libpredict:SetScript("OnUpdate", function()
-  -- throttle cleanup - no need to check every frame
-  local now = pfUI.uf.now or GetTime()
-  if (this.tick or 0) > now then return end
-  this.tick = now + pfUI.throttle:Get("libpredict")  -- Default: Normal (10 FPS)
-
-  -- update on timeout events
-  for timestamp, targets in pairs(events) do
-    if now >= timestamp then
-      events[timestamp] = nil
-    end
-  end
-
-  -- drop resurrection offers the target accepted or let run out
+-- Drop resurrection offers the target accepted or let run out. Nothing reports
+-- either, so a ticker checks while any offer is open.
+local resTicker
+local function CheckResOffers()
+  local now = GetTime()
   for guid, expiry in pairs(resOffers) do
     local unit = UnitTokenFromGUID(guid)
     if now >= expiry or not (unit and UnitIsDeadOrGhost(unit)) then
@@ -335,7 +326,11 @@ libpredict:SetScript("OnUpdate", function()
       RefreshResFrames(guid)
     end
   end
-end)
+  if not next(resOffers) then
+    resTicker:Cancel()
+    resTicker = nil
+  end
+end
 
 function libpredict:ParseComm(sender, msg)
   local msgtype, target, heal, time, rank
@@ -484,11 +479,6 @@ function libpredict:ParseChatMessage(sender, msg)
   end
 end
 
-function libpredict:AddEvent(time, target)
-  events[time] = events[time] or {}
-  table.insert(events[time], target)
-end
-
 function libpredict:Heal(sender, target, amount, duration, senderGuid)
   if not sender or not target or not amount or not duration then
     return
@@ -499,7 +489,6 @@ function libpredict:Heal(sender, target, amount, duration, senderGuid)
   heals[target] = heals[target] or {}
   heals[target][sender] = { amount, timeout }
   if senderGuid then healGuidToName[senderGuid] = sender end
-  libpredict:AddEvent(timeout, target)
 end
 
 -- Debug flag
@@ -584,7 +573,6 @@ function libpredict:HealDelay(sender, delay)
     for tsender, amount in pairs(heals[target]) do
       if sender == tsender then
         amount[2] = amount[2] + delay
-        libpredict:AddEvent(amount[2], target)
       end
     end
   end
@@ -1008,6 +996,7 @@ local function OnResurrect()
   -- arg8=destGUID
   resOffers[arg8] = GetTime() + RES_OFFER_TIMEOUT
   RefreshResFrames(arg8)
+  resTicker = resTicker or C_Timer.NewTicker(.1, CheckResOffers)
 end
 
 local lastOtherCast = {}  -- [event] = castGUID of the last other-unit event handled
