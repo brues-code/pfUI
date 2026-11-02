@@ -36,7 +36,7 @@ pfUI:RegisterModule("castbar", function ()
       cb.bar:SetValue(1)
     end
     if cb.bar.spark then cb.bar.spark:Hide() end
-    if cb:GetAlpha() > 0 and not cb.fade:IsPlaying() then cb.fade:Play() end
+    if cb:IsShown() and not cb.fade:IsPlaying() then cb.fade:Play() end
   end
 
   -- "Spellname (N)" label for an active tradeskill merge — N is the number
@@ -95,7 +95,7 @@ pfUI:RegisterModule("castbar", function ()
     cb.isTradeskill = isTradeskill
     cb.delay = (delayMs or 0) / 1000
     cb.fade:Stop()
-    cb:SetAlpha(1)
+    cb:Show()
 
     -- Shield an uninterruptible cast. Not on the player's own bar: the flag is
     -- measured against the reader's own interrupts and silences, so on your own
@@ -247,12 +247,16 @@ pfUI:RegisterModule("castbar", function ()
     cb.bar.spark:SetPoint("BOTTOM", cb.bar, "BOTTOMLEFT", 0, 0)
     cb.bar.spark:Hide()
 
-    -- Fade-out after a cast ends. The bar stays at alpha 0 while idle.
+    -- Fade-out after a cast ends. The bar is hidden while idle, so its OnUpdate
+    -- only runs during a cast; unlock mode keeps it shown for dragging.
+    local function unlocked() return cb.drag and cb.drag:IsShown() end
     cb.fade = cb:CreateAnimationGroup()
     local fade = cb.fade:CreateAnimation("Alpha")
     fade:SetChange(-1)
     fade:SetDuration(.4)
-    cb.fade:SetScript("OnFinished", function() cb:SetAlpha(0) end)
+    cb.fade:SetScript("OnFinished", function()
+      if not unlocked() then cb:Hide() end
+    end)
 
     -- OnUpdate animates the bar fill. All state transitions (cast start/stop/interrupt, channel start/stop,
     -- pushback) come from the event handler below — we never poll C_Spell
@@ -261,16 +265,15 @@ pfUI:RegisterModule("castbar", function ()
       if (this.tick or 0) > GetTime() then return end
       this.tick = GetTime() + 0.020 -- ~50 FPS
 
-      if this.drag and this.drag:IsShown() then
+      if unlocked() then
         this.fade:Stop()
-        this:SetAlpha(1)
         return
       end
 
       if this.fade:IsPlaying() then return end
 
       if not this.endTime then
-        if this:GetAlpha() ~= 0 then this:SetAlpha(0) end
+        this:Hide()
         return
       end
 
@@ -443,7 +446,7 @@ pfUI:RegisterModule("castbar", function ()
       end
     end)
 
-    cb:SetAlpha(0)
+    cb:Hide()
     return cb
   end
 
