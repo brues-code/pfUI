@@ -248,6 +248,36 @@ local VISIBILITY_EVENTS = {
   UNIT_TARGET = true, -- a link of a chained frame's unit retargeted
 }
 
+-- The events a frame hears hidden or not: the visibility events that concern
+-- the unit it was created for (raid.lua remaps a raid frame's label, so this is
+-- decided once, at creation), and the logout guard. UNIT_TARGET belongs to
+-- RegisterChainEvents, and focus.lua drives the focus frames itself.
+local function GetIdleEvents(label, fname)
+  local events = { PLAYER_ENTERING_WORLD = true, PLAYER_LOGOUT = true }
+  if label:find("^party") or label:find("^raid")
+  or fname == "Group0" or fname == "PartyPet0" or fname == "Party0Target" then
+    events.PARTY_MEMBERS_CHANGED = true
+    events.RAID_ROSTER_UPDATE = true
+  end
+  if label:find("^target") then events.PLAYER_TARGET_CHANGED = true end
+  if label:find("pet") then events.UNIT_PET = true end
+  return events
+end
+
+-- The events that only redraw what a frame shows. A hidden frame drops them,
+-- and OnShow's full refresh catches up on whatever it missed.
+local SHOWN_EVENTS = {
+  "PLAYER_AURAS_CHANGED", -- label=player && frame=buff
+  "PLAYER_EQUIPMENT_CHANGED", -- label=player && frame=buff (ClassicAPI: weapon-enchant buffs)
+  "PARTY_MEMBERS_CHANGED", -- frame=leaderIcon
+  "PARTY_LEADER_CHANGED", -- frame=leaderIcon
+  "RAID_ROSTER_UPDATE", -- frame=raidIcon
+  "PLAYER_UPDATE_RESTING", -- frame=restIcon
+  "PARTY_LOOT_METHOD_CHANGED", -- frame=lootIcon
+  "RAID_TARGET_UPDATE", -- frame=raidIcon
+  "UNIT_HAPPINESS", -- label=pet
+}
+
 -- ============================================================================
 -- GetUnitStats - health + power for a unit token.
 -- Returns: hp, maxHp, power, maxPower, powerType
@@ -984,8 +1014,18 @@ function pfUI.uf:UpdateConfig()
 end
 
 function pfUI.uf.OnShow()
-  pfUI.uf:RefreshUnit(this, "portrait")
-  pfUI.uf:RefreshUnit(this, "base")
+  for i = 1, table.getn(SHOWN_EVENTS) do
+    this:RegisterEvent(SHOWN_EVENTS[i])
+  end
+  pfUI.uf:RefreshUnit(this, "all")
+end
+
+function pfUI.uf.OnHide()
+  for i = 1, table.getn(SHOWN_EVENTS) do
+    if not this.idleevents[SHOWN_EVENTS[i]] then
+      this:UnregisterEvent(SHOWN_EVENTS[i])
+    end
+  end
 end
 
 function pfUI.uf.OnEvent()
@@ -1407,19 +1447,14 @@ end
 function pfUI.uf:EnableEvents()
   local f = self
 
-  f:RegisterEvent("PLAYER_ENTERING_WORLD")
-  f:RegisterEvent("PLAYER_LOGOUT")
-  f:RegisterEvent("PLAYER_AURAS_CHANGED") -- label=player && frame=buff
-  f:RegisterEvent("PLAYER_EQUIPMENT_CHANGED") -- label=player && frame=buff (ClassicAPI: weapon-enchant buffs)
-  f:RegisterEvent("PARTY_MEMBERS_CHANGED") -- label=party, frame=leaderIcon
-  f:RegisterEvent("PARTY_LEADER_CHANGED") -- frame=leaderIcon
-  f:RegisterEvent("RAID_ROSTER_UPDATE") -- label=raidIcon
-  f:RegisterEvent("PLAYER_UPDATE_RESTING") -- label=restIcon
-  f:RegisterEvent("PLAYER_TARGET_CHANGED") -- label=target
-  f:RegisterEvent("PARTY_LOOT_METHOD_CHANGED") -- frame=lootIcon
-  f:RegisterEvent("RAID_TARGET_UPDATE") -- frame=raidIcon
-  f:RegisterEvent("UNIT_PET")
-  f:RegisterEvent("UNIT_HAPPINESS")
+  for event in pairs(f.idleevents) do
+    f:RegisterEvent(event)
+  end
+  if f:IsShown() then
+    for i = 1, table.getn(SHOWN_EVENTS) do
+      f:RegisterEvent(SHOWN_EVENTS[i])
+    end
+  end
 
   f:RegisterForClicks('LeftButtonUp', 'RightButtonUp',
     'MiddleButtonUp', 'Button4Up', 'Button5Up')
@@ -1485,6 +1520,7 @@ function pfUI.uf:EnableScripts()
   end
 
   f:SetScript("OnShow", pfUI.uf.OnShow)
+  f:SetScript("OnHide", pfUI.uf.OnHide)
   f:SetScript("OnEvent", pfUI.uf.OnEvent)
   f:SetScript("OnUpdate", pfUI.uf.OnUpdate)
 
@@ -1532,6 +1568,7 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
   f.id = id
   f.config = config or pfUI_config.unitframes.fallback
   f.tick = tick
+  f.idleevents = GetIdleEvents(f.label, fname)
 
   CreateBackdropShadow(f)
 
