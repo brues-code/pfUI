@@ -392,6 +392,10 @@ pfUI:SetScript("OnEvent", function()
     SetupConfigEnvironment()
     pfUI:UpdateFonts()
 
+    -- scale UIParent before the modules size their borders from it
+    pfUI.api.UpdateUIScale()
+    pfUI.events:RegisterFrameEventAndCallback("UI_SCALE_CHANGED", pfUI.api.UpdateUIScale)
+
     -- load modules
     for _, m in pairs(this.modules) do
       if not ( pfUI_config["disabled"] and pfUI_config["disabled"][m]  == "1" ) then
