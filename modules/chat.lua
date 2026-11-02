@@ -30,39 +30,6 @@ pfUI:RegisterModule("chat", function ()
     end
   end)
 
-  local realm = GetRealmName()
-  local player = UnitName("player")
-  local history
-  local function SaveChatHistory(id, msg, r, g, b)
-    -- create cache tables if not existing
-    pfUI_cache = pfUI_cache or {}
-    pfUI_cache["chathistory"] = pfUI_cache["chathistory"] or {}
-    pfUI_cache["chathistory"][realm] = pfUI_cache["chathistory"][realm] or {}
-    pfUI_cache["chathistory"][realm][player] = pfUI_cache["chathistory"][realm][player] or {}
-    pfUI_cache["chathistory"][realm][player][id] = pfUI_cache["chathistory"][realm][player][id] or {}
-
-    if r and g and b then
-      local color = rgbhex(r*.5+.2, g*.5+.2, b*.5+.2)
-      msg = string.gsub(msg, "^", color)
-      msg = string.gsub(msg, "|r", "|r" .. color)
-    end
-
-    history = pfUI_cache["chathistory"][realm][player][id]
-    table.insert(history, 1, msg)
-    if history[30] then table.remove(history, 30) end
-  end
-
-  local function GetChatHistory(id)
-    -- create cache tables if not existing
-    pfUI_cache = pfUI_cache or {}
-    pfUI_cache["chathistory"] = pfUI_cache["chathistory"] or {}
-    pfUI_cache["chathistory"][realm] = pfUI_cache["chathistory"][realm] or {}
-    pfUI_cache["chathistory"][realm][player] = pfUI_cache["chathistory"][realm][player] or {}
-    pfUI_cache["chathistory"][realm][player][id] = pfUI_cache["chathistory"][realm][player][id] or {}
-
-    return pfUI_cache["chathistory"][realm][player][id]
-  end
-
   -- [ Chat Panel Colors ]
   -- The panels normally inherit pfUI's global appearance theme; custom colors let chat
   -- deviate from it. CreateBackdrop is re-run first to restore the theme, so toggling
@@ -456,15 +423,20 @@ pfUI:RegisterModule("chat", function ()
 
       if pfUI.chat.hideLock then return end
 
+      -- the dock lays the tabs out again only when their bar comes back
       if pfUI.chat.left:IsMouseOver(10, -10, -10, 10) then
-        pfUI.chat.left.panelTop:Show()
-        FCF_DockUpdate()
+        if not pfUI.chat.left.panelTop:IsShown() then
+          pfUI.chat.left.panelTop:Show()
+          FCF_DockUpdate()
+        end
       elseif pfUI.chat.right:IsMouseOver(10, -10, -10, 10) then
         -- disable while dock is active
         if pfUI.chat.right:GetAlpha() == 0 then return end
 
-        pfUI.chat.right.panelTop:Show()
-        FCF_DockUpdate()
+        if not pfUI.chat.right.panelTop:IsShown() then
+          pfUI.chat.right.panelTop:Show()
+          FCF_DockUpdate()
+        end
       else
         pfUI.chat.left.panelTop:Hide()
         pfUI.chat.right.panelTop:Hide()
@@ -587,6 +559,9 @@ pfUI:RegisterModule("chat", function ()
   end
 
   for i=1, NUM_CHAT_WINDOWS do
+    -- ChatFrame_OnUpdate only blinks the flash of the bottom button hidden
+    -- below; the lines fade in the engine's own update
+    _G["ChatFrame" .. i]:SetScript("OnUpdate", nil)
     _G["ChatFrame" .. i .. "UpButton"]:Hide()
     _G["ChatFrame" .. i .. "UpButton"].Show = function() return end
     _G["ChatFrame" .. i .. "DownButton"]:Hide()
@@ -732,6 +707,62 @@ pfUI:RegisterModule("chat", function ()
     return pfUI_playerDB[name].level
   end
 
+  -- the sender of the line AddMessage is reading, from its chat event
+  local lineSender, lineSenderClass, lineSenderRace, lineSenderSex
+
+  -- [ FormatPlayerLink ]
+  -- The gsub callback for a player link: the name in its class colour, with
+  -- the level and icons the settings ask for. Returns the link unchanged when
+  -- there is nothing to add, as a Lua 5.0 callback that returns nil deletes
+  -- the match.
+  local function FormatPlayerLink(link, name, shown)
+    local real = strsplit(":", name)
+    if shown ~= real then return link end
+
+    local color, icon = "", ""
+    if C.chat.text.classcolor == "1" then
+      local _, class, raceKey, sex
+      if lineSenderClass and real == lineSender then
+        class, raceKey, sex = lineSenderClass, lineSenderRace, lineSenderSex
+      else
+        _, class, _, raceKey, sex = C_PlayerCache.GetPlayerInfoByName(real)
+      end
+      if not class then
+        class = GetUnitInfo(real)
+      end
+      if class and class ~= UNKNOWN then
+        color = "|c" .. PFUI_CLASS_COLORS[class].colorStr
+        if C.chat.text.factionicons == "1" then
+          icon = GetFactionIcon(raceKey)
+        end
+        if C.chat.text.raceicons == "1" then
+          icon = icon .. GetRaceIcon(raceKey, sex)
+        end
+      elseif C.chat.text.tintunknown == "1" then
+        color = unknowncolorhex
+      end
+    end
+
+    local suffix = ""
+    local level = C.chat.text.playerlevel == "1" and GetPlayerLevel(real)
+    if level and level > 0 then
+      suffix = " " .. rgbhex(GetDifficultyColor(level)) .. level .. "|r"
+    elseif level then
+      -- Show ?? for unknown levels (e.g. -1 from UnitLevel)
+      suffix = " |cffff0000??|r"
+    end
+
+    if color == "" and suffix == "" then return link end
+    return left .. icon .. color .. "|Hplayer:" .. name .. "|h" .. color .. real .. "|h|r" .. suffix .. right
+  end
+
+  -- the timestamp of the current second
+  local stampTime, stamp
+
+  -- the last chat line read and what it became. A line shown in several
+  -- frames is read once: nothing in the result depends on the frame.
+  local lastLineID, lastText, lastResult
+
   -- Passes every argument after the text on: GetMessageInfo returns them all,
   -- and a hook that drops some loses them for every frame after it.
   local function AddMessage(frame, text, ...)
@@ -744,76 +775,40 @@ pfUI:RegisterModule("chat", function ()
 
     -- payload of the CHAT_MSG event printing this line; nil for lines
     -- that don't come from one (system text, addon output, history)
-    local event, _, sender, _, _, _, _, _, _, _, _, _, guid = GetCurrentChatEvent()
+    local event, _, sender, _, _, _, _, _, _, _, _, lineID, guid = GetCurrentChatEvent()
 
-    -- Remove prat CLINKs
-    text = gsub(text, "{CLINK:(%x+):([%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-):([^}]-)}", "|c%1|Hitem:%2|h[%3]|h|r") -- tbc
-    text = gsub(text, "{CLINK:(%x+):([%d-]-:[%d-]-:[%d-]-:[%d-]-):([^}]-)}", "|c%1|Hitem:%2|h[%3]|h|r") -- vanilla
+    -- text emotes all have line 0
+    if lineID and lineID ~= 0 and lineID == lastLineID and text == lastText then
+      return frame:HookAddMessage(lastResult, ...)
+    end
+    local input = text
 
-    -- Remove chatter CLINKs
-    text = gsub(text, "{CLINK:item:(%x+):([%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-):([^}]-)}", "|c%1|Hitem:%2|h[%3]|h|r")
-    text = gsub(text, "{CLINK:enchant:(%x+):([%d-]-):([^}]-)}", "|c%1|Henchant:%2|h[%3]|h|r")
-    text = gsub(text, "{CLINK:spell:(%x+):([%d-]-):([^}]-)}", "|c%1|Hspell:%2|h[%3]|h|r")
-    text = gsub(text, "{CLINK:quest:(%x+):([%d-]-):([%d-]-):([^}]-)}", "|c%1|Hquest:%2:%3|h[%4]|h|r")
+    -- Remove prat and chatter CLINKs
+    if text:find("{CLINK:", 1, true) then
+      text = gsub(text, "{CLINK:(%x+):([%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-):([^}]-)}", "|c%1|Hitem:%2|h[%3]|h|r") -- tbc
+      text = gsub(text, "{CLINK:(%x+):([%d-]-:[%d-]-:[%d-]-:[%d-]-):([^}]-)}", "|c%1|Hitem:%2|h[%3]|h|r") -- vanilla
+      text = gsub(text, "{CLINK:item:(%x+):([%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-:[%d-]-):([^}]-)}", "|c%1|Hitem:%2|h[%3]|h|r")
+      text = gsub(text, "{CLINK:enchant:(%x+):([%d-]-):([^}]-)}", "|c%1|Henchant:%2|h[%3]|h|r")
+      text = gsub(text, "{CLINK:spell:(%x+):([%d-]-):([^}]-)}", "|c%1|Hspell:%2|h[%3]|h|r")
+      text = gsub(text, "{CLINK:quest:(%x+):([%d-]-):([%d-]-):([^}]-)}", "|c%1|Hquest:%2:%3|h[%4]|h|r")
+    end
 
-    -- detect urls
-    if C.chat.text.detecturl == "1" then
+    -- detect urls; every pattern needs a dot between name characters or a "://"
+    if C.chat.text.detecturl == "1" and (text:find("[%w_-]%.[%w_-]") or text:find("://", 1, true)) then
       text = pfUI.chat:HandleLink(text)
     end
 
     -- display class colors and player levels if already indexed
     local classcolor = C.chat.text.classcolor == "1"
-    local playerlevel = C.chat.text.playerlevel == "1"
-    if classcolor or playerlevel then
+    if classcolor or C.chat.text.playerlevel == "1" then
       -- the engine name-queries a chat sender before the event fires,
       -- so the sender's GUID always resolves; other names in the text
       -- fall back to the name-keyed lookups
-      local _, senderClass, senderRace, senderSex
+      lineSender, lineSenderClass, lineSenderRace, lineSenderSex = sender, nil, nil, nil
       if classcolor and guid and guid ~= "" then
-        _, senderClass, _, senderRace, senderSex = GetPlayerInfoByGUID(guid)
+        _, lineSenderClass, _, lineSenderRace, lineSenderSex = GetPlayerInfoByGUID(guid)
       end
-
-      for name in gfind(text, "|Hplayer:(.-)|h") do
-        local real, _ = strsplit(":", name)
-        local color, icon = "", ""
-
-        if classcolor then
-          local class, raceKey, sex
-          if senderClass and real == sender then
-            class, raceKey, sex = senderClass, senderRace, senderSex
-          else
-            _, class, _, raceKey, sex = C_PlayerCache.GetPlayerInfoByName(real)
-          end
-          if not class then
-            class = GetUnitInfo(real)
-          end
-          if class and class ~= UNKNOWN then
-            color = "|c" .. PFUI_CLASS_COLORS[class].colorStr
-            if C.chat.text.factionicons == "1" then
-              icon = GetFactionIcon(raceKey)
-            end
-            if C.chat.text.raceicons == "1" then
-              icon = icon .. GetRaceIcon(raceKey, sex)
-            end
-          elseif C.chat.text.tintunknown == "1" then
-            color = unknowncolorhex
-          end
-        end
-
-        local suffix = ""
-        local level = playerlevel and GetPlayerLevel(real)
-        if level and level > 0 then
-          suffix = " " .. rgbhex(GetDifficultyColor(level)) .. level .. "|r"
-        elseif level then
-          -- Show ?? for unknown levels (e.g. -1 from UnitLevel)
-          suffix = " |cffff0000??|r"
-        end
-
-        if color ~= "" or suffix ~= "" then
-          text = string.gsub(text, "|Hplayer:"..name.."|h%["..real.."%]|h(.-:-)",
-            left..icon..color.."|Hplayer:"..name.."|h" .. color .. real .. "|h|r"..suffix..right.."%1")
-        end
-      end
+      text = text:gsub("(|Hplayer:([^|]*)|h%[([^%]]*)%]|h)", FormatPlayerLink)
     end
 
     -- reduce channel name to number
@@ -823,9 +818,7 @@ pfUI:RegisterModule("chat", function ()
 
     -- detect the whisper prefix BEFORE prepending a timestamp; the timestamp
     -- pushes the whisper colour code off position 1 and the find below fails
-    local isWhisper = C.chat.global.whispermod == "1" and string.find(text, wcol, 1) == 1
-
-    if isWhisper then
+    if C.chat.global.whispermod == "1" and string.find(text, wcol, 1) == 1 then
       -- patch incoming whisper string to match the colors, before the
       -- timestamp so it keeps the form StripTimestamp looks for
       text = string.gsub(text, "|r", "|r" .. wcol)
@@ -833,17 +826,64 @@ pfUI:RegisterModule("chat", function ()
 
     -- show timestamp in chat
     if C.chat.text.time == "1" then
-      text = timestampStart .. date(C.chat.text.timeformat) .. timestampEnd .. text
+      local now = time()
+      if now ~= stampTime then
+        stampTime, stamp = now, timestampStart .. date(C.chat.text.timeformat) .. timestampEnd
+      end
+      text = stamp .. text
     end
 
-    -- save chat history
-    if isWhisper then
-      SaveChatHistory(frame:GetID(), string.gsub(text, wcol, ""), cr, cg, cb)
-    else
-      SaveChatHistory(frame:GetID(), text, ...)
-    end
-
+    lastLineID, lastText, lastResult = lineID, input, text
     frame:HookAddMessage(text, ...)
+  end
+
+  -- [ Chat History ]
+  -- The newest lines of each chat frame, kept per character and written back
+  -- at login, newest first and dimmed. They are read from the frames when
+  -- leaving the world, which logout and reload both do before the saved
+  -- variables are written.
+  local HISTORY_LINES = 30
+
+  local function GetChatHistory()
+    local realm, player = GetRealmName(), UnitName("player")
+    pfUI_cache["chathistory"] = pfUI_cache["chathistory"] or {}
+    pfUI_cache["chathistory"][realm] = pfUI_cache["chathistory"][realm] or {}
+    pfUI_cache["chathistory"][realm][player] = pfUI_cache["chathistory"][realm][player] or {}
+    return pfUI_cache["chathistory"][realm][player]
+  end
+
+  -- a line dimmed in its colour, which also comes back after every |r in it
+  local function DimHistoryLine(text, r, g, b)
+    local color = rgbhex(r*.5+.2, g*.5+.2, b*.5+.2)
+    return color .. text:gsub("|r", "|r" .. color)
+  end
+
+  local function SaveChatHistory()
+    local history = GetChatHistory()
+    for i=1, NUM_CHAT_WINDOWS do
+      local frame = _G["ChatFrame"..i]
+      if not frame.pfCombatLog then
+        local lines = {}
+        local num = frame:GetNumMessages()
+        for index = num, math.max(1, num - HISTORY_LINES + 1), -1 do
+          local text, r, g, b, _, restored = frame:GetMessageInfo(index)
+          -- lines written back from the history are dimmed already
+          if not restored then
+            -- an incoming whisper is in the whisper colour, not its own
+            if C.chat.global.whispermod == "1" and pfUI.chat.StripTimestamp(text):sub(1, #wcol) == wcol then
+              text, r, g, b = text:gsub(wcol, ""), cr, cg, cb
+            end
+            text = DimHistoryLine(text, r, g, b)
+          end
+          table.insert(lines, text)
+        end
+        history[i] = lines
+      end
+    end
+  end
+
+  if C.chat.text.history == "1" then
+    pfUI.events:RegisterFrameEventAndCallback("PLAYER_LEAVING_WORLD", SaveChatHistory)
   end
 
   for i=1,NUM_CHAT_WINDOWS do
@@ -853,13 +893,14 @@ pfUI:RegisterModule("chat", function ()
 
     if not _G["ChatFrame"..i].HookAddMessage then
       if C.chat.text.history == "1" then
-        -- write history to chat, newest first, above the lines already there
-        for _, msg in ipairs(GetChatHistory(i)) do
-          _G["ChatFrame"..i]:BackFillMessage(msg, .7,.7,.7)
+        -- write history to chat, newest first, above the lines already there;
+        -- after the colour come the id slot and the mark SaveChatHistory reads
+        for _, msg in ipairs(GetChatHistory()[i] or {}) do
+          _G["ChatFrame"..i]:BackFillMessage(msg, .7,.7,.7, nil, true)
         end
       end
 
-      -- add chat parse and history hooks
+      -- add chat parse hooks
       _G["ChatFrame"..i].HookAddMessage = _G["ChatFrame"..i].AddMessage
       _G["ChatFrame"..i].AddMessage = AddMessage
     end
