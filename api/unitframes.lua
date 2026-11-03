@@ -853,12 +853,16 @@ function pfUI.uf:UpdateConfig()
   f.incHeal.texture:SetVertexColor(cr, cg, cb, ca)
   f.incHeal:Hide()
 
-  if f.config.verticalbar == "0" then
-    f.incHeal:ClearAllPoints()
-    f.incHeal:SetPoint("TOPLEFT", f.hp.bar, "TOPLEFT", 0, 0)
+  -- the bar texture covers only the fill, so a prediction anchored to it
+  -- starts at the edge of the health and follows it as the bar animates.
+  -- An inverted bar fills with the missing health, so it starts at the bar.
+  f.incHeal:ClearAllPoints()
+  if f.config.invert_healthbar == "1" then
+    f.incHeal:SetPoint(f.config.verticalbar == "0" and "TOPLEFT" or "BOTTOM", f.hp.bar)
+  elseif f.config.verticalbar == "0" then
+    f.incHeal:SetPoint("TOPLEFT", f.hp.bar:GetStatusBarTexture(), "TOPRIGHT")
   else
-    f.incHeal:ClearAllPoints()
-    f.incHeal:SetPoint("BOTTOM", f.hp.bar, "BOTTOM", 0, 0)
+    f.incHeal:SetPoint("BOTTOMLEFT", f.hp.bar:GetStatusBarTexture(), "TOPLEFT")
   end
 
   f.ressIcon:SetFrameLevel(16)
@@ -1259,24 +1263,14 @@ function pfUI.uf.OnUpdate()
               if healthWidth + incWidth > width * (1+(overhealperc/100)) then
                 incWidth = width * (1+overhealperc/100) - healthWidth
               end
-
-              if this.config.invert_healthbar == "1" then
-                this.incHeal:SetWidth(incWidth)
-              else
-                this.incHeal:SetWidth(incWidth + healthWidth)
-              end
+              this.incHeal:SetWidth(incWidth)
             else
               local healthHeight = height * (health / maxHealth)
               local incHeight = height * heal / maxHealth
               if healthHeight + incHeight > height * (1+(overhealperc/100)) then
                 incHeight = height * (1+overhealperc/100) - healthHeight
               end
-
-              if this.config.invert_healthbar == "1" then
-                this.incHeal:SetHeight(incHeight)
-              else
-                this.incHeal:SetHeight(incHeight + healthHeight)
-              end
+              this.incHeal:SetHeight(incHeight)
             end
 
             this.incHeal:Show()
