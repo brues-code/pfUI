@@ -5,14 +5,16 @@ pfUI:RegisterModule("swingtimer", function ()
   local ON_SWING_QUEUED       = 0
   local ON_SWING_QUEUE_POPPED = 1
 
+  -- seconds a melee bar stays full after its swing is due, to bridge the gap
+  -- until PLAYER_SWING arrives; it then hides unless auto attack goes on
+  local GRACE = 0.15
+
+  -- the last half second of a hunter's ranged swing, when moving cancels the shot
+  local DEADZONE = 0.5
+
   -- Consolidate state into a table to avoid Lua 5.0 upvalue limit (32 max)
   local S = {
-    mhTimer = 0, mhTimerMax = 1,
-    ohTimer = 0, ohTimerMax = 1,
-    raTimer = 0, raTimerMax = 1,
     mhSpeed = 0, ohSpeed = 0, raSpeed = 0,
-    mhActive = false, ohActive = false, raActive = false,
-    lastMhMarkerX = -1, lastOhMarkerX = -1, lastRaMarkerX = -1,
     autoAttackActive = false,
     inCombat = false,
     hsQueued = false, cleaveQueued = false, maulQueued = false,
@@ -21,7 +23,6 @@ pfUI:RegisterModule("swingtimer", function ()
     isDruid = false,
     cachedHSSlots = {}, cachedCleaveSlots = {}, cachedMaulSlots = {},
     useSpellQueueEvent = false,
-    swingThrottle = 0,
     onSwingCache = {},
     outOfRange = {},  -- by Enum.PlayerSwingType
   }
@@ -70,196 +71,111 @@ pfUI:RegisterModule("swingtimer", function ()
   local rwR, rwG, rwB, rwA = ParseColor(C.unitframes.swingtimerrangedwarncolor, 0.9, 0.0, 0.0, 1)
   local orR, orG, orB = ParseColor(C.unitframes.swingtimeroutrangecolor, 0.5, 0.5, 0.5, 1)
   local isHunter = UnitClassBase("player") == "HUNTER"
-  local mhDefaultR, mhDefaultG, mhDefaultB = mhR, mhG, mhB
 
+  -- the countdown text, cut down to tenths
+  local countdown = C_StringUtil.CreateNumericRuleFormatter()
+  countdown:AddBreakpoint({ threshold = 0, step = 0.1, rounding = Enum.NumericRuleFormatRounding.Down, format = "%.1f" })
 
-
-  -- Create container frame
+  -- the container keeps the public API
   pfUI.swingtimer = CreateFrame("Frame", "pfSwingTimer", UIParent)
-  pfUI.swingtimer:SetFrameStrata("MEDIUM")
   pfUI.swingtimer:Hide()
 
-  -- Mainhand bar
-  pfUI.swingtimer.mainhand = CreateFrame("StatusBar", "pfSwingTimerMainhand", UIParent)
-  pfUI.swingtimer.mainhand:SetPoint("BOTTOM", UIParent, "CENTER", -189, 103)
-  pfUI.swingtimer.mainhand:SetWidth(sw_width)
-  pfUI.swingtimer.mainhand:SetHeight(sw_height)
-  pfUI.swingtimer.mainhand:SetMinMaxValues(0, 1)
-  pfUI.swingtimer.mainhand:SetValue(0)
-  pfUI.swingtimer.mainhand:SetStatusBarTexture(sw_texture)
-  pfUI.swingtimer.mainhand:SetStatusBarColor(mhR, mhG, mhB, mhA)
-  pfUI.swingtimer.mainhand:Hide()
+  -- A bar fills by itself from `swing`, the time span of the whole swing, and
+  -- its text binding counts it down. The marker and its glows ride the edge
+  -- of the fill. `shown` is whether the config lets the bar show at all.
+  local function CreateSwingBar(name, label, shown)
+    local bar = CreateFrame("StatusBar", name, UIParent)
+    bar:SetWidth(sw_width)
+    bar:SetHeight(sw_height)
+    bar:SetStatusBarTexture(sw_texture)
+    bar:Hide()
+    bar.shown = shown
 
-  pfUI.swingtimer.mainhand.text = pfUI.swingtimer.mainhand:CreateFontString("Status", "DIALOG", "GameFontNormal")
-  pfUI.swingtimer.mainhand.text:SetPoint("CENTER", pfUI.swingtimer.mainhand, "CENTER", 0, 0)
-  pfUI.swingtimer.mainhand.text:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
-  pfUI.swingtimer.mainhand.text:SetTextColor(1, 1, 1, 1)
-  pfUI.swingtimer.mainhand.text:SetText("")
-  if not sw_showtext then pfUI.swingtimer.mainhand.text:Hide() end
+    bar.swing = C_DurationUtil.CreateDuration()
+    bar:SetTimerDuration(bar.swing, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.ElapsedTime)
 
-  pfUI.swingtimer.mainhand.label = pfUI.swingtimer.mainhand:CreateFontString("Status", "DIALOG", "GameFontNormal")
-  pfUI.swingtimer.mainhand.label:SetPoint("RIGHT", pfUI.swingtimer.mainhand, "LEFT", -4, 0)
-  pfUI.swingtimer.mainhand.label:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
-  pfUI.swingtimer.mainhand.label:SetTextColor(0.8, 0.8, 0.8, 1)
-  pfUI.swingtimer.mainhand.label:SetText(sw_showlabel and "MH" or "")
+    bar.text = bar:CreateFontString("Status", "DIALOG", "GameFontNormal")
+    bar.text:SetPoint("CENTER", bar, "CENTER", 0, 0)
+    bar.text:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
+    bar.text:SetTextColor(1, 1, 1, 1)
+    bar.text:SetShown(sw_showtext)
 
-  pfUI.swingtimer.mainhand.speed = pfUI.swingtimer.mainhand:CreateFontString("Status", "DIALOG", "GameFontNormal")
-  pfUI.swingtimer.mainhand.speed:SetPoint("LEFT", pfUI.swingtimer.mainhand, "RIGHT", 4, 0)
-  pfUI.swingtimer.mainhand.speed:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
-  pfUI.swingtimer.mainhand.speed:SetTextColor(0.8, 0.8, 0.8, 1)
-  pfUI.swingtimer.mainhand.speed:SetText("")
-  if not sw_showspeed then pfUI.swingtimer.mainhand.speed:Hide() end
+    bar.timer = C_DurationUtil.CreateDurationTextBinding()
+    bar.timer:SetFontString(bar.text)
+    bar.timer:SetDuration(bar.swing)
+    bar.timer:SetFormatter(countdown)
 
-  CreateBackdrop(pfUI.swingtimer.mainhand)
+    bar.label = bar:CreateFontString("Status", "DIALOG", "GameFontNormal")
+    bar.label:SetPoint("RIGHT", bar, "LEFT", -4, 0)
+    bar.label:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
+    bar.label:SetTextColor(0.8, 0.8, 0.8, 1)
+    bar.label:SetText(sw_showlabel and label or "")
 
+    bar.speed = bar:CreateFontString("Status", "DIALOG", "GameFontNormal")
+    bar.speed:SetPoint("LEFT", bar, "RIGHT", 4, 0)
+    bar.speed:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
+    bar.speed:SetTextColor(0.8, 0.8, 0.8, 1)
+    bar.speed:SetShown(sw_showspeed)
 
-  pfUI.swingtimer.mainhand.marker = pfUI.swingtimer.mainhand:CreateTexture(nil, "OVERLAY")
-  pfUI.swingtimer.mainhand.marker:SetColorTexture(1, 1, 1, 1.0)
-  pfUI.swingtimer.mainhand.marker:SetWidth(2)
-  pfUI.swingtimer.mainhand.marker:SetHeight(sw_height)
-  pfUI.swingtimer.mainhand.marker:Hide()
+    CreateBackdrop(bar)
 
-  -- Left glow: fades from transparent to white (right edge = marker)
-  pfUI.swingtimer.mainhand.markerGlowL = pfUI.swingtimer.mainhand:CreateTexture(nil, "OVERLAY")
-  pfUI.swingtimer.mainhand.markerGlowL:SetColorTexture(1, 1, 1, 1)
-  pfUI.swingtimer.mainhand.markerGlowL:SetGradientAlpha("HORIZONTAL", 1, 1, 1, 0, 1, 1, 1, 0.35)
-  pfUI.swingtimer.mainhand.markerGlowL:SetWidth(10)
-  pfUI.swingtimer.mainhand.markerGlowL:SetHeight(sw_height)
-  pfUI.swingtimer.mainhand.markerGlowL:Hide()
+    bar.edge = CreateFrame("Frame", nil, bar)
+    bar.edge:SetAllPoints(bar)
+    bar.edge:Hide()
 
-  -- Right glow: fades from white to transparent (left edge = marker)
-  pfUI.swingtimer.mainhand.markerGlowR = pfUI.swingtimer.mainhand:CreateTexture(nil, "OVERLAY")
-  pfUI.swingtimer.mainhand.markerGlowR:SetColorTexture(1, 1, 1, 1)
-  pfUI.swingtimer.mainhand.markerGlowR:SetGradientAlpha("HORIZONTAL", 1, 1, 1, 0.35, 1, 1, 1, 0)
-  pfUI.swingtimer.mainhand.markerGlowR:SetWidth(10)
-  pfUI.swingtimer.mainhand.markerGlowR:SetHeight(sw_height)
-  pfUI.swingtimer.mainhand.markerGlowR:Hide()
+    bar.marker = bar.edge:CreateTexture(nil, "OVERLAY")
+    bar.marker:SetColorTexture(1, 1, 1, 1.0)
+    bar.marker:SetWidth(2)
+    bar.marker:SetHeight(sw_height)
+    bar.marker:SetPoint("CENTER", bar:GetStatusBarTexture(), "RIGHT")
 
-  CreateBackdropShadow(pfUI.swingtimer.mainhand)
+    -- Left glow: fades from transparent to white (right edge = marker)
+    bar.markerGlowL = bar.edge:CreateTexture(nil, "OVERLAY")
+    bar.markerGlowL:SetColorTexture(1, 1, 1, 1)
+    bar.markerGlowL:SetGradientAlpha("HORIZONTAL", 1, 1, 1, 0, 1, 1, 1, 0.35)
+    bar.markerGlowL:SetWidth(10)
+    bar.markerGlowL:SetHeight(sw_height)
+    bar.markerGlowL:SetPoint("RIGHT", bar.marker, "LEFT", 0, 0)
 
-  -- Offhand bar
-  pfUI.swingtimer.offhand = CreateFrame("StatusBar", "pfSwingTimerOffhand", UIParent)
-  pfUI.swingtimer.offhand:SetPoint("TOP", pfUI.swingtimer.mainhand, "BOTTOM", 0, -4)
-  pfUI.swingtimer.offhand:SetWidth(sw_width)
-  pfUI.swingtimer.offhand:SetHeight(sw_height)
-  pfUI.swingtimer.offhand:SetMinMaxValues(0, 1)
-  pfUI.swingtimer.offhand:SetValue(0)
-  pfUI.swingtimer.offhand:SetStatusBarTexture(sw_texture)
-  pfUI.swingtimer.offhand:SetStatusBarColor(ohR, ohG, ohB, ohA)
-  pfUI.swingtimer.offhand:Hide()
+    -- Right glow: fades from white to transparent (left edge = marker)
+    bar.markerGlowR = bar.edge:CreateTexture(nil, "OVERLAY")
+    bar.markerGlowR:SetColorTexture(1, 1, 1, 1)
+    bar.markerGlowR:SetGradientAlpha("HORIZONTAL", 1, 1, 1, 0.35, 1, 1, 1, 0)
+    bar.markerGlowR:SetWidth(10)
+    bar.markerGlowR:SetHeight(sw_height)
+    bar.markerGlowR:SetPoint("LEFT", bar.marker, "RIGHT", 0, 0)
 
-  pfUI.swingtimer.offhand.text = pfUI.swingtimer.offhand:CreateFontString("Status", "DIALOG", "GameFontNormal")
-  pfUI.swingtimer.offhand.text:SetPoint("CENTER", pfUI.swingtimer.offhand, "CENTER", 0, 0)
-  pfUI.swingtimer.offhand.text:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
-  pfUI.swingtimer.offhand.text:SetTextColor(1, 1, 1, 1)
-  pfUI.swingtimer.offhand.text:SetText("")
-  if not sw_showtext then pfUI.swingtimer.offhand.text:Hide() end
+    CreateBackdropShadow(bar)
+    return bar
+  end
 
-  pfUI.swingtimer.offhand.label = pfUI.swingtimer.offhand:CreateFontString("Status", "DIALOG", "GameFontNormal")
-  pfUI.swingtimer.offhand.label:SetPoint("RIGHT", pfUI.swingtimer.offhand, "LEFT", -4, 0)
-  pfUI.swingtimer.offhand.label:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
-  pfUI.swingtimer.offhand.label:SetTextColor(0.8, 0.8, 0.8, 1)
-  pfUI.swingtimer.offhand.label:SetText(sw_showlabel and "OH" or "")
+  local mainhand = CreateSwingBar("pfSwingTimerMainhand", "MH", true)
+  mainhand:SetPoint("BOTTOM", UIParent, "CENTER", -189, 103)
+  mainhand.showmarker = true
 
-  pfUI.swingtimer.offhand.speed = pfUI.swingtimer.offhand:CreateFontString("Status", "DIALOG", "GameFontNormal")
-  pfUI.swingtimer.offhand.speed:SetPoint("LEFT", pfUI.swingtimer.offhand, "RIGHT", 4, 0)
-  pfUI.swingtimer.offhand.speed:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
-  pfUI.swingtimer.offhand.speed:SetTextColor(0.8, 0.8, 0.8, 1)
-  pfUI.swingtimer.offhand.speed:SetText("")
-  if not sw_showspeed then pfUI.swingtimer.offhand.speed:Hide() end
+  local offhand = CreateSwingBar("pfSwingTimerOffhand", "OH", sw_showoh)
+  offhand:SetPoint("TOP", mainhand, "BOTTOM", 0, -4)
+  offhand.showmarker = true
 
-  CreateBackdrop(pfUI.swingtimer.offhand)
-
-
-  pfUI.swingtimer.offhand.marker = pfUI.swingtimer.offhand:CreateTexture(nil, "OVERLAY")
-  pfUI.swingtimer.offhand.marker:SetColorTexture(1, 1, 1, 1.0)
-  pfUI.swingtimer.offhand.marker:SetWidth(2)
-  pfUI.swingtimer.offhand.marker:SetHeight(sw_height)
-  pfUI.swingtimer.offhand.marker:Hide()
-
-  -- Left glow: fades from transparent to white (right edge = marker)
-  pfUI.swingtimer.offhand.markerGlowL = pfUI.swingtimer.offhand:CreateTexture(nil, "OVERLAY")
-  pfUI.swingtimer.offhand.markerGlowL:SetColorTexture(1, 1, 1, 1)
-  pfUI.swingtimer.offhand.markerGlowL:SetGradientAlpha("HORIZONTAL", 1, 1, 1, 0, 1, 1, 1, 0.35)
-  pfUI.swingtimer.offhand.markerGlowL:SetWidth(10)
-  pfUI.swingtimer.offhand.markerGlowL:SetHeight(sw_height)
-  pfUI.swingtimer.offhand.markerGlowL:Hide()
-
-  -- Right glow: fades from white to transparent (left edge = marker)
-  pfUI.swingtimer.offhand.markerGlowR = pfUI.swingtimer.offhand:CreateTexture(nil, "OVERLAY")
-  pfUI.swingtimer.offhand.markerGlowR:SetColorTexture(1, 1, 1, 1)
-  pfUI.swingtimer.offhand.markerGlowR:SetGradientAlpha("HORIZONTAL", 1, 1, 1, 0.35, 1, 1, 1, 0)
-  pfUI.swingtimer.offhand.markerGlowR:SetWidth(10)
-  pfUI.swingtimer.offhand.markerGlowR:SetHeight(sw_height)
-  pfUI.swingtimer.offhand.markerGlowR:Hide()
-
-  CreateBackdropShadow(pfUI.swingtimer.offhand)
-
-  -- Ranged bar
   -- Hunters fill from the center: the bar drains toward the middle during
   -- the reload, then the auto shot deadzone grows back out in the warn color.
-  pfUI.swingtimer.ranged = CreateFrame("StatusBar", "pfSwingTimerRanged", UIParent)
-  pfUI.swingtimer.ranged:SetPoint("BOTTOM", UIParent, "CENTER", -189, 83)
-  pfUI.swingtimer.ranged:SetWidth(sw_width)
-  pfUI.swingtimer.ranged:SetHeight(sw_height)
-  pfUI.swingtimer.ranged:SetMinMaxValues(0, 1)
-  pfUI.swingtimer.ranged:SetValue(0)
-  pfUI.swingtimer.ranged:SetStatusBarTexture(sw_texture)
-  pfUI.swingtimer.ranged:SetStatusBarColor(raR, raG, raB, raA)
-  pfUI.swingtimer.ranged:SetFillStyle(isHunter and "CENTER" or "STANDARD")
-  pfUI.swingtimer.ranged:Hide()
+  -- Each phase is a time span of its own on `phase`.
+  local ranged = CreateSwingBar("pfSwingTimerRanged", "Ra", sw_showranged)
+  ranged:SetPoint("BOTTOM", UIParent, "CENTER", -189, 83)
+  ranged:SetFillStyle(isHunter and "CENTER" or "STANDARD")
+  ranged.showmarker = not isHunter
+  if isHunter then
+    ranged.phase = C_DurationUtil.CreateDuration()
+    ranged.timer:SetDuration(ranged.phase)
+  end
 
-  pfUI.swingtimer.ranged.text = pfUI.swingtimer.ranged:CreateFontString("Status", "DIALOG", "GameFontNormal")
-  pfUI.swingtimer.ranged.text:SetPoint("CENTER", pfUI.swingtimer.ranged, "CENTER", 0, 0)
-  pfUI.swingtimer.ranged.text:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
-  pfUI.swingtimer.ranged.text:SetTextColor(1, 1, 1, 1)
-  pfUI.swingtimer.ranged.text:SetText("")
-  if not sw_showtext then pfUI.swingtimer.ranged.text:Hide() end
+  pfUI.swingtimer.mainhand = mainhand
+  pfUI.swingtimer.offhand = offhand
+  pfUI.swingtimer.ranged = ranged
 
-  pfUI.swingtimer.ranged.label = pfUI.swingtimer.ranged:CreateFontString("Status", "DIALOG", "GameFontNormal")
-  pfUI.swingtimer.ranged.label:SetPoint("RIGHT", pfUI.swingtimer.ranged, "LEFT", -4, 0)
-  pfUI.swingtimer.ranged.label:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
-  pfUI.swingtimer.ranged.label:SetTextColor(0.8, 0.8, 0.8, 1)
-  pfUI.swingtimer.ranged.label:SetText(sw_showlabel and "Ra" or "")
+  UpdateMovable(mainhand)
+  UpdateMovable(ranged)
 
-  pfUI.swingtimer.ranged.speed = pfUI.swingtimer.ranged:CreateFontString("Status", "DIALOG", "GameFontNormal")
-  pfUI.swingtimer.ranged.speed:SetPoint("LEFT", pfUI.swingtimer.ranged, "RIGHT", 4, 0)
-  pfUI.swingtimer.ranged.speed:SetFont(pfUI.font_default, sw_fontsize, "OUTLINE")
-  pfUI.swingtimer.ranged.speed:SetTextColor(0.8, 0.8, 0.8, 1)
-  pfUI.swingtimer.ranged.speed:SetText("")
-  if not sw_showspeed then pfUI.swingtimer.ranged.speed:Hide() end
-
-  CreateBackdrop(pfUI.swingtimer.ranged)
-
-
-  pfUI.swingtimer.ranged.marker = pfUI.swingtimer.ranged:CreateTexture(nil, "OVERLAY")
-  pfUI.swingtimer.ranged.marker:SetColorTexture(1, 1, 1, 1.0)
-  pfUI.swingtimer.ranged.marker:SetWidth(2)
-  pfUI.swingtimer.ranged.marker:SetHeight(sw_height)
-  pfUI.swingtimer.ranged.marker:Hide()
-
-  -- Left glow: fades from transparent to white (right edge = marker)
-  pfUI.swingtimer.ranged.markerGlowL = pfUI.swingtimer.ranged:CreateTexture(nil, "OVERLAY")
-  pfUI.swingtimer.ranged.markerGlowL:SetColorTexture(1, 1, 1, 1)
-  pfUI.swingtimer.ranged.markerGlowL:SetGradientAlpha("HORIZONTAL", 1, 1, 1, 0, 1, 1, 1, 0.35)
-  pfUI.swingtimer.ranged.markerGlowL:SetWidth(10)
-  pfUI.swingtimer.ranged.markerGlowL:SetHeight(sw_height)
-  pfUI.swingtimer.ranged.markerGlowL:Hide()
-
-  -- Right glow: fades from white to transparent (left edge = marker)
-  pfUI.swingtimer.ranged.markerGlowR = pfUI.swingtimer.ranged:CreateTexture(nil, "OVERLAY")
-  pfUI.swingtimer.ranged.markerGlowR:SetColorTexture(1, 1, 1, 1)
-  pfUI.swingtimer.ranged.markerGlowR:SetGradientAlpha("HORIZONTAL", 1, 1, 1, 0.35, 1, 1, 1, 0)
-  pfUI.swingtimer.ranged.markerGlowR:SetWidth(10)
-  pfUI.swingtimer.ranged.markerGlowR:SetHeight(sw_height)
-  pfUI.swingtimer.ranged.markerGlowR:Hide()
-
-  CreateBackdropShadow(pfUI.swingtimer.ranged)
-
-  UpdateMovable(pfUI.swingtimer.mainhand)
-  UpdateMovable(pfUI.swingtimer.ranged)
-
-  -- OH weapon detection
   -- OH weapon detection: slot 17 (off hand) accepts one-hand (13) and off-hand
   -- weapons (22); main-hand-only (21) can never sit there.
   local OH_WEAPON_TYPES = { [13]=true, [22]=true }
@@ -274,60 +190,6 @@ pfUI:RegisterModule("swingtimer", function ()
     S.ohSpeed = (HasOffhandWeapon() and os and os > 0) and os or 0
     local rs = UnitRangedDamage("player")
     S.raSpeed = (rs and rs > 0) and rs or 0
-  end
-
-  -- Start* restart a countdown from a PLAYER_SWING reset. `remaining` can be
-  -- shorter than the weapon speed (parry haste, ranged wind-up), so the bar
-  -- length stays the full swing and the fill starts part-way along.
-  local function StartMH(remaining)
-    UpdateWeaponSpeeds()
-    pfUI.swingtimer.mhGraceAt = nil  -- cancel any pending hide
-    S.mhTimerMax = math.max(S.mhSpeed, remaining)
-    S.mhTimer    = remaining
-    S.mhActive   = true
-    pfUI.swingtimer.mainhand:Show()
-    pfUI.swingtimer:Show()
-  end
-
-  local function StartOH(remaining)
-    UpdateWeaponSpeeds()
-    -- The off-hand attack time stays set with a shield equipped
-    if S.ohSpeed <= 0 then return end
-    pfUI.swingtimer.ohGraceAt = nil  -- cancel any pending hide
-    S.ohTimerMax = math.max(S.ohSpeed, remaining)
-    S.ohTimer    = remaining
-    S.ohActive   = true
-    if sw_showoh then pfUI.swingtimer.offhand:Show() end
-    pfUI.swingtimer:Show()
-  end
-
-  local function StartRanged(remaining)
-    if not sw_showranged then return end
-    UpdateWeaponSpeeds()
-    if S.raSpeed <= 0 then return end
-    S.raTimerMax = math.max(S.raSpeed, remaining)
-    S.raTimer    = remaining
-    S.raActive   = true
-
-    pfUI.swingtimer.ranged:SetStatusBarColor(raR, raG, raB, raA)
-    pfUI.swingtimer.ranged:SetValue(isHunter and 1 or 0)
-    pfUI.swingtimer.ranged:Show()
-    pfUI.swingtimer:Show()
-  end
-
-  local function ResetAll()
-    S.mhActive = false
-    S.ohActive = false
-    S.raActive = false
-    S.mhTimer  = 0
-    S.ohTimer  = 0
-    S.raTimer  = 0
-    pfUI.swingtimer.mhGraceAt = nil
-    pfUI.swingtimer.ohGraceAt = nil
-    pfUI.swingtimer.mainhand:Hide()
-    pfUI.swingtimer.offhand:Hide()
-    pfUI.swingtimer.ranged:Hide()
-    pfUI.swingtimer:Hide()
   end
 
   -- HS/Cleave/Maul helpers. Canonical rank-1 spellIDs resolve to the
@@ -419,236 +281,139 @@ pfUI:RegisterModule("swingtimer", function ()
     return CheckQueuedAction(S.cachedHSSlots), CheckQueuedAction(S.cachedCleaveSlots)
   end
 
-  -- OnUpdate: countdown all timers with delta, then render
-  pfUI.swingtimer:SetScript("OnUpdate", function()
-    S.swingThrottle = S.swingThrottle + arg1
-    local swingDelay = pfUI.throttle and pfUI.throttle:Get("swingtimer") or 0.02
-    if S.swingThrottle < swingDelay then return end
-    local delta = S.swingThrottle
-    S.swingThrottle = 0
-
-    -- (out-of-combat hide handled naturally when timers expire)
-
-    local anyActive = false
-
-    -- Tick timers down. When a timer expires we give a short grace period before
-    -- hiding the bar, to bridge the 1-2 frame gap until PLAYER_SWING arrives.
-    -- If PLAYER_SWING arrives during the grace period it resets the timer
-    -- normally and the grace timer is cleared. If not (e.g. auto-attack was
-    -- turned off), the bar hides after the grace period ends.
-    local GRACE = 0.15  -- seconds to wait after timer hits 0 before hiding
-
-    if S.mhActive then
-      S.mhTimer = S.mhTimer - delta
-      if S.mhTimer <= 0 then
-        S.mhTimer = 0
-        if not pfUI.swingtimer.mhGraceAt then
-          pfUI.swingtimer.mhGraceAt = GetTime() + GRACE
-        elseif GetTime() >= pfUI.swingtimer.mhGraceAt then
-          pfUI.swingtimer.mhGraceAt = nil
-          if not S.inCombat or not S.autoAttackActive then
-            S.mhActive = false
-            pfUI.swingtimer.mainhand:Hide()
-            S.lastMhMarkerX = -1
-            pfUI.swingtimer.mainhand.marker:Hide()
-            pfUI.swingtimer.mainhand.markerGlowL:Hide()
-            pfUI.swingtimer.mainhand.markerGlowR:Hide()
-          end
-        end
-      end
-    end
-    if S.ohActive then
-      S.ohTimer = S.ohTimer - delta
-      if S.ohTimer <= 0 then
-        S.ohTimer = 0
-        if not pfUI.swingtimer.ohGraceAt then
-          pfUI.swingtimer.ohGraceAt = GetTime() + GRACE
-        elseif GetTime() >= pfUI.swingtimer.ohGraceAt then
-          pfUI.swingtimer.ohGraceAt = nil
-          if not S.inCombat or not S.autoAttackActive then
-            S.ohActive = false
-            pfUI.swingtimer.offhand:Hide()
-            S.lastOhMarkerX = -1
-            pfUI.swingtimer.offhand.marker:Hide()
-            pfUI.swingtimer.offhand.markerGlowL:Hide()
-            pfUI.swingtimer.offhand.markerGlowR:Hide()
-          end
-        end
-      end
-    end
-    if S.raActive then
-      S.raTimer = S.raTimer - delta
-      if S.raTimer <= 0 then
-        S.raTimer = 0
-        S.raActive = false
-        pfUI.swingtimer.ranged:Hide()
-      end
-    end
-
-    -- HS/Cleave color
-    local curR, curG, curB = mhDefaultR, mhDefaultG, mhDefaultB
+  -- The bar colors follow the queued on-next-swing ability, the range state
+  -- and the hunter deadzone. Runs on the events that change any of them;
+  -- ACTIONBAR_UPDATE_STATE covers the IsCurrentAction reconcile.
+  local function UpdateColors()
+    local r, g, b = mhR, mhG, mhB
     if sw_hsqueue then
       if S.isDruid and S.useSpellQueueEvent then
         S.maulQueued, S.maulSeenCurrent =
           ReconcileQueued(S.maulQueued, S.cachedMaulSlots, S.maulSeenCurrent)
       end
       if S.maulQueued and S.isDruid then
-        curR, curG, curB = 1.0, 0.55, 0.0 -- orange for druid maul queue
+        r, g, b = 1.0, 0.55, 0.0 -- orange for druid maul queue
       elseif S.isWarrior then
         local hs, cl = IsHSOrCleaveQueued()
         if cl then
-          curR, curG, curB = 0.2, 0.9, 0.2
+          r, g, b = 0.2, 0.9, 0.2
         elseif hs then
-          curR, curG, curB = 0.9, 0.9, 0.2
+          r, g, b = 0.9, 0.9, 0.2
         end
       end
     end
+    if S.outOfRange[MAINHAND] then r, g, b = orR, orG, orB end
+    mainhand:SetStatusBarColor(r, g, b, mhA)
 
-    -- Render MH
-    if S.outOfRange[MAINHAND] then
-      curR, curG, curB = orR, orG, orB
+    if S.outOfRange[OFFHAND] then
+      offhand:SetStatusBarColor(orR, orG, orB, ohA)
+    else
+      offhand:SetStatusBarColor(ohR, ohG, ohB, ohA)
     end
 
-    if S.mhActive then
-      local progress = 1 - (S.mhTimer / S.mhTimerMax)
-      pfUI.swingtimer.mainhand:SetValue(progress)
-      if S.mhTimer <= 0 then
-        -- Timer expired: hide marker (no gap at right edge)
-        if S.lastMhMarkerX ~= -1 then
-          S.lastMhMarkerX = -1
-          pfUI.swingtimer.mainhand.marker:Hide()
-          pfUI.swingtimer.mainhand.markerGlowL:Hide()
-          pfUI.swingtimer.mainhand.markerGlowR:Hide()
-        end
+    local a
+    if ranged.warn then
+      r, g, b, a = rwR, rwG, rwB, rwA
+    else
+      r, g, b, a = raR, raG, raB, raA
+    end
+    if S.outOfRange[RANGED] then r, g, b = orR, orG, orB end
+    ranged:SetStatusBarColor(r, g, b, a)
+  end
+
+  local function StopBar(bar)
+    if bar.wake then bar.wake:Cancel() end
+    bar.wake, bar.active, bar.graced = nil, nil, nil
+    bar.timer:Disable()
+    bar:Hide()
+  end
+
+  -- a melee bar that is due waits for the next swing; it hides after the
+  -- grace unless auto attack goes on, or on the event that stops it later
+  local function MeleeGrace(bar)
+    bar.graced = true
+    if not S.inCombat or not S.autoAttackActive then StopBar(bar) end
+  end
+
+  local function MeleeDue(bar)
+    bar.edge:Hide()
+    bar.wake = C_Timer.NewTimer(GRACE, function() MeleeGrace(bar) end)
+  end
+
+  local function RangedDue(bar)
+    StopBar(bar)
+  end
+
+  -- the hunter's reload is over: the deadzone grows out in the warn color
+  local function HunterDeadzone(bar)
+    local finish = bar.swing:GetEndTime()
+    bar.phase:SetTimeFromEnd(finish, DEADZONE)
+    bar:SetTimerDuration(bar.phase, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.ElapsedTime)
+    bar.warn = true
+    UpdateColors()
+    bar.wake = C_Timer.NewTimer(finish - GetTime(), function() RangedDue(bar) end)
+  end
+
+  -- Restarts a bar from a PLAYER_SWING reset. `remaining` can be shorter than
+  -- the weapon speed (parry haste, ranged wind-up), so the bar length stays
+  -- the full swing and the fill starts part-way along.
+  local function StartBar(bar, remaining, speed, due)
+    if bar.wake then bar.wake:Cancel() end
+    local now = GetTime()
+    bar.swing:SetTimeFromEnd(now + remaining, math.max(speed, remaining))
+    bar.active, bar.graced, bar.warn = true, nil, nil
+    if speed > 0 then bar.speed:SetFormattedText("%.2f", speed) end
+
+    if bar.phase then
+      if remaining > DEADZONE then
+        bar.phase:SetTimeFromEnd(now + remaining - DEADZONE, math.max(speed, remaining) - DEADZONE)
+        bar:SetTimerDuration(bar.phase, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.RemainingTime)
+        bar.wake = C_Timer.NewTimer(remaining - DEADZONE, function() HunterDeadzone(bar) end)
       else
-        local mhMarkerX = progress * sw_width
-        if mhMarkerX < 1 then mhMarkerX = 1 end
-        if mhMarkerX > sw_width - 2 then mhMarkerX = sw_width - 2 end
-        if mhMarkerX ~= S.lastMhMarkerX then
-          S.lastMhMarkerX = mhMarkerX
-          pfUI.swingtimer.mainhand.marker:SetPoint("LEFT", pfUI.swingtimer.mainhand, "LEFT", mhMarkerX - 1, 0)
-          pfUI.swingtimer.mainhand.markerGlowL:SetPoint("RIGHT", pfUI.swingtimer.mainhand.marker, "LEFT", 0, 0)
-          pfUI.swingtimer.mainhand.markerGlowR:SetPoint("LEFT", pfUI.swingtimer.mainhand.marker, "RIGHT", 0, 0)
-          pfUI.swingtimer.mainhand.marker:Show()
-          pfUI.swingtimer.mainhand.markerGlowL:Show()
-          pfUI.swingtimer.mainhand.markerGlowR:Show()
-        end
+        HunterDeadzone(bar)
       end
-      pfUI.swingtimer.mainhand:SetStatusBarColor(curR, curG, curB, mhA)
-      if sw_showtext then
-        pfUI.swingtimer.mainhand.text:SetFormattedText("%.1f", math.floor(S.mhTimer * 10) / 10)
-      end
-      if sw_showspeed and S.mhSpeed > 0 then
-        pfUI.swingtimer.mainhand.speed:SetFormattedText("%.2f", S.mhSpeed)
-      end
-      anyActive = true
+    else
+      bar.wake = C_Timer.NewTimer(remaining, function() due(bar) end)
     end
 
-    -- Render OH
-    if sw_showoh and S.ohActive then
-      local progress = 1 - (S.ohTimer / S.ohTimerMax)
-      pfUI.swingtimer.offhand:SetValue(progress)
-      if S.outOfRange[OFFHAND] then
-        pfUI.swingtimer.offhand:SetStatusBarColor(orR, orG, orB, ohA)
-      else
-        pfUI.swingtimer.offhand:SetStatusBarColor(ohR, ohG, ohB, ohA)
-      end
-      if S.ohTimer <= 0 then
-        if S.lastOhMarkerX ~= -1 then
-          S.lastOhMarkerX = -1
-          pfUI.swingtimer.offhand.marker:Hide()
-          pfUI.swingtimer.offhand.markerGlowL:Hide()
-          pfUI.swingtimer.offhand.markerGlowR:Hide()
-        end
-      else
-        local ohMarkerX = progress * sw_width
-        if ohMarkerX < 1 then ohMarkerX = 1 end
-        if ohMarkerX > sw_width - 2 then ohMarkerX = sw_width - 2 end
-        if ohMarkerX ~= S.lastOhMarkerX then
-          S.lastOhMarkerX = ohMarkerX
-          pfUI.swingtimer.offhand.marker:SetPoint("LEFT", pfUI.swingtimer.offhand, "LEFT", ohMarkerX - 1, 0)
-          pfUI.swingtimer.offhand.markerGlowL:SetPoint("RIGHT", pfUI.swingtimer.offhand.marker, "LEFT", 0, 0)
-          pfUI.swingtimer.offhand.markerGlowR:SetPoint("LEFT", pfUI.swingtimer.offhand.marker, "RIGHT", 0, 0)
-          pfUI.swingtimer.offhand.marker:Show()
-          pfUI.swingtimer.offhand.markerGlowL:Show()
-          pfUI.swingtimer.offhand.markerGlowR:Show()
-        end
-      end
-      if sw_showtext then
-        pfUI.swingtimer.offhand.text:SetFormattedText("%.1f", math.floor(S.ohTimer * 10) / 10)
-      end
-      if sw_showspeed and S.ohSpeed > 0 then
-        pfUI.swingtimer.offhand.speed:SetFormattedText("%.2f", S.ohSpeed)
-      end
-      anyActive = true
-    elseif not sw_showoh then
-      pfUI.swingtimer.offhand:Hide()
+    UpdateColors()
+    if bar.shown then
+      bar.edge:SetShown(bar.showmarker)
+      if sw_showtext then bar.timer:Enable() end
+      bar:Show()
     end
+  end
 
-    -- Render Ranged
-    if sw_showranged and S.raActive then
-      local remaining = S.raTimer
-      local r, g, b, a = raR, raG, raB, raA
-      if isHunter then
-        local DEADZONE = 0.5
-        if remaining > DEADZONE then
-          pfUI.swingtimer.ranged:SetValue((remaining - DEADZONE) / (S.raTimerMax - DEADZONE))
-        else
-          r, g, b, a = rwR, rwG, rwB, rwA
-          pfUI.swingtimer.ranged:SetValue(1 - (remaining / DEADZONE))
-        end
-        if sw_showtext then
-          if remaining <= 0.5 then
-            pfUI.swingtimer.ranged.text:SetFormattedText("%.1f", math.floor(remaining * 10) / 10)
-          else
-            pfUI.swingtimer.ranged.text:SetFormattedText("%.1f", math.floor((remaining - 0.5) * 10) / 10)
-          end
-        end
-      else
-        pfUI.swingtimer.ranged:SetValue(1 - (remaining / S.raTimerMax))
-        if sw_showtext then
-          pfUI.swingtimer.ranged.text:SetFormattedText("%.1f", math.floor(remaining * 10) / 10)
-        end
-      end
-      if S.outOfRange[RANGED] then
-        r, g, b = orR, orG, orB
-      end
-      pfUI.swingtimer.ranged:SetStatusBarColor(r, g, b, a)
-      if sw_showspeed and S.raSpeed > 0 then
-        pfUI.swingtimer.ranged.speed:SetFormattedText("%.2f", S.raSpeed)
-      end
-      local raProgress = 1 - (S.raTimer / S.raTimerMax)
-      local raMarkerX = raProgress * sw_width
-      if raMarkerX < 1 then raMarkerX = 1 end
-      if raMarkerX > sw_width - 2 then raMarkerX = sw_width - 2 end
-      if raMarkerX ~= S.lastRaMarkerX then
-        S.lastRaMarkerX = raMarkerX
-        if not isHunter then
-          pfUI.swingtimer.ranged.marker:SetPoint("LEFT", pfUI.swingtimer.ranged, "LEFT", raMarkerX - 1, 0)
-          pfUI.swingtimer.ranged.marker:Show()
-          pfUI.swingtimer.ranged.markerGlowL:SetPoint("RIGHT", pfUI.swingtimer.ranged.marker, "LEFT", 0, 0)
-          pfUI.swingtimer.ranged.markerGlowR:SetPoint("LEFT", pfUI.swingtimer.ranged.marker, "RIGHT", 0, 0)
-          pfUI.swingtimer.ranged.markerGlowL:Show()
-          pfUI.swingtimer.ranged.markerGlowR:Show()
-        else
-          pfUI.swingtimer.ranged.marker:Hide()
-          pfUI.swingtimer.ranged.markerGlowL:Hide()
-          pfUI.swingtimer.ranged.markerGlowR:Hide()
-        end
-      end
-      anyActive = true
-    elseif not sw_showranged then
-      pfUI.swingtimer.ranged:Hide()
-    end
+  local function StartMH(remaining)
+    UpdateWeaponSpeeds()
+    StartBar(mainhand, remaining, S.mhSpeed, MeleeDue)
+  end
 
-    if not anyActive then
-      if not pfUI.swingtimer.mainhand:IsShown()
-        and not pfUI.swingtimer.offhand:IsShown()
-        and not pfUI.swingtimer.ranged:IsShown() then
-        this:Hide()
-      end
-    end
-  end)
+  local function StartOH(remaining)
+    UpdateWeaponSpeeds()
+    -- The off-hand attack time stays set with a shield equipped
+    if S.ohSpeed <= 0 then return end
+    StartBar(offhand, remaining, S.ohSpeed, MeleeDue)
+  end
+
+  local function StartRanged(remaining)
+    if not sw_showranged then return end
+    UpdateWeaponSpeeds()
+    if S.raSpeed <= 0 then return end
+    StartBar(ranged, remaining, S.raSpeed, RangedDue)
+  end
+
+  -- melee bars waiting past their grace hide once auto attack stops
+  local function StopWaitingBars()
+    if mainhand.graced then StopBar(mainhand) end
+    if offhand.graced then StopBar(offhand) end
+  end
+
+  local function ResetAll()
+    StopBar(mainhand)
+    StopBar(offhand)
+    StopBar(ranged)
+  end
 
   local events = CreateFrame("Frame")
   events:RegisterEvent("PLAYER_SWING")
@@ -658,6 +423,7 @@ pfUI:RegisterModule("swingtimer", function ()
   events:RegisterEvent("PLAYER_REGEN_DISABLED")
   events:RegisterEvent("PLAYER_REGEN_ENABLED")
   events:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
+  events:RegisterEvent("ACTIONBAR_UPDATE_STATE")
   events:RegisterEvent("PLAYER_DEAD")
   events:RegisterUnitEvent("UNIT_SPELLCAST_SENT", "player")
   events:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
@@ -682,6 +448,7 @@ pfUI:RegisterModule("swingtimer", function ()
       -- arg1 = swingType, arg2 = isInRange, arg3 = checksRange; no check
       -- (no target, nothing to attack, no weapon) is not out of range
       S.outOfRange[arg1] = arg3 and not arg2
+      UpdateColors()
 
     elseif event == "UNIT_SPELLCAST_SENT" then
       -- arg4 = spellID: an on-next-swing ability (HS / Cleave / Maul) queued
@@ -689,6 +456,7 @@ pfUI:RegisterModule("swingtimer", function ()
       if kind then
         S.useSpellQueueEvent = true
         SetQueuedKind(kind)
+        UpdateColors()
       end
 
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
@@ -696,6 +464,7 @@ pfUI:RegisterModule("swingtimer", function ()
       -- the queue, so drop the queued color
       if IsOnSwingSpell(arg3) then
         S.hsQueued = false; S.cleaveQueued = false; S.maulQueued = false
+        UpdateColors()
       end
 
     elseif event == "SPELL_QUEUE_EVENT" then
@@ -707,12 +476,17 @@ pfUI:RegisterModule("swingtimer", function ()
       elseif eventCode == ON_SWING_QUEUE_POPPED then
         S.hsQueued = false; S.cleaveQueued = false; S.maulQueued = false
       end
+      UpdateColors()
+
+    elseif event == "ACTIONBAR_UPDATE_STATE" then
+      if sw_hsqueue then UpdateColors() end
 
     elseif event == "START_AUTOATTACK" then
       S.autoAttackActive = true
 
     elseif event == "STOP_AUTOATTACK" then
       S.autoAttackActive = false
+      StopWaitingBars()
 
     elseif event == "PLAYER_ENTERING_WORLD" then
       local class = UnitClassBase("player")
@@ -725,14 +499,8 @@ pfUI:RegisterModule("swingtimer", function ()
       -- arg1 = changed slot; only weapon slots (main/off/ranged) affect swing speed
       if not INVSLOTS_EQUIPABLE_IN_COMBAT[arg1] then return end
       UpdateWeaponSpeeds()
-      if S.ohSpeed == 0 then
-        S.ohActive = false
-        pfUI.swingtimer.offhand:Hide()
-      end
-      if S.raSpeed == 0 then
-        S.raActive = false
-        pfUI.swingtimer.ranged:Hide()
-      end
+      if S.ohSpeed == 0 then StopBar(offhand) end
+      if S.raSpeed == 0 then StopBar(ranged) end
 
     elseif event == "ACTIONBAR_SLOT_CHANGED" then
       RebuildQueueSlotCache()
@@ -746,11 +514,21 @@ pfUI:RegisterModule("swingtimer", function ()
       S.hsQueued     = false
       S.cleaveQueued = false
       S.maulQueued   = false
+      UpdateColors()
+      StopWaitingBars()
 
     elseif event == "PLAYER_DEAD" then
       ResetAll()
     end
   end)
+
+  local function Remaining(bar)
+    return bar.active and bar.swing:GetRemainingDuration() or 0
+  end
+
+  local function Progress(bar)
+    return bar.active and bar.swing:GetElapsedPercent() or 0
+  end
 
   -- -------------------------------------------------------------------------
   -- Public API for external addons (e.g. SCRM)
@@ -763,9 +541,9 @@ pfUI:RegisterModule("swingtimer", function ()
   -- -------------------------------------------------------------------------
   pfUI.swingtimer.api = {
     -- Remaining time in seconds until next swing
-    GetMHTimer        = function() return S.mhTimer end,
-    GetOHTimer        = function() return S.ohTimer end,
-    GetRangedTimer    = function() return S.raTimer end,
+    GetMHTimer        = function() return Remaining(mainhand) end,
+    GetOHTimer        = function() return Remaining(offhand) end,
+    GetRangedTimer    = function() return Remaining(ranged) end,
 
     -- Weapon speed (full swing duration in seconds)
     GetMHSpeed        = function() return S.mhSpeed end,
@@ -773,20 +551,14 @@ pfUI:RegisterModule("swingtimer", function ()
     GetRangedSpeed    = function() return S.raSpeed end,
 
     -- Whether each timer is currently running
-    IsMHActive        = function() return S.mhActive end,
-    IsOHActive        = function() return S.ohActive end,
-    IsRangedActive    = function() return S.raActive end,
+    IsMHActive        = function() return mainhand.active == true end,
+    IsOHActive        = function() return offhand.active == true end,
+    IsRangedActive    = function() return ranged.active == true end,
 
     -- Swing progress 0.0 (just reset) to 1.0 (about to swing)
-    GetMHProgress     = function()
-      return S.mhActive and S.mhTimerMax > 0 and (1 - S.mhTimer / S.mhTimerMax) or 0
-    end,
-    GetOHProgress     = function()
-      return S.ohActive and S.ohTimerMax > 0 and (1 - S.ohTimer / S.ohTimerMax) or 0
-    end,
-    GetRangedProgress = function()
-      return S.raActive and S.raTimerMax > 0 and (1 - S.raTimer / S.raTimerMax) or 0
-    end,
+    GetMHProgress     = function() return Progress(mainhand) end,
+    GetOHProgress     = function() return Progress(offhand) end,
+    GetRangedProgress = function() return Progress(ranged) end,
 
     -- Warrior HS/Cleave queue state
     IsHSQueued        = function() return S.hsQueued end,
@@ -804,4 +576,5 @@ pfUI:RegisterModule("swingtimer", function ()
   if sw_showranged then EnableRangeCheck(RANGED) end
 
   UpdateWeaponSpeeds()
+  UpdateColors()
 end)
