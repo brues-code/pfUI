@@ -492,8 +492,7 @@ pfUI:RegisterModule("nameplates", function ()
     local elite = UnitClassification(unit)
     if level <= 0 then
       if plate.player then
-        local _, dblevel = GetUnitInfo(plate.rawname)
-        if dblevel and dblevel > 0 then level = dblevel end
+        level = GetPlayerLevel(plate.rawname) or level
       else
         -- UnitLevel answers -1 exactly where the engine shows the skull: a
         -- world boss, or a hostile ten or more levels above the player

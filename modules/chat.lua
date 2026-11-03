@@ -701,12 +701,6 @@ pfUI:RegisterModule("chat", function ()
   local r,g,b = GetStringColor(C.chat.text.unknowncolor)
   local unknowncolorhex = rgbhex(r,g,b)
 
-  local function GetPlayerLevel(name)
-    if not pfUI_playerDB then return nil end
-    if not pfUI_playerDB[name] then return nil end
-    return pfUI_playerDB[name].level
-  end
-
   -- the sender of the line AddMessage is reading, from its chat event
   local lineSender, lineSenderClass, lineSenderRace, lineSenderSex
 
@@ -727,10 +721,7 @@ pfUI:RegisterModule("chat", function ()
       else
         _, class, _, raceKey, sex = C_PlayerCache.GetPlayerInfoByName(real)
       end
-      if not class then
-        class = GetUnitInfo(real)
-      end
-      if class and class ~= UNKNOWN then
+      if class then
         color = "|c" .. PFUI_CLASS_COLORS[class].colorStr
         if C.chat.text.factionicons == "1" then
           icon = GetFactionIcon(raceKey)
@@ -745,11 +736,8 @@ pfUI:RegisterModule("chat", function ()
 
     local suffix = ""
     local level = C.chat.text.playerlevel == "1" and GetPlayerLevel(real)
-    if level and level > 0 then
+    if level then
       suffix = " " .. rgbhex(GetDifficultyColor(level)) .. level .. "|r"
-    elseif level then
-      -- Show ?? for unknown levels (e.g. -1 from UnitLevel)
-      suffix = " |cffff0000??|r"
     end
 
     if color == "" and suffix == "" then return link end

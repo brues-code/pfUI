@@ -5,7 +5,7 @@ pfUI:RegisterModule("socialmod", function ()
   pfUI.socialmod:SetScript("OnEvent", function()
     local name = cmatch(arg1, _G.ERR_FRIEND_ONLINE_SS)
     name = name or cmatch(arg1, _G.ERR_FRIEND_OFFLINE_S)
-    if name and playerdb[name] and playerdb[name].cname then
+    if name and playerdb[name] then
       playerdb[name].lastseen = date("%a %d-%b-%Y")
     end
   end)
@@ -92,7 +92,6 @@ pfUI:RegisterModule("socialmod", function ()
           local cname = ccolor:WrapTextInColorCode(name)
           if playerdb[name] then
             playerdb[name].lastseen = date("%a %d-%b-%Y")
-            playerdb[name].cname = cname
           end
 
           if friendName then
@@ -106,11 +105,13 @@ pfUI:RegisterModule("socialmod", function ()
           caption:SetVertexColor(1,1,1,.9)
           friendInfo:SetVertexColor(1,1,1,.9)
         else
-          if playerdb[name] and playerdb[name].cname and playerdb[name].level and playerdb[name].lastseen then
-            caption:SetFormattedText(TEXT(FRIENDS_LIST_OFFLINE_TEMPLATE), playerdb[name].cname)
-            friendInfo:SetFormattedText(TEXT(FRIENDS_LEVEL_TEMPLATE), playerdb[name].level, playerdb[name].lastseen)
+          local _, class = C_PlayerCache.GetPlayerInfoByName(name)
+          caption:SetFormattedText(TEXT(FRIENDS_LIST_OFFLINE_TEMPLATE), class and PFUI_CLASS_COLORS[class]:WrapTextInColorCode(name) or name.."|r")
+
+          local entry = playerdb[name]
+          if entry and entry.level and entry.lastseen then
+            friendInfo:SetFormattedText(TEXT(FRIENDS_LEVEL_TEMPLATE), entry.level, entry.lastseen)
           else
-            caption:SetFormattedText(TEXT(FRIENDS_LIST_OFFLINE_TEMPLATE), name.."|r")
             friendInfo:SetText(TEXT(UNKNOWN))
           end
 
