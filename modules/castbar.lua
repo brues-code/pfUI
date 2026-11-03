@@ -231,7 +231,7 @@ pfUI:RegisterModule("castbar", function ()
     CreateBackdropShadow(cb.bar)
 
     -- text left
-    cb.bar.left = cb.bar:CreateFontString("Status", "DIALOG", "GameFontNormal")
+    cb.bar.left = cb.bar:CreateFontString("Status", "OVERLAY", "GameFontNormal")
     cb.bar.left:ClearAllPoints()
     cb.bar.left:SetPoint("TOPLEFT", cb.bar, "TOPLEFT", 3 + C.castbar[unitstr].txtleftoffx, C.castbar[unitstr].txtleftoffy)
     cb.bar.left:SetPoint("BOTTOMRIGHT", cb.bar, "BOTTOMRIGHT", -3 + C.castbar[unitstr].txtleftoffx, C.castbar[unitstr].txtleftoffy)
@@ -242,7 +242,7 @@ pfUI:RegisterModule("castbar", function ()
     cb.bar.left:SetJustifyH(C.castbar[unitstr].namealign or "LEFT")
 
     -- text right
-    cb.bar.right = cb.bar:CreateFontString("Status", "DIALOG", "GameFontNormal")
+    cb.bar.right = cb.bar:CreateFontString("Status", "OVERLAY", "GameFontNormal")
     cb.bar.right:ClearAllPoints()
     cb.bar.right:SetPoint("TOPLEFT", cb.bar, "TOPLEFT", 3 + C.castbar[unitstr].txtrightoffx, C.castbar[unitstr].txtrightoffy)
     cb.bar.right:SetPoint("BOTTOMRIGHT", cb.bar, "BOTTOMRIGHT", -3 + C.castbar[unitstr].txtrightoffx, C.castbar[unitstr].txtrightoffy)

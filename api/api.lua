@@ -1183,8 +1183,11 @@ end
 -- [ Set Castbar Shield ]
 -- Colors a castbar for a cast that none of the player's own interrupts or
 -- silences can stop. The bar and the icon's border both take the shield color,
--- so the state still reads on a bar configured without an icon. Not shielded
--- restores the normal cast/channel color and the configured border.
+-- so the state still reads on a bar configured without an icon. The fill also
+-- gets diagonal stripes, tiled at the image's own size so they keep their
+-- spacing as the fill grows or shrinks. They sit on OVERLAY, under the bar's
+-- text on the same layer. Not shielded restores the normal cast/channel color
+-- and the configured border.
 -- 'bar'        [frame]     the castbar statusbar
 -- 'icon'       [frame]     the icon frame, or nil for a bar without one
 -- 'shielded'   [bool]      whether the cast is uninterruptible
@@ -1194,6 +1197,18 @@ function pfUI.api.SetCastbarShield(bar, icon, shielded, isChannel)
     bar:SetStatusBarColor(pfUI.api.GetStringColor(C.appearance.castbar.shieldcolor))
   else
     bar:SetStatusBarColor(pfUI.api.GetStringColor(C.appearance.castbar[isChannel and "channelcolor" or "castbarcolor"]))
+  end
+
+  if shielded and not bar.shieldstripes then
+    bar.shieldstripes = bar:CreateTexture(nil, "OVERLAY")
+    bar.shieldstripes:SetTexture(pfUI.media["img:stripes"])
+    bar.shieldstripes:SetHorizTile(true)
+    bar.shieldstripes:SetVertTile(true)
+    bar.shieldstripes:SetVertexColor(1, 1, 1, .3)
+    bar.shieldstripes:SetAllPoints(bar:GetStatusBarTexture())
+  end
+  if bar.shieldstripes then
+    bar.shieldstripes:SetShown(shielded)
   end
 
   local iconborder = icon and icon.backdrop

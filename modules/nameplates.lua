@@ -1237,7 +1237,7 @@ pfUI:RegisterModule("nameplates", function ()
         end
       end)
 
-      castbar.text = castbar:CreateFontString("Status", "DIALOG", "GameFontNormal")
+      castbar.text = castbar:CreateFontString("Status", "OVERLAY", "GameFontNormal")
       castbar.text:SetPoint("RIGHT", castbar, "LEFT", -4, 0)
       castbar.text:SetNonSpaceWrap(false)
       castbar.text:SetTextColor(1,1,1,.5)
@@ -1247,7 +1247,7 @@ pfUI:RegisterModule("nameplates", function ()
       castbar.timer:SetFormatter(castFormatter)
       castbar.onExpire = function() ExpireCast(nameplate) end
 
-      castbar.spell = castbar:CreateFontString("Status", "DIALOG", "GameFontNormal")
+      castbar.spell = castbar:CreateFontString("Status", "OVERLAY", "GameFontNormal")
       castbar.spell:SetPoint("CENTER", castbar, "CENTER")
       castbar.spell:SetNonSpaceWrap(false)
       castbar.spell:SetTextColor(1,1,1,1)
