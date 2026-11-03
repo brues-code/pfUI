@@ -1404,10 +1404,10 @@ function pfUI.api.EnableAutohide(frame, timeout, combat)
 
   if not frame.hover.fade then
     frame.hover.fade = frame:CreateAnimationGroup()
+    frame.hover.fade:SetToFinalAlpha(true)
     local fade = frame.hover.fade:CreateAnimation("Alpha")
     fade:SetChange(-1)
     fade:SetDuration(1)
-    frame.hover.fade:SetScript("OnFinished", function() frame:SetAlpha(0) end)
   end
 
   if combat then

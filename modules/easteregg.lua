@@ -30,15 +30,15 @@ pfUI:RegisterModule("easteregg", function ()
     scene.dtext:SetPoint("TOP", 0, -430)
     scene.dtext:SetText(info and info .. "\n\n" .. exit or exit)
 
-    -- Fade the night in by playing a fade-out backwards. The scene keeps an
-    -- alpha of 1, which comes back when the fade ends.
+    -- Fade the night in. The scene keeps an alpha of 1, which comes back
+    -- when the fade ends.
     scene.dusk = scene:CreateAnimationGroup()
     local fade = scene.dusk:CreateAnimation("Alpha")
-    fade:SetChange(-1)
+    fade:SetToAlpha(1)
     fade:SetDuration(.8)
 
     scene:SetScript("OnShow", function()
-      this.dusk:Play(true)
+      this.dusk:Play()
     end)
 
     -- start over on the next AFK
@@ -159,7 +159,7 @@ pfUI:RegisterModule("easteregg", function ()
     halloween.text:SetTextColor(1, .5, 0)
 
     -- Candlelight glows in from the screen edges. It flickers in uneven
-    -- steps of { duration, change } that end where they began, so the loop
+    -- steps of { duration, alpha } that end where they began, so the loop
     -- never jumps.
     local candle = CreateFrame("Frame", nil, halloween)
     candle:SetAllPoints()
@@ -169,16 +169,19 @@ pfUI:RegisterModule("easteregg", function ()
     candle.flicker = candle:CreateAnimationGroup()
     candle.flicker:SetLooping("REPEAT")
     local steps = {
-      { .18, -.25 }, { .09, .1 }, { .22, -.2 }, { .14, .3 }, { .3, -.1 },
-      { .11, -.15 }, { .2, .2 }, { .16, -.3 }, { .26, .25 }, { .12, .15 },
+      { .18, .75 }, { .09, .85 }, { .22, .65 }, { .14, .95 }, { .3, .85 },
+      { .11, .7 }, { .2, .9 }, { .16, .6 }, { .26, .85 }, { .12, 1 },
     }
+    local from = 1
     for order, step in ipairs(steps) do
-      local duration, change = unpack(step)
+      local duration, alpha = unpack(step)
       local fade = candle.flicker:CreateAnimation("Alpha")
       fade:SetOrder(order)
       fade:SetDuration(duration)
-      fade:SetChange(change)
+      fade:SetFromAlpha(from)
+      fade:SetToAlpha(alpha)
       fade:SetSmoothing("IN_OUT")
+      from = alpha
     end
 
     -- Once the night has fallen, undead rise along the bottom one after

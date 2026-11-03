@@ -111,15 +111,16 @@ pfUI:RegisterModule("minimap", function ()
 
       -- Blink ten times between .9 and .1, then hide
       local highlight = this.highlight
-      highlight:SetAlpha(.9)
       highlight.blink = highlight:CreateAnimationGroup()
       for i = 1, 10 do
         local down = highlight.blink:CreateAnimation("Alpha")
-        down:SetChange(-.8)
+        down:SetFromAlpha(.9)
+        down:SetToAlpha(.1)
         down:SetDuration(.3)
         down:SetOrder(i * 2 - 1)
         local up = highlight.blink:CreateAnimation("Alpha")
-        up:SetChange(.8)
+        up:SetFromAlpha(.1)
+        up:SetToAlpha(.9)
         up:SetDuration(.3)
         up:SetOrder(i * 2)
       end

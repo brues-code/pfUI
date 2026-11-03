@@ -381,10 +381,10 @@ end
 
     if not b.fade then
       b.fade = b:CreateAnimationGroup()
+      b.fade:SetToFinalAlpha(true)
       local fade = b.fade:CreateAnimation("Alpha")
       fade:SetChange(-1)
       fade:SetDuration(.3)
-      b.fade:SetScript("OnFinished", function() b:SetAlpha(0) end)
     end
 
     b:RegisterEvent("FACTION_STANDING_CHANGED")

@@ -781,7 +781,6 @@ function pfUI.uf:UpdateConfig()
   if f.config.hitindicator == "1" then
     f.feedbackText:SetFont(pfUI.media[f.config.hitindicatorfont], f.config.hitindicatorsize, "OUTLINE")
     f.feedbackFontHeight = f.config.hitindicatorsize
-    f.feedbackStartTime = GetTime()
     if f.config.portrait == "bar" or f.config.portrait == "off" then
       f.feedbackText:SetParent(f.texts)
       f.feedbackText:ClearAllPoints()
@@ -793,8 +792,8 @@ function pfUI.uf:UpdateConfig()
     end
     f.combatfeedback = true
   else
+    f.feedback:Stop()
     f.feedbackText:Hide()
-    f.feedback:Hide()
     f.combatfeedback = nil
   end
 
@@ -1177,8 +1176,10 @@ function pfUI.uf.OnEvent()
     elseif event == "UNIT_CONNECTION" then
       pfUI.uf:QueueUpdate(this, "full")
     elseif event == "UNIT_COMBAT" then
+      -- every hit starts the fade over
+      this.feedback:Stop()
       CombatFeedback_OnCombatEvent(arg2, arg3, arg4, arg5)
-      this.feedback:Show()
+      this.feedback:Play()
     elseif event == "INCOMING_RESURRECT_CHANGED" then
       pfUI.uf:QueueUpdate(this, "indicators")
     else
@@ -1316,25 +1317,6 @@ C_Timer.NewTicker(.5, function()
     if frame.rangepoll and frame:IsVisible() then pfUI.uf:RefreshUnitState(frame) end
   end
 end)
-
--- Fade the combat feedback text in, hold it, and fade it out -- the timing of
--- CombatFeedback_OnUpdate. Runs on a child frame shown only while the text is.
-local function FeedbackOnUpdate()
-  local frame = this:GetParent()
-  local text = frame.feedbackText
-  local elapsed = GetTime() - frame.feedbackStartTime
-  local fadein, hold = COMBATFEEDBACK_FADEINTIME, COMBATFEEDBACK_HOLDTIME
-  if elapsed < fadein then
-    text:SetAlpha(elapsed / fadein)
-  elseif elapsed < fadein + hold then
-    text:SetAlpha(1)
-  elseif elapsed < fadein + hold + COMBATFEEDBACK_FADEOUTTIME then
-    text:SetAlpha(1 - (elapsed - hold - fadein) / COMBATFEEDBACK_FADEOUTTIME)
-  else
-    text:Hide()
-    this:Hide()
-  end
-end
 
 -- The unit events whose arg1 is the frame's OWN unit -- everything the OnEvent
 -- routes through its "UNIT_XXX Events" branch. These are not registered here:
@@ -1592,11 +1574,11 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
   f.glow = CreateFrame("Frame", nil, f)
   -- Pulse between .8 and .4 for good. The group only advances while the glow
   -- is shown, so a hidden glow costs nothing.
-  f.glow:SetAlpha(.8)
   f.glow.pulse = f.glow:CreateAnimationGroup()
   f.glow.pulse:SetLooping("BOUNCE")
   local fade = f.glow.pulse:CreateAnimation("Alpha")
-  fade:SetChange(-.4)
+  fade:SetFromAlpha(.8)
+  fade:SetToAlpha(.4)
   fade:SetDuration(1.3)
   fade:SetSmoothing("IN_OUT")
   f.glow.pulse:Play()
@@ -1654,9 +1636,21 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
   f.portrait.model = CreateFrame("PlayerModel", "pfPortraitModel" .. f.label .. f.id, f.portrait)
   f.portrait.model.next = CreateFrame("PlayerModel", nil, nil)
   f.feedbackText = f:CreateFontString("pfHitIndicator" .. f.label .. f.id, "OVERLAY", "NumberFontNormalHuge")
-  f.feedback = CreateFrame("Frame", nil, f)
-  f.feedback:Hide()
-  f.feedback:SetScript("OnUpdate", FeedbackOnUpdate)
+
+  -- Fade the combat feedback text in, hold it, and fade it out -- the timing
+  -- of CombatFeedback_OnUpdate -- then hide it.
+  f.feedback = f.feedbackText:CreateAnimationGroup()
+  local fadein = f.feedback:CreateAnimation("Alpha")
+  fadein:SetOrder(1)
+  fadein:SetDuration(COMBATFEEDBACK_FADEINTIME)
+  fadein:SetToAlpha(1)
+  local fadeout = f.feedback:CreateAnimation("Alpha")
+  fadeout:SetOrder(2)
+  fadeout:SetStartDelay(COMBATFEEDBACK_HOLDTIME)
+  fadeout:SetDuration(COMBATFEEDBACK_FADEOUTTIME)
+  fadeout:SetFromAlpha(1)
+  fadeout:SetToAlpha(0)
+  f.feedback:SetScript("OnFinished", function() f.feedbackText:Hide() end)
 
   if f.label == "raid" and mod(f.id, 5) == 1 then
     local group = math.ceil(f.id/5)
