@@ -768,11 +768,13 @@ pfUI:RegisterModule("equipmentmanager", function()
   -- Popout arrows follow the EM sidecar by default. With the
   -- "Always Show Equipment Slot Flyouts" option they follow the paperdoll
   -- instead, so gear can be swapped without opening the equipment manager.
+  -- IsVisible, not IsShown: closing CharacterFrame fires OnHide on both
+  -- without clearing their own shown flags.
   local function PopoutsActive()
     if C.character.inventory.equipflyout == "1" then
-      return PaperDollFrame:IsShown()
+      return PaperDollFrame:IsVisible()
     end
-    return frame:IsShown()
+    return frame:IsVisible()
   end
 
   function UpdatePopouts()
