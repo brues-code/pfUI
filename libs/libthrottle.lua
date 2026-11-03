@@ -139,8 +139,7 @@ function libthrottle:ResetAllToDefaults()
 end
 
 -- Initialize - set defaults if config doesn't exist
-libthrottle:SetScript("OnEvent", function()
-  if event == "PLAYER_ENTERING_WORLD" then
+EventUtil.RegisterOnceFrameEventAndCallback("PLAYER_ENTERING_WORLD", function()
     if not _G.pfUI_throttle then
       _G.pfUI_throttle = {}
     end
@@ -155,12 +154,7 @@ libthrottle:SetScript("OnEvent", function()
     -- Set defaults for custom fields if missing
     if not _G.pfUI_throttle.tooltip_cursor_custom then _G.pfUI_throttle.tooltip_cursor_custom = "10" end
     if not _G.pfUI_throttle.chat_tab_custom then _G.pfUI_throttle.chat_tab_custom = "10" end
-    
-    this:UnregisterEvent("PLAYER_ENTERING_WORLD")
-  end
 end)
-
-libthrottle:RegisterEvent("PLAYER_ENTERING_WORLD")
 
 -- Export to pfUI namespace for easier access
 pfUI.throttle = libthrottle

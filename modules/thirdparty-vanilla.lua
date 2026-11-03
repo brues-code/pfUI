@@ -801,11 +801,7 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
   HookAddon("SortBags", function()
     if C.thirdparty.sortbags.enable == "0" then return end
 
-    local sort = CreateFrame("Frame", nil)
-    sort:RegisterEvent("PLAYER_ENTERING_WORLD")
-    sort:SetScript("OnEvent", function()
-      this:UnregisterAllEvents()
-
+    EventUtil.RegisterOnceFrameEventAndCallback("PLAYER_ENTERING_WORLD", function()
       pfUI.thirdparty.RegisterBagSort("SortBags",
         function()
           SortBags()

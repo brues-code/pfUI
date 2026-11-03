@@ -5,10 +5,9 @@ pfUI:RegisterSkin("Mailbox", function ()
   -- Compatibility
   local StationeryBackgroundLeft, StationeryBackgroundRight
     do -- SendMailFrame
-      local skin = CreateFrame("Frame")
-      skin:SetScript("OnEvent", function()
-        this:UnregisterEvent("MAIL_SHOW")
-        if not this._Mail then
+      local mailLoaded
+      EventUtil.RegisterOnceFrameEventAndCallback("MAIL_SHOW", function()
+        if not mailLoaded then
           StripTextures(SendMailPackageButton)
           SkinButton(SendMailPackageButton, nil, nil, nil, nil, true)
 
@@ -26,10 +25,9 @@ pfUI:RegisterSkin("Mailbox", function ()
           end)
         end
       end)
-      skin:RegisterEvent("MAIL_SHOW")
 
       HookAddon("Mail", function()
-        skin._Mail = true
+        mailLoaded = true
         for i = 1, 21 do
           local button = _G["MailAttachment"..i]
           StripTextures(button)

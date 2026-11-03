@@ -180,33 +180,7 @@ pfUI:RegisterModule("unitxp", function ()
   CreateTargetIndicators()
 
   -- Also try on PLAYER_ENTERING_WORLD in case target frame wasn't ready
-  local initFrame = CreateFrame("Frame")
-  initFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-  initFrame:RegisterEvent("PLAYER_LOGOUT")
-  initFrame:SetScript("OnEvent", function()
-    -- Handle shutdown to prevent crash 132
-    if event == "PLAYER_LOGOUT" then
-      this:UnregisterAllEvents()
-      this:SetScript("OnEvent", nil)
-      -- Stop indicator OnUpdate scripts
-      if pfUI.uf and pfUI.uf.target then
-        if pfUI.uf.target.behindIndicator then
-          pfUI.uf.target.behindIndicator:SetScript("OnUpdate", nil)
-        end
-        if pfUI.uf.target.distanceIndicator then
-          pfUI.uf.target.distanceIndicator:SetScript("OnUpdate", nil)
-        end
-        -- free-frame mode polls from its own scanner frame, not the indicator
-        if pfUI.uf.target.distanceScanner then
-          pfUI.uf.target.distanceScanner:SetScript("OnUpdate", nil)
-        end
-      end
-      return
-    end
-    
-    CreateTargetIndicators()
-    this:UnregisterAllEvents()
-  end)
+  EventUtil.RegisterOnceFrameEventAndCallback("PLAYER_ENTERING_WORLD", CreateTargetIndicators)
 
   -- OS Notification Support
   if C.unitframes.unitxp_notify == "1" then

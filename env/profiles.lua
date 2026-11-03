@@ -935,14 +935,11 @@ pfUI_profiles["Adapta"].new_module_positions = pfUI_profiles["Modern"].new_modul
 
 
 -- overwrite core profiles in userdata
-local profile_loader = CreateFrame("Frame")
-profile_loader:RegisterEvent("VARIABLES_LOADED")
-profile_loader:SetScript("OnEvent", function()
+EventUtil.RegisterOnceFrameEventAndCallback("VARIABLES_LOADED", function()
   pfUI_profiles["Modern"] = modern
   pfUI_profiles["Nostalgia"] = nostalgia
   pfUI_profiles["Legacy"] = legacy
   pfUI_profiles["Adapta"] = adapta
   pfUI_profiles["Light"] = light
   pfUI_profiles["Slim"] = slim
-  this:UnregisterAllEvents()
 end)

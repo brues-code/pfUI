@@ -142,11 +142,7 @@ pfUI:RegisterModule("thirdparty", function()
   HookAddon("MrPlow", function()
     if C.thirdparty.mrplow.enable == "0" then return end
 
-    local sort = CreateFrame("Frame", nil)
-    sort:RegisterEvent("PLAYER_ENTERING_WORLD")
-    sort:SetScript("OnEvent", function()
-      this:UnregisterAllEvents()
-
+    EventUtil.RegisterOnceFrameEventAndCallback("PLAYER_ENTERING_WORLD", function()
       local MrPlowL = AceLibrary and AceLibrary("AceLocale-2.2"):new("MrPlow")
       if not (MrPlowL and MrPlowL["Bank"]) then return end
 

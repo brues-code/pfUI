@@ -1,7 +1,5 @@
 pfUI:RegisterModule("chatcopy", function ()
-  local f = CreateFrame("Frame")
-  f:RegisterEvent("PLAYER_ENTERING_WORLD")
-  f:SetScript("OnEvent", function()
+  EventUtil.RegisterOnceFrameEventAndCallback("PLAYER_ENTERING_WORLD", function()
     if not pfUI.chat then return end
 
     local button = CreateFrame("Button", "pfChatCopyButton", pfUI.chat.left.panelTop)
@@ -99,7 +97,5 @@ pfUI:RegisterModule("chatcopy", function ()
 
       frame.scroll = scroll
     end
-
-    this:UnregisterAllEvents()
   end)
 end)
