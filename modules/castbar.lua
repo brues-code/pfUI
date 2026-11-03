@@ -51,7 +51,6 @@ pfUI:RegisterModule("castbar", function ()
     if cb.expiry then cb.expiry:Cancel() end
     cb.expiry = nil
     cb.timer:Disable()
-    cb:SetScript("OnUpdate", nil)
     if cb.active then
       cb.bar:SetMinMaxValues(0, 1)
       if failed then
@@ -67,7 +66,7 @@ pfUI:RegisterModule("castbar", function ()
     cb.tradeskillTotal, cb.tradeskillCompleted, cb.tradeskillSpellID = nil, nil, nil
     cb.tradeskillSingle = nil
     cb.delay = 0
-    if cb.bar.spark then cb.bar.spark:Hide() end
+    if cb.craftbar then cb.craftbar:Hide() end
     if cb:IsShown() and not cb.fade:IsPlaying() then cb.fade:Play() end
   end
 
@@ -83,14 +82,6 @@ pfUI:RegisterModule("castbar", function ()
     end
   end
 
-  -- Per-craft spark position: the current craft's share of the bar's width.
-  -- Snaps back to the left edge each time StartTradeskillCraft restarts it.
-  local function MoveSpark()
-    local x = this.craft:GetElapsedPercent() * this.bar:GetUnscaledWidth() - 1
-    this.bar.spark:SetPoint("TOP", this.bar, "TOPLEFT", x, 0)
-    this.bar.spark:SetPoint("BOTTOM", this.bar, "BOTTOMLEFT", x, 0)
-  end
-
   -- Stretch the bar to span all queued crafts (Quartz-style merge): the bar
   -- fills continuously across the chain instead of resetting per craft.
   -- Also arms the per-craft spark — a thin marker that crosses the bar once
@@ -104,8 +95,7 @@ pfUI:RegisterModule("castbar", function ()
     cb.craft:SetTimeFromStart(start, single)
     cb.duration:SetTimeFromStart(start, single * count)
     ArmExpiry(cb)
-    cb.bar.spark:Show()
-    cb:SetScript("OnUpdate", MoveSpark)
+    cb.craftbar:Show()
     UpdateTradeskillLabel(cb)
   end
 
@@ -273,14 +263,20 @@ pfUI:RegisterModule("castbar", function ()
 
     -- Per-craft progress spark for tradeskill merge — a thin vertical line
     -- that crosses the bar once per craft in the chain (so on a 5-stack it
-    -- moves 5x faster than the main fill). Position is updated by MoveSpark
-    -- while a merge is active; hidden otherwise.
-    cb.bar.spark = cb.bar:CreateTexture(nil, "OVERLAY")
-    cb.bar.spark:SetColorTexture(1, 1, 1, 0.8)
-    cb.bar.spark:SetWidth(2)
-    cb.bar.spark:SetPoint("TOP", cb.bar, "TOPLEFT", 0, 0)
-    cb.bar.spark:SetPoint("BOTTOM", cb.bar, "BOTTOMLEFT", 0, 0)
-    cb.bar.spark:Hide()
+    -- moves 5x faster than the main fill). It rides the edge of an invisible
+    -- fill that follows cb.craft, shown while a merge is active, and snaps
+    -- back to the left each time StartTradeskillCraft restarts the craft.
+    cb.craftbar = CreateFrame("StatusBar", nil, cb.bar)
+    cb.craftbar:SetAllPoints(cb.bar)
+    cb.craftbar:SetColorFill(1, 1, 1, 0)
+    cb.craftbar:SetTimerDuration(cb.craft, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.ElapsedTime)
+    cb.craftbar:Hide()
+
+    cb.craftbar.spark = cb.craftbar:CreateTexture(nil, "OVERLAY")
+    cb.craftbar.spark:SetColorTexture(1, 1, 1, 0.8)
+    cb.craftbar.spark:SetWidth(2)
+    cb.craftbar.spark:SetPoint("TOPRIGHT", cb.craftbar:GetStatusBarTexture(), "TOPRIGHT")
+    cb.craftbar.spark:SetPoint("BOTTOMRIGHT", cb.craftbar:GetStatusBarTexture(), "BOTTOMRIGHT")
 
     -- Fade-out after a cast ends. The bar is hidden while idle; unlock mode
     -- keeps it shown for dragging.
