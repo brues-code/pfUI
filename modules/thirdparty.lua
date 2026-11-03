@@ -373,45 +373,62 @@ pfUI:RegisterModule("thirdparty", function()
   -- DPSMate Damage Meter
   -- Vanilla: https://github.com/Geigerkind/DPSMate
   -- TBC: https://github.com/Geigerkind/DPSMateTBC
-  HookAddon("DPSMate", function()
-    -- DPSMate builds its windows on VARIABLES_LOADED, each named after its
-    -- settings entry, so DPSMate_DPSMate exists only while the first window
-    -- keeps the default name "DPSMate"
-    if not DPSMate_DPSMate then return end
+  -- Repacks ship DPSMate under other folder names, so this waits on login and
+  -- checks DPSMate's globals instead of HookAddon's folder lookup.
+  EventUtil.ContinueOnPlayerLogin(function()
+    if not DPSMate or not DPSMateSettings then return end
 
-    local docktable = { "dpsmate", "DPSMate", "DPSMate_DPSMate",
+    -- DPSMate names each window "DPSMate_<name>" after its settings entry and
+    -- the user can rename it at any time, so the first window is resolved on
+    -- every call
+    local function window()
+      local first = DPSMateSettings.windows and DPSMateSettings.windows[1]
+      return first and _G["DPSMate_"..first.name]
+    end
+
+    local function place(anchor, width)
+      local frame = window()
+      if not frame then return end
+      local name = frame:GetName()
+
+      frame:ClearAllPoints()
+      frame:SetPoint("TOPLEFT", pfUI.chat.right, anchor, 0, 0)
+      frame:SetPoint("BOTTOMRIGHT", pfUI.chat.right, "BOTTOMRIGHT", 0, 0)
+      frame:SetWidth(width)
+      _G[name.."_ScrollFrame"]:ClearAllPoints()
+      _G[name.."_ScrollFrame"]:SetWidth(width)
+      _G[name.."_ScrollFrame"]:SetPoint("TOPLEFT", _G[name.."_Head"], "BOTTOMLEFT", 0, 0)
+      _G[name.."_ScrollFrame"]:SetPoint("BOTTOMRIGHT", pfUI.chat.right, "BOTTOMRIGHT", 0, pfUI.panel.right:GetHeight())
+      _G[name.."_ScrollFrame_Child"]:SetWidth(width)
+      _G[name.."_Resize"]:Hide()
+    end
+
+    local docktable = { "dpsmate", "DPSMate", "DPSMate",
       function() -- single
-        DPSMate_DPSMate:ClearAllPoints()
-        DPSMate_DPSMate:SetAllPoints(pfUI.chat.right)
-        DPSMate_DPSMate:SetWidth(pfUI.chat.right:GetWidth())
-        DPSMate_DPSMate_ScrollFrame:ClearAllPoints()
-        DPSMate_DPSMate_ScrollFrame:SetWidth(pfUI.chat.right:GetWidth())
-        DPSMate_DPSMate_ScrollFrame:SetPoint("TOPLEFT", DPSMate_DPSMate_Head, "BOTTOMLEFT", 0, 0)
-        DPSMate_DPSMate_ScrollFrame:SetPoint("BOTTOMRIGHT", pfUI.chat.right, "BOTTOMRIGHT", 0, pfUI.panel.right:GetHeight())
-        DPSMate_DPSMate_ScrollFrame_Child:SetWidth(pfUI.chat.right:GetWidth())
-        DPSMate_DPSMate_Resize:Hide()
+        place("TOPLEFT", pfUI.chat.right:GetWidth())
       end,
       function() -- dual
-        DPSMate_DPSMate:ClearAllPoints()
-        DPSMate_DPSMate:SetPoint("TOPLEFT", pfUI.chat.right, "TOP", 0, 0)
-        DPSMate_DPSMate:SetPoint("BOTTOMRIGHT", pfUI.chat.right, "BOTTOMRIGHT", 0, 0)
-        DPSMate_DPSMate:SetWidth(pfUI.chat.right:GetWidth() / 2)
-        DPSMate_DPSMate_ScrollFrame:ClearAllPoints()
-        DPSMate_DPSMate_ScrollFrame:SetWidth(pfUI.chat.right:GetWidth() / 2)
-        DPSMate_DPSMate_ScrollFrame:SetPoint("TOPLEFT", DPSMate_DPSMate_Head, "BOTTOMLEFT", 0, 0)
-        DPSMate_DPSMate_ScrollFrame:SetPoint("BOTTOMRIGHT", pfUI.chat.right, "BOTTOMRIGHT", 0, pfUI.panel.right:GetHeight())
-        DPSMate_DPSMate_ScrollFrame_Child:SetWidth(pfUI.chat.right:GetWidth() / 2)
-        DPSMate_DPSMate_Resize:Hide()
+        place("TOP", pfUI.chat.right:GetWidth() / 2)
       end,
       function() -- show
-        DPSMate_DPSMate:Show()
+        local frame = window()
+        if frame then frame:Show() end
       end,
       function() -- hide
-        DPSMate_DPSMate:Hide()
+        local frame = window()
+        if frame then frame:Hide() end
       end
     }
 
     pfUI.thirdparty.meters:RegisterMeter("damage", docktable)
+
+    -- DPSMate rebuilds its windows at their saved positions whenever its
+    -- settings change, so put the docked one back afterwards
+    hooksecurefunc(DPSMate, "InitializeFrames", function()
+      if pfUI.thirdparty.meters.damage == docktable then
+        pfUI.thirdparty.meters:Resize()
+      end
+    end)
 
     if C.thirdparty.dpsmate.skin == "1" then
       if DPSMateSettings then
