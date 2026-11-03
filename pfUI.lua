@@ -461,15 +461,20 @@ message = function(msg)
 end
 print = print or message
 
-error = function(msg)
-  if PF_DEBUG_MODE then message(debugstack()) end
-  if string.find(msg, "AddOns\\pfUI") then
-    DEFAULT_CHAT_FRAME:AddMessage("|cffcc3333ERROR: |cffff5555".. (msg or "nil" ))
-  elseif not pfUI_config or (pfUI_config.global and pfUI_config.global.errors == "1") then
-    DEFAULT_CHAT_FRAME:AddMessage("|cffcc3333ERROR: |cffff5555".. (msg or "nil" ))
+-- Errors print to chat: pfUI's own always, other addons' when the errors
+-- option is on. In debug mode the stack follows, starting at the code that
+-- raised the error rather than at this handler.
+seterrorhandler(function(msg)
+  msg = tostring(msg)
+  if PF_DEBUG_MODE then
+    local height = GetErrorCallstackHeight()
+    message(height and debugstack(GetCallstackHeight() - height + 1) or debugstack(2))
   end
-end
-seterrorhandler(error)
+  if string.find(msg, "AddOns\\pfUI") or not pfUI_config
+  or (pfUI_config.global and pfUI_config.global.errors == "1") then
+    DEFAULT_CHAT_FRAME:AddMessage("|cffcc3333ERROR: |cffff5555" .. msg)
+  end
+end)
 
 function pfUI.SetupCVars()
   ClearTutorials()

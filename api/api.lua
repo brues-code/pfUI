@@ -1494,13 +1494,10 @@ end
 -- return object
 function pfUI.api.GetNoNameObject(frame, objtype, layer, arg1, arg2)
   -- A nil/non-frame parent otherwise dies on frame:GetRegions()/:GetChildren()
-  -- below, and the traceback stops here — useless, since all callers share this
-  -- line. pfUI shadows Lua's `error` (dropping the level arg and not throwing),
-  -- so fold the caller frame in via debugstack to name the offending skin, then
-  -- bail so we don't fall through and crash on frame:GetRegions() anyway.
+  -- below, where the message would name this line, shared by every caller;
+  -- level 2 names the offending skin instead.
   if type(frame) ~= "table" or not frame.GetRegions then
-    error("GetNoNameObject: invalid parent frame\n" .. debugstack(2, 3, 0))
-    return
+    error("GetNoNameObject: invalid parent frame", 2)
   end
 
   local arg1 = arg1 and gsub(arg1, "([%+%-%*%(%)%?%[%]%^])", "%%%1")
