@@ -90,7 +90,9 @@ pfUI:RegisterModule("actionbar", function ()
   -- Page changes only touch the main bar, whose pager handles them.
   local pass_events = {
     ["ACTIONBAR_UPDATE_COOLDOWN"] = "cooldown",
-    ["ACTIONBAR_UPDATE_USABLE"] = "usable",
+    -- action slots take ACTION_USABLE_CHANGED; the stance buttons still
+    -- need a pass on this one
+    ["ACTIONBAR_UPDATE_USABLE"] = "stance",
     ["ACTIONBAR_UPDATE_STATE"] = "state",
     -- the active border of attack, auto repeat and tradeskill actions
     ["PLAYER_ENTER_COMBAT"] = "state",
@@ -530,19 +532,18 @@ pfUI:RegisterModule("actionbar", function ()
     end
   end
 
-  local function ButtonRangeUpdate(self)
-    self = self or this
+  -- Keeps the range check of the slot a shown action button displays
+  -- enabled, so ACTION_RANGE_CHECK_UPDATE reports it. Each button holds its
+  -- own enable, as the client counts them per slot. An enable fires the
+  -- event with the current state, so a new slot starts in range until then.
+  local function ButtonRangeWatch(button)
+    local slot = C.bars.glowrange == "1" and button.bar <= 10 and button:IsVisible() and button.id or nil
+    if slot == button.rangeslot then return end
 
-    -- update range display
-    if C.bars.glowrange == "1" and self.bar ~= 11 and self.bar ~= 12 and HasAction(self.id) and ActionHasRange(self.id) and IsActionInRange(self.id) == 0 then
-      if not self.outofrange then
-        self.outofrange = true
-        ButtonUsableUpdate(self)
-      end
-    elseif self.outofrange then
-      self.outofrange = nil
-      ButtonUsableUpdate(self)
-    end
+    if button.rangeslot then C_ActionBar.EnableActionRangeCheck(button.rangeslot, false) end
+    if slot then C_ActionBar.EnableActionRangeCheck(slot, true) end
+    button.rangeslot = slot
+    button.outofrange = nil
   end
 
   local start, duration, enable
@@ -584,7 +585,6 @@ pfUI:RegisterModule("actionbar", function ()
     if not button then return end
 
     ButtonSlotUpdate(button)
-    ButtonRangeUpdate(button)
     ButtonUsableUpdate(button)
     ButtonCooldownUpdate(button)
   end
@@ -595,16 +595,35 @@ pfUI:RegisterModule("actionbar", function ()
 
   -- Updates wait for the next frame, so the events of one frame share one
   -- pass. Passes and full updates skip hidden bars, which catch up as they
-  -- show (BarShow). The shown buttons of a bar are its first `count` ones.
+  -- show (BarShowHide). The shown buttons of a bar are its first `count` ones.
   local scheduled
+
+  -- calls func on the buttons that show a slot: its own button and the main
+  -- bar button paged to it
+  local function ForSlotButtons(slot, func, a1)
+    local button = buttoncache[slot]
+    if button then func(button, a1) end
+
+    local page = bars[1][1].id - 1
+    local paged = slot > page and slot <= page + 12 and bars[1][slot - page]
+    if paged and paged ~= button then func(paged, a1) end
+  end
+
+  -- the range watch follows hidden buttons too, so a hidden bar lets go of
+  -- its slots
+  local function SlotButtonUpdate(button)
+    ButtonRangeWatch(button)
+    if button:IsVisible() then pfUI.bars.ButtonFullUpdate(button) end
+  end
+
   local function Flush()
     scheduled = nil
 
-    local inventory, cooldown, usable, state = passcache.inventory, passcache.cooldown, passcache.usable, passcache.state
-    local bindings = passcache.bindings
+    local inventory, cooldown, state = passcache.inventory, passcache.cooldown, passcache.state
+    local stance, bindings = passcache.stance, passcache.bindings
     table.wipe(passcache)
 
-    if inventory or cooldown or usable or state then
+    if inventory or cooldown or state then
       for i = 1, 12 do
         local bar = bars[i]
         if bar:IsVisible() then
@@ -612,10 +631,16 @@ pfUI:RegisterModule("actionbar", function ()
             local button = bar[j]
             if inventory then ButtonInventoryUpdate(button) end
             if inventory or cooldown then ButtonCooldownUpdate(button) end
-            if inventory or usable then ButtonUsableUpdate(button) end
+            if inventory then ButtonUsableUpdate(button) end
             if state then ButtonIsActiveUpdate(button) end
           end
         end
+      end
+    end
+
+    if stance and not inventory and bars[11]:IsVisible() then
+      for j = 1, bars[11].count do
+        ButtonUsableUpdate(bars[11][j])
       end
     end
 
@@ -627,20 +652,9 @@ pfUI:RegisterModule("actionbar", function ()
       end
     end
 
-    -- a slot refreshes its own button and the main bar button paged to it
-    local page = bars[1][1].id - 1
     for slot in pairs(updatecache) do
       updatecache[slot] = nil
-
-      local button = buttoncache[slot]
-      if button and button:IsVisible() then
-        pfUI.bars.ButtonFullUpdate(button)
-      end
-
-      local paged = slot > page and slot <= page + 12 and bars[1][slot - page]
-      if paged and paged ~= button and paged:IsVisible() then
-        pfUI.bars.ButtonFullUpdate(paged)
-      end
+      ForSlotButtons(slot, SlotButtonUpdate)
     end
   end
 
@@ -662,28 +676,40 @@ pfUI:RegisterModule("actionbar", function ()
     Schedule()
   end
 
-  -- ClassicAPI has no range event for action slots yet, so the visible
-  -- buttons are polled at the rate of the stock bars
-  local function RangeUpdate()
-    for i = 1, 10 do
-      local bar = bars[i]
-      if bar:IsVisible() then
-        for j = 1, bar.count do
-          ButtonRangeUpdate(bar[j])
-        end
-      end
-    end
-  end
-
-  -- passes skip hidden bars, so a bar refreshes its buttons as it shows
-  local function BarShow()
+  -- passes skip hidden bars, so a bar refreshes its buttons as it shows;
+  -- as it hides, its buttons let go of their range checks
+  local function BarShowHide()
     local offset = (this:GetID() - 1) * 12
     for j = 1, this.count do
       QueueSlot(offset + j)
     end
   end
 
+  local function ButtonRangeEvent(button, outofrange)
+    if button.rangeslot ~= arg1 or button.outofrange == outofrange then return end
+    button.outofrange = outofrange
+    ButtonUsableUpdate(button)
+  end
+
+  local function ButtonUsableEvent(button)
+    if button:IsVisible() then ButtonUsableUpdate(button) end
+  end
+
   local function BarsEvent()
+    -- slot, isInRange, checksRange of a slot a button watches
+    if event == "ACTION_RANGE_CHECK_UPDATE" then
+      ForSlotButtons(arg1, ButtonRangeEvent, arg3 and not arg2 or nil)
+      return
+    end
+
+    -- the slots whose usable state changed
+    if event == "ACTION_USABLE_CHANGED" then
+      for _, change in ipairs(arg1) do
+        ForSlotButtons(change.slot, ButtonUsableEvent)
+      end
+      return
+    end
+
     -- refresh only specific slots
     if event == "ACTIONBAR_SLOT_CHANGED" and arg1 and arg1 ~= 0 then
       QueueSlot(arg1)
@@ -742,6 +768,8 @@ pfUI:RegisterModule("actionbar", function ()
   for event in pairs(global_events) do RegisterBarEvent(event) end
   for event in pairs(aura_events) do RegisterBarEvent(event) end
   for event in pairs(pet_events) do RegisterBarEvent(event) end
+  bars:RegisterEvent("ACTION_RANGE_CHECK_UPDATE")
+  bars:RegisterEvent("ACTION_USABLE_CHANGED")
 
   -- refresh actionbar buttons on event
   bars:SetScript("OnEvent", BarsEvent)
@@ -1175,7 +1203,10 @@ pfUI:RegisterModule("actionbar", function ()
     bars[i] = bars[i] or CreateFrame("Frame", "pfActionBar" .. barnames[i], UIParent)
     bars[i]:SetID(i)
     bars[i].count = buttons
-    if init then bars[i]:SetScript("OnShow", BarShow) end
+    if init then
+      bars[i]:SetScript("OnShow", BarShowHide)
+      if i <= 10 then bars[i]:SetScript("OnHide", BarShowHide) end
+    end
 
     -- autohide
     if autohide == "1" then
@@ -1389,18 +1420,9 @@ pfUI:RegisterModule("actionbar", function ()
     end
   end
 
-  local rangeticker
   pfUI.bars.UpdateConfig = function(self)
     for i=1,12 do
       CreateActionBar(i)
-    end
-
-    -- poll range only while it is shown
-    if C.bars.glowrange == "1" and not rangeticker then
-      rangeticker = C_Timer.NewTicker(.2, RangeUpdate)
-    elseif C.bars.glowrange ~= "1" and rangeticker then
-      rangeticker:Cancel()
-      rangeticker = nil
     end
   end
 
