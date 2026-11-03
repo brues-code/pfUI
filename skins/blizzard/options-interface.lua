@@ -38,9 +38,51 @@ pfUI:RegisterSkin("Options - Interface", function ()
     elseif ctype == "EditBox" then
       StripTextures(control, nil, "BACKGROUND")
       CreateBackdrop(control, nil, true)
-    else
+    elseif ctype == "Button" then
+      -- key binding buttons: UIPanelButtonTemplate2's slices are BACKGROUND
+      StripTextures(control, nil, "BACKGROUND")
+      SkinButton(control)
+    elseif _G[control:GetName() .. "Button"] then
       SkinDropDown(control, nil, nil, nil, true)
     end
+    -- a control type without a branch stays unskinned; erroring here would
+    -- stop the loop and leave every later control unskinned too
+    i = i + 1
+  end
+
+  -- the pages scroll with retail's MinimalScrollBar, not the old named
+  -- UIPanelScrollBar, so SkinScrollbar does not fit. Its steppers and thumb set
+  -- their atlas again on every state change, so their art is hidden, not cleared
+  i = 1
+  while _G["ClassicAPIOptionsScrollBar" .. i] do
+    local bar = _G["ClassicAPIOptionsScrollBar" .. i]
+    local thumb = bar.Track.Thumb
+
+    StripTextures(bar)
+    bar.Background:Hide()
+    for _, stepper in ipairs({ bar.Back, bar.Forward }) do
+      stepper.Texture:Hide()
+      stepper.Overlay:SetAlpha(0)
+    end
+    SkinArrowButton(bar.Back, "up")
+    SkinArrowButton(bar.Forward, "down")
+
+    thumb.Begin:Hide()
+    thumb.Middle:Hide()
+    thumb.End:Hide()
+    thumb.thumbTexture:Hide()
+
+    bar.bg = CreateFrame("Frame", nil, bar)
+    bar.bg:SetPoint("TOPLEFT", bar.Back, "BOTTOMLEFT", 0, -3)
+    bar.bg:SetPoint("BOTTOMRIGHT", bar.Forward, "TOPRIGHT", 0, 3)
+    CreateBackdrop(bar.bg, nil, true)
+
+    bar.thumb = bar.bg:CreateTexture(nil, "ARTWORK")
+    bar.thumb:SetColorTexture(.8, .8, .8, .8)
+    bar.thumb:SetPoint("TOP", thumb, "TOP", 0, -4)
+    bar.thumb:SetPoint("BOTTOM", thumb, "BOTTOM", 0, 4)
+    bar.thumb:SetPoint("LEFT", bar.bg, "LEFT", 1, 0)
+    bar.thumb:SetPoint("RIGHT", bar.bg, "RIGHT", -1, 0)
     i = i + 1
   end
 
