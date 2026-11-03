@@ -424,6 +424,36 @@ pfUI:RegisterModule("actionbar", function ()
     end
   end
 
+  -- the pulsing border of a spell whose proc glow is lit
+  local function ButtonProcShow(self, glow)
+    if glow then
+      if not self.proc:IsShown() then
+        self.proc:Show()
+        self.proc.pulse:Play()
+      end
+    elseif self.proc:IsShown() then
+      self.proc.pulse:Stop()
+      self.proc:Hide()
+    end
+  end
+
+  -- the spell an action slot casts, directly or through a macro, and its
+  -- proc glow. The glow events name that spell.
+  local function ButtonProcUpdate(self)
+    local kind, id, spellid, _
+    if C.bars.procglow == "1" then
+      kind, id = GetActionInfo(self.id)
+      if kind == "spell" then
+        spellid = id
+      elseif kind == "macro" then
+        _, _, spellid = GetMacroSpell(id)
+      end
+    end
+
+    self.spellid = spellid
+    ButtonProcShow(self, spellid and IsSpellOverlayed(spellid))
+  end
+
   local castable, autocast, token
   local grid, sid, active, texture, _
   local function ButtonSlotUpdate(self)
@@ -466,6 +496,8 @@ pfUI:RegisterModule("actionbar", function ()
       else
         self.macro:SetText("")
       end
+
+      ButtonProcUpdate(self)
     end
 
     -- icon
@@ -710,6 +742,15 @@ pfUI:RegisterModule("actionbar", function ()
       return
     end
 
+    -- the spell whose glow started or ended; each rank has its own event
+    if event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" or event == "SPELL_ACTIVATION_OVERLAY_GLOW_HIDE" then
+      local glow = IsSpellOverlayed(arg1)
+      for _, button in pairs(buttoncache) do
+        if button.spellid == arg1 then ButtonProcShow(button, glow) end
+      end
+      return
+    end
+
     -- refresh only specific slots
     if event == "ACTIONBAR_SLOT_CHANGED" and arg1 and arg1 ~= 0 then
       QueueSlot(arg1)
@@ -770,6 +811,8 @@ pfUI:RegisterModule("actionbar", function ()
   for event in pairs(pet_events) do RegisterBarEvent(event) end
   bars:RegisterEvent("ACTION_RANGE_CHECK_UPDATE")
   bars:RegisterEvent("ACTION_USABLE_CHANGED")
+  bars:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_SHOW")
+  bars:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_HIDE")
 
   -- refresh actionbar buttons on event
   bars:SetScript("OnEvent", BarsEvent)
@@ -1079,6 +1122,23 @@ pfUI:RegisterModule("actionbar", function ()
       f.active:SetBackdropBorderColor(1,1,.5,1)
       f.active:SetAllPoints()
       f.active:Hide()
+
+      -- proc glow
+      if bar ~= 11 and bar ~= 12 then
+        f.proc = CreateFrame("Frame", nil, f)
+        f.proc:SetBackdrop(backdrop_highlight)
+        f.proc:SetBackdropBorderColor(1,.8,.2,1)
+        f.proc:SetAllPoints()
+        f.proc:Hide()
+
+        f.proc.pulse = f.proc:CreateAnimationGroup()
+        f.proc.pulse:SetLooping("BOUNCE")
+        local fade = f.proc.pulse:CreateAnimation("Alpha")
+        fade:SetFromAlpha(1)
+        fade:SetToAlpha(.3)
+        fade:SetDuration(.5)
+        fade:SetSmoothing("IN_OUT")
+      end
 
       -- add to buttoncache
       buttoncache[id] = f

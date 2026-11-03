@@ -433,6 +433,7 @@ pfUI_translation["enUS"] = {
   ["Highlight Out Of Mana Spells"] = nil,
   ["Highlight New Items"] = nil,
   ["Highlight Out Of Range Spells"] = nil,
+  ["Highlight Proc And Reactive Spells"] = nil,
   ["Highlight Settings That Require Reload"] = nil,
   ["Highlight Unusable Items"] = nil,
   ["Hold [Shift] to use item."] = nil,

@@ -2326,6 +2326,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(U["bars"], T["Out Of Mana Color"], C.bars, "oomcolor", "color")
       CreateConfig(U["bars"], T["Highlight Not Usable Spells"], C.bars, "showna", "checkbox")
       CreateConfig(U["bars"], T["Not Usable Color"], C.bars, "nacolor", "color")
+      CreateConfig(U["bars"], T["Highlight Proc And Reactive Spells"], C.bars, "procglow", "checkbox")
       CreateConfig(U["bars"], T["Lock Actionbars"], "UVAR", "LOCK_ACTIONBAR", "checkbox")
       CreateConfig(U["bars"], T["Always Allow Drag Via Shift Key"], C.bars, "shiftdrag", "checkbox")
 
