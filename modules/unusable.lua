@@ -37,15 +37,15 @@ pfUI:RegisterModule("unusable", function ()
 
   -- requirement changes (level, proficiency/skill, required spell, reputation,
   -- honor rank) don't touch the bags; queue a full rebag through pfUI.bag's
-  -- coalesced delay, whose UpdateSlot resets the tint before we reapply it
+  -- batched updates, whose UpdateSlot resets the tint before we reapply it
   local function Refresh()
     for _, bag in pairs(pfUI.BACKPACK) do
-      pfUI.bag.delay.UpdateBag[bag] = true
+      pfUI.bag:QueueBagUpdate(bag)
     end
     -- the bank frame is only created on first bank visit
     if pfUI.bag.left and pfUI.bag.left:IsShown() then
       for _, bag in pairs(pfUI.BANK) do
-        pfUI.bag.delay.UpdateBag[bag] = true
+        pfUI.bag:QueueBagUpdate(bag)
       end
     end
   end

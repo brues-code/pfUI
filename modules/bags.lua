@@ -89,42 +89,56 @@ pfUI:RegisterModule("bags", function ()
 
   pfUI.bag.delay = { UpdateBag = {} }
 
-  pfUI.bag:SetScript("OnUpdate", function()
-    -- update delayed ones every 0.1s
-    if ( this.tick or 1) > GetTime() then return else this.tick = GetTime() + .1 end
+  -- run the updates queued by events, batched into one pass per 0.1s
+  local function FlushDelayed()
+    local delay = pfUI.bag.delay
+    delay.pending = nil
 
-    if this.delay.RefreshSpells then
-      this.delay.RefreshSpells = nil
+    if delay.RefreshSpells then
+      delay.RefreshSpells = nil
       pfUI.bag:RefreshSpells()
     end
 
-    if this.delay.CheckFullUpdate then
-      this.delay.CheckFullUpdate = nil
+    if delay.CheckFullUpdate then
+      delay.CheckFullUpdate = nil
       pfUI.bag:CheckFullUpdate()
     end
 
-    if this.delay.UpdateCooldowns then
-      this.delay.UpdateCooldowns = nil
+    if delay.UpdateCooldowns then
+      delay.UpdateCooldowns = nil
       pfUI.bag:UpdateCooldowns()
     end
 
-    if this.delay.UpdateItemLock then
-      this.delay.UpdateItemLock = nil
+    if delay.UpdateItemLock then
+      delay.UpdateItemLock = nil
       pfUI.bag:UpdateItemLock()
     end
 
-    if this.delay.UpdateSearch then
-      this.delay.UpdateSearch = nil
+    if delay.UpdateSearch then
+      delay.UpdateSearch = nil
       pfUI.bag:UpdateSearch()
     end
 
-    for bag in pairs(this.delay.UpdateBag) do
-      this.delay.UpdateBag[bag] = nil
+    for bag in pairs(delay.UpdateBag) do
+      delay.UpdateBag[bag] = nil
       pfUI.bag:UpdateBag(bag)
     end
-  end)
+  end
+
+  local function ScheduleFlush()
+    if pfUI.bag.delay.pending then return end
+    pfUI.bag.delay.pending = true
+    C_Timer.After(.1, FlushDelayed)
+  end
+
+  function pfUI.bag:QueueBagUpdate(bag)
+    self.delay.UpdateBag[bag] = true
+    ScheduleFlush()
+  end
 
   pfUI.bag:SetScript("OnEvent", function()
+    ScheduleFlush()
+
     if event == "PLAYER_ENTERING_WORLD" then
       pfUI.bag:CreateBags()
       pfUI.bag.right:Hide()
