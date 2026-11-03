@@ -84,11 +84,6 @@ pfUI:RegisterModule("energytick", function()
     return
   end
 
-  -- inside the module body on purpose: C is on pfUI.env, not _G
-  local function getBarWidth()
-    return C.unitframes.player.pwidth ~= "-1" and C.unitframes.player.pwidth or C.unitframes.player.width
-  end
-
   local rawborder, default_border = GetBorderSize("unitframes")
   local cbtexture = pfUI.media[C.appearance.castbar.texture]
 
@@ -128,8 +123,13 @@ pfUI:RegisterModule("energytick", function()
     return true
   end
 
-  local energytick = CreateFrame("Frame", nil, pfUI.uf.player.power.bar)
+  -- the bar sweeps its fill over one tick period from a duration object; the
+  -- fill is invisible and carries the spark on its edge
+  local energytick = CreateFrame("StatusBar", nil, pfUI.uf.player.power.bar)
   energytick:SetAllPoints(pfUI.uf.player.power.bar)
+  energytick:SetColorFill(1, 1, 1, 0)
+  energytick.sweep = C_DurationUtil.CreateDuration()
+  energytick:SetTimerDuration(energytick.sweep, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.ElapsedTime)
   energytick:RegisterEvent("PLAYER_ENTERING_WORLD")
   energytick:RegisterUnitEvent("UNIT_DISPLAYPOWER", "player")
   energytick:RegisterUnitEvent("UNIT_POWER_UPDATE", "player")
@@ -138,21 +138,61 @@ pfUI:RegisterModule("energytick", function()
   energytick:RegisterEvent("SPELLS_CHANGED")
   energytick:RegisterEvent("PLAYER_AURAS_CHANGED")
 
+  -- the spark hides until a tick is seen, and dims while the rule is up and
+  -- nothing has ticked inside it yet
+  local function UpdateRule()
+    local fsrUp = energytick.mode == "MANA" and energytick.fsr:IsActive()
+    energytick.fsrbar:SetShown(fsrUp and energytick:IsShown() and C.unitframes.player.showfsr == "1")
+    energytick.spark:SetAlpha(not energytick.start and 0 or (fsrUp and not energytick.fsrGain) and .4 or 1)
+  end
+
+  -- the window closed without being re-armed
+  local function RuleEnd()
+    energytick.fsrSpell, energytick.fsrGain = nil, nil
+    energytick.fsr:Reset()
+    UpdateRule()
+  end
+
+  local function ArmRule()
+    energytick.fsr:SetTimeFromStart(GetTime(), FIVE_SECOND_RULE)
+    if energytick.ruletimer then energytick.ruletimer:Cancel() end
+    energytick.ruletimer = C_Timer.NewTimer(FIVE_SECOND_RULE, RuleEnd)
+  end
+
+  -- sweeps the period that holds now and wakes at its end. Rolls over by
+  -- whole periods, not from now: restarting bakes timer overshoot into the
+  -- phase as drift the lock then has to chase. Runs only while shown; a
+  -- hidden bar keeps its phase and catches up as it shows.
+  local Sweep
+  local function Wrap() Sweep() end
+  function Sweep()
+    if energytick.wrap then energytick.wrap:Cancel() end
+    if not energytick.start or not energytick:IsShown() then return end
+
+    local now = GetTime()
+    while now - energytick.start >= energytick.max do
+      energytick.start = energytick.start + energytick.max * math.floor((now - energytick.start) / energytick.max)
+      energytick.max = getAdjustedTickTimer()
+    end
+
+    energytick.sweep:SetTimeFromStart(energytick.start, energytick.max)
+    energytick.wrap = C_Timer.NewTimer(energytick.start + energytick.max - now, Wrap)
+  end
+
   energytick:SetScript("OnEvent", function()
     if UnitPowerType("player") == Enum.PowerType.Mana and C.unitframes.player.manatick == "1" then
       this.mode = "MANA"
-      this:Show()
     elseif UnitPowerType("player") == Enum.PowerType.Energy and C.unitframes.player.energy == "1" then
       this.mode = "ENERGY"
-      this:Show()
     else
       this.mode = nil
-      this:Hide()
     end
+
+    -- mana regen stops showing at full mana
+    this:SetShown(this.mode and not (this.mode == "MANA" and UnitPower("player") >= UnitPowerMax("player")))
 
     if event == "SPELLS_CHANGED" or event == "PLAYER_AURAS_CHANGED" then
       energyRegenTimeMod = nil
-      return
     end
 
     -- a shift swaps the power the gains are measured on
@@ -167,18 +207,16 @@ pfUI:RegisterModule("energytick", function()
       cost = cost and cost[1]
       if cost and cost.type == Enum.PowerType.Mana and cost.cost > 0 then
         this.fsrSpell, this.fsrGain = arg3, nil
-        this.fsr:SetTimeFromStart(GetTime(), FIVE_SECOND_RULE)
+        ArmRule()
       end
-      return
     end
 
     -- Unit::Update won't expire the rule while the spending spell still channels
     if event == "UNIT_SPELLCAST_CHANNEL_STOP" and arg1 == "player" then
       if this.fsrSpell and this.fsrSpell == arg3 then
         this.fsrGain = nil
-        this.fsr:SetTimeFromStart(GetTime(), FIVE_SECOND_RULE)
+        ArmRule()
       end
-      return
     end
 
     -- only the shown power: a cat druid's mana regen is not an energy gain
@@ -193,61 +231,11 @@ pfUI:RegisterModule("energytick", function()
         if this.fsr:IsActive() then
           this.fsrGain = true
         end
-      end
-
-      -- phase is kept while hidden; OnUpdate catches up by whole periods
-      if this.mode == "MANA" and power >= UnitPowerMax("player") then
-        this:Hide()
+        Sweep()
       end
     end
-  end)
 
-  energytick:SetScript("OnUpdate", function()
-    -- Throttle for performance
-    if (this.tick or 0) > GetTime() then
-      return
-    end
-    this.tick = GetTime() + 0.020  -- ~50 FPS
-
-    -- five-second rule: fsrbar drains from this.fsr by itself. The display is
-    -- cosmetic and can be hidden on its own; the window itself (fsr/fsrGain)
-    -- keeps running either way -- it still dims the sweep spark below.
-    local fsrUp = this.mode == "MANA" and this.fsr:IsActive()
-    if not fsrUp and this.fsrSpell then
-      this.fsrSpell, this.fsrGain = nil, nil
-      this.fsr:Reset()
-    end
-    this.fsrbar:SetShown(fsrUp and C.unitframes.player.showfsr == "1")
-
-    if not this.start then
-      this.spark:SetAlpha(0)
-      return
-    end
-
-    if this.mode == "MANA" and UnitPower("player") >= UnitPowerMax("player") then
-      this.spark:SetAlpha(0)
-      return
-    end
-
-    this.current = GetTime() - this.start
-
-    -- roll over by whole periods, not from now: restarting bakes frame
-    -- overshoot into the phase as drift the lock then has to chase
-    if this.current > this.max then
-      this.start = this.start + this.max * math.floor(this.current / this.max)
-      this.max = getAdjustedTickTimer()
-      this.current = GetTime() - this.start
-    end
-
-    -- dim while the rule is up and nothing has ticked inside it yet
-    this.spark:SetAlpha((fsrUp and not this.fsrGain) and .4 or 1)
-
-    if not C.unitframes.player.pheight then
-      return
-    end
-
-    local pos = getBarWidth() * (this.current / this.max)
-    this.spark:SetPoint("LEFT", pos - ((C.unitframes.player.pheight + 5) / 2), 0)
+    UpdateRule()
   end)
 
   energytick.fsr = C_DurationUtil.CreateDuration()
@@ -275,8 +263,14 @@ pfUI:RegisterModule("energytick", function()
   energytick.fsrbar:SetTimerDuration(energytick.fsr, Enum.StatusBarInterpolation.Immediate, Enum.StatusBarTimerDirection.RemainingTime)
   energytick.fsrbar:Hide()
 
-  -- the bar isn't parented to energytick, and OnUpdate stops with it
+  -- the bar isn't parented to energytick, so it follows it by hand
+  energytick:SetScript("OnShow", function()
+    Sweep()
+    UpdateRule()
+  end)
+
   energytick:SetScript("OnHide", function()
+    Sweep()
     this.fsrbar:Hide()
   end)
 
@@ -285,6 +279,8 @@ pfUI:RegisterModule("energytick", function()
   energytick.spark:SetHeight(C.unitframes.player.pheight + 15)
   energytick.spark:SetWidth(C.unitframes.player.pheight + 5)
   energytick.spark:SetBlendMode("ADD")
+  energytick.spark:SetPoint("CENTER", energytick:GetStatusBarTexture(), "RIGHT")
+  energytick.spark:SetAlpha(0)
 
   local hookUpdateConfig = pfUI.uf.player.UpdateConfig
   function pfUI.uf.player.UpdateConfig()
