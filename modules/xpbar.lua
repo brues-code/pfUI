@@ -69,11 +69,25 @@ pfUI:RegisterModule("xpbar", function ()
     self:SetAlpha(1)
   end
 
+  -- (Re)arm the auto-hide: fade the bar out after delay seconds unless it is
+  -- always shown or under the cursor
+  local function ScheduleFade(self, delay)
+    if self.fadeTimer then self.fadeTimer:Cancel() end
+    self.fadeTimer = nil
+    if self.always or self.hover then return end
+    self.fadeTimer = C_Timer.NewTimer(delay, function()
+      self.fadeTimer = nil
+      if self.hover or self:GetAlpha() == 0 then return end
+      self.fade:Play()
+    end)
+  end
+
   local function OnLeave(self)
     local self = self or this
 
     self.hover = nil
-    self.tick = GetTime() + 3.00
+    if self.text_mouse == "1" then self.bar.text:Hide() end
+    ScheduleFade(self, 3)
     GameTooltip:Hide()
   end
 
@@ -90,6 +104,9 @@ local function OnEnter(self)
   end
 
   self.hover = true
+  if self.fadeTimer then self.fadeTimer:Cancel() end
+  self.fadeTimer = nil
+  if self.text_mouse == "1" then self.bar.text:Show() end
   Reveal(self)
 
   if mode == "XP" then
@@ -187,21 +204,6 @@ local function OnEnter(self)
   GameTooltip:Show()
 end
 
-  local function OnUpdate(self)
-    local self = self or this
-
-    if self.text_mouse == "1" then
-      self.bar.text:SetShown(self.hover)
-    end
-
-    if self.always then return end
-    -- Hover comes from OnEnter/OnLeave, the same mouse focus that reveals the
-    -- bar, so the fade can't restart under the cursor
-    if self:GetAlpha() == 0 or self.hover or self.fade:IsPlaying() then return end
-    if ( self.tick or 1) > GetTime() then return end
-    self.fade:Play()
-  end
-
   local function OnEvent(self)
     local self = self or this
 
@@ -248,7 +250,7 @@ end
       if ex then text = "%s: %s%% (%s%% %s)" end
       self.bar.text:SetFormattedText(text, T["Experience"], xpperc, experc, T["Rested"])
 
-      self.tick = GetTime() + self.timeout
+      ScheduleFade(self, self.timeout)
       if event == "UPDATE_EXHAUSTION" and GameTooltip:IsOwned(self) then
         OnEnter(self)
       end
@@ -266,7 +268,7 @@ end
       local xpperc = nextXP and nextXP ~= 0 and round(currXP / nextXP * 100) or 0
       self.bar.text:SetFormattedText(text, T["Pet Experience"], xpperc)
 
-      self.tick = GetTime() + self.timeout
+      ScheduleFade(self, self.timeout)
       return
     elseif mode == "REP" then
       self.restedbar:Hide()
@@ -294,7 +296,7 @@ end
         local standing = GetText("FACTION_STANDING_LABEL"..standingID, gender)
         self.bar.text:SetFormattedText(text, name, perc, standing)
 
-        self.tick = GetTime() + self.timeout
+        ScheduleFade(self, self.timeout)
         return
       end
     end
@@ -302,6 +304,9 @@ end
     self.bar:SetStatusBarColor(.5,.5,.5,1)
     self.bar:SetMinMaxValues(0, 1)
     self.bar:SetValue(0)
+
+    -- nothing to show: hide now unless an earlier update is still on display
+    if not self.fadeTimer then ScheduleFade(self, 0) end
   end
 
   local function CreateBar(t)
@@ -359,7 +364,7 @@ end
     b.bar.text:SetJustifyH("CENTER")
     b.bar.text:SetFont(pfUI.font_default, C.global.font_size, "OUTLINE")
 
-    b.bar.text:SetShown(b.text == "1")
+    b.bar.text:SetShown(b.text == "1" and b.text_mouse ~= "1")
 
     b.restedbar = b.restedbar or CreateFrame("StatusBar", nil, b)
     b.restedbar:SetStatusBarTexture(pfUI.media[C.panel.xp.texture])
@@ -392,7 +397,6 @@ end
     b:RegisterEvent("PLAYER_LEVEL_UP")
     b:RegisterEvent("UPDATE_FACTION")
 
-    b:SetScript("OnUpdate", OnUpdate)
     b:SetScript("OnEvent", OnEvent)
     b:SetScript("OnEnter", OnEnter)
     b:SetScript("OnLeave", OnLeave)
