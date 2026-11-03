@@ -36,6 +36,18 @@ local sentTargets = {}    -- [castGUID] = target name of an own cast, from UNIT_
 local resOffers = {}      -- [guid] = expiry of a landed resurrection the target has yet to accept
 local RES_OFFER_TIMEOUT = 60 -- the target's resurrect popup declines itself after 60s
 
+-- Tell the listeners of "libpredict:heals" that the heals on `target` (a
+-- name) changed, and again at `expiry`, when a heal that is never stopped
+-- drops out of UnitGetIncomingHeals.
+local function HealsChanged(target, expiry)
+  pfUI.events:TriggerEvent("libpredict:heals", target)
+  if expiry then
+    C_Timer.After(expiry - GetTime(), function()
+      pfUI.events:TriggerEvent("libpredict:heals", target)
+    end)
+  end
+end
+
 -- Localized spell names resolved once from canonical rank-1 spellIDs.
 -- Every rank shares the same name, so per-rank comparisons elsewhere can
 -- be done against these constants without per-locale or per-rank tables.
@@ -309,7 +321,7 @@ end
 local function RefreshResFrames(guid)
   for _, frame in pairs(pfUI.uf.frames) do
     if frame.unitstr and UnitGUID(frame.unitstr) == guid then
-      frame.update_indicators = true
+      pfUI.uf:QueueUpdate(frame, "indicators")
     end
   end
 end
@@ -439,7 +451,7 @@ function libpredict:ParseChatMessage(sender, msg)
     end
   elseif msgtype == "Hot" then
     -- Duplicate check: ignore same sender+target+spell within DUPLICATE_WINDOW
-    local now = pfUI.uf.now or GetTime()
+    local now = GetTime()
     local key = sender .. target .. heal
     if recentHots[key] and (now - recentHots[key]) < DUPLICATE_WINDOW then
       if libpredict.debug then
@@ -484,11 +496,11 @@ function libpredict:Heal(sender, target, amount, duration, senderGuid)
     return
   end
 
-  local now = pfUI.uf.now or GetTime()
-  local timeout = duration/1000 + now
+  local timeout = duration/1000 + GetTime()
   heals[target] = heals[target] or {}
   heals[target][sender] = { amount, timeout }
   if senderGuid then healGuidToName[senderGuid] = sender end
+  HealsChanged(target, timeout)
 end
 
 -- Debug flag
@@ -512,7 +524,7 @@ function libpredict:Hot(sender, target, spell, duration, startTime, source, rank
     local existingRank = tonumber(existing.rank) or 0
     local newRank = tonumber(rank) or 0
     
-    local now = pfUI.uf.now or GetTime()
+    local now = GetTime()
     local existingTimeleft = (existing.start + existing.duration) - now
     
     -- If existing HoT is still active and has higher rank, don't overwrite
@@ -525,7 +537,7 @@ function libpredict:Hot(sender, target, spell, duration, startTime, source, rank
     end
   end
 
-  local now = pfUI.uf.now or GetTime()
+  local now = GetTime()
   hots[target][spell].duration = duration
   hots[target][spell].start = startTime or now
   hots[target][spell].rank = rank -- Store rank for protection
@@ -544,7 +556,7 @@ function libpredict:Hot(sender, target, spell, duration, startTime, source, rank
   if pfUI and pfUI.uf and pfUI.uf.frames then
     for _, frame in pairs(pfUI.uf.frames) do
       if frame.namecache == target then
-        frame.update_aura = true
+        pfUI.uf:QueueUpdate(frame, "aura")
         if libpredict.debug then
           DEFAULT_CHAT_FRAME:AddMessage("  |cff00ff00-> Frame update triggered for " .. (frame:GetName() or "?") .. "|r")
         end
@@ -558,6 +570,7 @@ function libpredict:HealStop(sender)
     for tsender in pairs(heals[ttarget]) do
       if sender == tsender then
         heals[ttarget][tsender] = nil
+        HealsChanged(ttarget)
       end
     end
   end
@@ -573,6 +586,7 @@ function libpredict:HealDelay(sender, delay)
     for tsender, amount in pairs(heals[target]) do
       if sender == tsender then
         amount[2] = amount[2] + delay
+        HealsChanged(target, amount[2])
       end
     end
   end
@@ -588,7 +602,7 @@ function libpredict:UnitGetIncomingHeals(unit)
   if not heals[name] then
     return sumheal
   else
-    local now = pfUI.uf.now or GetTime()
+    local now = GetTime()
     for sender, amount in pairs(heals[name]) do
       if amount[2] <= now then
         heals[name][sender] = nil
@@ -720,7 +734,7 @@ hooksecurefunc("CastSpell", function(id, bookType)
   
   if effect == REJUVENATION then
     local target = spell_queue[3]
-    local now = pfUI.uf.now or GetTime()
+    local now = GetTime()
     local key = "Reju" .. target
     
     -- Cooldown-Check
@@ -737,7 +751,7 @@ hooksecurefunc("CastSpell", function(id, bookType)
     libpredict.sender:SendHealCommMsg("Reju/"..target.."/"..rejuvDuration.."/"..rankStr.."/")
   elseif effect == RENEW then
     local target = spell_queue[3]
-    local now = pfUI.uf.now or GetTime()
+    local now = GetTime()
     local key = "Renew" .. target
     
     -- Cooldown-Check
@@ -783,7 +797,7 @@ hooksecurefunc("CastSpellByName", function(effect, target)
   
   if effect == REJUVENATION then
     local hotTarget = target or default
-    local now = pfUI.uf.now or GetTime()
+    local now = GetTime()
     local key = "Reju" .. hotTarget
     
     -- Cooldown-Check
@@ -800,7 +814,7 @@ hooksecurefunc("CastSpellByName", function(effect, target)
     libpredict.sender:SendHealCommMsg("Reju/"..hotTarget.."/"..rejuvDuration.."/"..rankStr.."/")
   elseif effect == RENEW then
     local hotTarget = target or default
-    local now = pfUI.uf.now or GetTime()
+    local now = GetTime()
     local key = "Renew" .. hotTarget
     
     -- Cooldown-Check
@@ -843,7 +857,7 @@ hooksecurefunc("UseAction", function(slot, target, selfcast)
   
   if effect == REJUVENATION then
     local hotTarget = spell_queue[3]
-    local now = pfUI.uf.now or GetTime()
+    local now = GetTime()
     local key = "Reju" .. hotTarget
     
     -- Cooldown-Check
@@ -860,7 +874,7 @@ hooksecurefunc("UseAction", function(slot, target, selfcast)
     libpredict.sender:SendHealCommMsg("Reju/"..hotTarget.."/"..rejuvDuration.."/"..rankStr.."/")
   elseif effect == RENEW then
     local hotTarget = spell_queue[3]
-    local now = pfUI.uf.now or GetTime()
+    local now = GetTime()
     local key = "Renew" .. hotTarget
     
     -- Cooldown-Check
@@ -1083,7 +1097,7 @@ function libpredict:GetHotDuration(unit, spell)
   
   -- FALLBACK: the HealComm/cast-fed table, for HoTs C_UnitAuras has no timer for
   local start, duration, timeleft
-  local now = pfUI.uf.now or GetTime()
+  local now = GetTime()
   
   local unitName = UnitName(unit)
   local unitdata = hots[unitName]

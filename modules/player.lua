@@ -112,18 +112,6 @@ pfUI:RegisterModule("player", function ()
     UpdateInfoText()
   end
 
-  -- Add throttle to player frame OnUpdate
-  -- Throttle the unit frame's existing OnUpdate to ~20 FPS so the per-frame
-  -- work stays cheap.
-  if pfUI.uf.player:GetScript("OnUpdate") then
-    local originalOnUpdate = pfUI.uf.player:GetScript("OnUpdate")
-    pfUI.uf.player:SetScript("OnUpdate", function()
-      if (this.throttleTick or 0) > GetTime() then return end
-      this.throttleTick = GetTime() + 0.05
-      originalOnUpdate()
-    end)
-  end
-
   -- PLAYER_DAMAGE_DONE_MODS fires on the MOD_DAMAGE_DONE fields that
   -- GetSpellBonusDamage reads, so gear, buffs and talents all reach it.
   pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", UpdateInfoText)

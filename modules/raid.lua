@@ -264,8 +264,7 @@ pfUI:RegisterModule("raid", function ()
           if newGuid ~= oldGuid then
             -- GUID changed = different player = need full update
             tracker.frameToGuid[frame] = newGuid
-            frame.update_full = true
-            frame.update_aura = true  -- Force aura refresh!
+            pfUI.uf:QueueUpdate(frame, "full")
           end
         end
       end
