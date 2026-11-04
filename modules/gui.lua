@@ -1244,9 +1244,13 @@ pfUI:RegisterModule("gui", function ()
       table.insert(pfUI.gui.dropdowns.fonts, "Fonts\\FRIZQT__.TTF:FRIZQT")
       table.insert(pfUI.gui.dropdowns.fonts, "Fonts\\FZBWJW.TTF:FZBWJW")
       table.insert(pfUI.gui.dropdowns.fonts, "Fonts\\FZJZJW.TTF:FZJZJW")
-      table.insert(pfUI.gui.dropdowns.fonts, "Fonts\\FZLBJW.TTF:FZLBJW")
       table.insert(pfUI.gui.dropdowns.fonts, "Fonts\\FZXHJW.TTF:FZXHJW")
       table.insert(pfUI.gui.dropdowns.fonts, "Fonts\\FZXHLJW.TTF:FZXHLJW")
+    end
+
+    -- Turtle WoW ships Noto Sans SC as FZLBJW.TTF to every client
+    if TURTLE_WOW_VERSION then
+      table.insert(pfUI.gui.dropdowns.fonts, "Fonts\\FZLBJW.TTF:Noto Sans SC")
     end
 
     pfUI.gui.dropdowns.loot_rarity = {}
