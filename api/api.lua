@@ -582,6 +582,26 @@ function pfUI.api.HookAddon(addon, func)
   end)
 end
 
+-- [ HookAddonOrVariable ]
+-- Compatibility shim for pfUI plugins (e.g. pfUI-addonskinner) that still
+-- call the pre-rewrite API. Routes addon names through HookAddon, and keeps
+-- the legacy "or variable" fallback for callers that pass a global name.
+function pfUI.api.HookAddonOrVariable(addon, func)
+  if C_AddOns.DoesAddOnExist(addon) then
+    return pfUI.api.HookAddon(addon, func)
+  end
+  local lurker = CreateFrame("Frame")
+  lurker:RegisterEvent("ADDON_LOADED")
+  lurker:RegisterEvent("PLAYER_LOGIN")
+  lurker:SetScript("OnEvent", function()
+    if _G[addon] then
+      func()
+      lurker:UnregisterAllEvents()
+    end
+  end)
+end
+_G.HookAddonOrVariable = pfUI.api.HookAddonOrVariable
+
 -- [ Create Gold String ]
 -- Transforms a amount of copper into a fully fledged gold string
 -- 'money'      [int]           the amount of coppy (GetMoney())
