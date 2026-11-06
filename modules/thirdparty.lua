@@ -366,6 +366,124 @@ pfUI:RegisterModule("thirdparty", function()
     end
   end)
 
+  -- CombatLedger Damage/Threat Meter
+  -- Vanilla: https://github.com/akzkak/CombatLedger
+  -- CombatLedger builds its windows at the first PLAYER_ENTERING_WORLD and
+  -- supports several of them (CombatLedger.UIWindows, keyed by id), so frames
+  -- are resolved at call time. The "main" window takes the "damage" dock slot;
+  -- the first extra window takes the "threat" slot so the two tile the panel
+  -- side-by-side. Any further windows stay floating.
+  HookAddonOrVariable("CombatLedger", function()
+    local function primary()
+      local w = CombatLedger.UIWindows and CombatLedger.UIWindows["main"]
+      return w and w.frame
+    end
+
+    local function secondary()
+      if not (CombatLedger.UIWindows and CombatLedger.GetExtraWindowIds) then return end
+      local ids = CombatLedger.GetExtraWindowIds()
+      for i = 1, table.getn(ids) do
+        local w = CombatLedger.UIWindows[ids[i]]
+        if ids[i] ~= "main" and w and w.frame then return w.frame end
+      end
+    end
+
+    -- Bars and the Mode/Segment header buttons are sized from the window
+    -- width, and CombatLedger only refits the header buttons on a resize
+    -- drag or an appearance change. Firing the appearance hook refits every
+    -- window's header and bars, then a refresh redraws the rows.
+    local function relayout()
+      if CombatLedger.FireAppearanceChanged then CombatLedger.FireAppearanceChanged() end
+      local UI = CombatLedger.UI
+      if UI and UI.RefreshAllInstances then UI.RefreshAllInstances() end
+    end
+
+    local function BuildDock(name, getframe, left)
+      return { "combatledger", "CombatLedger", name,
+        function() -- single: fill the panel
+          local frame = getframe()
+          if not frame then return end
+          frame:ClearAllPoints()
+          frame:SetAllPoints(pfUI.chat.right)
+          frame:SetWidth(pfUI.chat.right:GetWidth())
+          relayout()
+        end,
+        function() -- dual: take one half
+          local frame = getframe()
+          if not frame then return end
+          frame:ClearAllPoints()
+          if left then
+            frame:SetPoint("TOPLEFT", pfUI.chat.right, "TOPLEFT", 0, 0)
+            frame:SetPoint("BOTTOMRIGHT", pfUI.chat.right, "BOTTOM", 0, 0)
+          else
+            frame:SetPoint("TOPLEFT", pfUI.chat.right, "TOP", 0, 0)
+            frame:SetPoint("BOTTOMRIGHT", pfUI.chat.right, "BOTTOMRIGHT", 0, 0)
+          end
+          frame:SetWidth(pfUI.chat.right:GetWidth() / 2)
+          relayout()
+        end,
+        function() -- show
+          local frame = getframe()
+          if frame then frame:Show() relayout() end
+        end,
+        function() -- hide
+          local frame = getframe()
+          if frame then frame:Hide() end
+        end
+      }
+    end
+
+    local threatdock = BuildDock("CombatLedgerSecondWindow", secondary, true)
+    pfUI.thirdparty.meters:RegisterMeter("damage", BuildDock("CombatLedgerMainWindow", primary, false))
+
+    -- pfUI picks fill-vs-split by whether the threat slot is filled, so keep
+    -- that slot in step with whether a second CombatLedger window exists, and
+    -- match each window's visibility to the panel (state == true means shown).
+    local function SyncSecond()
+      if not pfUI.thirdparty.meters.damage then return end -- dock disabled
+      local f2 = secondary()
+      if f2 and not pfUI.thirdparty.meters.threat then
+        pfUI.thirdparty.meters.threat = threatdock
+      elseif not f2 and pfUI.thirdparty.meters.threat == threatdock then
+        pfUI.thirdparty.meters.threat = nil
+      end
+      pfUI.thirdparty.meters:Resize()
+
+      local f1 = primary()
+      if f1 then if pfUI.thirdparty.meters.state then f1:Show() else f1:Hide() end end
+      if f2 then if pfUI.thirdparty.meters.state then f2:Show() else f2:Hide() end end
+      relayout()
+    end
+
+    -- login restore, "New Window" and closing a window all change the set
+    -- of frames; wrap them so the dock follows
+    local UI = CombatLedger.UI
+    if UI then
+      local origRestore = UI.RestoreAllWindows
+      if origRestore then
+        UI.RestoreAllWindows = function(...)
+          origRestore(unpack(arg))
+          SyncSecond()
+        end
+      end
+      local origCreate = UI.CreateExtraWindow
+      if origCreate then
+        UI.CreateExtraWindow = function(...)
+          local id = origCreate(unpack(arg))
+          SyncSecond()
+          return id
+        end
+      end
+      local origClose = UI.CloseExtraWindow
+      if origClose then
+        UI.CloseExtraWindow = function(...)
+          origClose(unpack(arg))
+          SyncSecond()
+        end
+      end
+    end
+  end)
+
   -- DPSMate Damage Meter
   -- Vanilla: https://github.com/Geigerkind/DPSMate
   -- TBC: https://github.com/Geigerkind/DPSMateTBC
