@@ -388,8 +388,12 @@ pfUI:RegisterModule("thirdparty", function()
       end
     end
 
-    -- bars are sized from the window width, so refit them after a move
+    -- Bars and the Mode/Segment header buttons are sized from the window
+    -- width, and CombatLedger only refits the header buttons on a resize
+    -- drag or an appearance change. Firing the appearance hook refits every
+    -- window's header and bars, then a refresh redraws the rows.
     local function relayout()
+      if CombatLedger.FireAppearanceChanged then CombatLedger.FireAppearanceChanged() end
       local UI = CombatLedger.UI
       if UI and UI.RefreshAllInstances then UI.RefreshAllInstances() end
     end
