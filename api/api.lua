@@ -784,25 +784,40 @@ end
 -- 'anchor'     [frame]     the frame where it should be aligned to
 -- 'position'   [string]    where it should appear, takes the following:
 --                          "TOP", "RIGHT", "BOTTOM", "LEFT"
+local alignments = {
+  --         frame corners                anchor corners                spacing x/y
+  TOP    = { "BOTTOMLEFT", "BOTTOMRIGHT", "TOPLEFT",    "TOPRIGHT",     0,  1 },
+  RIGHT  = { "TOPLEFT",    "BOTTOMLEFT",  "TOPRIGHT",   "BOTTOMRIGHT",  1,  0 },
+  BOTTOM = { "TOPLEFT",    "TOPRIGHT",    "BOTTOMLEFT", "BOTTOMRIGHT",  0, -1 },
+  LEFT   = { "TOPRIGHT",   "BOTTOMRIGHT", "TOPLEFT",    "BOTTOMLEFT",  -1,  0 },
+}
+
 function pfUI.api.AlignToPosition(frame, anchor, position, spacing)
   if frame == anchor then return end
   frame:ClearAllPoints()
-  if position == "TOP" and anchor then
-    frame:SetPoint("BOTTOMLEFT", anchor, "TOPLEFT", 0, (spacing or 0))
-    frame:SetPoint("BOTTOMRIGHT", anchor, "TOPRIGHT", 0, (spacing or 0))
-  elseif position == "RIGHT" and anchor then
-    frame:SetPoint("TOPLEFT", anchor, "TOPRIGHT", (spacing or 0), 0)
-    frame:SetPoint("BOTTOMLEFT", anchor, "BOTTOMRIGHT", (spacing or 0), 0)
-  elseif position == "BOTTOM" and anchor then
-    frame:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -(spacing or 0))
-    frame:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -(spacing or 0))
-  elseif position == "LEFT" and anchor then
-    frame:SetPoint("TOPRIGHT", anchor, "TOPLEFT", -(spacing or 0), 0)
-    frame:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMLEFT", -(spacing or 0), 0)
-  else
-    frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", 0, 0)
-    frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, 0)
+
+  local align = anchor and alignments[position]
+  if not align then
+    -- no usable anchor: stretch along the right screen edge
+    frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT")
+    frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT")
+    return
   end
+
+  local point1, point2, rel1, rel2, dx, dy = unpack(align)
+  local x, y = dx * (spacing or 0), dy * (spacing or 0)
+  frame:SetPoint(point1, anchor, rel1, x, y)
+  frame:SetPoint(point2, anchor, rel2, x, y)
+end
+
+-- Splits the screen into a 3x3 grid and returns the cell that (x, y) falls in
+-- as a row ("TOP", "" or "BOTTOM") and a column ("LEFT", "" or "RIGHT").
+local function GetScreenCell(x, y, scale)
+  local w = GetScreenWidth()  / scale / 3
+  local h = GetScreenHeight() / scale / 3
+  local row = y > 2 * h and "TOP" or y < h and "BOTTOM" or ""
+  local col = x < w and "LEFT" or x > 2 * w and "RIGHT" or ""
+  return row, col
 end
 
 -- [ SetAutoPoint ]
@@ -812,67 +827,22 @@ end
 -- 'spacing'    [number]       the padding that should be used between the
 --                             frame and its parent frame
 function pfUI.api.SetAutoPoint(frame, parent, spacing)
-  --[[
-
-          a     b       max
-    +-----------------+
-    |  1  |  2  |  3  |
-    |-----+-----+-----| c
-    |  4  |  5  |  6  |
-    |-----+-----+-----| d
-    |  7  |  8  |  9  |
-    +-----------------+
-  0
-
-  ]]--
-
-  local a = GetScreenWidth() / 3
-  local b = GetScreenWidth() / 3 * 2
-
-  local c = GetScreenHeight() / 3 * 2
-  local d = GetScreenHeight() / 3
-
   local x, y = parent:GetCenter()
+  if not x then return end
 
-  if not x or not y then return end
-
+  -- open the frame toward the screen center
+  local row, col = GetScreenCell(x, y, 1)
   local off = spacing or 0
 
   frame:ClearAllPoints()
-
-  if x < a and y > c then
-    -- TOPLEFT
-    frame:SetPoint("TOPLEFT", parent, "BOTTOMLEFT", 0, -off)
-  elseif x > a and x < b and y > c then
-    -- TOP
-    frame:SetPoint("TOP", parent, "BOTTOM", 0, -off)
-  elseif x > b and y > c then
-    -- TOPRIGHT
-    frame:SetPoint("TOPRIGHT", parent, "BOTTOMRIGHT", 0, -off)
-
-  elseif x < a and y > d and y < c then
-    -- LEFT
+  if row == "TOP" then
+    frame:SetPoint("TOP" .. col, parent, "BOTTOM" .. col, 0, -off)
+  elseif row == "" and col == "LEFT" then
     frame:SetPoint("LEFT", parent, "RIGHT", off, 0)
-
-  elseif x > a and x < b and y > d and y < c then
-    -- CENTER
-    frame:SetPoint("BOTTOM", parent, "TOP", 0, off)
-
-  elseif x > b and y > d and y < c then
-    -- RIGHT
+  elseif row == "" and col == "RIGHT" then
     frame:SetPoint("RIGHT", parent, "LEFT", -off, 0)
-
-  elseif x < a and y < d then
-    -- BOTTOMLEFT
-    frame:SetPoint("BOTTOMLEFT", parent, "TOPLEFT", 0, off)
-
-  elseif x > a and x < b and y < d then
-    -- BOTTOM
-    frame:SetPoint("BOTTOM", parent, "TOP", 0, off)
-
-  elseif x > b and y < d then
-    -- BOTTOMRIGHT
-    frame:SetPoint("BOTTOMRIGHT", parent, "TOPRIGHT", 0, off)
+  else
+    frame:SetPoint("BOTTOM" .. col, parent, "TOP" .. col, 0, off)
   end
 end
 
@@ -881,33 +851,12 @@ end
 -- 'self'       [frame]        the frame that should be checked
 -- returns:     [string]       the name of the best anchor
 function pfUI.api.GetBestAnchor(self)
-  local scale = self:GetScale()
   local x, y = self:GetCenter()
-  local a = GetScreenWidth()  / scale / 3
-  local b = GetScreenWidth()  / scale / 3 * 2
-  local c = GetScreenHeight() / scale / 3 * 2
-  local d = GetScreenHeight() / scale / 3
-  if not x or not y then return end
+  if not x then return end
 
-  if x < a and y > c then
-    return "TOPLEFT"
-  elseif x > a and x < b and y > c then
-    return "TOP"
-  elseif x > b and y > c then
-    return "TOPRIGHT"
-  elseif x < a and y > d and y < c then
-    return "LEFT"
-  elseif x > a and x < b and y > d and y < c then
-    return "CENTER"
-  elseif x > b and y > d and y < c then
-    return "RIGHT"
-  elseif x < a and y < d then
-    return "BOTTOMLEFT"
-  elseif x > a and x < b and y < d then
-    return "BOTTOM"
-  elseif x > b and y < d then
-    return "BOTTOMRIGHT"
-  end
+  local row, col = GetScreenCell(x, y, self:GetScale())
+  local anchor = row .. col
+  return anchor ~= "" and anchor or "CENTER"
 end
 
 -- [ ConvertFrameAnchor ]
@@ -916,31 +865,23 @@ end
 -- 'anchor'     [string]       the new anchor that shall be used
 -- returns:     anchor, x, y   can directly be used in SetPoint()
 function pfUI.api.ConvertFrameAnchor(self, anchor)
-  local scale, x, y, _ = self:GetScale(), nil, nil, nil
+  local scale = self:GetScale()
+  local w, h = GetScreenWidth() / scale, GetScreenHeight() / scale
 
-  if anchor == "CENTER" then
-    x, y = self:GetCenter()
-    x, y = x - GetScreenWidth()/2/scale, y - GetScreenHeight()/2/scale
-  elseif anchor == "TOPLEFT" then
-    x, y = self:GetLeft(), self:GetTop() - GetScreenHeight()/scale
-  elseif anchor == "TOP" then
-    x, _ = self:GetCenter()
-    x, y = x - GetScreenWidth()/2/scale, self:GetTop() - GetScreenHeight()/scale
-  elseif anchor == "TOPRIGHT" then
-    x, y = self:GetRight() - GetScreenWidth()/scale, self:GetTop() - GetScreenHeight()/scale
-  elseif anchor == "RIGHT" then
-    _, y = self:GetCenter()
-    x, y = self:GetRight() - GetScreenWidth()/scale, y - GetScreenHeight()/2/scale
-  elseif anchor == "BOTTOMRIGHT" then
-    x, y = self:GetRight() - GetScreenWidth()/scale, self:GetBottom()
-  elseif anchor == "BOTTOM" then
-    x, _ = self:GetCenter()
-    x, y = x - GetScreenWidth()/2/scale, self:GetBottom()
-  elseif anchor == "BOTTOMLEFT" then
-    x, y = self:GetLeft(), self:GetBottom()
-  elseif anchor == "LEFT" then
-    _, y = self:GetCenter()
-    x, y = self:GetLeft(), y - GetScreenHeight()/2/scale
+  -- offsets from the matching point of the screen, axis by axis
+  local x, y = self:GetCenter()
+  x, y = x - w / 2, y - h / 2
+
+  if anchor:find("LEFT") then
+    x = self:GetLeft()
+  elseif anchor:find("RIGHT") then
+    x = self:GetRight() - w
+  end
+
+  if anchor:find("TOP") then
+    y = self:GetTop() - h
+  elseif anchor:find("BOTTOM") then
+    y = self:GetBottom()
   end
 
   return anchor, round(x, 2), round(y, 2)
