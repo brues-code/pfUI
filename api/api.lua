@@ -586,19 +586,42 @@ end
 -- Compatibility shim for pfUI plugins (e.g. pfUI-addonskinner) that still
 -- call the pre-rewrite API. Routes addon names through HookAddon, and keeps
 -- the legacy "or variable" fallback for callers that pass a global name.
+-- Pending variable hooks share one ADDON_LOADED/PLAYER_LOGIN listener on
+-- pfUI.events, which unregisters once every hook has run.
+local variableHooks, variableHandles = {}, nil
+
+local function DrainVariableHooks()
+  local ready = {}
+  for name in pairs(variableHooks) do
+    if _G[name] then table.insert(ready, name) end
+  end
+  -- run after the scan: a hook may queue another and grow the table
+  for _, name in ipairs(ready) do
+    local funcs = variableHooks[name]
+    variableHooks[name] = nil
+    for _, func in ipairs(funcs) do func() end
+  end
+  if variableHandles and not next(variableHooks) then
+    for _, handle in ipairs(variableHandles) do handle:Unregister() end
+    variableHandles = nil
+  end
+end
+
 function pfUI.api.HookAddonOrVariable(addon, func)
   if C_AddOns.DoesAddOnExist(addon) then
     return pfUI.api.HookAddon(addon, func)
   end
-  local lurker = CreateFrame("Frame")
-  lurker:RegisterEvent("ADDON_LOADED")
-  lurker:RegisterEvent("PLAYER_LOGIN")
-  lurker:SetScript("OnEvent", function()
-    if _G[addon] then
-      func()
-      lurker:UnregisterAllEvents()
-    end
-  end)
+  if IsLoggedIn() and _G[addon] then return func() end
+
+  variableHooks[addon] = variableHooks[addon] or {}
+  table.insert(variableHooks[addon], func)
+
+  if not variableHandles then
+    variableHandles = {
+      pfUI.events:RegisterFrameEventAndCallbackWithHandle("ADDON_LOADED", DrainVariableHooks),
+      pfUI.events:RegisterFrameEventAndCallbackWithHandle("PLAYER_LOGIN", DrainVariableHooks),
+    }
+  end
 end
 _G.HookAddonOrVariable = pfUI.api.HookAddonOrVariable
 
