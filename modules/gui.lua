@@ -823,14 +823,14 @@ pfUI:RegisterModule("gui", function ()
       ["languages"] = {
         -- "deDE:German",
         -- "enGB:British English",
-        "enUS:" .. T["English"],
-        "esES:" .. T["Spanish"],
+        "enUS:English",
+        "esES:Spanish",
         --"esMX:Spanish (Latin American)",
-        "frFR:" .. T["French"],
-        "koKR:" .. T["Korean"],
-        "ruRU:" .. T["Russian"],
-        "zhCN:" .. T["Chinese (Simplified)"],
-        "zhTW:" .. T["Chinese (Traditional)"],
+        "frFR:French",
+        "koKR:Korean",
+        "ruRU:Russian",
+        "zhCN:Chinese (Simplified)",
+        "zhTW:Chinese (Traditional)",
         -- http://wowprogramming.com/docs/api/GetLocale
       },
       ["fonts"] = {

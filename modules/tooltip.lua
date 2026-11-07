@@ -96,7 +96,7 @@ pfUI:RegisterModule("tooltip", function ()
         GameTooltip:Show()
       elseif C.tooltip.spellid == "1" and GameTooltip:HasSpell() then
         local _, _, spellID = GameTooltip:GetSpell()
-        GameTooltip:AddLine(T["SpellID"] .. ": " .. spellID, .25,.5,1)
+        GameTooltip:AddLine("SpellID: " .. spellID, .25,.5,1)
         GameTooltip:Show()
       end
 
@@ -367,7 +367,7 @@ pfUI:RegisterModule("tooltip", function ()
       if C.tooltip.unitid == "1" and not UnitIsPlayer(unit) then
         local npcID = C_CreatureInfo.GetCreatureID(UnitGUID(unit))
         if npcID then
-          GameTooltip:AddLine(T["UnitID"] .. ": " .. npcID, .25,.5,1)
+          GameTooltip:AddLine("UnitID: " .. npcID, .25,.5,1)
         end
       end
 
@@ -402,7 +402,7 @@ pfUI:RegisterModule("tooltip", function ()
         end
       end
       if C.tooltip.spellid == "1" then
-        self:AddLine(T["SpellID"] .. ": " .. aura.spellId, .25,.5,1)
+        self:AddLine("SpellID: " .. aura.spellId, .25,.5,1)
       end
       self:Show()
     end)
