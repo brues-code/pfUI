@@ -41,7 +41,7 @@ pfUI:RegisterModule("innervatecall", function ()
     C_Timer.After(cd.startTime + cd.duration - GetTime(), function()
       local ch = GetAnnounceChannel()
       if ch then
-        SendChatMessage(">> Innervate is ready <<", ch)
+        SendChatMessage(T[">> Innervate is ready <<"], ch)
       end
     end)
   end
@@ -62,7 +62,7 @@ pfUI:RegisterModule("innervatecall", function ()
     local channel = GetAnnounceChannel()
     if not channel then return end -- solo, no announcement
 
-    SendChatMessage(">> Innervate cast on " .. (destName or "Unknown") .. " <<", channel)
+    SendChatMessage(format(T[">> Innervate cast on %s <<"], destName or T["Unknown"]), channel)
 
     pending = true
     ScheduleReady()

@@ -115,7 +115,7 @@ pfUI:RegisterModule("radar", function ()
     else
       GameTooltip:SetText(UnitName(unit), UnitSelectionColor(unit))
     end
-    GameTooltip:AddLine(format("%.1f yd", sqrt(blip.distSq)), 1, 1, 1)
+    GameTooltip:AddLine(format(T["%.1f yd"], sqrt(blip.distSq)), 1, 1, 1)
     if blocked[unit] then
       GameTooltip:AddLine(T["Out of line of sight"], 1, .3, .3)
     end

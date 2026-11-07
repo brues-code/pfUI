@@ -38,10 +38,10 @@ pfUI:RegisterModule("bgscore", function ()
   -- BG score preview text
   local bgscore = mover:CreateFontString(nil, "OVERLAY")
   bgscore:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-  bgscore:SetText("|cff3399ffAlliance: 123|r  |  |cffff4444Horde: 456|r")
+  bgscore:SetText(T["|cff3399ffAlliance: 123|r  |  |cffff4444Horde: 456|r"])
   bgscore:SetPoint("BOTTOM", mover, "BOTTOM", 0, 2)
 
-  mover.label = "BG Score"
+  mover.label = T["BG Score"]
   pfUI.unlock.frames = pfUI.unlock.frames or {}
   table.insert(pfUI.unlock.frames, mover)
 
