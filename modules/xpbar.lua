@@ -146,7 +146,7 @@ local function OnEnter(self)
         if span > 0 and gain > 0 then
           local rate_per_sec = gain / span
           local rate_per_min = floor(rate_per_sec * 60)
-          table.insert(lines, { T["Rested Gain"], "|cff5555ff+" .. rate_per_min .. " / min" })
+          table.insert(lines, { T["Rested Gain"], "|cff5555ff+" .. rate_per_min .. " " .. T["/ min"] })
 
           local cap = xpmax * REST_CAP_MUL
           if exh < cap then

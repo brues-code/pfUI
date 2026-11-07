@@ -131,10 +131,10 @@ pfUI:RegisterModule("panel", function()
         GameTooltip:AddDoubleLine(T["Next Memory Cleanup"], "|cffffffff" .. gcmb)
         -- AddOn memory usage (see MainMenuBarPerformanceBarFrame_OnEnter in MainMenuBar.lua)
 
-        local ADDON_MEM_KB_ABBR = _G.ADDON_MEM_KB_ABBR or "(%.0f KB) %s";
-        local ADDON_MEM_MB_ABBR = _G.ADDON_MEM_MB_ABBR or "(%.2f MB) %s";
-        local TOTAL_MEM_KB_ABBR = _G.TOTAL_MEM_KB_ABBR or "AddOn Memory: %.0f KB";
-        local TOTAL_MEM_MB_ABBR = _G.TOTAL_MEM_MB_ABBR or "AddOn Memory: %.2f MB";
+        local ADDON_MEM_KB_ABBR = _G.ADDON_MEM_KB_ABBR or T["(%.0f KB) %s"];
+        local ADDON_MEM_MB_ABBR = _G.ADDON_MEM_MB_ABBR or T["(%.2f MB) %s"];
+        local TOTAL_MEM_KB_ABBR = _G.TOTAL_MEM_KB_ABBR or T["AddOn Memory: %.0f KB"];
+        local TOTAL_MEM_MB_ABBR = _G.TOTAL_MEM_MB_ABBR or T["AddOn Memory: %.2f MB"];
 
 
         UpdateAddOnMemoryUsage()
