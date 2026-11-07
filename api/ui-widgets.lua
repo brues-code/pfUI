@@ -781,7 +781,7 @@ do
     question.no:SetText(nocap)
 
     -- the dialog is as wide as the longest line of text, and at least 200
-    question.text:SetText(text or "Are you sure?")
+    question.text:SetText(text or T["Are you sure?"])
     local width = math.max(200, question.text:GetUnboundedStringWidth())
     question.text:SetWidth(width)
     question:SetWidth(width + 2*padding)

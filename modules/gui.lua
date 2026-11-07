@@ -665,7 +665,7 @@ pfUI:RegisterModule("gui", function ()
       if pfUI.hoverbind then
         pfUI.hoverbind:Show()
       else
-        message("Please enable the Hoverbind module to use this feature.")
+        message(T["Please enable the Hoverbind module to use this feature."])
       end
     end)
 
@@ -682,7 +682,7 @@ pfUI:RegisterModule("gui", function ()
         pfShare:Show()
         pfShareExport:Click()
       else
-        message("Please enable the Share module to share your config.")
+        message(T["Please enable the Share module to share your config."])
       end
     end)
     SkinButton(pfUI.gui.share)
@@ -1683,12 +1683,12 @@ pfUI:RegisterModule("gui", function ()
           end
         end
       end, T["Cursor Follow"], _G.pfUI_throttle, "tooltip_cursor", "dropdown", {
-        "very_slow:" .. T["Very Slow"] .. " (2 FPS)",
-        "slow:" .. T["Slow"] .. " (5 FPS)",
-        "normal:" .. T["Normal"] .. " (10 FPS)",
-        "fast:" .. T["Fast"] .. " (20 FPS)",
-        "very_fast:" .. T["Very Fast"] .. " (30 FPS)",
-        "fastest:" .. T["Fastest"] .. " (50 FPS)",
+        "very_slow:" .. T["Very Slow"] .. " " .. string.format(T["(%d FPS)"], 2),
+        "slow:" .. T["Slow"] .. " " .. string.format(T["(%d FPS)"], 5),
+        "normal:" .. T["Normal"] .. " " .. string.format(T["(%d FPS)"], 10),
+        "fast:" .. T["Fast"] .. " " .. string.format(T["(%d FPS)"], 20),
+        "very_fast:" .. T["Very Fast"] .. " " .. string.format(T["(%d FPS)"], 30),
+        "fastest:" .. T["Fastest"] .. " " .. string.format(T["(%d FPS)"], 50),
         "custom:" .. T["Custom"],
       })
       
@@ -1753,12 +1753,12 @@ pfUI:RegisterModule("gui", function ()
           end
         end
       end, T["Chat Tab Hover Check"], _G.pfUI_throttle, "chat_tab", "dropdown", {
-        "very_slow:" .. T["Very Slow"] .. " (2 FPS)",
-        "slow:" .. T["Slow"] .. " (5 FPS)",
-        "normal:" .. T["Normal"] .. " (10 FPS)",
-        "fast:" .. T["Fast"] .. " (20 FPS)",
-        "very_fast:" .. T["Very Fast"] .. " (30 FPS)",
-        "fastest:" .. T["Fastest"] .. " (50 FPS)",
+        "very_slow:" .. T["Very Slow"] .. " " .. string.format(T["(%d FPS)"], 2),
+        "slow:" .. T["Slow"] .. " " .. string.format(T["(%d FPS)"], 5),
+        "normal:" .. T["Normal"] .. " " .. string.format(T["(%d FPS)"], 10),
+        "fast:" .. T["Fast"] .. " " .. string.format(T["(%d FPS)"], 20),
+        "very_fast:" .. T["Very Fast"] .. " " .. string.format(T["(%d FPS)"], 30),
+        "fastest:" .. T["Fastest"] .. " " .. string.format(T["(%d FPS)"], 50),
         "custom:" .. T["Custom"],
       })
       
@@ -1802,7 +1802,7 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Combopoint Width"], C.unitframes, "combowidth")
       CreateConfig(nil, T["Combopoint Height"], C.unitframes, "comboheight")
       CreateConfig(nil, T["Show Resting"], C.unitframes.player, "showRest", "checkbox")
-      CreateConfig(nil, T["Raid Mark Icon Style"], C.unitframes, "blizzard_raidicons", "dropdown", function() return {"1:Original Blizzard", "0:pfUI Design"} end)
+      CreateConfig(nil, T["Raid Mark Icon Style"], C.unitframes, "blizzard_raidicons", "dropdown", function() return {"1:" .. T["Original Blizzard"], "0:" .. T["pfUI Design"]} end)
 
       CreateConfig(nil, T["Swing Timer"], nil, nil, "header")
       CreateConfig(nil, T["Swing Timer Width"], C.unitframes, "swingtimerwidth")
@@ -1821,23 +1821,23 @@ pfUI:RegisterModule("gui", function ()
       CreateConfig(nil, T["Show On Next Attack Queue Color"], C.unitframes, "swingtimerhsqueue", "checkbox")
       CreateConfig(nil, T["Show Attack Speed"], C.unitframes, "swingtimerattackspeed", "checkbox")
 
-      CreateConfig(nil, "Mark Tracking", nil, nil, "header")
-      CreateConfig(nil, "Raid Marker Width", C.unitframes, "raidmarkerwidth")
-      CreateConfig(nil, "Raid Marker Height", C.unitframes, "raidmarkerheight")
-      CreateConfig(nil, "Raid Marker Grow", C.unitframes, "raidmarkergrow", "dropdown", pfUI.gui.dropdowns.raidmarker_grow)
-      CreateConfig(nil, "Raid Marker Texture", C.unitframes, "raidmarkertexture", "dropdown", pfUI.gui.dropdowns.uf_bartexture)
-      CreateConfig(nil, "Raid Marker Font Size", C.unitframes, "raidmarkerfontsize")
-      CreateConfig(nil, "Show Name", C.unitframes, "raidmarkershowname", "checkbox")
-      CreateConfig(nil, "Show Percent HP", C.unitframes, "raidmarkershowpct", "checkbox")
-      CreateConfig(nil, "Show Portrait", C.unitframes, "raidmarkershowportrait", "checkbox")
-      CreateConfig(nil, "Star Color", C.unitframes, "raidmarkercolor_star", "color")
-      CreateConfig(nil, "Circle Color", C.unitframes, "raidmarkercolor_circle", "color")
-      CreateConfig(nil, "Diamond Color", C.unitframes, "raidmarkercolor_diamond", "color")
-      CreateConfig(nil, "Triangle Color", C.unitframes, "raidmarkercolor_triangle", "color")
-      CreateConfig(nil, "Moon Color", C.unitframes, "raidmarkercolor_moon", "color")
-      CreateConfig(nil, "Square Color", C.unitframes, "raidmarkercolor_square", "color")
-      CreateConfig(nil, "Cross Color", C.unitframes, "raidmarkercolor_cross", "color")
-      CreateConfig(nil, "Skull Color", C.unitframes, "raidmarkercolor_skull", "color")
+      CreateConfig(nil, T["Mark Tracking"], nil, nil, "header")
+      CreateConfig(nil, T["Raid Marker Width"], C.unitframes, "raidmarkerwidth")
+      CreateConfig(nil, T["Raid Marker Height"], C.unitframes, "raidmarkerheight")
+      CreateConfig(nil, T["Raid Marker Grow"], C.unitframes, "raidmarkergrow", "dropdown", pfUI.gui.dropdowns.raidmarker_grow)
+      CreateConfig(nil, T["Raid Marker Texture"], C.unitframes, "raidmarkertexture", "dropdown", pfUI.gui.dropdowns.uf_bartexture)
+      CreateConfig(nil, T["Raid Marker Font Size"], C.unitframes, "raidmarkerfontsize")
+      CreateConfig(nil, T["Show Name"], C.unitframes, "raidmarkershowname", "checkbox")
+      CreateConfig(nil, T["Show Percent HP"], C.unitframes, "raidmarkershowpct", "checkbox")
+      CreateConfig(nil, T["Show Portrait"], C.unitframes, "raidmarkershowportrait", "checkbox")
+      CreateConfig(nil, T["Star Color"], C.unitframes, "raidmarkercolor_star", "color")
+      CreateConfig(nil, T["Circle Color"], C.unitframes, "raidmarkercolor_circle", "color")
+      CreateConfig(nil, T["Diamond Color"], C.unitframes, "raidmarkercolor_diamond", "color")
+      CreateConfig(nil, T["Triangle Color"], C.unitframes, "raidmarkercolor_triangle", "color")
+      CreateConfig(nil, T["Moon Color"], C.unitframes, "raidmarkercolor_moon", "color")
+      CreateConfig(nil, T["Square Color"], C.unitframes, "raidmarkercolor_square", "color")
+      CreateConfig(nil, T["Cross Color"], C.unitframes, "raidmarkercolor_cross", "color")
+      CreateConfig(nil, T["Skull Color"], C.unitframes, "raidmarkercolor_skull", "color")
 
       CreateConfig(U[c], T["Font Options"], nil, nil, "header")
       CreateConfig(nil, T["Unit Frame Text Font"], C.global, "font_unit", "dropdown", pfUI.gui.dropdowns.fonts)
@@ -2056,7 +2056,7 @@ pfUI:RegisterModule("gui", function ()
           CreateConfig(nil, T["Enable Energy Ticks"], C.unitframes[c], "energy", "checkbox")
           CreateConfig(nil, T["Enable Mana Ticks"], C.unitframes[c], "manatick", "checkbox")
           CreateConfig(nil, T["Show Five Second Rule"], C.unitframes[c], "showfsr", "checkbox")
-          CreateConfig(nil, T["Five Second Rule Style"], C.unitframes[c], "fsrstyle", "dropdown", function() return {"0:Separate Bar", "1:Overlay"} end)
+          CreateConfig(nil, T["Five Second Rule Style"], C.unitframes[c], "fsrstyle", "dropdown", function() return {"0:" .. T["Separate Bar"], "1:" .. T["Overlay"]} end)
           CreateConfig(nil, T["Five Second Rule Height"], C.unitframes[c], "fsrheight")
         end
 
@@ -2443,7 +2443,7 @@ pfUI:RegisterModule("gui", function ()
         CreateConfig(layout_ufunc, T["Layout"], C.bars["bar"..id], "formfactor", "dropdown", formfactors)
         uneven_frame = CreateConfig(U["bars"], T["Layout Uneven Orientation"], C.bars["bar"..id], "uneven", "dropdown", uneven_options)
         CreateConfig(U["bars"], T["Fill Order"], C.bars["bar"..id], "fillmode", "dropdown", function()
-          return {"auto:Auto", "row:Row-first (1,2,3 / 4,5,6)", "col:Column-first (1,3,5 / 2,4,6)"}
+          return {"auto:" .. T["Auto"], "row:" .. T["Row-first (1,2,3 / 4,5,6)"], "col:" .. T["Column-first (1,3,5 / 2,4,6)"]}
         end)
         CreateConfig(U["bars"], T["Bar Background"], C.bars["bar"..id], "background", "checkbox")
         CreateConfig(U["bars"], T["Show Hotkey Text"], C.bars["bar"..id], "showkeybind", "checkbox")

@@ -147,7 +147,7 @@ pfUI:RegisterModule("firstrun", function ()
     f.Modern:SetSize(120, 20)
     f.Modern:SetPoint("BOTTOM", -65, 100)
     f.Modern:SetTextColor(1,1,1)
-    f.Modern:SetText("Modern")
+    f.Modern:SetText(T["Modern"])
     f.Modern:SetScript("OnClick", function() LoadProfile("Modern") end)
     SkinButton(f.Modern)
 
@@ -155,7 +155,7 @@ pfUI:RegisterModule("firstrun", function ()
     f.Nostalgia:SetSize(120, 20)
     f.Nostalgia:SetPoint("BOTTOM", 65, 100)
     f.Nostalgia:SetTextColor(1,1,1)
-    f.Nostalgia:SetText("Nostalgia")
+    f.Nostalgia:SetText(T["Nostalgia"])
     f.Nostalgia:SetScript("OnClick", function() LoadProfile("Nostalgia") end)
     SkinButton(f.Nostalgia)
 
@@ -163,7 +163,7 @@ pfUI:RegisterModule("firstrun", function ()
     f.Legacy:SetSize(120, 20)
     f.Legacy:SetPoint("BOTTOM", 65, 75)
     f.Legacy:SetTextColor(1,1,1)
-    f.Legacy:SetText("Legacy")
+    f.Legacy:SetText(T["Legacy"])
     f.Legacy:SetScript("OnClick", function() LoadProfile("Legacy") end)
     SkinButton(f.Legacy)
 
@@ -171,7 +171,7 @@ pfUI:RegisterModule("firstrun", function ()
     f.Slim:SetSize(120, 20)
     f.Slim:SetPoint("BOTTOM", -65, 75)
     f.Slim:SetTextColor(1,1,1)
-    f.Slim:SetText("Slim")
+    f.Slim:SetText(T["Slim"])
     f.Slim:SetScript("OnClick", function() LoadProfile("Slim") end)
     SkinButton(f.Slim)
 
@@ -245,7 +245,7 @@ pfUI:RegisterModule("firstrun", function ()
     SkinCheckbox(f.checkbox, 18)
 
     f.NextScript = function()
-      if not pfUI.chat then message("Couldn't apply settings. Chat module is disabled.") return end
+      if not pfUI.chat then message(T["Couldn't apply settings. Chat module is disabled."]) return end
       pfUI.chat.SetupRightChat(f.checkbox:GetChecked())
     end
 
@@ -265,7 +265,7 @@ pfUI:RegisterModule("firstrun", function ()
     SkinCheckbox(f.checkbox, 18)
 
     f.NextScript = function()
-      if not pfUI.chat then message("Couldn't apply settings. Chat module is disabled.") return end
+      if not pfUI.chat then message(T["Couldn't apply settings. Chat module is disabled."]) return end
       if f.checkbox:GetChecked() then
         pfUI.chat.SetupPositions()
       end
@@ -287,7 +287,7 @@ pfUI:RegisterModule("firstrun", function ()
     SkinCheckbox(f.checkbox, 18)
 
     f.NextScript = function()
-      if not pfUI.chat then message("Couldn't apply settings. Chat module is disabled.") return end
+      if not pfUI.chat then message(T["Couldn't apply settings. Chat module is disabled."]) return end
       if f.checkbox:GetChecked() then
         pfUI.chat.SetupChannels()
       end
