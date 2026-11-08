@@ -931,7 +931,7 @@ pfUI:RegisterModule("gui", function ()
         "16:" .. T["Very Slow"],
       },
       ["uf_rangecheck_mode"] = {
-        "vanilla:" .. T["ClassicAPI (UnitInRange)"],
+        "vanilla:ClassicAPI (UnitInRange)",
         "unitxp:" .. T["UnitXP (Precise)"],
       },
       ["uf_raidlayout"] = {
@@ -1036,8 +1036,8 @@ pfUI:RegisterModule("gui", function ()
         "tukui:TukUI"
       },
       ["raidmarker_grow"] = {
-        "down:Down",
-        "up:Up",
+        "down:" .. T["Down"],
+        "up:" .. T["Up"],
       },
       ["uf_color"] = {
         "0:" .. T["Class"],
@@ -2395,14 +2395,14 @@ pfUI:RegisterModule("gui", function ()
         cols, rows = tonumber(cols), tonumber(rows)
 
         if cols == 3 and rows == 3 then
-          return { "Up", "Down", "Left", "Right" }
+          return { "Up:" .. T["Up"], "Down:" .. T["Down"], "Left:" .. T["Left"], "Right:" .. T["Right"] }
         elseif cols and cols <= 3 then
-          return { "Up", "Down" }
+          return { "Up:" .. T["Up"], "Down:" .. T["Down"] }
         elseif rows and rows <= 3 then
-          return { "Left", "Right" }
+          return { "Left:" .. T["Left"], "Right:" .. T["Right"] }
         end
 
-        return { "Up", "Down", "Left", "Right" }
+        return { "Up:" .. T["Up"], "Down:" .. T["Down"], "Left:" .. T["Left"], "Right:" .. T["Right"] }
       end
 
       CreateGUIEntry(T["Actionbar"], caption, function()
