@@ -1485,12 +1485,20 @@ function pfUI.api.GetColorGradient(perc)
 end
 
 -- [ GetNoNameObject ] --
--- 'frame'      [string]       parent frame
--- 'scantype'   [string]       scanning Region or Children
--- 'objtype'    [string]
--- 'layer'      [string]
--- 'arg1'       [string]
+-- Finds the first unnamed region or child of a frame that matches the filters
+-- 'frame'      [frame]        parent frame
+-- 'objtype'    [string]       "Texture", "FontString" or "Button"
+-- 'layer'      [string]       draw layer of a region (optional)
+-- 'arg1'       [string]       substring of the texture path (Texture, Button)
+--                             or the text (FontString) (optional)
+-- 'arg2'       [string]       substring of a button's text (optional)
 -- return object
+
+-- a missing value or filter counts as a match
+local function Matches(value, needle)
+  return not needle or not value or value:find(needle, 1, true)
+end
+
 function pfUI.api.GetNoNameObject(frame, objtype, layer, arg1, arg2)
   -- A nil/non-frame parent otherwise dies on frame:GetRegions()/:GetChildren()
   -- below, where the message would name this line, shared by every caller;
@@ -1499,46 +1507,19 @@ function pfUI.api.GetNoNameObject(frame, objtype, layer, arg1, arg2)
     error("GetNoNameObject: invalid parent frame", 2)
   end
 
-  local arg1 = arg1 and gsub(arg1, "([%+%-%*%(%)%?%[%]%^])", "%%%1")
-  local arg2 = arg2 and gsub(arg2, "([%+%-%*%(%)%?%[%]%^])", "%%%1")
-
-  local objects
-  if objtype == "Texture" or objtype == "FontString" then
-    objects = {frame:GetRegions()}
-  else
-    objects = {frame:GetChildren()}
-  end
+  local isRegion = objtype == "Texture" or objtype == "FontString"
+  local objects = isRegion and { frame:GetRegions() } or { frame:GetChildren() }
 
   for _, object in ipairs(objects) do
-    local check = true
-    if object:GetObjectType() ~= objtype or (layer and object:GetDrawLayer() ~= layer) then check = false end
-
-    if check then
-      if objtype == "Texture" and object.SetTexture and object:GetTexture() ~= "Interface\\BUTTONS\\WHITE8X8" then
-        if arg1 then
-          local texture = object:GetTexture()
-          if texture and not string.find(texture, arg1, 1) then check = false end
-        end
-
-        if check then return object end
-      elseif objtype == "FontString" and object.SetText then
-        if arg1 then
-          local text = object:GetText()
-          if text and not string.find(text, arg1, 1) then check = false end
-        end
-
-        if check then return object end
-      elseif objtype == "Button" and object.GetNormalTexture and object:GetNormalTexture() then
-        if arg1 then
-          local texture = object:GetNormalTexture():GetTexture()
-          if texture and not string.find(texture, arg1, 1) then check = false end
-        end
-        if arg2 then
-          local text = object:GetText()
-          if text and not string.find(text, arg2, 1) then check = false end
-        end
-
-        if check then return object end
+    if object:GetObjectType() == objtype and (not layer or object:GetDrawLayer() == layer) then
+      if objtype == "Texture" then
+        local texture = object:GetTexture()
+        if texture ~= "Interface\\BUTTONS\\WHITE8X8" and Matches(texture, arg1) then return object end
+      elseif objtype == "FontString" then
+        if Matches(object:GetText(), arg1) then return object end
+      elseif objtype == "Button" then
+        local normal = object:GetNormalTexture()
+        if normal and Matches(normal:GetTexture(), arg1) and Matches(object:GetText(), arg2) then return object end
       end
     end
   end

@@ -20,17 +20,6 @@ if pfUI.api.libunitscan then return end
 
 local players = {}
 
--- Feed a unit into ClassicAPI's persistent name cache. Roster-style packets
--- (party / raid / inspect on glance) carry class inline, so the engine often
--- doesn't issue a separate name query and the DLL's NameCache hook never
--- fires for them — this is where we close that gap.
-local function RememberByUnit(unit)
-  local guid = UnitGUID(unit)
-  if not guid then return end
-  local _, race = UnitRace(unit)
-  C_PlayerCache.RememberPlayer(guid, UnitName(unit), UnitClassBase(unit), race, UnitSex(unit) - 2)
-end
-
 function GetPlayerLevel(name)
   local entry = players[name]
   return entry and entry.level
@@ -66,7 +55,6 @@ libunitscan:SetScript("OnEvent", function()
 
     -- update own character details
     AddLevel(UnitName("player"), UnitLevel("player"))
-    RememberByUnit("player")
 
   elseif event == "FRIENDLIST_UPDATE" then
     for i = 1, GetNumFriends() do
@@ -88,15 +76,11 @@ libunitscan:SetScript("OnEvent", function()
     for i = 1, GetNumRaidMembers() do
       name, _, _, level = GetRaidRosterInfo(i)
       AddLevel(name, level)
-      RememberByUnit("raid" .. i)
     end
 
   elseif event == "PARTY_MEMBERS_CHANGED" then
-    local unit
     for i = 1, GetNumPartyMembers() do
-      unit = "party" .. i
-      AddLevel(UnitName(unit), UnitLevel(unit))
-      RememberByUnit(unit)
+      AddLevel(UnitName("party" .. i), UnitLevel("party" .. i))
     end
 
   elseif event == "WHO_LIST_UPDATE" or event == "CHAT_MSG_SYSTEM" then
@@ -113,7 +97,6 @@ libunitscan:SetScript("OnEvent", function()
               or "mouseover"
     if UnitIsPlayer(scan) then
       AddLevel(UnitName(scan), UnitLevel(scan))
-      RememberByUnit(scan)
     end
   end
 end)
