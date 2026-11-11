@@ -1,5 +1,5 @@
 pfUI_translation["enUS"] = {
-  ["%.1f yd"] = nil,
+  [" yd"] = nil,
   ["%d items, %d ignored"] = nil,
   ["(%.0f KB) %s"] = nil,
   ["(%.2f MB) %s"] = nil,

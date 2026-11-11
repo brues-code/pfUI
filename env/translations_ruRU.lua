@@ -1,5 +1,5 @@
 pfUI_translation["ruRU"] = {
-  ["%.1f yd"] = "%.1f ярд",
+  [" yd"] = " ярд",
   ["%d items, %d ignored"] = "%d предм., %d проигнор.",
   ["(%.0f KB) %s"] = "(%.0f КБ) %s",
   ["(%.2f MB) %s"] = "(%.2f МБ) %s",
@@ -495,7 +495,7 @@ pfUI_translation["ruRU"] = {
   ["Hide Healthbar On Totems"] = "Скрывать панель здоровья тотемов",
   ["Hide Numbers On Spell Cooldowns Up To (Seconds)"] = "Скрывать цифры восстановления короче (сек.)",
   ["Hide Timeout"] = "Время до скрытия",
-  ["Hide When Entering Combat"] = "Скрыть при вхождении в режим боя",
+  ["Hide When Entering Combat"] = "Скрывать при входе в режим боя",
   ["Hide yd characters"] = "Скрывать обозначение ярдов",
   ["Highlight Equipped Items"] = "Подсвечивать экипированные предметы",
   ["Highlight Not Usable Spells"] = "Подсвечивать недоступные заклинания",

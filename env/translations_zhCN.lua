@@ -1,5 +1,5 @@
 pfUI_translation["zhCN"] = {
-  ["%.1f yd"] = nil,
+  [" yd"] = nil,
   ["%d items, %d ignored"] = nil,
   ["(%.0f KB) %s"] = nil,
   ["(%.2f MB) %s"] = nil,
@@ -356,7 +356,7 @@ pfUI_translation["zhCN"] = {
   ["Enable Indicators"] = "启用指示器",
   ["Enable Item Quality Color For Equipment Only"] = "仅在装备上显示品质颜色",
   ["Enable \"Loot & Spam\" Chat Window"] = "启用[拾取、综合]聊天窗口",
-  ["Enable \"Loot & Spam\" Window"] = "启用\拾取&刷屏\窗口",
+  ["Enable \"Loot & Spam\" Window"] = "启用[拾取&刷屏]窗口",
   ["Enable Loot Window On MouseCursor"] = "拾取窗口跟随鼠标",
   ["Enable Low Health Glow Effects On Screen Edges"] = "全屏显示低血量报警",
   ["Enable Mana Ticks"] = "显示法力值刻度",
