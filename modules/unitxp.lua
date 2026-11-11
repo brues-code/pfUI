@@ -16,7 +16,7 @@ pfUI:RegisterModule("unitxp", function ()
     local h = pfUI.uf.target:GetHeight() or 30
     local slot = h / 3  -- divide frame into thirds
     local fontSize = tonumber(C.unitframes.indicator_font_size) or (C.global.font_size + 2)
-    local suffix = (C.unitframes.hide_distance_yd == "1") and "" or " yd"
+    local suffix = (C.unitframes.hide_distance_yd == "1") and "" or T[" yd"]
 
     -- Behind Indicator for all units (MIDDLE)
     if C.unitframes.behind_indicator == "1" and not pfUI.uf.target.behindIndicator then
