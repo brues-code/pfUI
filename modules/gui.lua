@@ -1731,66 +1731,6 @@ pfUI:RegisterModule("gui", function ()
         Reload()
       end, true)
     end)
-    CreateGUIEntry(T["Throttling"], T["Chat Tab"], function()
-      local chatCustom
-      
-      CreateConfig(function()
-        if chatCustom and chatCustom.input then
-          local isCustom = pfUI.throttle:IsCustom("chat_tab")
-          if not isCustom then
-            chatCustom.input:EnableMouse(false)
-            chatCustom.input:EnableKeyboard(false)
-            chatCustom.input:ClearFocus()
-            chatCustom.input:SetTextColor(.5,.5,.5,1)
-            chatCustom.input:SetText(tostring(pfUI.throttle:GetFps("chat_tab")))
-          else
-            chatCustom.input:EnableMouse(true)
-            chatCustom.input:EnableKeyboard(true)
-            chatCustom.input:SetTextColor(.2,1,.8,1)
-            if _G.pfUI_throttle.chat_tab_custom then
-              chatCustom.input:SetText(_G.pfUI_throttle.chat_tab_custom)
-            end
-          end
-        end
-      end, T["Chat Tab Hover Check"], _G.pfUI_throttle, "chat_tab", "dropdown", {
-        "very_slow:" .. T["Very Slow"] .. " (2 FPS)",
-        "slow:" .. T["Slow"] .. " (5 FPS)",
-        "normal:" .. T["Normal"] .. " (10 FPS)",
-        "fast:" .. T["Fast"] .. " (20 FPS)",
-        "very_fast:" .. T["Very Fast"] .. " (30 FPS)",
-        "fastest:" .. T["Fastest"] .. " (50 FPS)",
-        "custom:" .. T["Custom"],
-      })
-      
-      chatCustom = CreateConfig(nil, T["Custom FPS"], _G.pfUI_throttle, "chat_tab_custom")
-      
-      local isCustom = pfUI.throttle:IsCustom("chat_tab")
-      if not isCustom then
-        chatCustom.input:EnableMouse(false)
-        chatCustom.input:EnableKeyboard(false)
-        chatCustom.input:SetTextColor(.5,.5,.5,1)
-        chatCustom.input:SetText(tostring(pfUI.throttle:GetFps("chat_tab")))
-      else
-        chatCustom.input:EnableMouse(true)
-        chatCustom.input:EnableKeyboard(true)
-        chatCustom.input:SetTextColor(.2,1,.8,1)
-        if _G.pfUI_throttle.chat_tab_custom then
-          chatCustom.input:SetText(_G.pfUI_throttle.chat_tab_custom)
-        end
-      end
-      
-      -- Spacer before reset button
-      local spacer = CreateConfig(nil, " ", nil, nil, "header")
-      spacer:GetParent().objectCount = spacer:GetParent().objectCount - 1
-      spacer:SetHeight(10)
-      
-      -- Reset to defaults button
-      CreateConfig(nil, T["Reset to Defaults"], nil, nil, "button", function()
-        pfUI.throttle:ResetToDefault("chat_tab")
-        _G.pfUI_throttle.chat_tab_custom = "10"
-        Reload()
-      end, true)
-    end)
 
     CreateGUIEntry(T["Unit Frames"], T["General"], function()
       CreateConfig(nil, T["Disable pfUI Unit Frames"], C.unitframes, "disable", "checkbox")

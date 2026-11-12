@@ -418,9 +418,6 @@ pfUI:RegisterModule("chat", function ()
   if C.chat.global.tabmouse == "1" then
     pfUI.chat.mouseovertab = CreateFrame("Frame")
     pfUI.chat.mouseovertab:SetScript("OnUpdate", function()
-      -- throttle
-      if ( this.tick or .1) > GetTime() then return else this.tick = GetTime() + pfUI.throttle:Get("chat_tab") end  -- Default: Normal (10 FPS)
-
       if pfUI.chat.hideLock then return end
 
       -- the dock lays the tabs out again only when their bar comes back

@@ -32,7 +32,6 @@ libthrottle.presetNames = {
 -- Default throttle categories
 libthrottle.defaults = {
   tooltip_cursor       = "fastest",
-  chat_tab             = "custom",
 }
 
 -- Convert FPS to throttle delay in seconds
@@ -153,7 +152,6 @@ EventUtil.RegisterOnceFrameEventAndCallback("PLAYER_ENTERING_WORLD", function()
     
     -- Set defaults for custom fields if missing
     if not _G.pfUI_throttle.tooltip_cursor_custom then _G.pfUI_throttle.tooltip_cursor_custom = "10" end
-    if not _G.pfUI_throttle.chat_tab_custom then _G.pfUI_throttle.chat_tab_custom = "10" end
 end)
 
 -- Export to pfUI namespace for easier access
