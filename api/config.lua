@@ -817,8 +817,6 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("tooltip",     nil,          "font_tooltip_size", "12")
   pfUI:UpdateConfig("tooltip",     nil,          "aura_timers",      "text")
 
-  -- Throttle Settings
-
   pfUI:UpdateConfig("chat",       "text",        "input_width",      "0")
   pfUI:UpdateConfig("chat",       "text",        "input_height",     "0")
   pfUI:UpdateConfig("chat",       "text",        "outline",          "1")

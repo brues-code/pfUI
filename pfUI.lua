@@ -27,7 +27,6 @@ pfUI_init = pfUI_init or {}
 pfUI_profiles = pfUI_profiles or {}
 pfUI_addon_profiles = pfUI_addon_profiles or {}
 pfUI_cache = pfUI_cache or {}
-pfUI_throttle = pfUI_throttle or {}
 
 -- localization
 pfUI_locale = {}

@@ -45,12 +45,7 @@ pfUI:RegisterModule("tooltip", function ()
         end
       end
 
-      follower:SetScript("OnUpdate", function()
-        -- throttle - cursor following doesn't need to be every frame
-        if (this.tick or 0) > GetTime() then return end
-        this.tick = GetTime() + (pfUI.throttle and pfUI.throttle:Get("tooltip_cursor") or 0.1)
-        Reposition()
-      end)
+      follower:SetScript("OnUpdate", Reposition)
 
       -- stop polling as soon as the tooltip is gone
       pfUI.tooltip:SetScript("OnHide", function() follower:Hide() end)
