@@ -84,24 +84,53 @@ local function resolveNameFromGuid(guid)
   return nil
 end
 
--- Register with libdebuff hooks
+-- Group members by name: [name] = { unit = token, subgroup = n }. Outside a
+-- raid the whole party is subgroup 1.
+local roster = {}
+local PARTY_UNITS = { "player", "party1", "party2", "party3", "party4" }
+
+local function rosterAdd(name, unit, subgroup)
+  if not name then return end
+  roster[name] = { unit = unit, subgroup = subgroup }
+  local guid = UnitGUID(unit)
+  if guid then guidNameCache[guid] = name end
+end
+
+-- Rebuild the roster and cache every member's name while still reachable
 local function cacheRaidNames()
-  -- Cache all raid/party members while they are still reachable
-  for i = 1, GetNumRaidMembers() do
-    local unit = "raid" .. i
-    local guid = UnitGUID(unit)
-    local name = UnitName(unit)
-    if guid and name then guidNameCache[guid] = name end
+  wipe(roster)
+  if IsInRaid() then
+    for i = 1, GetNumRaidMembers() do
+      local name, _, subgroup = GetRaidRosterInfo(i)
+      rosterAdd(name, "raid" .. i, subgroup)
+    end
+  else
+    for _, unit in ipairs(PARTY_UNITS) do
+      rosterAdd(UnitName(unit), unit, 1)
+    end
   end
-  for i = 1, GetNumPartyMembers() do
-    local unit = "party" .. i
-    local guid = UnitGUID(unit)
-    local name = UnitName(unit)
-    if guid and name then guidNameCache[guid] = name end
+end
+
+-- Turtle's Prayer of Healing (target type TARGET_UNIT_FRIEND_AND_PARTY, radius
+-- 30) heals the subgroup of the player it is cast at, counting only members
+-- within 30 yards of that player. A self-cast, or a cast at someone outside our
+-- group, centers on the caster. Returns the names it will heal.
+local POH_RADIUS_SQ = 30 * 30
+local function PrayerOfHealingTargets(target, caster)
+  local center = roster[target] or roster[caster]
+  local names = {}
+  if not center then return names end
+  local cy, cx, cz = UnitPosition(center.unit)
+  if not cy then return names end
+  for name, member in pairs(roster) do
+    if member.subgroup == center.subgroup and not UnitIsDeadOrGhost(member.unit) then
+      local y, x, z = UnitPosition(member.unit)
+      if y and Vector3D_GetLengthSquared(Vector3D_Subtract(y, x, z, cy, cx, cz)) <= POH_RADIUS_SQ then
+        table.insert(names, name)
+      end
+    end
   end
-  -- player self
-  local pguid = UnitGUID("player")
-  if pguid then guidNameCache[pguid] = UnitName("player") end
+  return names
 end
 
 -- Build cache on world enter
@@ -147,50 +176,12 @@ local function OnOwnCastStart(spellId, castGUID)
     local casttime = castTime
 
     if spellName == PRAYER_OF_HEALING then
-      -- target is already correctly set from spell_queue[3]:
-      -- selfcast (ALT) = player, otherwise = current target
-      -- Use this to find the correct group to heal
-      local pohTarget = target or player
-      if IsInRaid() then
-        -- Raid: find pohTarget's subgroup and heal only those members
-        -- (Turtle WoW changed PoH to heal the target's group, not the caster's group)
-        local targetGroup
-        for i = 1, GetNumRaidMembers() do
-          local name, _, subgroup = GetRaidRosterInfo(i)
-          if name == pohTarget then targetGroup = subgroup break end
-        end
-        -- Fallback to caster's own group if target not in raid
-        if not targetGroup then
-          for i = 1, GetNumRaidMembers() do
-            local name, _, subgroup = GetRaidRosterInfo(i)
-            if name == player then targetGroup = subgroup break end
-          end
-        end
-        if targetGroup then
-          for i = 1, GetNumRaidMembers() do
-            local name, _, subgroup = GetRaidRosterInfo(i)
-            if subgroup == targetGroup then
-              libpredict:Heal(player, name, amount, casttime)
-              libpredict.sender:SendHealCommMsg("Heal/" .. name .. "/" .. amount .. "/" .. casttime .. "/")
-              libpredict.sender.healing = true
-            end
-          end
-        end
-      else
-        -- Party: heal all party members including self
-        libpredict:Heal(player, player, amount, casttime)
-        libpredict.sender:SendHealCommMsg("Heal/" .. player .. "/" .. amount .. "/" .. casttime .. "/")
+      for _, name in ipairs(PrayerOfHealingTargets(target, player)) do
+        libpredict:Heal(player, name, amount, casttime)
+        libpredict.sender:SendHealCommMsg("Heal/" .. name .. "/" .. amount .. "/" .. casttime .. "/")
         libpredict.sender.healing = true
-        for i = 1, 4 do
-          if CheckInteractDistance("party"..i, 4) then
-            local pname = UnitName("party"..i)
-            libpredict:Heal(player, pname, amount, casttime)
-            libpredict.sender:SendHealCommMsg("Heal/" .. pname .. "/" .. amount .. "/" .. casttime .. "/")
-            libpredict.sender.healing = true
-          end
-        end
       end
-      return  -- skip the generic Heal call below
+      return
     end
 
     libpredict:Heal(player, target, amount, casttime)
@@ -249,8 +240,8 @@ local function OnOtherCastStart(unit, spellId)
   local casterName = resolveNameFromGuid(casterGuid)
   if not casterName then return end
 
-  local targetName = UnitSpellTargetName(unit)
-  if not targetName then return end
+  -- A self-cast carries no unit target; the server then heals the caster
+  local targetName = UnitSpellTargetName(unit) or casterName
 
   -- Heal cast: look up cached amount from a previous cast by this healer
   local _, _, _, startMs, endMs = C_Spell.UnitCastingInfo(unit)
@@ -263,37 +254,9 @@ local function OnOtherCastStart(unit, spellId)
   local amount = foreignCache[casterName] and foreignCache[casterName][spellKey]
   if not amount then return end  -- no data yet, skip until we have a real value
 
-  -- Prayer of Healing: heal entire subgroup of the target
   if spellName == PRAYER_OF_HEALING then
-    if IsInRaid() then
-      local targetGroup
-      for i = 1, GetNumRaidMembers() do
-        local rname, _, subgroup = GetRaidRosterInfo(i)
-        if rname == targetName then targetGroup = subgroup break end
-      end
-      if not targetGroup then
-        for i = 1, GetNumRaidMembers() do
-          local rname, _, subgroup = GetRaidRosterInfo(i)
-          if rname == casterName then targetGroup = subgroup break end
-        end
-      end
-      if targetGroup then
-        for i = 1, GetNumRaidMembers() do
-          local rname, _, subgroup = GetRaidRosterInfo(i)
-          if subgroup == targetGroup then
-            libpredict:Heal(casterName, rname, amount, castTime, casterGuid)
-          end
-        end
-      end
-    else
-      -- Party: heal self + all members
-      libpredict:Heal(casterName, casterName, amount, castTime, casterGuid)
-      for i = 1, 4 do
-        local pname = UnitName("party" .. i)
-        if pname then
-          libpredict:Heal(casterName, pname, amount, castTime, casterGuid)
-        end
-      end
+    for _, name in ipairs(PrayerOfHealingTargets(targetName, casterName)) do
+      libpredict:Heal(casterName, name, amount, castTime, casterGuid)
     end
     return
   end
