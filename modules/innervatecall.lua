@@ -62,7 +62,7 @@ pfUI:RegisterModule("innervatecall", function ()
     local channel = GetAnnounceChannel()
     if not channel then return end -- solo, no announcement
 
-    SendChatMessage(format(T[">> Innervate cast on %s <<"], destName or T["Unknown"]), channel)
+    SendChatMessage(format(T[">> Innervate cast on %s <<"], destName or UNKNOWN), channel)
 
     pending = true
     ScheduleReady()

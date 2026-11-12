@@ -23,10 +23,10 @@ pfUI:RegisterModule("unlock", function ()
   local frame_configs = {
     -- unitframes
     ["Player"]             = { T["Unit Frames"], T["Player"] },
-    ["Target"]             = { T["Unit Frames"], T["Target"] },
+    ["Target"]             = { T["Unit Frames"], TARGET },
     ["TargetTarget"]       = { T["Unit Frames"], T["Target-Target"] },
     ["TargetTargetTarget"] = { T["Unit Frames"], T["Target-Target-Target"] },
-    ["Pet"]                = { T["Unit Frames"], T["Pet"] },
+    ["Pet"]                = { T["Unit Frames"], PET },
     ["PetTarget"]          = { T["Unit Frames"], T["Pet-Target"] },
     ["Focus"]              = { T["Unit Frames"], T["Focus"] },
 
@@ -34,21 +34,21 @@ pfUI:RegisterModule("unlock", function ()
     ["Combo%d"]       = { T["Unit Frames"], T["General"] },
 
     -- groupframes
-    ["Raid%d"]        = { T["Group Frames"], T["Raid"] },
-    ["Raid%d%d"]      = { T["Group Frames"], T["Raid"] },
+    ["Raid%d"]        = { T["Group Frames"], RAID },
+    ["Raid%d%d"]      = { T["Group Frames"], RAID },
     ["RaidPet%d"]     = { T["Group Frames"], T["Raid-Pet"] },
     ["RaidPet%d%d"]   = { T["Group Frames"], T["Raid-Pet"] },
-    ["Group%d"]       = { T["Group Frames"], T["Group"] },
+    ["Group%d"]       = { T["Group Frames"], GROUP },
     ["Party%dTarget"] = { T["Group Frames"], T["Group-Target"] },
     ["PartyPet%d"]    = { T["Group Frames"], T["Group-Pet"] },
 
     -- chat
-    ["ChatLeft"]      = { T["Chat"], nil },
-    ["ChatRight"]     = { T["Chat"], nil },
-    ["ChatInputBox"]  = { T["Chat"], nil },
+    ["ChatLeft"]      = { CHAT_LABEL, nil },
+    ["ChatRight"]     = { CHAT_LABEL, nil },
+    ["ChatInputBox"]  = { CHAT_LABEL, nil },
 
     -- loot
-    ["LootRollFrame%d"] = { T["Loot"], nil },
+    ["LootRollFrame%d"] = { LOOT, nil },
 
     -- panel
     ["PanelLeft"]        = { T["Panel"], T["General"] },
@@ -76,8 +76,8 @@ pfUI:RegisterModule("unlock", function ()
     ["FocusCastbar"]   = { T["Castbar"], nil },
 
     -- minimap
-    ["Minimap"]        = { T["Minimap"], T["Minimap"] },
-    ["UITracking"]     = { T["Minimap"], T["Minimap"] },
+    ["Minimap"]        = { MINIMAP_LABEL, MINIMAP_LABEL },
+    ["UITracking"]     = { MINIMAP_LABEL, MINIMAP_LABEL },
 
     -- buffs
     ["BuffFrame"]      = { T["Buffs"], T["Buff/Debuff Icons"] },
@@ -230,7 +230,7 @@ pfUI:RegisterModule("unlock", function ()
     if pfUI_config["position"] and pfUI_config["position"][drag.fname] and pfUI_config["position"][drag.fname]["xpos"] then
       dock.xcoord:SetText(pfUI_config["position"][drag.fname]["xpos"])
       dock.ycoord:SetText(pfUI_config["position"][drag.fname]["ypos"])
-      dock.reset:SetText(T["Reset"])
+      dock.reset:SetText(RESET)
 
       dock.up:Enable()
       dock.down:Enable()
@@ -243,8 +243,8 @@ pfUI:RegisterModule("unlock", function ()
       dock.right.texture:SetVertexColor(1,.8,0)
     else
       dock.reset:SetText(T["Unlock"])
-      dock.xcoord:SetText(T["N/A"])
-      dock.ycoord:SetText(T["N/A"])
+      dock.xcoord:SetText(NOT_APPLICABLE)
+      dock.ycoord:SetText(NOT_APPLICABLE)
 
       dock.up:Disable()
       dock.down:Disable()
@@ -557,7 +557,7 @@ pfUI:RegisterModule("unlock", function ()
   pfUI.unlock.dock.anchor = CreateFrame("DropdownButton", nil, pfUI.unlock.dock, "pfUIDropdownTemplate")
   pfUI.unlock.dock.anchor:SetPoint("TOP", 0, -28)
   pfUI.unlock.dock.anchor:SetWidth(140)
-  pfUI.unlock.dock.anchor:SetDefaultText(T["N/A"])
+  pfUI.unlock.dock.anchor:SetDefaultText(NOT_APPLICABLE)
   CreateBackdrop(pfUI.unlock.dock.anchor, nil, true)
   pfUI.unlock.dock.anchor:SetupMenu(function(dropdown, rootDescription)
     for _, anchor in ipairs(anchors) do
@@ -649,7 +649,7 @@ pfUI:RegisterModule("unlock", function ()
   pfUI.unlock.dock.reset:SetScript("OnClick", function()
     local frame = pfUI.unlock.dock.parent.frame
 
-    if this:GetText() == T["Reset"] then
+    if this:GetText() == RESET then
       pfUI_config["position"][frame:GetName()] = nil
       frame:ClearAllPoints()
       UpdateMovable(frame)

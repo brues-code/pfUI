@@ -257,7 +257,7 @@ pfUI:RegisterModule("share", function ()
           end
         else
           f.readButton:Disable()
-          f.readButton.text:SetText(T["N/A"])
+          f.readButton.text:SetText(NOT_APPLICABLE)
         end
       end, f)
     end
@@ -337,7 +337,7 @@ pfUI:RegisterModule("share", function ()
       f.readButton.text = f.readButton:CreateFontString("Caption", "LOW", "GameFontWhite")
       f.readButton.text:SetAllPoints(f.readButton)
       f.readButton.text:SetFont(pfUI.font_default, pfUI_config.global.font_size, "OUTLINE")
-      f.readButton.text:SetText(T["N/A"])
+      f.readButton.text:SetText(NOT_APPLICABLE)
       f.readButton:SetScript("OnClick", function()
         this.func()
       end)

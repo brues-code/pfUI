@@ -1242,7 +1242,7 @@ pfUI:RegisterModule("equipmentmanager", function()
 
   local INSTANCE_OPTIONS = {
     { value = "party", text = T["Dungeon"] },
-    { value = "raid", text = T["Raid"] },
+    { value = "raid", text = RAID },
     { value = "pvp", text = T["Battleground"] },
     { value = "none", text = T["Open World"] },
   }
@@ -1256,7 +1256,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     { key = "stealth",  text = T["Stealthed"] },
     { key = "form",     text = T["Shapeshift Form / Stance"], value = "list", options = myForms },
     { key = "instance", text = T["Instance Type"], value = "list", options = INSTANCE_OPTIONS },
-    { key = "zone",     text = T["Zone"], value = "text" },
+    { key = "zone",     text = ZONE, value = "text" },
     { key = "boss",     text = T["Targeting A Boss"] },
     { key = "time",     text = T["Time Of Day"], value = "text" },
   }
@@ -1647,7 +1647,7 @@ pfUI:RegisterModule("equipmentmanager", function()
       GameTooltip:SetText(DescribeTrigger(row.trigger), 1, 1, 1)
       local t = row.trigger
       local equip = SetExists(t.setID) and SetName(t.setID) or ("|cffff5555" .. T["No set selected"] .. "|r")
-      GameTooltip:AddDoubleLine(T["Equip"], equip, .7, .7, .7, 1, 1, 1)
+      GameTooltip:AddDoubleLine(EQUIPSET_EQUIP, equip, .7, .7, .7, 1, 1, 1)
       local leave = T["Restore Previous Gear"]
       if t.leave == "none" then leave = T["Do Nothing"]
       elseif type(t.leave) == "number" then leave = SetExists(t.leave) and SetName(t.leave) or "?" end
@@ -1865,7 +1865,7 @@ pfUI:RegisterModule("equipmentmanager", function()
   editValue:SetPoint("TOPLEFT", editor, "TOPRIGHT", -190, EDITOR_ROW_Y[2])
   editValue:SetPoint("BOTTOMRIGHT", editor, "TOPRIGHT", 0, EDITOR_ROW_Y[2] - 20)
 
-  EditorLabel(T["Equip"], 3)
+  EditorLabel(EQUIPSET_EQUIP, 3)
   local ddSet = EditorDropdown(3)
   local IsSet, SetSet = TriggerField("setID")
   ddSet:SetupMenu(function(dropdown, rootDescription)
@@ -1881,7 +1881,7 @@ pfUI:RegisterModule("equipmentmanager", function()
     rootDescription:CreateRadio(T["Restore Previous Gear"], IsLeave, SetLeave, "restore")
     rootDescription:CreateRadio(T["Do Nothing"], IsLeave, SetLeave, "none")
     for _, id in ipairs(GetVisibleSetIDs()) do
-      rootDescription:CreateRadio(T["Equip"] .. " " .. SetName(id), IsLeave, SetLeave, id)
+      rootDescription:CreateRadio(EQUIPSET_EQUIP .. " " .. SetName(id), IsLeave, SetLeave, id)
     end
   end)
 

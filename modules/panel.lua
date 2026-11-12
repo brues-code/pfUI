@@ -93,7 +93,7 @@ pfUI:RegisterModule("panel", function()
           end
 
         elseif event == "PLAYER_ENTERING_WORLD" then
-          pfUI.panel:OutputPanel("combat", T["Combat"] .. ": " .. NOT_APPLICABLE)
+          pfUI.panel:OutputPanel("combat", COMBAT_LABEL .. ": " .. NOT_APPLICABLE)
         end
       end)
       C_Timer.NewTicker(1, function()
@@ -130,13 +130,6 @@ pfUI:RegisterModule("panel", function()
         GameTooltip:AddDoubleLine(T["Memory Usage"], "|cffffffff" .. memmb)
         GameTooltip:AddDoubleLine(T["Next Memory Cleanup"], "|cffffffff" .. gcmb)
         -- AddOn memory usage (see MainMenuBarPerformanceBarFrame_OnEnter in MainMenuBar.lua)
-
-        local ADDON_MEM_KB_ABBR = _G.ADDON_MEM_KB_ABBR or T["(%.0f KB) %s"];
-        local ADDON_MEM_MB_ABBR = _G.ADDON_MEM_MB_ABBR or T["(%.2f MB) %s"];
-        local TOTAL_MEM_KB_ABBR = _G.TOTAL_MEM_KB_ABBR or T["AddOn Memory: %.0f KB"];
-        local TOTAL_MEM_MB_ABBR = _G.TOTAL_MEM_MB_ABBR or T["AddOn Memory: %.2f MB"];
-
-
         UpdateAddOnMemoryUsage()
         local totalMem = 0
         local topAddOns = {}
@@ -202,7 +195,7 @@ pfUI:RegisterModule("panel", function()
           lag = laghex .. lag .. "|r"
         end
 
-        pfUI.panel:OutputPanel("fps", fps .. " " .. T["fps"] .. " & " .. lag .. " " .. T["ms"], widget.Tooltip, widget.Click)
+        pfUI.panel:OutputPanel("fps", fps .. " " .. T["fps"] .. " & " .. lag .. " " .. MILLISECONDS_ABBR, widget.Tooltip, widget.Click)
 
         if owner and GameTooltip:IsOwned(owner) then
           widget.Tooltip(owner)
@@ -303,7 +296,7 @@ pfUI:RegisterModule("panel", function()
         GameTooltip_SetDefaultAnchor(GameTooltip, this)
         GameTooltip:ClearLines()
 
-        GameTooltip:AddLine("|cff555555" .. T["Money"])
+        GameTooltip:AddLine("|cff555555" .. MONEY)
         GameTooltip:AddDoubleLine(T["Login"] .. ":", CreateGoldString(pfUI.panel.initMoney))
         GameTooltip:AddDoubleLine(T["Now"] .. ":", CreateGoldString(GetMoney()))
         GameTooltip:AddDoubleLine("|cffffffff","")
