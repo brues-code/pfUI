@@ -99,6 +99,35 @@ pfUI:RegisterModule("thirdparty", function()
         self.state = nil
       end
     end
+
+    -- Anchors a docked window to the panel: fill it, or take its "LEFT" or
+    -- "RIGHT" half in split mode.
+    function pfUI.thirdparty.meters:Place(frame, half)
+      local panel = pfUI.chat.right
+      frame:ClearAllPoints()
+      if half == "LEFT" then
+        frame:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, 0)
+        frame:SetPoint("BOTTOMRIGHT", panel, "BOTTOM", 0, 0)
+      elseif half == "RIGHT" then
+        frame:SetPoint("TOPLEFT", panel, "TOP", 0, 0)
+        frame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
+      else
+        frame:SetAllPoints(panel)
+      end
+      frame:SetWidth(half and panel:GetWidth() / 2 or panel:GetWidth())
+    end
+
+    -- A meter with several windows docks its second one into the threat slot
+    -- while that window exists. The slot is only claimed when free and only
+    -- released by its owner. Returns whether the slot holds 'data'.
+    function pfUI.thirdparty.meters:SetSecondary(data, present)
+      if present and not self.threat then
+        self.threat = data
+      elseif not present and self.threat == data then
+        self.threat = nil
+      end
+      return self.threat == data
+    end
   end
 
 
@@ -291,31 +320,19 @@ pfUI:RegisterModule("thirdparty", function()
       if UI.RefreshFrame then UI:RefreshFrame(frame) end
     end
 
-    -- Builds a docktable for a window resolved through getframe(). left picks
-    -- the left half in split mode; the primary window uses the right half.
-    local function BuildDock(name, getframe, left)
+    local meters = pfUI.thirdparty.meters
+
+    -- Builds a docktable for a window resolved through getframe(). half is
+    -- the panel half it takes in split mode.
+    local function BuildDock(name, getframe, half)
       return { "greedmeter", "GreedMeter", name,
-        function() -- single: fill the panel
+        function() -- single
           local frame = getframe()
-          if not frame then return end
-          frame:ClearAllPoints()
-          frame:SetAllPoints(pfUI.chat.right)
-          frame:SetWidth(pfUI.chat.right:GetWidth())
-          relayout(frame)
+          if frame then meters:Place(frame) relayout(frame) end
         end,
-        function() -- dual: take one half
+        function() -- dual
           local frame = getframe()
-          if not frame then return end
-          frame:ClearAllPoints()
-          if left then
-            frame:SetPoint("TOPLEFT", pfUI.chat.right, "TOPLEFT", 0, 0)
-            frame:SetPoint("BOTTOMRIGHT", pfUI.chat.right, "BOTTOM", 0, 0)
-          else
-            frame:SetPoint("TOPLEFT", pfUI.chat.right, "TOP", 0, 0)
-            frame:SetPoint("BOTTOMRIGHT", pfUI.chat.right, "BOTTOMRIGHT", 0, 0)
-          end
-          frame:SetWidth(pfUI.chat.right:GetWidth() / 2)
-          relayout(frame)
+          if frame then meters:Place(frame, half) relayout(frame) end
         end,
         function() -- show
           local frame = getframe()
@@ -328,42 +345,146 @@ pfUI:RegisterModule("thirdparty", function()
       }
     end
 
-    local threatdock = BuildDock("GreedMeterFrame2", function() return frameAt(2) end, true)
-    pfUI.thirdparty.meters:RegisterMeter("damage", BuildDock("GreedMeterFrame1", primary, false))
+    local maindock = BuildDock("GreedMeterFrame1", primary, "RIGHT")
+    local threatdock = BuildDock("GreedMeterFrame2", function() return frameAt(2) end, "LEFT")
+    meters:RegisterMeter("damage", maindock)
 
-    -- pfUI's dock decides fill-vs-split by whether the threat slot is filled,
-    -- not by counting windows, so reconcile that slot whenever GreedMeter adds
-    -- or removes one. Only the first two windows fit; any beyond that float.
+    -- Only the first two windows fit; any beyond that float.
     local function SyncSecond()
-      if not pfUI.thirdparty.meters.damage then return end -- dock disabled
-      local has2 = frameAt(2) ~= nil
-      if has2 and not pfUI.thirdparty.meters.threat then
-        pfUI.thirdparty.meters.threat = threatdock
-      elseif not has2 and pfUI.thirdparty.meters.threat == threatdock then
-        pfUI.thirdparty.meters.threat = nil
-      end
-      pfUI.thirdparty.meters:Resize()
+      if meters.damage ~= maindock then return end
+      local owned = meters:SetSecondary(threatdock, frameAt(2) ~= nil)
+      meters:Resize()
 
       -- match the second window's visibility to the panel (the primary tracks it)
-      local f1, f2 = primary(), frameAt(2)
-      if f2 then
+      if owned then
+        local f1, f2 = primary(), frameAt(2)
         if f1 and f1:IsShown() then f2:Show() relayout(f2) else f2:Hide() end
       end
     end
 
     -- AddFrame and the login-time layout restore both go through
     -- CreateMeterFrame; RemoveFrame handles closing a window.
-    local origCreate = UI.CreateMeterFrame
-    UI.CreateMeterFrame = function(self, isPrimary, copyFrom)
-      local frame = origCreate(self, isPrimary, copyFrom)
-      SyncSecond()
-      return frame
+    hooksecurefunc(UI, "CreateMeterFrame", SyncSecond)
+    hooksecurefunc(UI, "RemoveFrame", SyncSecond)
+  end)
+
+  -- CombatLedger Damage/Threat Meter
+  -- Vanilla: https://github.com/akzkak/CombatLedger
+  -- CombatLedger builds its windows at the first PLAYER_ENTERING_WORLD and
+  -- supports several of them (CombatLedger.UIWindows, keyed by id), so frames
+  -- are resolved at call time. The "main" window takes the "damage" dock slot.
+  -- The lowest-numbered extra window takes the "threat" slot and keeps it
+  -- until it closes, so the two split the panel. Any further windows float.
+  HookAddon("CombatLedger", function()
+    local CL, UI = CombatLedger, CombatLedger.UI
+    local windows = CL.UIWindows
+    local meters = pfUI.thirdparty.meters
+
+    -- CombatLedger ships its own pfUI dock for the main window. It shares
+    -- the "combatledger" config key and turns this dock on by itself.
+    CL.TryRegisterPfuiDock = nop
+
+    local shown  -- whether the panel shows the meters
+    local second -- id of the docked extra window
+
+    local function frameOf(id)
+      local inst = id and windows[id]
+      return inst and inst.frame
     end
-    local origRemove = UI.RemoveFrame
-    UI.RemoveFrame = function(self, frame)
-      origRemove(self, frame)
-      SyncSecond()
+
+    local function pickSecond()
+      local best, bestnum
+      for id, inst in pairs(windows) do
+        local _, _, num = string.find(id, "^window(%d+)$")
+        num = tonumber(num)
+        if num and inst.frame and (not bestnum or num < bestnum) then
+          best, bestnum = id, num
+        end
+      end
+      return best
     end
+
+    -- The Mode/Segment header buttons and the bars are sized from the window
+    -- width, and CombatLedger refits them only on a resize drag or an
+    -- appearance change. Fire that once per frame, after the docked widths
+    -- settle.
+    local queued
+    local function relayout()
+      if queued then return end
+      queued = true
+      RunNextFrame(function()
+        queued = nil
+        CL.FireAppearanceChanged()
+      end)
+    end
+
+    local function place(frame, half)
+      local width = frame:GetWidth()
+      meters:Place(frame, half)
+      if frame:GetWidth() ~= width then relayout() end
+    end
+
+    -- Docked windows can't be dragged or resized: that would pull them out of
+    -- the panel and save the panel geometry as their floating layout.
+    -- CombatLedger shows windows by itself (auto-show on combat, group
+    -- changes, /cl show), so a docked window stays hidden while the panel is
+    -- collapsed.
+    local function dock(frame)
+      if frame.pfDocked then return end
+      frame.pfDocked = true
+      frame:SetScript("OnDragStart", nil)
+      frame:SetScript("OnDragStop", nil)
+      frame.resizeGrip:EnableMouse(false)
+      frame.resizeGrip:SetAlpha(0)
+      frame:HookScript("OnShow", function()
+        if not shown then frame:Hide() end
+      end)
+      if not shown then frame:Hide() end
+    end
+
+    local function BuildDock(name, getid, half)
+      return { "combatledger", "CombatLedger", name,
+        function() -- single
+          local frame = frameOf(getid())
+          if frame then place(frame) end
+        end,
+        function() -- dual
+          local frame = frameOf(getid())
+          if frame then place(frame, half) end
+        end,
+        function() -- show: unless the window's own rules hide it right now
+          shown = true
+          local id = getid()
+          if frameOf(id) and not UI.IsSuppressedNow(id) then UI.ShowWindowById(id) end
+        end,
+        function() -- hide
+          shown = nil
+          local frame = frameOf(getid())
+          if frame then frame:Hide() end
+        end
+      }
+    end
+
+    local maindock = BuildDock("CombatLedgerMainWindow", function() return "main" end, "RIGHT")
+    local threatdock = BuildDock("CombatLedgerSecondWindow", function() return second end, "LEFT")
+    meters:RegisterMeter("damage", maindock)
+
+    -- login restore, "New Window" and closing a window change the set of
+    -- frames; the dock follows
+    local function Sync()
+      if meters.damage ~= maindock then return end
+      if not frameOf(second) then second = pickSecond() end
+
+      dock(frameOf("main"))
+      if meters:SetSecondary(threatdock, second ~= nil) then
+        dock(frameOf(second))
+      end
+      meters:Resize()
+    end
+
+    hooksecurefunc(UI, "RestoreAllWindows", Sync)
+    hooksecurefunc(UI, "CreateExtraWindow", Sync)
+    hooksecurefunc(UI, "CloseExtraWindow", Sync)
   end)
 
   -- DPSMate Damage Meter
