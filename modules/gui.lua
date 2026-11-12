@@ -1248,8 +1248,10 @@ pfUI:RegisterModule("gui", function ()
       table.insert(pfUI.gui.dropdowns.fonts, "Fonts\\FZXHLJW.TTF:FZXHLJW")
     end
 
-    -- Turtle WoW ships Noto Sans SC as FZLBJW.TTF to every client
-    if TURTLE_WOW_VERSION then
+    -- Turtle WoW's patch-5.mpq ships Noto Sans SC as FZLBJW.TTF, but some
+    -- installs replace FRIZQT__.TTF with it instead. SetFont returns nil for a
+    -- file the client can't load, so only offer it where it exists.
+    if pfUI.gui:CreateFontString():SetFont("Fonts\\FZLBJW.TTF", 12) then
       table.insert(pfUI.gui.dropdowns.fonts, "Fonts\\FZLBJW.TTF:Noto Sans SC")
     end
 
