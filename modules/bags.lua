@@ -1029,7 +1029,7 @@ pfUI:RegisterModule("bags", function ()
 
         frame.search.edit:SetFont(pfUI.font_default, C.global.font_size, "OUTLINE")
         frame.search.edit:SetAutoFocus(false)
-        frame.search.edit:SetText(T["Search"])
+        frame.search.edit:SetText(SEARCH)
         frame.search.edit:SetTextColor(.5,.5,.5,1)
 
         frame.search.edit:SetScript("OnEditFocusGained", function()
@@ -1037,12 +1037,12 @@ pfUI:RegisterModule("bags", function ()
         end)
 
         frame.search.edit:SetScript("OnEditFocusLost", function()
-          this:SetText(T["Search"])
+          this:SetText(SEARCH)
           C_Container.SetItemSearch("")
         end)
 
         frame.search.edit:SetScript("OnTextChanged", function()
-          if this:GetText() == T["Search"] then return end
+          if this:GetText() == SEARCH then return end
           C_Container.SetItemSearch(this:GetText())
         end)
 
@@ -1057,7 +1057,7 @@ pfUI:RegisterModule("bags", function ()
         end)
 
         frame.search:SetScript("OnHide", function()
-          frame.search.edit:SetText(T["Search"])
+          frame.search.edit:SetText(SEARCH)
           C_Container.SetItemSearch("")
         end)
       end

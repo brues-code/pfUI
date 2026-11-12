@@ -72,7 +72,7 @@ pfUI:RegisterModule("radar", function ()
     range = yards
     scale = RING / yards
     C.radar.range = tostring(yards)
-    radar.title:SetText(T["Radar"] .. " (" .. yards .. " yd)")
+    radar.title:SetText(T["Radar"] .. " (" .. yards .. T[" yd"] .. ")")
   end
   SetRange(tonumber(C.radar.range))
 
@@ -83,7 +83,7 @@ pfUI:RegisterModule("radar", function ()
   local function GenerateMenu(owner, rootDescription)
     rootDescription:CreateTitle(T["Radar"])
     for _, yards in ipairs(RANGES) do
-      rootDescription:CreateRadio(yards .. " yd", IsRange, SetRange, yards)
+      rootDescription:CreateRadio(yards .. T[" yd"], IsRange, SetRange, yards)
     end
     CreateMenuDivider(rootDescription)
     rootDescription:CreateButton(HIDE, function() radar:Hide() end)
@@ -115,7 +115,7 @@ pfUI:RegisterModule("radar", function ()
     else
       GameTooltip:SetText(UnitName(unit), UnitSelectionColor(unit))
     end
-    GameTooltip:AddLine(format("%.1f yd", sqrt(blip.distSq)), 1, 1, 1)
+    GameTooltip:AddLine(format("%.1f%s", sqrt(blip.distSq), T[" yd"]), 1, 1, 1)
     if blocked[unit] then
       GameTooltip:AddLine(T["Out of line of sight"], 1, .3, .3)
     end

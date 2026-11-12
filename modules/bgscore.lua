@@ -23,7 +23,7 @@ pfUI:RegisterModule("bgscore", function ()
     pfUI_config.positions["WorldStateAlwaysUpFrame"] = { x = x, y = y }
     bgframe:ClearAllPoints()
     bgframe:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
-    DEFAULT_CHAT_FRAME:AddMessage("|cff33ffccBG Score Frame|r position saved.")
+    DEFAULT_CHAT_FRAME:AddMessage(T["|cff33ffccBG Score Frame|r position saved."])
   end)
   mover:Hide()
 
@@ -38,16 +38,14 @@ pfUI:RegisterModule("bgscore", function ()
   -- BG score preview text
   local bgscore = mover:CreateFontString(nil, "OVERLAY")
   bgscore:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
-  bgscore:SetText("|cff3399ffAlliance: 123|r  |  |cffff4444Horde: 456|r")
+  bgscore:SetText(format("|cff3399ff%s: 123|r  |  |cffff4444%s: 456|r", FACTION_ALLIANCE, FACTION_HORDE))
   bgscore:SetPoint("BOTTOM", mover, "BOTTOM", 0, 2)
-
-  mover.label = "BG Score"
-  pfUI.unlock.frames = pfUI.unlock.frames or {}
-  table.insert(pfUI.unlock.frames, mover)
 
   local pos = pfUI_config and pfUI_config.positions and pfUI_config.positions["WorldStateAlwaysUpFrame"]
   if pos then
+    bgframe:ClearAllPoints()
     bgframe:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", pos.x, pos.y)
+    mover:ClearAllPoints()
     mover:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", pos.x, pos.y)
   end
 

@@ -122,7 +122,7 @@ local function OnEnter(self)
 
     -- fill gametooltip data
     table.insert(lines, { "|cff555555" .. T["Experience"], "" })
-    table.insert(lines, { T["XP"], "|cffffffff" .. xp .. " / " .. xpmax .. " (" .. xp_perc .. "%)" })
+    table.insert(lines, { XP, "|cffffffff" .. xp .. " / " .. xpmax .. " (" .. xp_perc .. "%)" })
     table.insert(lines, { T["Remaining"], "|cffffffff" .. remaining .. " (" .. remaining_perc .. "%)" })
     if IsResting() then
       table.insert(lines, { T["Status"], "|cffffffff" .. T["Resting"] })
@@ -146,7 +146,7 @@ local function OnEnter(self)
         if span > 0 and gain > 0 then
           local rate_per_sec = gain / span
           local rate_per_min = floor(rate_per_sec * 60)
-          table.insert(lines, { T["Rested Gain"], "|cff5555ff+" .. rate_per_min .. " / min" })
+          table.insert(lines, { T["Rested Gain"], "|cff5555ff+" .. rate_per_min .. " " .. T["/ min"] })
 
           local cap = xpmax * REST_CAP_MUL
           if exh < cap then
@@ -168,7 +168,7 @@ local function OnEnter(self)
 
     -- fill gametooltip data
     table.insert(lines, { "|cff555555" .. T["Experience"], "" })
-    table.insert(lines, { T["XP"], "|cffffffff" .. xp .. " / " .. xpmax .. " (" .. xp_perc .. "%)" })
+    table.insert(lines, { XP, "|cffffffff" .. xp .. " / " .. xpmax .. " (" .. xp_perc .. "%)" })
     table.insert(lines, { T["Remaining"], "|cffffffff" .. remaining .. " (" .. remaining_perc .. "%)" })
   elseif mode == "REP" then
     local name, standingID, barMin, barMax, barValue = GetRepDisplay(self.factionID)
@@ -183,7 +183,7 @@ local function OnEnter(self)
         color = rgbhex(.5, .5, .5)
       end
 
-      table.insert(lines, { "|cff555555" .. T["Reputation"], "" })
+      table.insert(lines, { "|cff555555" .. REPUTATION, "" })
       table.insert(lines, { color .. name .. " (" .. GetText("FACTION_STANDING_LABEL"..standingID, gender) .. ")"})
       table.insert(lines, { barValue .. " / " .. barMax .. " (" .. round(barValue / barMax * 100) .. "%)" })
     end

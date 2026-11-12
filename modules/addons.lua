@@ -219,7 +219,7 @@ pfUI:RegisterModule("addons", function ()
       elseif C_AddOns.DoesAddOnExist(dep) then
         GameTooltip:AddLine(" " .. dep, 1, .82, 0)
       else
-        GameTooltip:AddLine(" " .. dep .. " (" .. T["Missing"] .. ")", 1, .4, .4)
+        GameTooltip:AddLine(" " .. dep .. " (" .. ADDON_MISSING .. ")", 1, .4, .4)
       end
     end
   end
@@ -231,7 +231,7 @@ pfUI:RegisterModule("addons", function ()
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(addon.title)
     if addon.version then
-      GameTooltip:AddDoubleLine(T["Version"], addon.version, 1,1,1, .2,1,.8)
+      GameTooltip:AddDoubleLine(GAME_VERSION_LABEL, addon.version, 1,1,1, .2,1,.8)
     end
 
     if addon.author then
