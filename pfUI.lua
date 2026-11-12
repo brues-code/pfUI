@@ -21,6 +21,10 @@ pfUI:RegisterEvent("ADDON_LOADED")
 -- setup bootvar
 pfUI.bootup = true
 
+-- the flavor TOCs set LoadSavedVariablesFirst, so the SavedVariables are
+-- already loaded here. A save file can hold `pfUI_config = nil` (the client
+-- writes unset variables that way after a session without the ClassicAPI DLL,
+-- where pfUI.toc loads only API_Check.lua), so default every one of them.
 pfUI_playerDB = pfUI_playerDB or {}
 pfUI_config = pfUI_config or {}
 pfUI_init = pfUI_init or {}

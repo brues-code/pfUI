@@ -18,7 +18,6 @@ pfUI:RegisterModule("bgscore", function ()
     mover:StopMovingOrSizing()
     local x = mover:GetLeft()
     local y = mover:GetTop()
-    pfUI_config = pfUI_config or {}
     pfUI_config.positions = pfUI_config.positions or {}
     pfUI_config.positions["WorldStateAlwaysUpFrame"] = { x = x, y = y }
     bgframe:ClearAllPoints()

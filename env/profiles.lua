@@ -902,11 +902,13 @@ local adapta = {
   },
 }
 
--- assign profiles to userdata
+-- overwrite the saved copies of the core profiles (SavedVariables are
+-- already loaded: the flavor TOCs set LoadSavedVariablesFirst)
 pfUI_profiles["Modern"] = modern
 pfUI_profiles["Nostalgia"] = nostalgia
 pfUI_profiles["Legacy"] = legacy
 pfUI_profiles["Adapta"] = adapta
+pfUI_profiles["Light"] = light
 pfUI_profiles["Slim"] = slim
 
 -- Default positions for new modules per profile.
@@ -933,13 +935,3 @@ pfUI_profiles["Slim"].new_module_positions = {
 }
 pfUI_profiles["Adapta"].new_module_positions = pfUI_profiles["Modern"].new_module_positions
 
-
--- overwrite core profiles in userdata
-EventUtil.RegisterOnceFrameEventAndCallback("VARIABLES_LOADED", function()
-  pfUI_profiles["Modern"] = modern
-  pfUI_profiles["Nostalgia"] = nostalgia
-  pfUI_profiles["Legacy"] = legacy
-  pfUI_profiles["Adapta"] = adapta
-  pfUI_profiles["Light"] = light
-  pfUI_profiles["Slim"] = slim
-end)
