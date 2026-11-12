@@ -95,16 +95,18 @@ pfUI:RegisterModule("map", function ()
 
         SaveMovable(this, true)
       end)
-
-      WorldMapFrame:HookScript("OnDragStart", function()
-        WorldMapFrame:StartMoving()
-      end)
-
-      WorldMapFrame:HookScript("OnDragStop",function()
-        WorldMapFrame:StopMovingOrSizing()
-        SaveMovable(this, true)
-      end)
     end
+
+    -- set, not hooked once: Turtle's WorldMapFrame_Maximize clears both scripts,
+    -- and turtle-wow.lua calls it after this loader may already have run
+    WorldMapFrame:SetScript("OnDragStart", function()
+      WorldMapFrame:StartMoving()
+    end)
+
+    WorldMapFrame:SetScript("OnDragStop", function()
+      WorldMapFrame:StopMovingOrSizing()
+      SaveMovable(WorldMapFrame, true)
+    end)
 
     WorldMapFrame:SetAlpha(alpha)
     WorldMapFrame:SetScale(scale)
