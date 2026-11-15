@@ -82,8 +82,8 @@ pfUI:RegisterModule("combopoints", function ()
       if stored > 0 then SetStored(0) end
     end
 
-    pfUI.events:RegisterFrameEventAndCallback("COMBAT_LOG_EVENT_UNFILTERED", function()
-      local _, subevent, _, sourceGUID, _, _, _, destGUID, _, _, _, _, _, _, amount = CombatLogGetCurrentEventInfo()
+    -- the callback takes the owner, then the event's values
+    pfUI.events:RegisterFrameEventAndCallback("COMBAT_LOG_EVENT_UNFILTERED", function(_, _, subevent, _, sourceGUID, _, _, _, destGUID, _, _, _, _, _, _, amount)
       if subevent == "SPELL_EXTRA_ATTACKS" and IsPlayerGuid(destGUID) then
         SetStored(min(MAX_EXTRA_ATTACKS, stored + amount))
       elseif (subevent == "SWING_DAMAGE" or subevent == "SWING_MISSED") and IsPlayerGuid(sourceGUID) then
