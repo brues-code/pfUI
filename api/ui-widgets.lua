@@ -340,15 +340,16 @@ end
 
 -- [ Skin Collapse Button ]
 -- Applies pfUI skin to collapse/expand buttons:
--- 'button'   [frame/string]  the button that should be skinned.
+-- 'button'   [frame/string]  the button that should be skinned. It can be
+--                            unnamed, as the pooled rows of a ScrollBox are.
 function pfUI.api.SkinCollapseButton(button, all)
   local b = _G[button]
   if not b then b = button end
   if not b then return end
-  local name = b:GetName() .. "CollapseButton"
+  local name = b:GetName() and b:GetName() .. "CollapseButton"
   local size = 10
 
-  b.icon = _G[name] or CreateFrame("Button", name, b)
+  b.icon = name and _G[name] or CreateFrame("Button", name, b)
   if all then size = 14 end
   b.icon:SetSize(size, size)
   b.icon:SetPoint("LEFT", 2, 2)
@@ -367,7 +368,7 @@ function pfUI.api.SkinCollapseButton(button, all)
     end
   end
 
-  local highlight = _G[b:GetName().."Highlight"]
+  local highlight = b:GetName() and _G[b:GetName().."Highlight"]
   if highlight then
     highlight:SetTexture("")
     highlight.SetTexture = function(self, tex) return end

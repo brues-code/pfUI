@@ -2,7 +2,7 @@ pfUI:RegisterSkin("Tooltips", function ()
   local rawborder, border = GetBorderSize()
   local alpha = tonumber(C.tooltip.alpha)
 
-  for _, tooltip in pairs({GameTooltip, ItemRefTooltip, ShoppingTooltip1, ShoppingTooltip2}) do
+  for _, tooltip in pairs({GameTooltip, ItemRefTooltip, ShoppingTooltip1, ShoppingTooltip2, SettingsTooltip}) do
     CreateBackdrop(tooltip, nil, nil, alpha)
     CreateBackdropShadow(tooltip)
   end
