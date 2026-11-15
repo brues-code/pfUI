@@ -1,71 +1,49 @@
 pfUI:RegisterModule("hunterbar", function ()
   if UnitClassBase("player") ~= "HUNTER" or C.bars.hunterbar == "0" then return end
 
-  -- Wing Clip (any rank) and Arcane Shot (any rank) spell IDs.
-  -- C_Spell.IsSpellInRange works with any spell ID, no actionbar slot needed.
-  local WINGCLIP_ID  = 2974   -- melee range indicator (~5 yd)
-  local ARCANESHOT_ID = 3044  -- ranged range indicator (~35 yd)
-
-  -- Hysteresis: only swap TO ranged bar when Arcane Shot is actually in range.
-  -- Only swap BACK to melee bar when Wing Clip is actually in range.
-  -- This prevents rapid bar-flipping in the transition zone.
-
-  local THROTTLE = 0.02  -- seconds between range checks (was every frame)
+  -- The bar follows the target's range: page 2 (ranged) once the target is
+  -- out of melee range and in shot range, page 1 (melee) once it is in melee
+  -- range and too close to shoot. In between, in the dead zone, the page
+  -- stays as it is, so it doesn't flip back and forth.
+  --
+  -- ClassicAPI's swing range checks report both ranges as they change. The
+  -- ranged check is Auto Shot's: the same range row as Arcane Shot (8-35 yd),
+  -- with the same Hawk Eye and ranged-weapon bonuses. The melee check is the
+  -- server's auto-attack reach, the one Raptor Strike swings with. It is
+  -- Wing Clip's reach, but measured flat, without the height difference,
+  -- and without the extra 2.67 yd Wing Clip gets while both units move.
+  -- Either check gives no answer (nil) without an attackable target or a
+  -- weapon for it, and then the page stays as it is.
+  local MELEE = Enum.PlayerSwingType.MainHand
+  local RANGED = Enum.PlayerSwingType.Ranged
 
   pfUI.hunterbar = CreateFrame("Frame", "pfHunterBar", UIParent)
 
-  -- track which page we last forced so we don't spam ChangeActionBarPage()
+  -- the page we last forced, so a range change doesn't force it again
   pfUI.hunterbar.lastPage = nil
-  pfUI.hunterbar.elapsed = 0
 
-  -- Idle until there's a live, attackable target. A hidden frame runs no
-  -- OnUpdate, so the range polling only ticks while it can matter.
-  pfUI.hunterbar:Hide()
+  local function SetPage(page)
+    if pfUI.hunterbar.lastPage == page then return end
+    pfUI.hunterbar.lastPage = page
+    _G.CURRENT_ACTIONBAR_PAGE = page
+    ChangeActionBarPage()
+  end
 
-  pfUI.hunterbar:SetScript("OnUpdate", function()
-    this.elapsed = this.elapsed + arg1
-    if this.elapsed < THROTTLE then return end
-    this.elapsed = 0
+  local function Update()
+    local melee = C_SwingTimer.IsTargetWithinSwingRange(MELEE)
+    local ranged = C_SwingTimer.IsTargetWithinSwingRange(RANGED)
 
-    -- Target died or turned unattackable without a target-change event
-    -- (it dropped to a corpse); stop ticking until the next target.
-    if not UnitExists("target") or not UnitCanAttack("player", "target") then
-      this:Hide()
-      return
+    if melee == false and ranged == true then
+      SetPage(2)
+    elseif melee == true and ranged == false then
+      SetPage(1)
     end
+  end
 
-    -- C_Spell.IsSpellInRange returns true / false / nil (rangeless). The
-    -- explicit == true / == false tests leave the bar unchanged on nil.
-    local wingclipInRange   = C_Spell.IsSpellInRange(WINGCLIP_ID,   "target")
-    local arcaneshotInRange = C_Spell.IsSpellInRange(ARCANESHOT_ID, "target")
-
-    -- swap to ranged bar: out of melee range AND arcane shot (8yd) in range
-    if wingclipInRange == false and arcaneshotInRange == true then
-      if this.lastPage ~= 2 then
-        this.lastPage = 2
-        _G.CURRENT_ACTIONBAR_PAGE = 2
-        ChangeActionBarPage()
-      end
-
-    -- swap to melee bar: in melee range AND arcane shot (8yd) out of range
-    elseif wingclipInRange == true and arcaneshotInRange == false then
-      if this.lastPage ~= 1 then
-        this.lastPage = 1
-        _G.CURRENT_ACTIONBAR_PAGE = 1
-        ChangeActionBarPage()
-      end
-    end
-  end)
-
-  -- Start ticking only when we gain an attackable target.
-  pfUI.hunterbar:RegisterEvent("PLAYER_TARGET_CHANGED")
+  -- the range event fires only on a change, so the login reads the state once
+  C_SwingTimer.EnableRangeCheck(MELEE, true)
+  C_SwingTimer.EnableRangeCheck(RANGED, true)
+  pfUI.hunterbar:RegisterEvent("PLAYER_SWING_RANGE_UPDATE")
   pfUI.hunterbar:RegisterEvent("PLAYER_ENTERING_WORLD")
-  pfUI.hunterbar:SetScript("OnEvent", function()
-    if UnitExists("target") and UnitCanAttack("player", "target") then
-      this.elapsed = THROTTLE  -- run the first check on the next frame
-      this:Show()
-    else
-      this:Hide()
-    end
-  end)
+  pfUI.hunterbar:SetScript("OnEvent", Update)
 end)
