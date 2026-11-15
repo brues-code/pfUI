@@ -68,6 +68,7 @@ pfUI:RegisterModule("totems", function ()
   -- in rising order, so the last one seen is the highest.
   totems.ScanSpellbook = function(self)
     local known = { {}, {}, {}, {} }
+    local kinds = {}
     local byName = {}
     local recall
 
@@ -76,6 +77,7 @@ pfUI:RegisterModule("totems", function ()
     while info do
       local kind = not info.isPassive and GetTotemEffect(info.spellID)
       if kind then
+        kinds[info.spellID] = kind
         local entry = byName[info.name]
         if entry then
           entry.spellID = info.spellID
@@ -95,6 +97,7 @@ pfUI:RegisterModule("totems", function ()
     end
 
     self.known = known
+    self.kinds = kinds
     self.recall = recall
   end
 
@@ -225,6 +228,77 @@ pfUI:RegisterModule("totems", function ()
   local function CheckFlyout(flyout)
     if not MouseIsOverHitRect(flyout.button) and not flyout:IsMouseOver() then
       flyout:Hide()
+    end
+  end
+
+  -- [ alerts ]
+  -- The alert border of an element pulses in a color, or stops with nil.
+  local function SetAlert(button, r, g, b)
+    if r then
+      button.alert:SetBackdropBorderColor(r, g, b, 1)
+      if not button.alert:IsShown() then
+        button.alert:Show()
+        button.alert.pulse:Play()
+      end
+    elseif button.alert:IsShown() then
+      button.alert.pulse:Stop()
+      button.alert:Hide()
+    end
+  end
+
+  -- Warns in white once the totem of an element, which ends at 'expires',
+  -- has the configured seconds left. nil stops the warning, unless the
+  -- element is showing that its totem was killed.
+  local function WatchExpiry(button, expires)
+    if button.expires == expires then return end
+    button.expires = expires
+
+    if button.expiring then
+      button.expiring:Cancel()
+      button.expiring = nil
+    end
+
+    if not expires then
+      if not button.killed then SetAlert(button) end
+      return
+    end
+
+    if button.killed then
+      button.killed:Cancel()
+      button.killed = nil
+    end
+    SetAlert(button)
+
+    local warn = totems.expirywarn
+    if warn <= 0 then return end
+
+    local delay = expires - warn - GetTime()
+    if delay <= 0 then
+      SetAlert(button, 1, 1, 1)
+    else
+      button.expiring = C_Timer.NewTimer(delay, function()
+        button.expiring = nil
+        SetAlert(button, 1, 1, 1)
+      end)
+    end
+  end
+
+  -- An element whose totem was killed pulses red for a few seconds.
+  totems.Killed = function(self, slot, name, killer)
+    local button = self.buttons[slot]
+    WatchExpiry(button, nil)
+    SetAlert(button, 1, .2, .2)
+
+    if button.killed then button.killed:Cancel() end
+    button.killed = C_Timer.NewTimer(3, function()
+      button.killed = nil
+      SetAlert(button)
+    end)
+
+    if C.totems.killalert == "1" then
+      local text = killer and string.format(T["%s was killed by %s"], name, killer)
+        or string.format(T["%s was killed"], name)
+      UIErrorsFrame:AddMessage(text, 1, .3, .3)
     end
   end
 
@@ -454,6 +528,18 @@ pfUI:RegisterModule("totems", function ()
     button.cd = CreateCooldown(button.cdbg, "aura", C.totems, "timers", "pfTotemsBar" .. slot .. "Cooldown")
     button.spellcd = CreateCooldown(button.cdbg, "spell", C.bars, "timers", "pfTotemsBar" .. slot .. "SpellCooldown")
 
+    button.alert = CreateFrame("Frame", nil, button)
+    button.alert:SetBackdrop(backdrop_highlight)
+    button.alert:SetAllPoints()
+    button.alert:Hide()
+    button.alert.pulse = button.alert:CreateAnimationGroup()
+    button.alert.pulse:SetLooping("BOUNCE")
+    local fade = button.alert.pulse:CreateAnimation("Alpha")
+    fade:SetFromAlpha(1)
+    fade:SetToAlpha(.3)
+    fade:SetDuration(.5)
+    fade:SetSmoothing("IN_OUT")
+
     -- mouse-enabled so the gaps between entries keep it open
     button.flyout = CreateFrame("Frame", nil, button)
     button.flyout:EnableMouse(true)
@@ -599,7 +685,9 @@ pfUI:RegisterModule("totems", function ()
           button.icon:SetTexture(icon)
           button.icon:SetVertexColor(1, 1, 1)
           CooldownFrame_SetTimer(button.cd, start, duration, 1)
+          WatchExpiry(button, start + duration)
         else
+          WatchExpiry(button, nil)
           button.icon:SetTexture(choice.icon)
           if haveTool then
             button.icon:SetVertexColor(.5, .5, .5)
@@ -673,12 +761,14 @@ pfUI:RegisterModule("totems", function ()
     self.flyoutdir = C.totems.flyout
     self.onlyactive = C.totems.onlyactive == "1"
     self.spacing = tonumber(C.totems.spacing) * GetPerfectPixel()
+    self.expirywarn = tonumber(C.totems.expirywarn) or 0
 
     for slot = 1, MAX_TOTEMS do
       local button = self.buttons[slot] or CreateElement(slot)
       self.buttons[slot] = button
       button:SetSize(self.iconsize, self.iconsize)
       button.cdbg:SetSize(self.iconsize - 3, self.iconsize - 3)
+      button.expires = 0 -- arms the expiry warning again with the new setting
       UpdateKeybindFont(button)
       for _, entry in ipairs(button.flyout.entries) do
         UpdateKeybindFont(entry)
@@ -713,6 +803,45 @@ pfUI:RegisterModule("totems", function ()
     end
   end
 
+  -- [ killed totems ]
+  -- The combat log names the GUID of each totem you summon. Every totem that
+  -- goes away is logged as destroyed, so a kill is one with time left that
+  -- no totem cast of yours replaced.
+  local playerGUID = UnitGUID("player")
+  local guidSlots = {} -- totem GUID -> element slot
+  local attackers = {} -- element slot -> the last unit that damaged its totem
+  local castAt = {}    -- element slot -> time of your last cast that replaces its totem
+
+  local function OnCombatLog(_, _, subevent, _, sourceGUID, sourceName, _, _, destGUID, destName, _, _, spellId)
+    if sourceGUID == playerGUID then
+      local kind = totems.kinds[spellId]
+      if subevent == "SPELL_CAST_SUCCESS" and kind == "recall" then
+        for slot = 1, MAX_TOTEMS do castAt[slot] = GetTime() end
+      elseif subevent == "SPELL_CAST_SUCCESS" and kind then
+        castAt[kind] = GetTime()
+      elseif subevent == "SPELL_SUMMON" and kind and kind ~= "recall" then
+        for guid, slot in pairs(guidSlots) do
+          if slot == kind then guidSlots[guid] = nil end
+        end
+        guidSlots[destGUID] = kind
+        attackers[kind] = nil
+      end
+    end
+
+    local slot = guidSlots[destGUID]
+    if not slot then return end
+
+    if subevent == "UNIT_DESTROYED" then
+      guidSlots[destGUID] = nil
+      if GetTime() - (castAt[slot] or 0) > 1 and GetTotemTimeLeft(slot) > 1 and not UnitIsDeadOrGhost("player") then
+        totems:Killed(slot, destName, attackers[slot])
+      end
+    elseif subevent:find("_DAMAGE$") then
+      attackers[slot] = sourceName
+    end
+  end
+
+  pfUI.events:RegisterFrameEventAndCallback("COMBAT_LOG_EVENT_UNFILTERED", OnCombatLog)
   pfUI.events:RegisterFrameEventAndCallback("SPELLS_CHANGED", function() totems:UpdateList() end)
   pfUI.events:RegisterFrameEventAndCallback("SPELL_UPDATE_COOLDOWN", function() totems:UpdateCooldowns() end)
   pfUI.events:RegisterFrameEventAndCallback("UPDATE_BINDINGS", function() totems:UpdateBindings() end)
