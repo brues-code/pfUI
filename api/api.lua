@@ -1374,59 +1374,93 @@ function pfUI.api.MouseIsOverHitRect(frame)
   return frame:IsMouseOver(-top, bottom, left, -right)
 end
 
+-- Autohide watches the cursor with a hover frame: it takes mouse motion only,
+-- so clicks go through it, and reaches 10 px past the frame. Motion passes
+-- to the next frame under the cursor in draw order, not to the parent, so the
+-- hover frame sits at the frame's own level, under its children, and each
+-- descendant passes its motion down to it. The hover frame passes it on too:
+-- stacked bars overlap each other's margins at one level, and a hover frame
+-- that ended the chain could keep the motion from the bar under the cursor.
+local function AutohidePropagate(frame, propagate)
+  frame:SetPropagateMouseMotion(propagate)
+  for _, child in ipairs({ frame:GetChildren() }) do
+    AutohidePropagate(child, propagate)
+  end
+end
+
+local function AutohideReveal(hover)
+  if hover.timer then hover.timer:Cancel() end
+  hover.fade:Stop()
+  hover.parent:SetAlpha(1)
+end
+
+local function AutohideSchedule(hover)
+  if hover.timer then hover.timer:Cancel() end
+  hover.timer = C_Timer.NewTimer(hover.timeout, hover.fadeout)
+end
+
+local function AutohideEnter()
+  AutohideReveal(this)
+end
+
+local function AutohideLeave()
+  if not this.combat then AutohideSchedule(this) end
+end
+
+local function AutohideEvent()
+  if event == "PLAYER_REGEN_DISABLED" then
+    this.combat = true
+    AutohideReveal(this)
+  else
+    this.combat = nil
+    if not this:IsMouseMotionFocus() then AutohideSchedule(this) end
+  end
+end
+
 -- [ Enable Autohide ] --
--- 'frame'  the frame that should be hidden
+-- Call it again whenever the frame gets new children, so they pass their
+-- mouse motion on to the hover frame too.
+-- 'frame'    the frame that should be hidden
+-- 'timeout'  seconds the cursor has to be away before the frame fades
+-- 'combat'   keep the frame shown while in combat
 function pfUI.api.EnableAutohide(frame, timeout, combat)
   if not frame then return end
-  local timeout = timeout
 
-  frame.hover = frame.hover or CreateFrame("Frame", frame:GetName() .. "Autohide", frame)
-  frame.hover:SetParent(frame)
-  frame.hover:SetAllPoints(frame)
-  frame.hover.parent = frame
-  frame.hover:Show()
+  local hover = frame.hover
+  if not hover then
+    hover = CreateFrame("Frame", frame:GetName() .. "Autohide", frame)
+    hover:SetAllPoints(frame)
+    hover:SetHitRectInsets(-10, -10, -10, -10)
+    hover:SetMouseClickEnabled(false)
+    hover:SetMouseMotionEnabled(true)
+    hover:SetScript("OnEnter", AutohideEnter)
+    hover:SetScript("OnLeave", AutohideLeave)
+    hover:SetScript("OnEvent", AutohideEvent)
+    hover.parent = frame
+    hover.fadeout = function() hover.fade:Play() end
 
-  if not frame.hover.fade then
-    frame.hover.fade = frame:CreateAnimationGroup()
-    frame.hover.fade:SetToFinalAlpha(true)
-    local fade = frame.hover.fade:CreateAnimation("Alpha")
+    hover.fade = frame:CreateAnimationGroup()
+    hover.fade:SetToFinalAlpha(true)
+    local fade = hover.fade:CreateAnimation("Alpha")
     fade:SetChange(-1)
     fade:SetDuration(1)
+
+    frame.hover = hover
   end
 
+  AutohidePropagate(frame, true)
+  hover:SetFrameLevel(frame:GetFrameLevel())
+  hover.timeout = timeout
+
+  hover:UnregisterAllEvents()
+  hover.combat = nil
   if combat then
-    frame.hover:RegisterEvent("PLAYER_REGEN_ENABLED")
-    frame.hover:RegisterEvent("PLAYER_REGEN_DISABLED")
-    frame.hover:SetScript("OnEvent", function()
-      if event == "PLAYER_REGEN_DISABLED" then
-        this.fade:Stop()
-        this.parent:SetAlpha(1)
-        this.activeTo = "keep"
-      elseif event == "PLAYER_REGEN_ENABLED" then
-        this.activeTo = GetTime() + timeout
-      end
-    end)
+    hover:RegisterEvent("PLAYER_REGEN_ENABLED")
+    hover:RegisterEvent("PLAYER_REGEN_DISABLED")
   end
 
-  frame.hover:SetScript("OnUpdate", function()
-    -- throttle to 0.05s
-    if (this.tick or 0) > GetTime() then return end
-    this.tick = GetTime() + 0.05
-
-    if this.activeTo == "keep" then return end
-
-    if this:IsMouseOver(10, -10, -10, 10) then
-      this.activeTo = GetTime() + timeout
-      this.fade:Stop()
-      this.parent:SetAlpha(1)
-    elseif this.activeTo then
-      if this.activeTo < GetTime() and this.parent:GetAlpha() > 0 and not this.fade:IsPlaying() then
-        this.fade:Play()
-      end
-    else
-      this.activeTo = GetTime() + timeout
-    end
-  end)
+  hover:Show()
+  if not hover:IsMouseMotionFocus() then AutohideSchedule(hover) end
 end
 
 -- [ Disable Autohide ] --
@@ -1435,11 +1469,12 @@ function pfUI.api.DisableAutohide(frame)
   if not frame then return end
   if not frame.hover then return end
 
-  frame.hover:SetScript("OnEvent", nil)
-  frame.hover:SetScript("OnUpdate", nil)
+  -- hiding leaves the hover frame, and its OnLeave schedules a fade,
+  -- which the reveal right after cancels
+  frame.hover:UnregisterAllEvents()
   frame.hover:Hide()
-  frame.hover.fade:Stop()
-  frame:SetAlpha(1)
+  AutohideReveal(frame.hover)
+  AutohidePropagate(frame, false)
 end
 
 -- [ GetColorGradient ] --

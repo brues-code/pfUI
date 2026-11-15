@@ -1268,13 +1268,6 @@ pfUI:RegisterModule("actionbar", function ()
       if i <= 10 then bars[i]:SetScript("OnHide", BarShowHide) end
     end
 
-    -- autohide
-    if autohide == "1" then
-      EnableAutohide(bars[i], tonumber(hide_time), hide_combat)
-    else
-      DisableAutohide(bars[i])
-    end
-
     -- apply visible settings
     if enable == "1" then
       -- handle pet bar
@@ -1352,6 +1345,13 @@ pfUI:RegisterModule("actionbar", function ()
       if bars[i][j] then
         bars[i][j]:Hide()
       end
+    end
+
+    -- autohide, once the buttons exist so they pass their mouse motion on
+    if autohide == "1" then
+      EnableAutohide(bars[i], tonumber(hide_time), hide_combat)
+    else
+      DisableAutohide(bars[i])
     end
 
     -- enable paging for the first actionbar
