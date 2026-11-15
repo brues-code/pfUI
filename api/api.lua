@@ -1362,6 +1362,26 @@ function pfUI.api.BarButtonAnchor(button,basename,buttonindex,barsize,formfactor
   return button._anchor
 end
 
+-- [ GetKeybindText ] --
+-- The abbreviated text of the key bound to a command, mouse buttons included.
+-- 'command'    the binding command, as "ACTIONBUTTON1" or "SPELL Frostbolt"
+-- return       the key text, "" when no key is bound
+local mouse_abbrevs = {
+  [KEY_BUTTON3] = "MB3",
+  [KEY_BUTTON4] = "MB4",
+  [KEY_BUTTON5] = "MB5",
+  [KEY_MOUSEWHEELDOWN] = "MWD",
+  [KEY_MOUSEWHEELUP] = "MWU",
+}
+
+function pfUI.api.GetKeybindText(command)
+  local text = GetBindingText(GetBindingKey(command), "KEY_", 1)
+  for name, abbrev in pairs(mouse_abbrevs) do
+    text = text:gsub(name, abbrev)
+  end
+  return text
+end
+
 -- [ MouseIsOverHitRect ] --
 -- Like frame:IsMouseOver(), but tests the frame's hit rect, the area the
 -- engine uses for mouse focus and OnEnter/OnLeave. CreateBackdrop widens

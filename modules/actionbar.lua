@@ -54,23 +54,6 @@ pfUI:RegisterModule("actionbar", function ()
     if f.Hide then f:Hide() end
   end
 
-  -- the abbreviated text of the key bound to a command, mouse buttons included
-  local mouse_abbrevs = {
-    [_G.KEY_BUTTON3] = "MB3",
-    [_G.KEY_BUTTON4] = "MB4",
-    [_G.KEY_BUTTON5] = "MB5",
-    [_G.KEY_MOUSEWHEELDOWN] = "MWD",
-    [_G.KEY_MOUSEWHEELUP] = "MWU",
-  }
-
-  local function GetKeybindText(command)
-    local text = GetBindingText(GetBindingKey(command), "KEY_", 1)
-    for name, abbrev in pairs(mouse_abbrevs) do
-      text = text:gsub(name, abbrev)
-    end
-    return text
-  end
-
   kill(MainMenuBar)
 
   local blizzard_elements = { MultiBarBottomLeft,
@@ -1462,8 +1445,6 @@ pfUI:RegisterModule("actionbar", function ()
   pfUI.bars.QueueSlot = QueueSlot
   pfUI.bars.buttons = buttoncache
   pfUI.bars.ButtonFullUpdate = ButtonFullUpdate
-  pfUI.bars.ButtonEnter = ButtonEnter
-  pfUI.bars.ButtonLeave = ButtonLeave
 
   pfUI.bars.UpdateGrid = function(self, state, typ)
     if not typ then

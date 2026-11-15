@@ -69,4 +69,12 @@
   <Binding name="PFSTANCEFOUR10" runOnUp="true">pfActionButton(118)</Binding>
   <Binding name="PFSTANCEFOUR11" runOnUp="true">pfActionButton(119)</Binding>
   <Binding name="PFSTANCEFOUR12" runOnUp="true">pfActionButton(120)</Binding>
+
+  <!-- Totem Bar -->
+  <Binding name="PFTOTEMDROP" header="PFTOTEMS">pfUI.totems:DropSet()</Binding>
+  <Binding name="PFTOTEM2">pfUI.totems:CastElement(2)</Binding>
+  <Binding name="PFTOTEM1">pfUI.totems:CastElement(1)</Binding>
+  <Binding name="PFTOTEM3">pfUI.totems:CastElement(3)</Binding>
+  <Binding name="PFTOTEM4">pfUI.totems:CastElement(4)</Binding>
+  <Binding name="PFTOTEMRECALL">pfUI.totems:Recall()</Binding>
 </Bindings>

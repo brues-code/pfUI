@@ -25,14 +25,32 @@ pfUI:RegisterModule("totems", function ()
     RIGHT  = { "LEFT",   "RIGHT",   1,  0 },
   }
 
-  -- SPELL_EFFECT_SUMMON_TOTEM_SLOT1..4 are effects 87..90, in the order of
-  -- the totem slots. Returns the element slot a spell summons a totem into.
-  local function GetTotemSlot(spellID)
+  -- the key bindings of Bindings.xml
+  _G.BINDING_HEADER_PFTOTEMS = T["Totem Bar"]
+  _G.BINDING_NAME_PFTOTEMDROP = T["Drop Totem Set"]
+  _G.BINDING_NAME_PFTOTEM1 = T["Fire Totem"]
+  _G.BINDING_NAME_PFTOTEM2 = T["Earth Totem"]
+  _G.BINDING_NAME_PFTOTEM3 = T["Water Totem"]
+  _G.BINDING_NAME_PFTOTEM4 = T["Air Totem"]
+  _G.BINDING_NAME_PFTOTEMRECALL = T["Totemic Recall"]
+
+  local SPELL_EFFECT_SUMMON_TOTEM_SLOT1 = 87
+  local SPELL_EFFECT_SUMMON_TOTEM_SLOT4 = 90
+  local SPELL_EFFECT_DESTROY_ALL_TOTEMS = 110
+
+  -- Reads what a spell does to totems: the element slot it summons a totem
+  -- into (the summon effects follow the slot order), or "recall" for a spell
+  -- that destroys all totems.
+  local function GetTotemEffect(spellID)
     local effects = C_Spell.GetSpellEffectInfo(spellID)
     if not effects then return end
     for i = 1, 3 do
       local effect = effects[i].effect
-      if effect >= 87 and effect <= 90 then return effect - 86 end
+      if effect >= SPELL_EFFECT_SUMMON_TOTEM_SLOT1 and effect <= SPELL_EFFECT_SUMMON_TOTEM_SLOT4 then
+        return effect - SPELL_EFFECT_SUMMON_TOTEM_SLOT1 + 1
+      elseif effect == SPELL_EFFECT_DESTROY_ALL_TOTEMS then
+        return "recall"
+      end
     end
   end
 
@@ -40,25 +58,30 @@ pfUI:RegisterModule("totems", function ()
   totems.known = { {}, {}, {}, {} }
   totems.buttons = {}
 
-  -- Collects the totems of the spellbook by element, one entry per totem.
-  -- The ranks of a spell follow each other in rising order, so the last one
-  -- seen is the highest.
+  -- Collects the totems of the spellbook by element, one entry per totem,
+  -- and the spell that recalls them. The ranks of a spell follow each other
+  -- in rising order, so the last one seen is the highest.
   totems.ScanSpellbook = function(self)
     local known = { {}, {}, {}, {} }
     local byName = {}
+    local recall
 
     local index = 1
     local info = C_SpellBook.GetSpellBookItemInfo(index, Enum.SpellBookSpellBank.Player)
     while info do
-      local slot = not info.isPassive and GetTotemSlot(info.spellID)
-      if slot then
+      local kind = not info.isPassive and GetTotemEffect(info.spellID)
+      if kind then
         local entry = byName[info.name]
         if entry then
           entry.spellID = info.spellID
         else
           entry = { name = info.name, spellID = info.spellID, icon = info.iconID }
           byName[info.name] = entry
-          table.insert(known[slot], entry)
+          if kind == "recall" then
+            recall = entry
+          else
+            table.insert(known[kind], entry)
+          end
         end
       end
 
@@ -67,6 +90,7 @@ pfUI:RegisterModule("totems", function ()
     end
 
     self.known = known
+    self.recall = recall
   end
 
   -- the chosen totem of an element, or its first one when none is chosen
@@ -81,6 +105,42 @@ pfUI:RegisterModule("totems", function ()
   totems.SetChoice = function(self, slot, entry)
     C.totems[slotKeys[slot]] = entry.name
     self:Refresh()
+  end
+
+  -- [ casting ]
+  totems.CastElement = function(self, slot)
+    local choice = self:GetChoice(slot)
+    if choice then CastSpellByID(choice.spellID) end
+  end
+
+  totems.Recall = function(self)
+    if self.recall then CastSpellByID(self.recall.spellID) end
+  end
+
+  -- An element needs its chosen totem when its slot is empty or holds another
+  -- totem, the totem tool is there to drop it, and it is off cooldown.
+  local function NeedsChoice(slot, choice)
+    local haveTool, _, start, _, _, _, spellID = GetTotemInfo(slot)
+    if start > 0 then
+      if C_Spell.GetSpellName(spellID) == choice.name then return end
+    elseif not haveTool then
+      return
+    end
+
+    local cooldown = C_Spell.GetSpellCooldown(choice.spellID)
+    return cooldown.duration == 0 or cooldown.isOnGCD
+  end
+
+  -- Drops the first chosen totem, in bar order, that is not down yet. Each
+  -- press drops one, so pressing it over and over drops the whole set.
+  totems.DropSet = function(self)
+    for _, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
+      local choice = self:GetChoice(slot)
+      if choice and NeedsChoice(slot, choice) then
+        CastSpellByID(choice.spellID)
+        return
+      end
+    end
   end
 
   -- [ tooltips ]
@@ -120,10 +180,21 @@ pfUI:RegisterModule("totems", function ()
   local function ElementClick(self, button)
     local slot = self:GetID()
     if button == "LeftButton" then
-      CastSpellByID(totems:GetChoice(slot).spellID)
+      totems:CastElement(slot)
     elseif button == "RightButton" then
       TargetTotem(slot)
     end
+  end
+
+  -- [ recall button ]
+  local function RecallEnter(self)
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:SetSpellByID(totems.recall.spellID)
+    GameTooltip:Show()
+  end
+
+  local function RecallClick()
+    totems:Recall()
   end
 
   -- [ flyout entries ]
@@ -155,21 +226,43 @@ pfUI:RegisterModule("totems", function ()
     CheckFlyout(self)
   end
 
-  local function CreateIconButton(name, parent)
+  -- An icon button with its key text above the cooldown. Hoverbind binds keys
+  -- to its 'bindcommand'.
+  local function CreateIconButton(name, parent, bindcommand)
     local button = CreateFrame("Button", name, parent)
     CreateBackdrop(button, nil, true)
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    button.bindcommand = bindcommand
 
     button.icon = button:CreateTexture(nil, "ARTWORK")
     button.icon:SetTexCoord(.08, .92, .08, .92)
     SetAllPointsOffset(button.icon, button, 2, -2)
 
+    button.overlay = CreateFrame("Frame", nil, button)
+    button.overlay:SetAllPoints()
+    button.overlay:SetFrameLevel(button:GetFrameLevel() + 3)
+
+    button.keybind = button.overlay:CreateFontString(nil, "OVERLAY")
+    button.keybind:SetJustifyH("RIGHT")
+    button.keybind:SetJustifyV("TOP")
+    button.keybind:SetNonSpaceWrap(false)
+
+    if pfUI.hoverbind then pfUI.hoverbind:Register(button) end
     return button
+  end
+
+  local function UpdateKeybindFont(button)
+    local offset = tonumber(C.bars.font_offset)
+    SetAllPointsOffset(button.keybind, button, offset, -offset)
+    button.keybind:SetFont(pfUI.media[C.bars.font], tonumber(C.bars.bind_size), "OUTLINE")
+    button.keybind:SetTextColor(GetStringColor(C.bars.bind_color))
   end
 
   local function CreateEntry(flyout)
     local entry = CreateIconButton(nil, flyout)
     entry.flyout = flyout
+    entry.cd = CreateCooldown(entry, "spell", C.bars, "timers")
+    UpdateKeybindFont(entry)
 
     entry.highlight = CreateFrame("Frame", nil, entry)
     entry.highlight:SetBackdrop(backdrop_highlight)
@@ -189,13 +282,14 @@ pfUI:RegisterModule("totems", function ()
   end
 
   local function CreateElement(slot)
-    local button = CreateIconButton("pfTotemsBar" .. slot, totems)
+    local button = CreateIconButton("pfTotemsBar" .. slot, totems, "PFTOTEM" .. slot)
     button:SetID(slot)
     button:SetBackdropBorderColor(slotColors[slot]:GetRGB())
 
     button.cdbg = CreateFrame("Frame", nil, button)
     button.cdbg:SetPoint("CENTER", button, "CENTER", 0, 0)
     button.cd = CreateCooldown(button.cdbg, "aura", C.totems, "timers", "pfTotemsBar" .. slot .. "Cooldown")
+    button.spellcd = CreateCooldown(button.cdbg, "spell", C.bars, "timers", "pfTotemsBar" .. slot .. "SpellCooldown")
 
     -- mouse-enabled so the gaps between entries keep it open
     button.flyout = CreateFrame("Frame", nil, button)
@@ -209,6 +303,14 @@ pfUI:RegisterModule("totems", function ()
     button:SetScript("OnEnter", ElementEnter)
     button:SetScript("OnLeave", ElementLeave)
     button:SetScript("OnClick", ElementClick)
+    return button
+  end
+
+  local function CreateRecall()
+    local button = CreateIconButton("pfTotemsRecall", totems, "PFTOTEMRECALL")
+    button:SetScript("OnEnter", RecallEnter)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+    button:SetScript("OnClick", RecallClick)
     return button
   end
 
@@ -237,6 +339,7 @@ pfUI:RegisterModule("totems", function ()
       entry.icon:SetTexture(data.icon)
       entry.chosen:SetBackdropBorderColor(slotColors[button:GetID()]:GetRGB())
       entry.totem = data
+      entry.bindcommand = "SPELL " .. data.name
       entry:Show()
     end
 
@@ -245,29 +348,58 @@ pfUI:RegisterModule("totems", function ()
     end
   end
 
+  -- the key text of every button, hidden flyout entries as well
+  totems.UpdateBindings = function(self)
+    for _, button in pairs(self.buttons) do
+      button.keybind:SetText(GetKeybindText(button.bindcommand))
+      for _, entry in ipairs(button.flyout.entries) do
+        if entry.bindcommand then
+          entry.keybind:SetText(GetKeybindText(entry.bindcommand))
+        end
+      end
+    end
+    self.recallbutton.keybind:SetText(GetKeybindText(self.recallbutton.bindcommand))
+  end
+
+  local function SetSpellCooldown(cd, spellID)
+    local cooldown = C_Spell.GetSpellCooldown(spellID)
+    CooldownFrame_SetTimer(cd, cooldown.startTime, cooldown.duration, 1)
+  end
+
+  -- The cooldowns of the totem spells: on every flyout entry, and on an
+  -- element without a totem down, which shows the cooldown of its chosen
+  -- totem in place of the totem's time left.
+  totems.UpdateCooldowns = function(self)
+    for slot, button in pairs(self.buttons) do
+      local choice = self:GetChoice(slot)
+      local start = select(3, GetTotemInfo(slot))
+      if choice and start == 0 then
+        SetSpellCooldown(button.spellcd, choice.spellID)
+      else
+        CooldownFrame_SetTimer(button.spellcd, 0, 0, 0)
+      end
+
+      for _, entry in ipairs(button.flyout.entries) do
+        if entry.totem then SetSpellCooldown(entry.cd, entry.totem.spellID) end
+      end
+    end
+  end
+
   -- Shows each element in its state: the active totem with its timer, or
   -- the chosen one dimmed. Red when the totem tool of the element is missing.
+  -- Totemic Recall follows, dimmed while no totem is down.
   totems.Refresh = function(self)
-    local count = 0
-    local thickness = self.iconsize + self.spacing * 2
+    local shown = {}
+    local anyActive
 
     for _, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
       local button = self.buttons[slot]
       local choice = self:GetChoice(slot)
       local haveTool, _, start, duration, icon = GetTotemInfo(slot)
-      local active = start and start > 0 and icon and icon ~= ""
+      local active = start > 0 and icon and icon ~= ""
+      anyActive = anyActive or active
 
       if choice and (active or not self.onlyactive) then
-        local offset = self.spacing + count * thickness
-        count = count + 1
-
-        button:ClearAllPoints()
-        if self.direction == "HORIZONTAL" then
-          button:SetPoint("TOPLEFT", self, "TOPLEFT", offset, -self.spacing)
-        else
-          button:SetPoint("TOPLEFT", self, "TOPLEFT", self.spacing, -offset)
-        end
-
         if active then
           button.icon:SetTexture(icon)
           button.icon:SetVertexColor(1, 1, 1)
@@ -283,18 +415,42 @@ pfUI:RegisterModule("totems", function ()
         end
 
         for _, entry in ipairs(button.flyout.entries) do
-          if entry.totem == choice then entry.chosen:Show() else entry.chosen:Hide() end
+          entry.chosen:SetShown(entry.totem == choice)
         end
 
-        button:Show()
+        table.insert(shown, button)
       else
         button:Hide()
       end
     end
 
+    local recall = self.recallbutton
+    if self.recall and (anyActive or not self.onlyactive) then
+      recall.icon:SetTexture(self.recall.icon)
+      recall.icon:SetVertexColor(anyActive and 1 or .5, anyActive and 1 or .5, anyActive and 1 or .5)
+      table.insert(shown, recall)
+    else
+      recall:Hide()
+    end
+
+    self:UpdateCooldowns()
+
+    local count = table.getn(shown)
     if count == 0 then
       self:Hide()
       return
+    end
+
+    local thickness = self.iconsize + self.spacing * 2
+    for i, button in ipairs(shown) do
+      local offset = self.spacing + (i - 1) * thickness
+      button:ClearAllPoints()
+      if self.direction == "HORIZONTAL" then
+        button:SetPoint("TOPLEFT", self, "TOPLEFT", offset, -self.spacing)
+      else
+        button:SetPoint("TOPLEFT", self, "TOPLEFT", self.spacing, -offset)
+      end
+      button:Show()
     end
 
     local length = thickness * count
@@ -311,6 +467,7 @@ pfUI:RegisterModule("totems", function ()
     for slot, button in pairs(self.buttons) do
       LayoutFlyout(button, self.known[slot])
     end
+    self:UpdateBindings()
     self:Refresh()
   end
 
@@ -326,7 +483,15 @@ pfUI:RegisterModule("totems", function ()
       self.buttons[slot] = button
       button:SetSize(self.iconsize, self.iconsize)
       button.cdbg:SetSize(self.iconsize - 3, self.iconsize - 3)
+      UpdateKeybindFont(button)
+      for _, entry in ipairs(button.flyout.entries) do
+        UpdateKeybindFont(entry)
+      end
     end
+
+    self.recallbutton = self.recallbutton or CreateRecall()
+    self.recallbutton:SetSize(self.iconsize, self.iconsize)
+    UpdateKeybindFont(self.recallbutton)
 
     self:UpdateList()
     self:ClearAllPoints()
@@ -342,6 +507,8 @@ pfUI:RegisterModule("totems", function ()
   end
 
   pfUI.events:RegisterFrameEventAndCallback("SPELLS_CHANGED", function() totems:UpdateList() end)
+  pfUI.events:RegisterFrameEventAndCallback("SPELL_UPDATE_COOLDOWN", function() totems:UpdateCooldowns() end)
+  pfUI.events:RegisterFrameEventAndCallback("UPDATE_BINDINGS", function() totems:UpdateBindings() end)
   pfUI.events:RegisterFrameEventAndCallback("PLAYER_TOTEM_UPDATE", function() totems:Refresh() end)
   pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", function() totems:Refresh() end)
   pfUI.events:RegisterFrameEventAndCallback("BAG_UPDATE_DELAYED", function() totems:Refresh() end)
