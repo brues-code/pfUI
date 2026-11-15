@@ -156,7 +156,9 @@ pfUI:RegisterModule("buff", function ()
     buff.cd:SetFrameLevel(buff:GetFrameLevel() + 1)
     buff.overlay:SetFrameLevel(buff:GetFrameLevel() + 2)
 
+    -- right-click cancels the aura; the other clicks go through to the world
     buff:RegisterForClicks("RightButtonUp")
+    buff:SetPassThroughButtons("LeftButton", "MiddleButton", "Button4", "Button5")
 
     buff.weapon = weapon
     buff.btype = btype

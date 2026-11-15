@@ -368,6 +368,29 @@ pfUI.events:RegisterCallback("aggro:changed", function(_, old, new)
   end
 end, "unitframes")
 
+-- An aura icon takes a click only for the right-click that cancels one of the
+-- player's own auras. Every other click goes through to what is under it: the
+-- unit frame (target, menu, click-casting) or the world (camera drag). The
+-- icons keep their tooltips either way.
+local function PassAuraClicks(auras, player)
+  if not auras then return end
+  for i = 1, 32 do
+    local icon = auras[i]
+    if not icon then return end
+    if player then
+      icon:SetPassThroughButtons("LeftButton", "MiddleButton", "Button4", "Button5")
+    else
+      icon:SetPassThroughButtons("LeftButton", "RightButton", "MiddleButton", "Button4", "Button5")
+    end
+  end
+end
+
+local function UpdateAuraClicks(f)
+  local player = f.label == "player"
+  PassAuraClicks(f.buffs, player)
+  PassAuraClicks(f.debuffs, player)
+end
+
 function pfUI.uf:UpdateVisibility()
   local self = self or this
 
@@ -448,6 +471,7 @@ function pfUI.uf:UpdateVisibility()
   if unitstr ~= self.unitstr then
     self.unitstr = unitstr
     self:SetAttribute("unit", unitstr)
+    UpdateAuraClicks(self)
   end
   -- anything but "show"/"hide" means "show if the unit exists"
   local visibility = "exists"
@@ -1033,6 +1057,8 @@ function pfUI.uf:UpdateConfig()
       f.debuffs[i]:SetScript("OnClick", DebuffOnClick)
     end
   end
+
+  UpdateAuraClicks(f)
 
   if f.config.visible == "1" then
     pfUI.uf:RefreshUnit(f, "all")
