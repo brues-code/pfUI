@@ -220,6 +220,76 @@ pfUI:RegisterModule("totems", function ()
     end
   end
 
+  -- [ group coverage ]
+  -- The buff of a totem has the totem's icon, so a unit with a buff of that
+  -- icon has it. Its caster cannot tell the totems apart, as a totem buff
+  -- names the unit that has it as its caster.
+  local groupUnits = { "player", "party1", "party2", "party3", "party4" }
+  local unitBuffs = {} -- unit -> [icon] = true
+  for _, unit in ipairs(groupUnits) do unitBuffs[unit] = {} end
+
+  local function ScanUnit(unit)
+    local icons = unitBuffs[unit]
+    for icon in pairs(icons) do icons[icon] = nil end
+
+    local index = 1
+    local aura = C_UnitAuras.GetAuraDataByIndex(unit, index, "HELPFUL")
+    while aura do
+      icons[aura.icon] = true
+      index = index + 1
+      aura = C_UnitAuras.GetAuraDataByIndex(unit, index, "HELPFUL")
+    end
+  end
+
+  -- Shows how far the buff of each totem reaches: the element greys out
+  -- while you lack it, and in a group a badge counts who has it. Only once
+  -- a totem's buff was seen, as many totems have none.
+  totems.UpdateCoverage = function(self)
+    for _, button in pairs(self.buttons) do
+      local icon = button.totemIcon
+      local covered, members, inRange = 0, 0
+
+      if icon then
+        for _, unit in ipairs(groupUnits) do
+          if UnitExists(unit) then
+            members = members + 1
+            if unitBuffs[unit][icon] then covered = covered + 1 end
+          end
+        end
+        inRange = unitBuffs.player[icon]
+        if covered > 0 then button.buffSeen = true end
+      end
+
+      local tracked = icon and button.buffSeen
+      button.icon:SetDesaturated(tracked and not inRange)
+
+      if tracked and members > 1 then
+        local color = covered == members and GREEN_FONT_COLOR
+          or covered == 0 and RED_FONT_COLOR or YELLOW_FONT_COLOR
+        button.coverage:SetText(covered .. "/" .. members)
+        button.coverage:SetTextColor(color:GetRGB())
+      else
+        button.coverage:SetText("")
+      end
+    end
+  end
+
+  -- the group members without the buff of an element's totem
+  local function AddMissing(button)
+    if not button.totemIcon or not button.buffSeen then return end
+
+    local missing
+    for _, unit in ipairs(groupUnits) do
+      if UnitExists(unit) and not unitBuffs[unit][button.totemIcon] then
+        missing = (missing and missing .. ", " or "") .. UnitName(unit)
+      end
+    end
+
+    if missing then
+      GameTooltip:AddLine(T["Missing"] .. ": " .. missing, RED_FONT_COLOR:GetRGB())
+    end
+  end
+
   -- [ tooltips ]
   local function AddHint(button, action)
     GameTooltip:AddDoubleLine(button, action, nil, nil, nil, WHITE_FONT_COLOR:GetRGB())
@@ -310,9 +380,10 @@ pfUI:RegisterModule("totems", function ()
     local active = spellID and spellID > 0
 
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetSpellByID(active and spellID or choice.spellID)
+    GameTooltip:SetSpellByID(active and spellID or choice.spellID, false, true)
     AddHint(T["Left Click"], choice.name)
     if active then AddHint(T["Right Click"], T["Target Totem"]) end
+    AddMissing(self)
     GameTooltip:Show()
 
     if table.getn(totems.known[slot]) > 1 then
@@ -438,7 +509,7 @@ pfUI:RegisterModule("totems", function ()
   local function EntryEnter(self)
     self.highlight:Show()
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetSpellByID(self.totem.spellID)
+    GameTooltip:SetSpellByID(self.totem.spellID, false, true)
     AddHint(T["Left Click"], T["Cast and choose"])
     AddHint(T["Right Click"], T["Choose"])
     GameTooltip:Show()
@@ -527,6 +598,10 @@ pfUI:RegisterModule("totems", function ()
     button.cdbg:SetPoint("CENTER", button, "CENTER", 0, 0)
     button.cd = CreateCooldown(button.cdbg, "aura", C.totems, "timers", "pfTotemsBar" .. slot .. "Cooldown")
     button.spellcd = CreateCooldown(button.cdbg, "spell", C.bars, "timers", "pfTotemsBar" .. slot .. "SpellCooldown")
+
+    button.coverage = button.overlay:CreateFontString(nil, "OVERLAY")
+    button.coverage:SetJustifyH("RIGHT")
+    button.coverage:SetJustifyV("BOTTOM")
 
     button.alert = CreateFrame("Frame", nil, button)
     button.alert:SetBackdrop(backdrop_highlight)
@@ -686,8 +761,14 @@ pfUI:RegisterModule("totems", function ()
           button.icon:SetVertexColor(1, 1, 1)
           CooldownFrame_SetTimer(button.cd, start, duration, 1)
           WatchExpiry(button, start + duration)
+          if button.totemStart ~= start then
+            button.totemStart = start
+            button.buffSeen = nil
+          end
+          button.totemIcon = icon
         else
           WatchExpiry(button, nil)
+          button.totemIcon = nil
           button.icon:SetTexture(choice.icon)
           if haveTool then
             button.icon:SetVertexColor(.5, .5, .5)
@@ -717,6 +798,7 @@ pfUI:RegisterModule("totems", function ()
     end
 
     self:UpdateCooldowns()
+    self:UpdateCoverage()
 
     if not anyKnown then
       self:Hide()
@@ -769,6 +851,9 @@ pfUI:RegisterModule("totems", function ()
       button:SetSize(self.iconsize, self.iconsize)
       button.cdbg:SetSize(self.iconsize - 3, self.iconsize - 3)
       button.expires = 0 -- arms the expiry warning again with the new setting
+      local offset = tonumber(C.bars.font_offset)
+      SetAllPointsOffset(button.coverage, button, offset, -offset)
+      button.coverage:SetFont(pfUI.media[C.bars.font], tonumber(C.bars.bind_size), "OUTLINE")
       UpdateKeybindFont(button)
       for _, entry in ipairs(button.flyout.entries) do
         UpdateKeybindFont(entry)
@@ -807,7 +892,7 @@ pfUI:RegisterModule("totems", function ()
   -- The combat log names the GUID of each totem you summon. Every totem that
   -- goes away is logged as destroyed, so a kill is one with time left that
   -- no totem cast of yours replaced.
-  local playerGUID = UnitGUID("player")
+  local playerGUID     -- known once in the world
   local guidSlots = {} -- totem GUID -> element slot
   local attackers = {} -- element slot -> the last unit that damaged its totem
   local castAt = {}    -- element slot -> time of your last cast that replaces its totem
@@ -842,6 +927,21 @@ pfUI:RegisterModule("totems", function ()
   end
 
   pfUI.events:RegisterFrameEventAndCallback("COMBAT_LOG_EVENT_UNFILTERED", OnCombatLog)
+
+  local function ScanGroup()
+    playerGUID = UnitGUID("player")
+    for _, unit in ipairs(groupUnits) do ScanUnit(unit) end
+    totems:UpdateCoverage()
+  end
+
+  pfUI.events:RegisterFrameEventAndCallback("UNIT_AURA", function(_, unit)
+    if unitBuffs[unit] then
+      ScanUnit(unit)
+      totems:UpdateCoverage()
+    end
+  end)
+  pfUI.events:RegisterFrameEventAndCallback("PARTY_MEMBERS_CHANGED", ScanGroup)
+  pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", ScanGroup)
   pfUI.events:RegisterFrameEventAndCallback("SPELLS_CHANGED", function() totems:UpdateList() end)
   pfUI.events:RegisterFrameEventAndCallback("SPELL_UPDATE_COOLDOWN", function() totems:UpdateCooldowns() end)
   pfUI.events:RegisterFrameEventAndCallback("UPDATE_BINDINGS", function() totems:UpdateBindings() end)
