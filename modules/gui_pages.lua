@@ -91,6 +91,12 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
       "HORIZONTAL:" .. T["Horizontal"],
       "VERTICAL:" .. T["Vertical"],
     },
+    ["flyout"] = {
+      "TOP:" .. T["Up"],
+      "BOTTOM:" .. T["Down"],
+      "LEFT:" .. T["Left"],
+      "RIGHT:" .. T["Right"],
+    },
     ["xpanchors"] = {
       "__NONONIL__:" .. T["No Anchor"],
       "pfChatLeft:" .. T["Left Chat Frame"],
@@ -1301,8 +1307,10 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Number(T["Stack Count Font Size"], C.buffs, "fontsize", U["buff"])
   end)
 
-  gui:AddPage("buffs.totems", T["Buffs"], T["Totem Icons"], function(p)
+  gui:AddPage("buffs.totems", T["Buffs"], T["Totem Bar"], function(p)
     p:Dropdown(T["Totem Direction"], C.totems, "direction", D.orientation, U["totems"])
+    p:Dropdown(T["Flyout Direction"], C.totems, "flyout", D.flyout, U["totems"])
+    p:Checkbox(T["Only Show Active Totems"], C.totems, "onlyactive", U["totems"])
     p:Number(T["Icon Size"], C.totems, "iconsize", U["totems"])
     p:Dropdown(T["Spacing"], C.totems, "spacing", D.spacing, U["totems"])
     p:Checkbox(T["Show Background"], C.totems, "showbg", U["totems"])
