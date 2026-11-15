@@ -16,9 +16,9 @@ pfUI:RegisterModule("buff", function ()
     ScanAuraSlots("player", "HARMFUL", harmfulSlots, 16)
   end
 
-  -- weapon enchants report only their time left, and no event as their
-  -- charges and time run down, so the OnUpdate below refreshes their buttons
-  -- too: the charges, and the timer when the enchant was renewed
+  -- weapon enchants report only their time left; WEAPON_ENCHANT_CHANGED
+  -- refreshes the button on apply, renewal, removal and each lost charge. A
+  -- lost charge leaves the time alone, so the timer restarts only on a renewal.
   local function RefreshWeaponButton(buff, timeleft, charges)
     timeleft = (timeleft or 0) / 1000
     charges = charges or 0
@@ -162,9 +162,6 @@ pfUI:RegisterModule("buff", function ()
     buff.btype = btype
     buff.gid = i
 
-    -- PERF: OnUpdate moved to consolidated parent frame handler (see pfUI.buff:SetScript("OnUpdate"))
-    -- Individual buff frames no longer have their own OnUpdate
-
     buff:SetScript("OnEnter", function()
       GameTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT")
       if this.mode == this.btype then
@@ -202,8 +199,8 @@ pfUI:RegisterModule("buff", function ()
 
   pfUI.buff = CreateFrame("Frame", "pfGlobalBuffFrame", UIParent)
   pfUI.buff:RegisterEvent("PLAYER_AURAS_CHANGED")
-  pfUI.buff:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-  pfUI.buff:RegisterUnitEvent("UNIT_MODEL_CHANGED", "player")
+  pfUI.buff:RegisterEvent("WEAPON_ENCHANT_CHANGED")
+  pfUI.buff:RegisterEvent("WEAPON_SLOT_CHANGED")
   pfUI.buff:RegisterEvent("BUFF_UPDATE_DURATION_SELF")
   pfUI.buff:RegisterEvent("DEBUFF_UPDATE_DURATION_SELF")
   pfUI.buff:SetScript("OnEvent", function()
@@ -232,29 +229,6 @@ pfUI:RegisterModule("buff", function ()
     end
   end)
 
-  -- the buttons that can show a weapon enchant: the first two buffs, or the
-  -- separate weapon buttons
-  local weaponButtons
-
-  -- weapon enchants, see RefreshWeaponButton
-  pfUI.buff:SetScript("OnUpdate", function()
-    local now = GetTime()
-    if not this.nextUpdate then this.nextUpdate = now + 0.1 end
-    if this.nextUpdate > now then return end
-    this.nextUpdate = now + 0.1
-
-    local _, mhtime, mhcharge, _, ohtime, ohcharge = GetWeaponEnchantInfo()
-    for _, buff in ipairs(weaponButtons) do
-      if buff:IsShown() then
-        if buff.mode == "MAINHAND" then
-          RefreshWeaponButton(buff, mhtime, mhcharge)
-        elseif buff.mode == "OFFHAND" then
-          RefreshWeaponButton(buff, ohtime, ohcharge)
-        end
-      end
-    end
-  end)
-
   -- CreateBuffButton refreshes each new button from the slot buffers
   ScanPlayerAuraSlots()
 
@@ -279,11 +253,6 @@ pfUI:RegisterModule("buff", function ()
   for i=1,16 do
     pfUI.buff.debuffs.buttons[i] = CreateBuffButton(i, "HARMFUL")
   end
-
-  weaponButtons = {
-    pfUI.buff.buffs.buttons[1], pfUI.buff.buffs.buttons[2],
-    pfUI.buff.wepbuffs.buttons[1], pfUI.buff.wepbuffs.buttons[2],
-  }
 
   -- config loading
   function pfUI.buff:UpdateConfigBuffButton(buff)
