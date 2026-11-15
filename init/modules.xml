@@ -2,6 +2,7 @@
   <Include file="..\modules\gui_rows.lua"/>
   <Include file="..\modules\gui_rows.xml"/>
   <Include file="..\modules\gui.lua"/>
+  <Include file="..\modules\gui_pages.lua"/>
   <Include file="..\modules\unlock.lua"/>
   <Include file="..\modules\hoverbind.lua"/>
   <Include file="..\modules\updatenotify.lua"/>

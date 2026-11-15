@@ -98,12 +98,20 @@
     <Size y="22"/>
   </Frame>
 
-  <!-- A section title at the bottom of a taller row. -->
+  <!--
+  A section title near the bottom of a row as tall as two rows, which leaves
+  the gap under the title that the row below it would.
+  -->
   <Frame name="pfUIConfigHeaderRowTemplate" mixin="pfUIConfigHeaderRowMixin" virtual="true">
-    <Size y="40"/>
+    <Size y="45"/>
     <Layers>
       <Layer level="ARTWORK">
-        <FontString parentKey="caption" inherits="GameFontWhite" justifyH="LEFT" justifyV="BOTTOM" setAllPoints="true"/>
+        <FontString parentKey="caption" inherits="GameFontWhite" justifyH="LEFT" justifyV="BOTTOM">
+          <Anchors>
+            <Anchor point="TOPLEFT"/>
+            <Anchor point="BOTTOMRIGHT" y="5"/>
+          </Anchors>
+        </FontString>
       </Layer>
     </Layers>
     <Scripts>
