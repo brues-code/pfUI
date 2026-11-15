@@ -135,11 +135,6 @@ pfUI:RegisterModule("tooltip", function ()
   pfUI.tooltipStatusBar:SetPoint("TOPLEFT", 0, 8)
   pfUI.tooltipStatusBar:SetPoint("TOPRIGHT", 0, 8)
   pfUI.tooltipStatusBar:SetHeight(12)
-  pfUI.tooltipStatusBar:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-  pfUI.tooltipStatusBar:SetScript("OnEvent", function()
-    this.name = UnitName("mouseover")
-    this.level = UnitLevel("mouseover")
-  end)
 
   pfUI.tooltipStatusBar.text = CreateFrame("Frame", nil, pfUI.tooltipStatusBar)
   pfUI.tooltipStatusBar.text:SetFrameLevel(16)
@@ -158,7 +153,11 @@ pfUI:RegisterModule("tooltip", function ()
     pfUI.tooltipStatusBar:SetClampedToScreen(true)
   end
 
-  pfUI.tooltipStatusBar:SetScript("OnUpdate", function()
+  -- The HP text follows the bar. The client sets the bar's range and value as
+  -- it builds a unit tooltip, then moves it whenever the unit's health changes,
+  -- so OnValueChanged covers health changes. A new unit whose value equals the
+  -- last one's fires nothing, so UpdateUnit refreshes the text as well.
+  local function UpdateHealthText()
     local hp = GameTooltipStatusBar:GetValue()
     local _, hpmax = GameTooltipStatusBar:GetMinMaxValues()
     local rhp, rhpmax, estimated
@@ -166,7 +165,10 @@ pfUI:RegisterModule("tooltip", function ()
     if hpmax > 100 or (round(hpmax/100*hp) ~= hp) then
       rhp, rhpmax = hp, hpmax
     elseif pfUI.libhealth and pfUI.libhealth.enabled then
-      rhp, rhpmax, estimated = pfUI.libhealth:GetUnitHealthByName(this.name, this.level, tonumber(hp), tonumber(hpmax))
+      local _, guid = GameTooltip:GetUnitGUID()
+      if guid then
+        rhp, rhpmax, estimated = pfUI.libhealth:GetUnitHealthByName(UnitName(guid), UnitLevel(guid), hp, hpmax)
+      end
     end
 
     if C.tooltip.alwaysperc == "0" and ( estimated or hpmax > 100 or round(hpmax/100*hp) ~= hp ) then
@@ -176,7 +178,9 @@ pfUI:RegisterModule("tooltip", function ()
     else
       pfUI.tooltipStatusBar.HP:SetText("")
     end
-  end)
+  end
+
+  GameTooltipStatusBar:HookScript("OnValueChanged", UpdateHealthText)
 
   GameTooltipStatusBar:SetHeight(8)
   GameTooltipStatusBar:ClearAllPoints()
@@ -310,8 +314,6 @@ pfUI:RegisterModule("tooltip", function ()
       local guild, rankstr, rankid = GetGuildInfo(unit)
       local reaction = UnitReaction(unit, "player")
       local pvptitle = gsub(gsub(pvpname or name, name, "", 1), "^%s*(.-)%s*$", "%1")
-      local hp = UnitHealth(unit)
-      local hpm = UnitHealthMax(unit)
 
       if name then
         if UnitIsPlayer(unit) and class then
@@ -371,11 +373,7 @@ pfUI:RegisterModule("tooltip", function ()
         end
       end
 
-      if hp and hpm then
-        if hp >= 1000 then hp = round(hp / 1000, 1) .. "k" end
-        if hpm >= 1000 then hpm = round(hpm / 1000, 1) .. "k" end
-        pfUI.tooltipStatusBar.HP:SetText(hp .. " / " .. hpm)
-      end
+      UpdateHealthText()
       GameTooltip:Show()
     end
 
