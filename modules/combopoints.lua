@@ -62,32 +62,37 @@ pfUI:RegisterModule("combopoints", function ()
 
   -- reck
   elseif class == "PALADIN" then
-    local reck = CreateFrame("Frame")
-    reck:RegisterEvent("CHARACTER_POINTS_CHANGED")
-    reck:RegisterEvent("PLAYER_DEAD")
-    reck:RegisterEvent("CHAT_MSG_COMBAT_SELF_HITS")
-    reck:RegisterEvent("CHAT_MSG_COMBAT_SELF_CRITS")
-    reck:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES")
-    reck:RegisterEvent("CHAT_MSG_COMBAT_CREATURE_VS_SELF_HITS")
-    reck:RegisterEvent("CHAT_MSG_COMBAT_HOSTILEPLAYER_HITS")
+    -- The points show the extra attacks Reckoning has stored. On Turtle it
+    -- procs on a block, at any rank, so the combat log's procs are counted
+    -- rather than the blocks. Each proc adds the attacks it reports, up to
+    -- the server's cap of 5, and other extra attacks (Hand of Justice) join
+    -- the same store. The next swing uses them all: right away while
+    -- auto-attacking a target in reach, else once the auto-attack starts.
+    -- The server also empties the store on death, on stopping the
+    -- auto-attack and on a loading screen.
+    local MAX_EXTRA_ATTACKS = 5
+    local stored = 0
 
-    local COMBATHITCRITOTHERSELF = SanitizePattern(COMBATHITCRITOTHERSELF)
-    local COMBATHITCRITSCHOOLOTHERSELF = SanitizePattern(COMBATHITCRITSCHOOLOTHERSELF)
+    local function SetStored(count)
+      stored = count
+      pfUI.combopoints:DisplayNum(stored)
+    end
 
-    reck:SetScript("OnEvent", function()
-      if not this.rank or event == "CHARACTER_POINTS_CHANGED" then
-        _,_,_,_,this.rank = GetTalentInfo(2,13)
-      end
+    local function Reset()
+      if stored > 0 then SetStored(0) end
+    end
 
-      if event == "PLAYER_DEAD" or event == "CHAT_MSG_COMBAT_SELF_HITS" or event == "CHAT_MSG_COMBAT_SELF_CRITS" or event == "CHAT_MSG_COMBAT_SELF_MISSES" then
-        this.stacks = 0
-        pfUI.combopoints:DisplayNum(0)
-      elseif arg1 and this.rank and this.rank == 5 and this.stacks and this.stacks < 4 then
-        if strfind(arg1, COMBATHITCRITOTHERSELF) or strfind(arg1, COMBATHITCRITSCHOOLOTHERSELF) then
-          this.stacks = this.stacks + 1
-          pfUI.combopoints:DisplayNum(this.stacks)
-        end
+    pfUI.events:RegisterFrameEventAndCallback("COMBAT_LOG_EVENT_UNFILTERED", function()
+      local _, subevent, _, sourceGUID, _, _, _, destGUID, _, _, _, _, _, _, amount = CombatLogGetCurrentEventInfo()
+      if subevent == "SPELL_EXTRA_ATTACKS" and IsPlayerGuid(destGUID) then
+        SetStored(min(MAX_EXTRA_ATTACKS, stored + amount))
+      elseif (subevent == "SWING_DAMAGE" or subevent == "SWING_MISSED") and IsPlayerGuid(sourceGUID) then
+        Reset()
       end
     end)
+
+    pfUI.events:RegisterFrameEventAndCallback("PLAYER_DEAD", Reset)
+    pfUI.events:RegisterFrameEventAndCallback("PLAYER_LEAVE_COMBAT", Reset)
+    pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", Reset)
   end
 end)
