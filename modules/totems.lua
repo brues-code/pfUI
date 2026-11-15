@@ -8,14 +8,6 @@ pfUI:RegisterModule("totems", function ()
     [AIR_TOTEM_SLOT]   = CreateColor(.4, .1, .7),
   }
 
-  -- the config key that remembers the chosen totem of each element
-  local slotKeys = {
-    [FIRE_TOTEM_SLOT]  = "fire",
-    [EARTH_TOTEM_SLOT] = "earth",
-    [WATER_TOTEM_SLOT] = "water",
-    [AIR_TOTEM_SLOT]   = "air",
-  }
-
   -- flyout direction -> the flyout's point on the element button, the
   -- button's point it attaches to, and the step direction of its entries
   local flyoutAnchors = {
@@ -28,11 +20,24 @@ pfUI:RegisterModule("totems", function ()
   -- the key bindings of Bindings.xml
   _G.BINDING_HEADER_PFTOTEMS = T["Totem Bar"]
   _G.BINDING_NAME_PFTOTEMDROP = T["Drop Totem Set"]
-  _G.BINDING_NAME_PFTOTEM1 = T["Fire Totem"]
-  _G.BINDING_NAME_PFTOTEM2 = T["Earth Totem"]
-  _G.BINDING_NAME_PFTOTEM3 = T["Water Totem"]
-  _G.BINDING_NAME_PFTOTEM4 = T["Air Totem"]
   _G.BINDING_NAME_PFTOTEMRECALL = T["Totemic Recall"]
+  _G.BINDING_NAME_PFTOTEMSETNEXT = T["Next Totem Set"]
+  _G.BINDING_NAME_PFTOTEMSETPREV = T["Previous Totem Set"]
+
+  -- the elements take the localized names of their totem tools
+  local totemTools = {
+    [FIRE_TOTEM_SLOT]  = 5176, -- Fire Totem
+    [EARTH_TOTEM_SLOT] = 5175, -- Earth Totem
+    [WATER_TOTEM_SLOT] = 5177, -- Water Totem
+    [AIR_TOTEM_SLOT]   = 5178, -- Air Totem
+  }
+
+  for slot, itemID in pairs(totemTools) do
+    local item = Item:CreateFromItemID(itemID)
+    item:ContinueOnItemLoad(function()
+      _G["BINDING_NAME_PFTOTEM" .. slot] = item:GetItemName()
+    end)
+  end
 
   local SPELL_EFFECT_SUMMON_TOTEM_SLOT1 = 87
   local SPELL_EFFECT_SUMMON_TOTEM_SLOT4 = 90
@@ -93,9 +98,21 @@ pfUI:RegisterModule("totems", function ()
     self.recall = recall
   end
 
+  -- [ totem sets ]
+  -- Per character: named sets that each choose one totem per element slot,
+  -- by name so a new rank takes its place, and the index of the active set.
+  _G.pfUI_totems = _G.pfUI_totems or {}
+  local db = _G.pfUI_totems
+  db.sets = db.sets or { { name = T["Default"], totems = {} } }
+  db.active = db.active or 1
+
+  totems.GetSet = function(self)
+    return db.sets[db.active]
+  end
+
   -- the chosen totem of an element, or its first one when none is chosen
   totems.GetChoice = function(self, slot)
-    local choice = C.totems[slotKeys[slot]]
+    local choice = db.sets[db.active].totems[slot]
     for _, entry in ipairs(self.known[slot]) do
       if entry.name == choice then return entry end
     end
@@ -103,8 +120,59 @@ pfUI:RegisterModule("totems", function ()
   end
 
   totems.SetChoice = function(self, slot, entry)
-    C.totems[slotKeys[slot]] = entry.name
+    db.sets[db.active].totems[slot] = entry.name
     self:Refresh()
+  end
+
+  totems.SelectSet = function(self, index)
+    db.active = index
+    self:Refresh()
+  end
+
+  totems.CycleSet = function(self, delta)
+    local count = table.getn(db.sets)
+    self:SelectSet((db.active - 1 + delta) % count + 1)
+  end
+
+  -- a new set with the choices of the active one, which it becomes
+  totems.NewSet = function(self, name)
+    local choices = {}
+    for slot = 1, MAX_TOTEMS do
+      local choice = self:GetChoice(slot)
+      choices[slot] = choice and choice.name
+    end
+    table.insert(db.sets, { name = name, totems = choices })
+    self:SelectSet(table.getn(db.sets))
+  end
+
+  totems.RenameSet = function(self, name)
+    db.sets[db.active].name = name
+    self:Refresh()
+  end
+
+  -- the last set is kept
+  totems.DeleteSet = function(self)
+    if table.getn(db.sets) < 2 then return end
+    table.remove(db.sets, db.active)
+    self:SelectSet(math.min(db.active, table.getn(db.sets)))
+  end
+
+  local function FindSet(name)
+    name = name:lower()
+    for index, set in ipairs(db.sets) do
+      if set.name:lower() == name then return index end
+    end
+  end
+
+  -- /totemset <name> switches to a set, so a macro can bind each one
+  _G.SLASH_PFTOTEMSET1 = "/totemset"
+  SlashCmdList.PFTOTEMSET = function(msg)
+    local index = FindSet(strtrim(msg))
+    if index then
+      totems:SelectSet(index)
+    else
+      DEFAULT_CHAT_FRAME:AddMessage("|cff33ffccpf|cffffffffUI|r: " .. T["No totem set named"] .. " " .. msg)
+    end
   end
 
   -- [ casting ]
@@ -117,15 +185,16 @@ pfUI:RegisterModule("totems", function ()
     if self.recall then CastSpellByID(self.recall.spellID) end
   end
 
+  local function IsChoiceDown(slot, choice)
+    local _, _, start, _, _, _, spellID = GetTotemInfo(slot)
+    return start > 0 and C_Spell.GetSpellName(spellID) == choice.name
+  end
+
   -- An element needs its chosen totem when its slot is empty or holds another
   -- totem, the totem tool is there to drop it, and it is off cooldown.
   local function NeedsChoice(slot, choice)
-    local haveTool, _, start, _, _, _, spellID = GetTotemInfo(slot)
-    if start > 0 then
-      if C_Spell.GetSpellName(spellID) == choice.name then return end
-    elseif not haveTool then
-      return
-    end
+    local haveTool, _, start = GetTotemInfo(slot)
+    if IsChoiceDown(slot, choice) or (start == 0 and not haveTool) then return end
 
     local cooldown = C_Spell.GetSpellCooldown(choice.spellID)
     return cooldown.duration == 0 or cooldown.isOnGCD
@@ -195,6 +264,95 @@ pfUI:RegisterModule("totems", function ()
 
   local function RecallClick()
     totems:Recall()
+  end
+
+  -- [ set button ]
+  local function NameSet(mode, name)
+    name = strtrim(name)
+    if name == "" then return end
+    if mode == "rename" then totems:RenameSet(name) else totems:NewSet(name) end
+  end
+
+  StaticPopupDialogs["PFUI_TOTEM_SET_NAME"] = {
+    text = T["Totem Set Name"],
+    button1 = ACCEPT,
+    button2 = CANCEL,
+    hasEditBox = 1,
+    maxLetters = 32,
+    OnAccept = function(mode)
+      NameSet(mode, _G[this:GetParent():GetName() .. "EditBox"]:GetText())
+    end,
+    EditBoxOnEnterPressed = function(mode)
+      NameSet(mode, this:GetText())
+      this:GetParent():Hide()
+    end,
+    EditBoxOnEscapePressed = function() this:GetParent():Hide() end,
+    timeout = 0, whileDead = 1, hideOnEscape = 1,
+  }
+
+  -- 'mode' is "new" or "rename"
+  local function OpenNamePopup(mode)
+    local dialog = StaticPopup_Show("PFUI_TOTEM_SET_NAME", nil, nil, mode)
+    if not dialog then return end
+    local editbox = _G[dialog:GetName() .. "EditBox"]
+    editbox:SetText(mode == "rename" and totems:GetSet().name or "")
+    editbox:HighlightText()
+    editbox:SetFocus()
+  end
+
+  local function IsActiveSet(index)
+    return db.active == index
+  end
+
+  local function SelectSet(index)
+    totems:SelectSet(index)
+  end
+
+  local function DeleteSet()
+    totems:DeleteSet()
+  end
+
+  local function GenerateSetMenu(owner, rootDescription)
+    rootDescription:CreateTitle(T["Totem Sets"])
+    for index, set in ipairs(db.sets) do
+      rootDescription:CreateRadio(set.name, IsActiveSet, SelectSet, index)
+    end
+    CreateMenuDivider(rootDescription)
+    rootDescription:CreateButton(T["New Set"], OpenNamePopup, "new")
+    rootDescription:CreateButton(T["Rename Set"], OpenNamePopup, "rename")
+    rootDescription:CreateButton(T["Delete Set"], DeleteSet):SetEnabled(table.getn(db.sets) > 1)
+  end
+
+  -- the set's name and its totems, bright when down
+  local function SetEnter(self)
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:SetText(totems:GetSet().name)
+    for _, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
+      local choice = totems:GetChoice(slot)
+      if choice then
+        local icon = CreateTextureMarkup(choice.icon, 64, 64, 14, 14, .08, .92, .08, .92)
+        local color = IsChoiceDown(slot, choice) and HIGHLIGHT_FONT_COLOR or GRAY_FONT_COLOR
+        GameTooltip:AddLine(icon .. " " .. choice.name, color:GetRGB())
+      end
+    end
+    AddHint(T["Left Click"], T["Drop Totem Set"])
+    AddHint(T["Right Click"], T["Totem Sets"])
+    AddHint(T["Mouse Wheel"], T["Switch Totem Set"])
+    GameTooltip:Show()
+  end
+
+  local function SetClick(self, button)
+    if button == "LeftButton" then
+      totems:DropSet()
+    elseif button == "RightButton" then
+      GameTooltip:Hide()
+      MenuUtil.CreateContextMenu(self, GenerateSetMenu)
+    end
+  end
+
+  local function SetWheel(self, delta)
+    totems:CycleSet(-delta)
+    SetEnter(self)
   end
 
   -- [ flyout entries ]
@@ -306,6 +464,25 @@ pfUI:RegisterModule("totems", function ()
     return button
   end
 
+  -- the set button shows the set's four totems in a square
+  local function CreateSetButton()
+    local button = CreateIconButton("pfTotemsSet", totems, "PFTOTEMDROP")
+    button.menuMixin = pfUIMenuStyleMixin
+    button.icon:Hide()
+    button.totems = {}
+    for _, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
+      button.totems[slot] = button:CreateTexture(nil, "ARTWORK")
+      button.totems[slot]:SetTexCoord(.08, .92, .08, .92)
+    end
+
+    button:EnableMouseWheel(true)
+    button:SetScript("OnEnter", SetEnter)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+    button:SetScript("OnClick", SetClick)
+    button:SetScript("OnMouseWheel", SetWheel)
+    return button
+  end
+
   local function CreateRecall()
     local button = CreateIconButton("pfTotemsRecall", totems, "PFTOTEMRECALL")
     button:SetScript("OnEnter", RecallEnter)
@@ -359,6 +536,7 @@ pfUI:RegisterModule("totems", function ()
       end
     end
     self.recallbutton.keybind:SetText(GetKeybindText(self.recallbutton.bindcommand))
+    self.setbutton.keybind:SetText(GetKeybindText(self.setbutton.bindcommand))
   end
 
   local function SetSpellCooldown(cd, spellID)
@@ -387,10 +565,12 @@ pfUI:RegisterModule("totems", function ()
 
   -- Shows each element in its state: the active totem with its timer, or
   -- the chosen one dimmed. Red when the totem tool of the element is missing.
-  -- Totemic Recall follows, dimmed while no totem is down.
+  -- The set button leads, Totemic Recall follows, dimmed while no totem is
+  -- down.
   totems.Refresh = function(self)
-    local shown = {}
-    local anyActive
+    local set = self.setbutton
+    local shown = { set }
+    local anyActive, anyKnown
 
     for _, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
       local button = self.buttons[slot]
@@ -398,6 +578,16 @@ pfUI:RegisterModule("totems", function ()
       local haveTool, _, start, duration, icon = GetTotemInfo(slot)
       local active = start > 0 and icon and icon ~= ""
       anyActive = anyActive or active
+      anyKnown = anyKnown or choice
+
+      if choice then
+        local bright = IsChoiceDown(slot, choice) and 1 or .35
+        set.totems[slot]:SetTexture(choice.icon)
+        set.totems[slot]:SetVertexColor(bright, bright, bright)
+        set.totems[slot]:Show()
+      else
+        set.totems[slot]:Hide()
+      end
 
       if choice and (active or not self.onlyactive) then
         if active then
@@ -435,11 +625,12 @@ pfUI:RegisterModule("totems", function ()
 
     self:UpdateCooldowns()
 
-    local count = table.getn(shown)
-    if count == 0 then
+    if not anyKnown then
       self:Hide()
       return
     end
+
+    local count = table.getn(shown)
 
     local thickness = self.iconsize + self.spacing * 2
     for i, button in ipairs(shown) do
@@ -487,6 +678,17 @@ pfUI:RegisterModule("totems", function ()
       for _, entry in ipairs(button.flyout.entries) do
         UpdateKeybindFont(entry)
       end
+    end
+
+    self.setbutton = self.setbutton or CreateSetButton()
+    self.setbutton:SetSize(self.iconsize, self.iconsize)
+    UpdateKeybindFont(self.setbutton)
+    local half = (self.iconsize - 4) / 2
+    for i, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
+      local column, row = (i - 1) % 2, math.floor((i - 1) / 2)
+      local texture = self.setbutton.totems[slot]
+      texture:SetSize(half, half)
+      texture:SetPoint("TOPLEFT", self.setbutton, "TOPLEFT", 2 + column * half, -2 - row * half)
     end
 
     self.recallbutton = self.recallbutton or CreateRecall()

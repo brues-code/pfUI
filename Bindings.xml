@@ -77,4 +77,6 @@
   <Binding name="PFTOTEM3">pfUI.totems:CastElement(3)</Binding>
   <Binding name="PFTOTEM4">pfUI.totems:CastElement(4)</Binding>
   <Binding name="PFTOTEMRECALL">pfUI.totems:Recall()</Binding>
+  <Binding name="PFTOTEMSETNEXT">pfUI.totems:CycleSet(1)</Binding>
+  <Binding name="PFTOTEMSETPREV">pfUI.totems:CycleSet(-1)</Binding>
 </Bindings>
