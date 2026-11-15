@@ -72,13 +72,7 @@ pfUI:RegisterModule("sellvalue", function ()
       end,
     },
     SetHyperlink = { id = C_Item.GetItemInfoInstant },
-    SetBagItem = {
-      id = C_Container.GetContainerItemID,
-      count = function(container, slot)
-        local _, count = GetContainerItemInfo(container, slot)
-        return count
-      end,
-    },
+    SetBagItem = { id = C_Container.GetContainerItemID },
     SetInboxItem = {
       id = GetInboxItemID,
       count = function(index)
@@ -90,10 +84,6 @@ pfUI:RegisterModule("sellvalue", function ()
       id = function()
         local _, id = GetSendMailItemLink()
         return id
-      end,
-      count = function()
-        local _, _, count = GetSendMailItem()
-        return count
       end,
     },
     SetInventoryItem = { id = GetInventoryItemID },
@@ -122,13 +112,7 @@ pfUI:RegisterModule("sellvalue", function ()
       end,
     },
     SetAuctionSellItem = { id = GetAuctionSellItemLink },
-    SetTradePlayerItem = {
-      id = GetTradePlayerItemLink,
-      count = function(id)
-        local _, _, count = GetTradePlayerItemInfo(id)
-        return count
-      end,
-    },
+    SetTradePlayerItem = { id = GetTradePlayerItemLink },
     SetTradeTargetItem = {
       id = GetTradeTargetItemLink,
       count = function(id)
@@ -148,18 +132,29 @@ pfUI:RegisterModule("sellvalue", function ()
         return GetCraftReagentItemID(recipeIndex, reagentIndex)
       end
     },
-    SetBuybackItem = {
-      id = C_MerchantFrame.GetBuybackItemID,
-      count = function(slotIndex)
-        local _, _, _, itemCount = GetBuybackItemInfo(slotIndex)
-        return itemCount
-      end
-    }
+    SetBuybackItem = { id = C_MerchantFrame.GetBuybackItemID }
   }
+
+  -- OnTooltipSetItem fires inside every Set* call, before the hooks below run,
+  -- with the GUID of the item object behind the tooltip. Items the player holds
+  -- (bags, bank, equipped, buyback, trade, send-mail) have one, and their stack
+  -- count comes straight from it; rows without an object (loot, merchant,
+  -- auctions, quests, ...) pass nil and fall back to the setter's own count.
+  local itemGUID
+  GameTooltip:HookScript("OnTooltipSetItem", function()
+    itemGUID = arg1
+  end)
+
+  local function StackCount(entry, arg1, arg2, arg3)
+    local count = itemGUID and C_Item.GetStackCount(itemGUID) or 0
+    if count > 0 then return count end
+    return entry.count and entry.count(arg1, arg2, arg3) or 1
+  end
 
   local function makeHook(entry)
     return function(tooltip, arg1, arg2, arg3)
-      AddVendorPrices(tooltip, entry.id(arg1, arg2, arg3), entry.count and entry.count(arg1, arg2, arg3) or 1)
+      AddVendorPrices(tooltip, entry.id(arg1, arg2, arg3), StackCount(entry, arg1, arg2, arg3))
+      itemGUID = nil
     end
   end
 
