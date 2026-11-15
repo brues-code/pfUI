@@ -200,14 +200,19 @@ pfUI:RegisterModule("totems", function ()
     return cooldown.duration == 0 or cooldown.isOnGCD
   end
 
-  -- Drops the first chosen totem, in bar order, that is not down yet. Each
-  -- press drops one, so pressing it over and over drops the whole set.
+  -- Drops the chosen totems, in bar order, that are not down yet. Most totems
+  -- share a cooldown with their element only, not the global cooldown, so
+  -- nampower queues them all at once and casts them one after another.
+  -- Without it each press drops one, as the client takes one cast at a time.
   totems.DropSet = function(self)
     for _, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
       local choice = self:GetChoice(slot)
       if choice and NeedsChoice(slot, choice) then
-        CastSpellByID(choice.spellID)
-        return
+        if not HasNampower() then
+          CastSpellByID(choice.spellID)
+          return
+        end
+        QueueSpellByName(choice.name)
       end
     end
   end
