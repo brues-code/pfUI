@@ -50,9 +50,9 @@ pfUI:RegisterModule("innervatecall", function ()
     if pending then ScheduleReady() end
   end)
 
-  pfUI.events:RegisterFrameEventAndCallback("COMBAT_LOG_EVENT_UNFILTERED", function()
+  -- the callback takes the owner, then the event's values
+  pfUI.events:RegisterFrameEventAndCallback("COMBAT_LOG_EVENT_UNFILTERED", function(_, _, subevent, _, sourceGUID, _, _, _, _, destName, _, _, spellId)
     -- Innervate is instant, so it logs SPELL_CAST_SUCCESS with its target
-    local _, subevent, _, sourceGUID, _, _, _, _, destName, _, _, spellId = CombatLogGetCurrentEventInfo()
     if subevent ~= "SPELL_CAST_SUCCESS" or spellId ~= INNERVATE_SPELLID then return end
 
     -- Only announce our own casts
