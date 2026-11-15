@@ -73,11 +73,9 @@ pfUI:RegisterModule("thirdparty", function()
 
       -- show/hide right chatframe
       if pfUI.chat and C.chat.right.enable == "1" then
-        -- make sure the panel header stays hidden
-        pfUI.chat.right.panelTop:SetShown(self.state)
-
-        -- set chat visibility
+        -- set chat visibility; its tab bar follows
         pfUI.chat.right:SetAlpha(self.state and 1 or 0)
+        pfUI.chat:UpdateTabs(pfUI.chat.right)
       end
 
       -- show/hide damage meters

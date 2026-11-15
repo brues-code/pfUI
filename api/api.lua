@@ -1374,18 +1374,65 @@ function pfUI.api.MouseIsOverHitRect(frame)
   return frame:IsMouseOver(-top, bottom, left, -right)
 end
 
--- Autohide watches the cursor with a hover frame: it takes mouse motion only,
--- so clicks go through it, and reaches 10 px past the frame. Motion passes
--- to the next frame under the cursor in draw order, not to the parent, so the
--- hover frame sits at the frame's own level, under its children, and each
--- descendant passes its motion down to it. The hover frame passes it on too:
--- stacked bars overlap each other's margins at one level, and a hover frame
--- that ended the chain could keep the motion from the bar under the cursor.
-local function AutohidePropagate(frame, propagate)
+-- Sets whether the frame and its descendants pass their mouse motion on.
+-- return  the lowest frame level among them, the frame's hover frame left out
+local function PropagateMouseMotion(frame, propagate)
   frame:SetPropagateMouseMotion(propagate)
+  local lowest = frame:GetFrameLevel()
   for _, child in ipairs({ frame:GetChildren() }) do
-    AutohidePropagate(child, propagate)
+    local low = PropagateMouseMotion(child, propagate)
+    if child ~= frame.hover and low < lowest then lowest = low end
   end
+  return lowest
+end
+
+-- [ Enable Hover ] --
+-- Gives a frame a hover frame, 'frame.hover', that gets OnEnter when the
+-- cursor comes onto the frame, onto one of its children or within 10 px of
+-- it, and OnLeave when the cursor goes. The caller sets those scripts.
+--
+-- The hover frame takes mouse motion only, so clicks go through it. Motion
+-- passes to the next frame under the cursor in draw order, not to the
+-- parent, so each descendant passes its motion down to the hover frame, and
+-- the hover frame sits at the lowest level of the frame and its descendants
+-- (the datatext buttons sit at level 0, under their panel). Setting a level
+-- puts a frame behind the frames already on that level, so it loses ties.
+-- The hover frame passes the motion on too: frames side by side overlap
+-- each other's margins at one level, and a hover frame that ended the chain
+-- could keep the motion from the frame under the cursor.
+--
+-- Call it again whenever the frame gets new children, so they pass their
+-- motion on too.
+-- 'frame'    the frame to watch
+-- 'overlay'  optional: a frame that sits on top of 'frame' without being its
+--            child, and counts as part of it. It passes its motion on too.
+-- return     the hover frame
+function pfUI.api.EnableHover(frame, overlay)
+  local hover = frame.hover
+  if not hover then
+    hover = CreateFrame("Frame", nil, frame)
+    hover:SetAllPoints(frame)
+    hover:SetHitRectInsets(-10, -10, -10, -10)
+    hover:SetMouseClickEnabled(false)
+    hover:SetMouseMotionEnabled(true)
+    hover.parent = frame
+    frame.hover = hover
+  end
+
+  hover:SetFrameLevel(PropagateMouseMotion(frame, true))
+  if overlay then PropagateMouseMotion(overlay, true) end
+  hover:Show()
+  return hover
+end
+
+-- [ Disable Hover ] --
+-- Hides the frame's hover frame, which runs its OnLeave when the cursor is
+-- over it, and stops the frame's descendants passing their motion on.
+-- 'frame'  the frame to stop watching
+function pfUI.api.DisableHover(frame)
+  if not frame.hover then return end
+  frame.hover:Hide()
+  PropagateMouseMotion(frame, false)
 end
 
 local function AutohideReveal(hover)
@@ -1418,25 +1465,20 @@ local function AutohideEvent()
 end
 
 -- [ Enable Autohide ] --
--- Call it again whenever the frame gets new children, so they pass their
--- mouse motion on to the hover frame too.
+-- Fades the frame out once the cursor has been away from it for 'timeout'
+-- seconds, watched by its hover frame (see EnableHover). Call it again
+-- whenever the frame gets new children.
 -- 'frame'    the frame that should be hidden
 -- 'timeout'  seconds the cursor has to be away before the frame fades
 -- 'combat'   keep the frame shown while in combat
 function pfUI.api.EnableAutohide(frame, timeout, combat)
   if not frame then return end
 
-  local hover = frame.hover
-  if not hover then
-    hover = CreateFrame("Frame", frame:GetName() .. "Autohide", frame)
-    hover:SetAllPoints(frame)
-    hover:SetHitRectInsets(-10, -10, -10, -10)
-    hover:SetMouseClickEnabled(false)
-    hover:SetMouseMotionEnabled(true)
+  local hover = pfUI.api.EnableHover(frame)
+  if not hover.fade then
     hover:SetScript("OnEnter", AutohideEnter)
     hover:SetScript("OnLeave", AutohideLeave)
     hover:SetScript("OnEvent", AutohideEvent)
-    hover.parent = frame
     hover.fadeout = function() hover.fade:Play() end
 
     hover.fade = frame:CreateAnimationGroup()
@@ -1444,12 +1486,7 @@ function pfUI.api.EnableAutohide(frame, timeout, combat)
     local fade = hover.fade:CreateAnimation("Alpha")
     fade:SetChange(-1)
     fade:SetDuration(1)
-
-    frame.hover = hover
   end
-
-  AutohidePropagate(frame, true)
-  hover:SetFrameLevel(frame:GetFrameLevel())
   hover.timeout = timeout
 
   hover:UnregisterAllEvents()
@@ -1459,7 +1496,6 @@ function pfUI.api.EnableAutohide(frame, timeout, combat)
     hover:RegisterEvent("PLAYER_REGEN_DISABLED")
   end
 
-  hover:Show()
   if not hover:IsMouseMotionFocus() then AutohideSchedule(hover) end
 end
 
@@ -1472,9 +1508,8 @@ function pfUI.api.DisableAutohide(frame)
   -- hiding leaves the hover frame, and its OnLeave schedules a fade,
   -- which the reveal right after cancels
   frame.hover:UnregisterAllEvents()
-  frame.hover:Hide()
+  pfUI.api.DisableHover(frame)
   AutohideReveal(frame.hover)
-  AutohidePropagate(frame, false)
 end
 
 -- [ GetColorGradient ] --

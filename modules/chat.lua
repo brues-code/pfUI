@@ -255,6 +255,42 @@ pfUI:RegisterModule("chat", function ()
     end
   end
 
+  -- A chat's tab bar is hidden while a damage meter is docked over the chat,
+  -- which leaves the chat at alpha 0. With tabmouse it shows only while the
+  -- cursor is over the chat or within 10 px of it, as its hover frame tells.
+  -- Nothing changes while a chat frame is dragged: its tab, on that bar,
+  -- goes with the cursor.
+  function pfUI.chat:UpdateTabs(chat)
+    if pfUI.chat.hideLock then return end
+
+    if chat:GetAlpha() == 0 or chat.hover and not chat.hover:IsMouseMotionFocus() then
+      chat.panelTop:Hide()
+    elseif not chat.panelTop:IsShown() then
+      -- the dock lays the tabs out again only when their bar comes back
+      chat.panelTop:Show()
+      FCF_DockUpdate()
+    end
+  end
+
+  local function TabsHover()
+    pfUI.chat:UpdateTabs(this.parent)
+  end
+
+  -- RefreshChat moves chat frames and tabs onto a chat, so it runs this after
+  -- each pass for them to pass their mouse motion on to the hover frame.
+  -- A datatext panel docked at the bottom of the chat counts as part of it.
+  local function EnableTabsHover(chat, panel)
+    local docked = pfUI.panel and pfUI.panel[panel]
+    if docked and (not docked:IsShown() or pfUI_config.position[docked:GetName()]) then
+      docked = nil
+    end
+
+    local hover = EnableHover(chat, docked)
+    hover:SetScript("OnEnter", TabsHover)
+    hover:SetScript("OnLeave", TabsHover)
+    pfUI.chat:UpdateTabs(chat)
+  end
+
   function pfUI.chat:RefreshChat()
     local panelheight = C.global.font_size*1.5 + default_border*2 + 2
 
@@ -305,8 +341,9 @@ pfUI:RegisterModule("chat", function ()
         frame.pfStopMovingOrSizing = frame.StopMovingOrSizing
         frame.StopMovingOrSizing = function(a1)
           frame.pfStopMovingOrSizing(a1)
-          pfUI.chat.RefreshChat()
+          -- unlocked first, so the refresh sets the tab bars for the cursor
           pfUI.chat.hideLock = false
+          pfUI.chat.RefreshChat()
         end
       end
 
@@ -409,37 +446,16 @@ pfUI:RegisterModule("chat", function ()
     end
 
     pfUI.chat:RefreshBackgroundAlpha()
+
+    if C.chat.global.tabmouse == "1" then
+      EnableTabsHover(pfUI.chat.left, "left")
+      EnableTabsHover(pfUI.chat.right, "right")
+    end
   end
 
   hooksecurefunc("FCF_SaveDock", pfUI.chat.RefreshChat)
   hooksecurefunc("FCF_SetWindowAlpha", function() pfUI.chat:RefreshBackgroundAlpha() end)
   hooksecurefunc("FCF_SelectDockFrame", function() pfUI.chat:RefreshBackgroundAlpha() end)
-
-  if C.chat.global.tabmouse == "1" then
-    pfUI.chat.mouseovertab = CreateFrame("Frame")
-    pfUI.chat.mouseovertab:SetScript("OnUpdate", function()
-      if pfUI.chat.hideLock then return end
-
-      -- the dock lays the tabs out again only when their bar comes back
-      if pfUI.chat.left:IsMouseOver(10, -10, -10, 10) then
-        if not pfUI.chat.left.panelTop:IsShown() then
-          pfUI.chat.left.panelTop:Show()
-          FCF_DockUpdate()
-        end
-      elseif pfUI.chat.right:IsMouseOver(10, -10, -10, 10) then
-        -- disable while dock is active
-        if pfUI.chat.right:GetAlpha() == 0 then return end
-
-        if not pfUI.chat.right.panelTop:IsShown() then
-          pfUI.chat.right.panelTop:Show()
-          FCF_DockUpdate()
-        end
-      else
-        pfUI.chat.left.panelTop:Hide()
-        pfUI.chat.right.panelTop:Hide()
-      end
-    end)
-  end
 
   function pfUI.chat.SetupRightChat(state)
     if state then
