@@ -31,9 +31,11 @@
 
   <!--
   A ScrollFrame for free-form content, with pfUIScrollBarTemplate inside its
-  right edge. Put the content in frame.Content, which spans the frame: the
-  engine measures the scroll range from the shown frames inside it, so the
-  content needs no height. Changes inside it are not measured until
+  right edge. Put the content in frame.Content, which is as wide as the
+  frame. Each scroll clears the content's anchors and anchors its TOPLEFT
+  alone, so the width comes from OnSizeChanged instead of anchors. The
+  content needs no height: the engine measures the scroll range from the
+  shown frames inside it. Changes inside it are not measured until
   frame:UpdateScrollChildRect().
   -->
   <ScrollFrame name="pfUIScrollFrameTemplate" virtual="true">
@@ -52,10 +54,12 @@
     </ScrollChild>
     <Scripts>
       <OnLoad>
-        self.Content:SetAllPoints()
         self:EnableMouseWheel(true)
         ScrollUtil.InitScrollFrameWithScrollBar(self, self.ScrollBar)
       </OnLoad>
+      <OnSizeChanged>
+        self.Content:SetWidth(self:GetUnscaledWidth())
+      </OnSizeChanged>
     </Scripts>
   </ScrollFrame>
 

@@ -1,0 +1,116 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <!--
+  The rows of the config GUI. Each template takes a mixin from gui_rows.lua,
+  and row:Init(setting) shows a setting on it.
+  -->
+
+  <!-- A caption on a row that lights up under the cursor. -->
+  <Frame name="pfUIConfigRowTemplate" mixin="pfUIConfigRowMixin" enableMouseMotion="true" virtual="true">
+    <Size y="22"/>
+    <Layers>
+      <Layer level="BACKGROUND">
+        <Texture parentKey="tex" setAllPoints="true" hidden="true">
+          <Color r="1" g="1" b="1" a=".05"/>
+        </Texture>
+      </Layer>
+      <Layer level="ARTWORK">
+        <FontString parentKey="caption" inherits="GameFontWhite" justifyH="LEFT">
+          <Anchors>
+            <Anchor point="LEFT" x="3" y="1"/>
+          </Anchors>
+        </FontString>
+      </Layer>
+    </Layers>
+    <Scripts>
+      <OnLoad method="OnLoad"/>
+      <OnEnter method="OnEnter"/>
+      <OnLeave method="OnLeave"/>
+    </Scripts>
+  </Frame>
+
+  <Frame name="pfUIConfigTextRowTemplate" inherits="pfUIConfigRowTemplate" mixin="pfUIConfigTextRowMixin" virtual="true">
+    <Frames>
+      <EditBox parentKey="input" autoFocus="false" propagateMouseInput="Motion">
+        <Size x="100" y="18"/>
+        <Anchors>
+          <Anchor point="RIGHT" x="-3"/>
+        </Anchors>
+      </EditBox>
+    </Frames>
+  </Frame>
+
+  <Frame name="pfUIConfigCheckboxRowTemplate" inherits="pfUIConfigRowTemplate" mixin="pfUIConfigCheckboxRowMixin" virtual="true">
+    <Frames>
+      <CheckButton parentKey="input" inherits="UICheckButtonTemplate" propagateMouseInput="Motion">
+        <Size x="14" y="14"/>
+        <Anchors>
+          <Anchor point="RIGHT" x="-5" y="1"/>
+        </Anchors>
+      </CheckButton>
+    </Frames>
+  </Frame>
+
+  <Frame name="pfUIConfigDropdownRowTemplate" inherits="pfUIConfigRowTemplate" mixin="pfUIConfigDropdownRowMixin" virtual="true">
+    <Frames>
+      <DropdownButton parentKey="input" inherits="pfUIDropdownTemplate" propagateMouseInput="Motion">
+        <Anchors>
+          <Anchor point="RIGHT"/>
+        </Anchors>
+      </DropdownButton>
+    </Frames>
+  </Frame>
+
+  <Frame name="pfUIConfigColorRowTemplate" inherits="pfUIConfigRowTemplate" mixin="pfUIConfigColorRowMixin" virtual="true">
+    <Frames>
+      <Button parentKey="color" propagateMouseInput="Motion">
+        <Size x="24" y="12"/>
+        <Anchors>
+          <Anchor point="RIGHT" x="-5" y="1"/>
+        </Anchors>
+      </Button>
+    </Frames>
+  </Frame>
+
+  <Frame name="pfUIConfigListRowTemplate" inherits="pfUIConfigRowTemplate" mixin="pfUIConfigListRowMixin" virtual="true">
+    <Frames>
+      <Button parentKey="del" inherits="UIPanelButtonTemplate" propagateMouseInput="Motion">
+        <Size x="16" y="16"/>
+        <Anchors>
+          <Anchor point="RIGHT" x="-4"/>
+        </Anchors>
+      </Button>
+      <Button parentKey="add" inherits="UIPanelButtonTemplate" propagateMouseInput="Motion">
+        <Size x="16" y="16"/>
+        <Anchors>
+          <Anchor point="RIGHT" relativeKey="$parent.del" relativePoint="LEFT" x="-4"/>
+        </Anchors>
+      </Button>
+      <DropdownButton parentKey="input" inherits="pfUIDropdownTemplate" propagateMouseInput="Motion">
+        <Anchors>
+          <Anchor point="RIGHT" relativeKey="$parent.add" relativePoint="LEFT" x="-2"/>
+        </Anchors>
+      </DropdownButton>
+    </Frames>
+  </Frame>
+
+  <!-- Buttons in a line from the right, without a caption. -->
+  <Frame name="pfUIConfigButtonsRowTemplate" mixin="pfUIConfigButtonsRowMixin" virtual="true">
+    <Size y="22"/>
+  </Frame>
+
+  <!-- A section title at the bottom of a taller row. -->
+  <Frame name="pfUIConfigHeaderRowTemplate" mixin="pfUIConfigHeaderRowMixin" virtual="true">
+    <Size y="40"/>
+    <Layers>
+      <Layer level="ARTWORK">
+        <FontString parentKey="caption" inherits="GameFontWhite" justifyH="LEFT" justifyV="BOTTOM" setAllPoints="true"/>
+      </Layer>
+    </Layers>
+    <Scripts>
+      <OnLoad method="OnLoad"/>
+    </Scripts>
+  </Frame>
+
+  <!-- A caption in a box with a red border. -->
+  <Frame name="pfUIConfigWarningRowTemplate" inherits="pfUIConfigRowTemplate" mixin="pfUIConfigWarningRowMixin" virtual="true"/>
+</Ui>

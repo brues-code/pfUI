@@ -55,6 +55,44 @@ pfUI:RegisterModule("gui", function ()
       this.tex:Hide()
     end
 
+    -- the row template for each widget of CreateConfig
+    local templates = {
+      text     = "pfUIConfigTextRowTemplate",
+      checkbox = "pfUIConfigCheckboxRowTemplate",
+      dropdown = "pfUIConfigDropdownRowTemplate",
+      color    = "pfUIConfigColorRowTemplate",
+      list     = "pfUIConfigListRowTemplate",
+      button   = "pfUIConfigButtonsRowTemplate",
+      header   = "pfUIConfigHeaderRowTemplate",
+      warning  = "pfUIConfigWarningRowTemplate",
+    }
+
+    -- Stores that read and write game state the way a config table holds a
+    -- value. CreateConfig takes their names as a category.
+    local stores = {
+      CVAR = setmetatable({}, {
+        __index = function(_, cvar) return tostring(GetCVar(cvar)) end,
+        __newindex = function(_, cvar, value) SetCVar(cvar, value) end,
+      }),
+      -- the globals of the interface options, saved through their frame
+      GVAR = setmetatable({}, {
+        __index = function(_, name) return tostring(_G[name] or 0) end,
+        __newindex = function(_, name, value)
+          UIOptionsFrame_Load()
+          _G[name] = value == "1" and 1 or nil
+          UIOptionsFrame_Save()
+        end,
+      }),
+      -- globals that hold "1" or "0"
+      UVAR = setmetatable({}, {
+        __index = function(_, name) return _G[name] end,
+        __newindex = function(_, name, value) _G[name] = value end,
+      }),
+    }
+
+    -- Adds a row to the page that `this` holds, one line below the row
+    -- before it. A button with `skip` goes left of the button before it, on
+    -- the same line. Thirdparty addons call this as pfUI.gui.CreateConfig.
     function CreateConfig(ufunc, caption, category, config, widget, values, skip, named, type)
       -- this object placement
       if this.objectCount == nil then
@@ -65,25 +103,56 @@ pfUI:RegisterModule("gui", function ()
       end
 
       if skip then
-        if this.lineCount == nil then
-          this.lineCount = 1
-        end
-
-        if skip then
-          this.lineCount = this.lineCount + 1
-        end
+        this.lineCount = (this.lineCount or 1) + 1
       end
 
       if not caption then return end
 
-      -- basic frame
-      local frame = CreateFrame("Frame", nil, this)
-      frame:SetWidth(this.parent:GetUnscaledWidth()-20)
-      frame:SetHeight(22)
-      frame:SetPoint("TOPLEFT", this, "TOPLEFT", 5, (this.objectCount*-23)-5)
+      widget = widget or "text"
+
+      -- the setting that the row shows
+      local store = stores[category]
+      local setting = {
+        type = widget,
+        label = caption,
+        table = store or category,
+        key = config,
+        values = values,
+        -- a store applies what is written to it
+        update = store and (ufunc or nop) or ufunc,
+      }
+
+      if widget == "text" then
+        setting.type = (type and type ~= "number") and "text" or "number"
+      elseif widget == "button" then
+        setting.type = "buttons"
+        setting.buttons = { { caption, values } }
+      end
+
+      local y = this.objectCount * -23 - 5
+      local frame = CreateFrame("Frame", nil, this, templates[widget] or "pfUIConfigRowTemplate")
+      frame:SetPoint("TOPLEFT", this, "TOPLEFT", 5, y)
+      frame:SetPoint("TOPRIGHT", this, "TOPRIGHT", -15, y)
+      frame:Init(setting)
+
+      -- the fields that the rows had before they had templates
+      frame.category = setting.table
+      frame.config = config
+
+      if widget == "button" then
+        frame.button:ClearAllPoints()
+        frame.button:SetPoint("TOPRIGHT", -((this.lineCount or 1) - 1) * 105, -5)
+      elseif widget == "header" then
+        this.objectCount = this.objectCount + 1
+      elseif widget == "warning" then
+        y = this.objectCount * -35
+        frame:SetPoint("TOPLEFT", this, "TOPLEFT", 25, y)
+        frame:SetPoint("TOPRIGHT", this, "TOPRIGHT", 5, y)
+        this.objectCount = this.objectCount + 2
+      end
 
       -- populate search index
-      if caption and this and this.GetParent and widget ~= "button" and widget ~= "header" then
+      if widget ~= "button" and widget ~= "header" then
         local id = tostring(frame)
 
         searchDB[id] = searchDB[id] or { }
@@ -94,336 +163,10 @@ pfUI:RegisterModule("gui", function ()
         -- this        .parent      :GetParent():GetParent().button
         -- this        .parent      :GetParent().button
         local scrollframe = this.parent
-        while scrollframe.GetParent and scrollframe:GetParent() and scrollframe:GetParent().button do
+        while scrollframe and scrollframe.GetParent and scrollframe:GetParent() and scrollframe:GetParent().button do
           table.insert(searchDB[id], scrollframe:GetParent().button)
           scrollframe = scrollframe:GetParent()
         end
-      end
-
-      if not widget or (widget and widget ~= "button") then
-
-        if widget ~= "header" then
-          -- light up while the cursor is over the row; its widgets pass
-          -- their mouse motion on to it below
-          frame:SetMouseMotionEnabled(true)
-          frame:SetScript("OnEnter", EntryOnEnter)
-          frame:SetScript("OnLeave", EntryOnLeave)
-          frame.tex = frame:CreateTexture(nil, "BACKGROUND")
-          frame.tex:SetColorTexture(1,1,1,.05)
-          frame.tex:SetAllPoints()
-          frame.tex:Hide()
-        end
-
-        if not ufunc and widget ~= "header" and C.gui.reloadmarker == "1" then
-          caption = caption .. " [|cffffaaaa!|r]"
-        end
-
-        -- caption
-        frame.caption = frame:CreateFontString("Status", "LOW", "GameFontWhite")
-        frame.caption:SetFont(pfUI.font_default, C.global.font_size)
-        frame.caption:SetPoint("LEFT", frame, "LEFT", 3, 1)
-        frame.caption:SetJustifyH("LEFT")
-        frame.caption:SetText(caption)
-      end
-
-      if category == "CVAR" then
-        category = {}
-        category[config] = tostring(GetCVar(config))
-        ufunc = function()
-          SetCVar(config, category[config])
-        end
-      end
-
-      if category == "GVAR" then
-        category = {}
-        category[config] = tostring(_G[config] or 0)
-
-        local U = ufunc
-
-        ufunc = function()
-          UIOptionsFrame_Load()
-          _G[config] = this:GetChecked() and 1 or nil
-          UIOptionsFrame_Save()
-          if U then
-            U()
-          end
-        end
-      end
-
-      if category == "UVAR" then
-        category = {}
-        category[config] = _G[config]
-
-        local U = ufunc
-
-        ufunc = function()
-          _G[config] = this:GetChecked() and "1" or "0"
-          if U then
-            U()
-          end
-        end
-      end
-
-      frame.category = category
-      frame.config = config
-
-      if widget == "color" then
-        -- color picker
-        frame.color = CreateFrame("Button", nil, frame)
-        frame.color:SetWidth(24)
-        frame.color:SetHeight(12)
-        CreateBackdrop(frame.color)
-        frame.color:SetPoint("RIGHT" , -5, 1)
-        frame.color.prev = frame.color.backdrop:CreateTexture(nil, "OVERLAY")
-        frame.color.prev:SetAllPoints(frame.color)
-
-        local cr, cg, cb, ca = strsplit(",", category[config])
-        if not cr or not cg or not cb or not ca then
-          cr, cg, cb, ca = 1, 1, 1, 1
-        end
-        frame.color.prev:SetColorTexture(cr,cg,cb,ca)
-
-        frame.color:SetScript("OnClick", function()
-          local cr, cg, cb, ca = strsplit(",", category[config])
-          if not cr or not cg or not cb or not ca then
-            cr, cg, cb, ca = 1, 1, 1, 1
-          end
-          local preview = this.prev
-
-          function ColorPickerFrame.func()
-            local r, g, b = ColorPickerFrame:GetColorRGB()
-            local a = 1 - OpacitySliderFrame:GetValue()
-
-            r = round(r, 3)
-            g = round(g, 3)
-            b = round(b, 3)
-            a = round(a, 3)
-
-            preview:SetColorTexture(r,g,b,a)
-
-            if not this:GetParent():IsShown() then
-              category[config] = r .. "," .. g .. "," .. b .. "," .. a
-              if ufunc then ufunc() else pfUI.gui.settingChanged = true end
-              pfUI.events:TriggerEvent("config:changed", category, config)
-            end
-          end
-
-          function ColorPickerFrame.cancelFunc()
-            preview:SetColorTexture(cr,cg,cb,ca)
-          end
-
-          ColorPickerFrame.opacityFunc = ColorPickerFrame.func
-          ColorPickerFrame.element = this
-          ColorPickerFrame.opacity = 1 - ca
-          ColorPickerFrame.hasOpacity = 1
-          ColorPickerFrame:SetColorRGB(cr,cg,cb)
-          ColorPickerFrame:SetFrameStrata("DIALOG")
-          ShowUIPanel(ColorPickerFrame)
-        end)
-
-        -- hide shadows on wrong stratas
-        if frame.color.backdrop_shadow then
-          frame.color.backdrop_shadow:Hide()
-        end
-      end
-
-      if widget == "warning" then
-        CreateBackdrop(frame, nil, true)
-        frame:SetBackdropBorderColor(1,.5,.5)
-        frame:SetHeight(50)
-        frame:SetPoint("TOPLEFT", 25, this.objectCount * -35)
-        this.objectCount = this.objectCount + 2
-        frame.caption:SetJustifyH("CENTER")
-        frame.caption:SetJustifyV("CENTER")
-      end
-
-      if widget == "header" then
-        frame:SetBackdrop(nil)
-        frame:SetHeight(40)
-        this.objectCount = this.objectCount + 1
-        frame.caption:SetJustifyH("LEFT")
-        frame.caption:SetJustifyV("BOTTOM")
-        frame.caption:SetTextColor(.2,1,.8,1)
-        frame.caption:SetAllPoints(frame)
-      end
-
-      -- use text widget (default)
-      if not widget or widget == "text" then
-        -- input field
-        frame.input = CreateFrame("EditBox", nil, frame)
-        CreateBackdrop(frame.input, nil, true)
-        frame.input:SetTextInsets(5, 5, 5, 5)
-        frame.input:SetTextColor(.2,1,.8,1)
-        frame.input:SetJustifyH("RIGHT")
-
-        frame.input:SetWidth(100)
-        frame.input:SetHeight(18)
-        frame.input:SetPoint("RIGHT" , -3, 0)
-        frame.input:SetFontObject(GameFontNormal)
-        frame.input:SetAutoFocus(false)
-        frame.input:SetText(category[config] or "")
-        frame.input:SetScript("OnEscapePressed", function(self)
-          this:ClearFocus()
-        end)
-
-        frame.input:SetScript("OnTextChanged", function(self)
-          if ( type and type ~= "number" ) or tonumber(this:GetText()) then
-            if this:GetText() ~= this:GetParent().category[this:GetParent().config] then
-              this:GetParent().category[this:GetParent().config] = this:GetText()
-              if ufunc then ufunc() else pfUI.gui.settingChanged = true end
-              pfUI.events:TriggerEvent("config:changed", category, config)
-            end
-            this:SetTextColor(.2,1,.8,1)
-          else
-            this:SetTextColor(1,.3,.3,1)
-          end
-        end)
-
-        -- hide shadows on wrong stratas
-        if frame.input.backdrop_shadow then
-          frame.input.backdrop_shadow:Hide()
-        end
-      end
-
-      -- use button widget
-      if widget == "button" then
-        frame.button = CreateFrame("Button", "pfButton", frame, "UIPanelButtonTemplate")
-        CreateBackdrop(frame.button, nil, true)
-        SkinButton(frame.button)
-        frame.button:SetWidth(100)
-        frame.button:SetHeight(20)
-        frame.button:SetPoint("TOPRIGHT", -(this.lineCount-1) * 105, -5)
-        frame.button:SetText(caption)
-        frame.button:SetTextColor(1,1,1,1)
-        frame.button:SetScript("OnClick", values)
-
-        -- hide shadows on wrong stratas
-        if frame.button.backdrop_shadow then
-          frame.button.backdrop_shadow:Hide()
-        end
-      end
-
-      -- use checkbox widget
-      if widget == "checkbox" then
-        -- input field
-        frame.input = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-        frame.input:SetNormalTexture("")
-        frame.input:SetPushedTexture("")
-        frame.input:SetHighlightTexture("")
-        CreateBackdrop(frame.input, nil, true)
-        frame.input:SetWidth(14)
-        frame.input:SetHeight(14)
-        frame.input:SetPoint("RIGHT" , -5, 1)
-        frame.input:SetScript("OnClick", function ()
-          if this:GetChecked() then
-            this:GetParent().category[this:GetParent().config] = "1"
-          else
-            this:GetParent().category[this:GetParent().config] = "0"
-          end
-
-          if ufunc then ufunc() else pfUI.gui.settingChanged = true end
-          pfUI.events:TriggerEvent("config:changed", category, config)
-        end)
-
-        if category[config] == "1" then frame.input:SetChecked() end
-
-        -- hide shadows on wrong stratas
-        if frame.input.backdrop_shadow then
-          frame.input.backdrop_shadow:Hide()
-        end
-      end
-
-      -- use dropdown widget
-      if widget == "dropdown" and values then
-        local function IsSelected(value)
-          return category[config] == value
-        end
-
-        local function SetSelected(value)
-          if category[config] ~= value then
-            category[config] = value
-            if ufunc then ufunc() else pfUI.gui.settingChanged = true end
-            pfUI.events:TriggerEvent("config:changed", category, config)
-          end
-        end
-
-        frame.input = CreateFrame("DropdownButton", nil, frame, "pfUIDropdownTemplate")
-        frame.input:SetPoint("RIGHT", frame, "RIGHT", 0, 0)
-        frame.input:SetWidth(180)
-        frame.input:SetupMenu(function(dropdown, rootDescription)
-          for _, k in pairs(_G.type(values) == "function" and values() or values) do
-            -- get human readable
-            local value, text = strsplit(":", k)
-            rootDescription:CreateRadio(text or value, IsSelected, SetSelected, value)
-          end
-        end)
-      end
-
-      -- use list widget
-      if widget == "list" then
-        -- index of the selected entry among the "#" separated ones
-        local selected
-
-        local function IsSelected(index)
-          return index == selected
-        end
-
-        local function Select(index)
-          selected = index
-        end
-
-        frame.del = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        SkinButton(frame.del)
-        frame.del:SetWidth(16)
-        frame.del:SetHeight(16)
-        frame.del:SetPoint("RIGHT", -4, 0)
-        frame.del:GetFontString():SetPoint("CENTER", 1, 0)
-        frame.del:SetText("-")
-        frame.del:SetTextColor(1,.5,.5,1)
-        frame.del:SetScript("OnClick", function()
-          if not selected then return end
-          local newconf = ""
-          for id, val in ipairs({strsplit("#", category[config])}) do
-            if id ~= selected and val ~= "" then newconf = newconf .. "#" .. val end
-          end
-          selected = nil
-          category[config] = newconf
-          if ufunc then ufunc() else pfUI.gui.settingChanged = true end
-          pfUI.events:TriggerEvent("config:changed", category, config)
-          frame.input:GenerateMenu()
-        end)
-
-        frame.add = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        SkinButton(frame.add)
-        frame.add:SetWidth(16)
-        frame.add:SetHeight(16)
-        frame.add:SetPoint("RIGHT", frame.del, "LEFT", -4, 0)
-        frame.add:GetFontString():SetPoint("CENTER", 1, 0)
-        frame.add:SetText("+")
-        frame.add:SetTextColor(.5,1,.5,1)
-        frame.add:SetScript("OnClick", function()
-          CreateQuestionDialog(T["New entry:"], function()
-            category[config] = category[config] .. "#" .. this:GetParent().input:GetText()
-            if ufunc then ufunc() else pfUI.gui.settingChanged = true end
-            pfUI.events:TriggerEvent("config:changed", category, config)
-            frame.input:GenerateMenu()
-          end, false, true)
-        end)
-
-        frame.input = CreateFrame("DropdownButton", nil, frame, "pfUIDropdownTemplate")
-        frame.input:SetPoint("RIGHT", frame.add, "LEFT", -2, 0)
-        frame.input:SetWidth(140)
-        frame.input:SetupMenu(function(dropdown, rootDescription)
-          for id, val in ipairs({strsplit("#", category[config])}) do
-            if val ~= "" then
-              rootDescription:CreateRadio(val, IsSelected, Select, id)
-            end
-          end
-        end)
-      end
-
-      for _, child in ipairs({ frame:GetChildren() }) do
-        child:SetPropagateMouseMotion(true)
       end
 
       return frame

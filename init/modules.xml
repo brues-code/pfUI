@@ -1,4 +1,6 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Include file="..\modules\gui_rows.lua"/>
+  <Include file="..\modules\gui_rows.xml"/>
   <Include file="..\modules\gui.lua"/>
   <Include file="..\modules\unlock.lua"/>
   <Include file="..\modules\hoverbind.lua"/>
