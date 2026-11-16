@@ -643,8 +643,22 @@ function pfUI.api.LoadMovable(frame, init)
   end
 
   if pfUI_config["position"][frame:GetName()] then
-    if pfUI_config["position"][frame:GetName()]["parent"] then
-      frame:SetParent(_G[pfUI_config["position"][frame:GetName()]["parent"]])
+    local pname = pfUI_config["position"][frame:GetName()]["parent"]
+    if pname then
+      -- a missing parent, or one inside the frame's own subtree (a parent loop
+      -- crashes the client with #132), is dropped from the saved position
+      local parent = _G[pname]
+      local valid = type(parent) == "table" and parent.GetParent
+      local walk = valid and parent
+      while walk and walk ~= frame do
+        walk = walk:GetParent()
+      end
+
+      if valid and not walk then
+        frame:SetParent(parent)
+      else
+        pfUI_config["position"][frame:GetName()]["parent"] = nil
+      end
     end
 
     if pfUI_config["position"][frame:GetName()]["scale"] then

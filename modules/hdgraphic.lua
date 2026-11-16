@@ -1,12 +1,10 @@
 pfUI:RegisterModule("hdgraphic", function ()
-  -- inject video settings to provide advanced slider values (deferred until frame is shown)
-  local origOptionsFrame_OnShow = OptionsFrame_OnShow
-  function OptionsFrame_OnShow()
-    if origOptionsFrame_OnShow then origOptionsFrame_OnShow() end
-    if _G.OptionsFrameSliders and _G.OptionsFrameSliders[3] then
-      _G.OptionsFrameSliders[3].maxValue = 15
-    end
+  -- extend the old video options' environment detail slider (the SetWorldDetail
+  -- hook below maps the extra steps); newer clients replace that window entirely
+  if OptionsFrameSliders then
+    OptionsFrameSliders[3].maxValue = 15
   end
+
   local HookSetWorldDetail = SetWorldDetail
   function _G.SetWorldDetail(arg)
     HookSetWorldDetail((arg > 2 and 2 or arg))

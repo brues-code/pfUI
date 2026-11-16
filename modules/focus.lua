@@ -57,30 +57,23 @@ pfUI.api.RegisterSlashCommand("PFCASTFOCUS", { '/castfocus', '/pfcastfocus' }, f
 
   -- Lua-function cast: short target swap via GUID
   local prevGUID = UnitGUID("target")
-  local prevPlayer = UnitIsUnit("target", "player")
+  local function RestoreTarget()
+    if prevGUID and prevGUID ~= "0x0000000000000000" then
+      TargetUnit(prevGUID)
+    else
+      ClearTarget()
+    end
+  end
 
   TargetUnit(focusGUID)
   if UnitGUID("target") ~= focusGUID then
-    if prevGUID and prevGUID ~= "0x0000000000000000" then
-      TargetUnit(prevGUID)
-    elseif prevPlayer then
-      TargetUnit("player")
-    else
-      TargetLastTarget()
-    end
+    RestoreTarget()
     UIErrorsFrame:AddMessage(SPELL_FAILED_BAD_TARGETS, 1, 0, 0)
     return
   end
 
   func()
-
-  if prevGUID and prevGUID ~= "0x0000000000000000" then
-    TargetUnit(prevGUID)
-  elseif prevPlayer then
-    TargetUnit("player")
-  else
-    TargetLastTarget()
-  end
+  RestoreTarget()
 end, true)
 
 pfUI.api.RegisterSlashCommand("PFSWAPFOCUS", { '/swapfocus', '/pfswapfocus' }, function(msg)

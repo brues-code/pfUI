@@ -6,16 +6,22 @@ setfenv(1, pfUI:GetEnvironment())
 -- does (the GUI's cvar store) can bring its own (SetConfigDefaults).
 local defaults = setmetatable({}, { __mode = "k" })
 
+-- a saved value is kept unless it is missing or its table-ness differs from the
+-- default (settings from another pfUI can hold a string where a table goes)
+local function Mismatched(saved, default)
+  return not saved or (type(saved) == "table") ~= (type(default) == "table")
+end
+
 function pfUI:UpdateConfig(group, subgroup, entry, value)
-  -- check for missing config groups
-  if not pfUI_config[group] then
+  -- check for missing or malformed config groups
+  if type(pfUI_config[group]) ~= "table" then
     pfUI_config[group] = {}
   end
   local tbl = pfUI_config[group]
 
-  -- check for missing config subgroups
+  -- check for missing or malformed config subgroups
   if subgroup then
-    if not tbl[subgroup] then
+    if type(tbl[subgroup]) ~= "table" then
       tbl[subgroup] = {}
     end
     tbl = tbl[subgroup]
@@ -23,7 +29,7 @@ function pfUI:UpdateConfig(group, subgroup, entry, value)
 
   -- update config
   if entry and value then
-    if not tbl[entry] then
+    if Mismatched(tbl[entry], value) then
       tbl[entry] = value
     end
 
