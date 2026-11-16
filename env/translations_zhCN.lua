@@ -1021,7 +1021,6 @@ pfUI_translation["zhCN"] = {
   ["Units"] = nil,
   ["UnitXP (Precise)"] = nil,
   ["UnitXP Range Threshold (yards)"] = nil,
-  ["UnitXP Settings"] = nil,
   ["Unknown Class Color"] = "未知职业颜色",
   ["Unlock"] = "解锁排版",
   ["Unlock Mode allows you to move, scale and reset frames:\n\n|cff33ffcc[Left Click]|r Drag Frame\n|cff33ffcc[Middle Click]|r Reset Frame\n|cff33ffcc[Right Click]|r Option Box\n\nHold |cff33ffcc[Shift]|r to select all frames of the same kind\nHold |cff33ffcc[Ctrl]|r to select all frames of the same group\n\n|cff33ffcc[Scroll]|r to change the scale of a frame\n\n|cff33ffcc[Click]|r on an empty area or press |cff33ffcc[Esc]|r to exit\n"] = "解锁模式允许您移动、缩放和重置框架:\n\n|cff33ffcc[左键点击]|r 拖动框体\n|cff33ffcc[中键点击]|r 重置框架\n|cff33ffcc[右键点击]|r 选项框\n\n按住 |cff33ffcc[Shift]|r 选择相同类型的所有框体\n按住 |cff33ffcc[Ctrl]|r 选择同一组的所有框体\n\n|cff33ffcc[鼠标滚轮]|r 改变框体大小\n\n|cff33ffcc[点击]|r 空白区域或按 |cff33ffcc[Esc]|r 退出排版编辑\n",

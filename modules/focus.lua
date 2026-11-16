@@ -49,9 +49,9 @@ pfUI.api.RegisterSlashCommand("PFCASTFOCUS", { '/castfocus', '/pfcastfocus' }, f
 
   local func = pfUI.api.TryMemoizedFuncLoadstringForSpellCasts(msg)
 
-  -- GUID-based cast (Nampower) - no target toggle needed
+  -- Spell-name cast straight at the focus - no target toggle needed
   if not func then
-    CastSpellByName(msg, focusGUID)
+    C_Spell.CastAtUnit(msg, "focus")
     return
   end
 

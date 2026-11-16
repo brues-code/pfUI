@@ -1021,7 +1021,6 @@ pfUI_translation["esES"] = {
   ["Units"] = nil,
   ["UnitXP (Precise)"] = nil,
   ["UnitXP Range Threshold (yards)"] = nil,
-  ["UnitXP Settings"] = nil,
   ["Unknown Class Color"] = "Color de clases desconocidas",
   ["Unlock"] = "Desbloquear",
   ["Unlock Mode allows you to move, scale and reset frames:\n\n|cff33ffcc[Left Click]|r Drag Frame\n|cff33ffcc[Middle Click]|r Reset Frame\n|cff33ffcc[Right Click]|r Option Box\n\nHold |cff33ffcc[Shift]|r to select all frames of the same kind\nHold |cff33ffcc[Ctrl]|r to select all frames of the same group\n\n|cff33ffcc[Scroll]|r to change the scale of a frame\n\n|cff33ffcc[Click]|r on an empty area or press |cff33ffcc[Esc]|r to exit\n"] = "Modo de Desbloquear te permite moverse, escalar y reiniciar a los marcos:\n\n|cff33ffcc[Clic Izquierdo]|r Arrastra el marco\n|cff33ffcc[Clic Central]|r Reinciar el marco\n|cff33ffcc[Clic Derecho]|r Opciones\n\nPresiona |cff33ffcc[Shift]|r para seleccionar todos los marcos del mismo tipo\nPresiona |cff33ffcc[Ctrl]|r para seleccionar todos los marcos del mismo grupo\n\n|cff33ffcc[Clic]|r en un espacio vacío o presiona |cff33ffcc[Esc]|r para salir\n",

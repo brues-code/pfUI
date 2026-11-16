@@ -1,7 +1,7 @@
 # pfUI - ClassicAPI Edition
 
 [![ClassicAPI](https://img.shields.io/badge/ClassicAPI-Required-purple.svg)](https://github.com/brues-code/ClassicAPI)
-[![Nampower](https://img.shields.io/badge/Nampower-Required-purple.svg)](https://github.com/brues-code/nampower)
+[![Nampower](https://img.shields.io/badge/Nampower-Optional-yellow.svg)](https://github.com/brues-code/nampower)
 [![SuperWoW](https://img.shields.io/badge/SuperWoW-Optional-yellow.svg)](https://github.com/balakethelock/SuperWoW)
 [![UnitXP](https://img.shields.io/badge/UnitXP__SP3-Optional-yellow.svg)](https://github.com/brues-code/UnitXP_SP3)
 
@@ -37,6 +37,7 @@ Provides:
 - Click-casting
 - Loot Roll History (/loothistory)
 - New item highlighting
+- Target distance, and taskbar flashes for whispers, ready checks and battleground queue pops
 - Loss of control alert - Stuns, fears, silences and school lockouts from C_LossOfControl
 - Dressing room zoom, pan and per-slot undress (PlayerModel / DressUpModel methods)
 - Plenty other functions
@@ -44,8 +45,9 @@ Provides:
 ### [Nampower](https://github.com/brues-code/nampower)
 
 Provides:
-- Spell queue indicator
-- GCD indicator
+- Spell queuing - spell queue indicator, on-swing queue colors on the swing timer, the Steady Shot cast bar, and one-press totem sets
+- Real health of feigning hunters
+- `/disenchantall` (`/dea`) - disenchant every item of a quality or ID in your bags
 
 ### [SuperWoW](https://github.com/balakethelock/SuperWoW)
 
@@ -55,19 +57,15 @@ Provides:
 ### [UnitXP_SP3](https://github.com/brues-code/UnitXP_SP3)
 
 Provides:
-- Line of Sight detection
-- Behind detection
-- Accurate distance calculations
-- OS notifications
+- Behind indicator on the target frame
+- Precise range check for group frames (Range Check Mode "UnitXP (Precise)")
 
 Use `/pfdll` in-game to check which DLLs are detected.
 
 ## Commands
 
     /pfui         Open the configuration GUI
-    /pfdll        Show DLL detection status (SuperWoW, Nampower, UnitXP)
-    /pfbehind     Test Behind/LOS detection on current target
-    /clickthrough Toggle clickthrough mode (or /ct)
+    /pfdll        Show DLL detection status (ClassicAPI, Nampower, SuperWoW, UnitXP)
     /share        Open the configuration import/export dialog
     /gm           Open the ticket Dialog
     /rl           Reload the whole UI
@@ -152,7 +150,6 @@ Most probably, yes.
 - **Shagu** - Original pfUI creator ([https://github.com/shagu/pfUI](https://github.com/shagu/pfUI))
 - **me0wg4ming** - pfUI fork maintainer and Turtle WoW enhancements
 - **jrc13245** - Nampower, UnitXP, and BGScore module integration ([https://github.com/jrc13245/](https://github.com/jrc13245/))
-- **SuperWoW Team** - SuperWoW framework development
 - **avitasia** - Nampower DLL development
 - **konaka** - UnitXP_SP3 DLL development
 - **Turtle WoW Team** - For the amazing Vanilla+ experience

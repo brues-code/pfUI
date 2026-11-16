@@ -74,10 +74,12 @@
   <Include file="..\modules\energytick.lua"/>
   <Include file="..\modules\totems.lua"/>
   <Include file="..\modules\macroicons.lua"/>
+  <Include file="..\modules\dllstatus.lua"/>
   <Include file="..\modules\superwow.lua"/>
+  <Include file="..\modules\notify.lua"/>
   <Include file="..\modules\innervatecall.lua"/>
   <Include file="..\modules\nampower.lua"/>
-  <Include file="..\modules\unitxp.lua"/>
+  <Include file="..\modules\reactive.lua"/>
   <Include file="..\modules\bgscore.lua"/>
   <Include file="..\modules\equipmentmanager.lua"/>
   <Include file="..\modules\loothistory.lua"/>

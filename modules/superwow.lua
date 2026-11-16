@@ -1,175 +1,26 @@
--- Compatibility layer to use castbars provided by SuperWoW:
+-- SuperWoW integration: group members on the minimap
 -- https://github.com/balakethelock/SuperWoW
 
--- DLL Status Check Command (always available)
-pfUI.api.RegisterSlashCommand("PFDLLSTATUS", { "/pfdll" }, function()
-  local chat = DEFAULT_CHAT_FRAME
-  chat:AddMessage("|cff33ffccpfUI|r: DLL Status Check")
-
-  -- SuperWoW
-  if SUPERWOW_VERSION then
-    chat:AddMessage("  |cff00ff00SuperWoW|r: v" .. tostring(SUPERWOW_VERSION))
-  elseif SpellInfo or SetAutoloot then
-    chat:AddMessage("  |cffffff00SuperWoW|r: Detected (old version)")
-  else
-    chat:AddMessage("  |cffff0000SuperWoW|r: Not detected")
-  end
-
-  -- Nampower
-  if GetNampowerVersion then
-    chat:AddMessage("  |cff00ff00Nampower|r: v" .. tostring(GetNampowerVersion()))
-  else
-    chat:AddMessage("  |cffff0000Nampower|r: Not detected")
-  end
-
-  -- ClassicAPI
-  if CLASSIC_API_VERSION then
-    chat:AddMessage("  |cff00ff00ClassicAPI|r: v" .. CLASSIC_API_VERSION)
-  else
-    chat:AddMessage("  |cffff0000ClassicAPI|r: Not detected")
-  end
-
-  -- Check if castbar exists for indicator positioning
-  if pfUI.castbar and pfUI.castbar.player then
-    chat:AddMessage("  |cff00ff00Castbar|r: Available for indicator anchoring")
-  else
-    chat:AddMessage("  |cffffff00Castbar|r: Not available (indicators use fallback position)")
-  end
-
-  -- Check indicator frames
-  if pfUI.uf and pfUI.uf.target then
-    chat:AddMessage("  |cff00ff00Target frame|r: exists")
-  else
-    chat:AddMessage("  |cffff0000Target frame|r: NOT found")
-  end
-end, true)
-
 pfUI:RegisterModule("superwow", function ()
-  if SetAutoloot and SpellInfo and not SUPERWOW_VERSION then
-    -- Turn every enchanting link that we create in the enchanting frame,
-    -- from "spell:" back into "enchant:". The enchant-version is what is
-    -- used by all unmodified game clients. This is required to generate
-    -- usable links for everyone from the enchant frame while having SuperWoW.
-    local HookGetCraftItemLink = GetCraftItemLink
-    _G.GetCraftItemLink = function(index)
-      local link = HookGetCraftItemLink(index)
-      return string.gsub(link, "spell:", "enchant:")
-    end
+  if not TrackUnit or C.unitframes.track_group ~= "1" then return end
 
-    -- Convert every enchanting link that we receive into a
-    -- spell link, as for some reason SuperWoW can't handle
-    -- enchanting links at all and requires it to be a spell.
-    local HookSetItemRef = SetItemRef
-    _G.SetItemRef = function(link, text, button)
-      link = string.gsub(link, "enchant:", "spell:")
-      HookSetItemRef(link, text, button)
-    end
-
-    local HookGameTooltipSetHyperlink = GameTooltip.SetHyperlink
-    _G.GameTooltip.SetHyperlink = function(self, link)
-      link = string.gsub(link, "enchant:", "spell:")
-      HookGameTooltipSetHyperlink(self, link)
-    end
-
-    DEFAULT_CHAT_FRAME:AddMessage("|cffffffaaAn old version of SuperWoW was detected. Please consider updating:")
-    DEFAULT_CHAT_FRAME:AddMessage("-> https://github.com/balakethelock/SuperWoW/releases/")
-  end
-
-  -- compare numerically: an exact string match silently drops this on any
-  -- SuperWoW release past 1.5
-  local swVersion = tonumber(SUPERWOW_VERSION)
-  if swVersion and swVersion >= 1.5 then
-    RunNextFrame(function()
-      local pfCombatText_AddMessage = _G.CombatText_AddMessage
-      _G.CombatText_AddMessage = function(message, a, b, c, d, e, f)
-        local match, _, hex = string.find(message, ".+ %[(0x.+)%]")
-        if hex and UnitName(hex) then
-          message = string.gsub(message, hex, UnitName(hex))
-        end
-
-        pfCombatText_AddMessage(message, a, b, c, d, e, f)
-      end
-    end)
-  end
-
-  -- TrackUnit API for adding group members to minimap
-  -- Tracks friendly units on the minimap for easier group coordination
-  if TrackUnit and C.unitframes.track_group == "1" then
-    local function TrackGroup()
-      -- Track party members
-      for i = 1, 4 do
-        local unit = "party" .. i
-        if UnitExists(unit) and UnitIsConnected(unit) then
-          pcall(TrackUnit, unit)
-        end
-      end
-
-      -- Track raid members
-      for i = 1, 40 do
-        local unit = "raid" .. i
-        if UnitExists(unit) and UnitIsConnected(unit) and not UnitIsUnit(unit, "player") then
-          pcall(TrackUnit, unit)
-        end
+  local function TrackGroup()
+    for i = 1, 4 do
+      local unit = "party" .. i
+      if UnitExists(unit) and UnitIsConnected(unit) then
+        TrackUnit(unit)
       end
     end
 
-    pfUI.events:RegisterFrameEventAndCallback("PARTY_MEMBERS_CHANGED", TrackGroup)
-    pfUI.events:RegisterFrameEventAndCallback("RAID_ROSTER_UPDATE", TrackGroup)
-    pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", TrackGroup)
-  end
-
-  -- Raid Marker Targeting API
-  -- Allows targeting units by raid marker ("mark1" to "mark8")
-  if SUPERWOW_VERSION then
-    pfUI.api.GetMarkedUnit = function(markIndex)
-      local markUnit = "mark" .. markIndex
-      if UnitExists(markUnit) then
-        return markUnit
+    for i = 1, 40 do
+      local unit = "raid" .. i
+      if UnitExists(unit) and UnitIsConnected(unit) and not UnitIsUnit(unit, "player") then
+        TrackUnit(unit)
       end
-      return nil
-    end
-
-    pfUI.api.TargetMark = function(markIndex)
-      local markUnit = "mark" .. markIndex
-      if UnitExists(markUnit) then
-        TargetUnit(markUnit)
-        return true
-      end
-      return false
-    end
-
-    -- Get owner of pet/totem using "owner" suffix
-    pfUI.api.GetUnitOwner = function(unit)
-      local ownerUnit = unit .. "owner"
-      if UnitExists(ownerUnit) then
-        return UnitName(ownerUnit), ownerUnit
-      end
-      return nil
     end
   end
 
-  -- Clickthrough Mode API
-  -- Allows clicking through corpses to loot underneath
-  if Clickthrough then
-    pfUI.api.SetClickthrough = function(enabled)
-      Clickthrough(enabled and 1 or 0)
-    end
-
-    pfUI.api.GetClickthrough = function()
-      return Clickthrough() == 1
-    end
-
-    pfUI.api.ToggleClickthrough = function()
-      local current = Clickthrough()
-      Clickthrough(current == 1 and 0 or 1)
-      return Clickthrough() == 1
-    end
-
-    -- Add slash command for clickthrough toggle
-    pfUI.api.RegisterSlashCommand("PFCLICKTHROUGH", { "/clickthrough", "/ct" }, function()
-      local enabled = pfUI.api.ToggleClickthrough()
-      DEFAULT_CHAT_FRAME:AddMessage("|cff33ffccpfUI|r: Clickthrough mode " .. (enabled and "|cff00ff00enabled|r" or "|cffff0000disabled|r"))
-    end, true)
-  end
-
+  pfUI.events:RegisterFrameEventAndCallback("PARTY_MEMBERS_CHANGED", TrackGroup)
+  pfUI.events:RegisterFrameEventAndCallback("RAID_ROSTER_UPDATE", TrackGroup)
+  pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", TrackGroup)
 end)

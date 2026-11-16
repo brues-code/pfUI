@@ -304,7 +304,7 @@ function pfUI.api.GetUnitStats(unitstr)
 end
 
 -- Who each hostile unit attacks, by the attacker's GUID. UNIT_TARGET fires for
--- every unit in view (SuperWoW registers them all for unit events), so this
+-- every unit in view (ClassicAPI gives each one unit events), so this
 -- sees every attacker, not only the ones some token reaches. The server
 -- clears a unit's target when it dies or stops attacking. A unit that comes
 -- into view mid-fight fires nothing until it retargets, so it is noted when a

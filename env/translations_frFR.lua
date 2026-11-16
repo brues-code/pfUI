@@ -960,7 +960,6 @@ pfUI_translation["frFR"] = {
   ["Units"] = nil,
   ["UnitXP (Precise)"] = nil,
   ["UnitXP Range Threshold (yards)"] = nil,
-  ["UnitXP Settings"] = nil,
   ["Unknown Class Color"] = "Couleur des classes inconnus",
   ["Unlock"] = "Débloquer l'interface",
   ["Unlock Mode allows you to move, scale and reset frames:\n\n|cff33ffcc[Left Click]|r Drag Frame\n|cff33ffcc[Middle Click]|r Reset Frame\n|cff33ffcc[Right Click]|r Option Box\n\nHold |cff33ffcc[Shift]|r to select all frames of the same kind\nHold |cff33ffcc[Ctrl]|r to select all frames of the same group\n\n|cff33ffcc[Scroll]|r to change the scale of a frame\n\n|cff33ffcc[Click]|r on an empty area or press |cff33ffcc[Esc]|r to exit\n"] = nil,

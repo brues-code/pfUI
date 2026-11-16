@@ -16,10 +16,9 @@ pfUI:RegisterModule("mouseover", function ()
       end
     end
 
-    -- Spell-name path: Nampower's CastSpellByName takes a second unit
-    -- parameter directly, no target swap dance required.
+    -- Spell-name path: cast straight at the unit, no target swap dance required.
     if not func then
-      CastSpellByName(msg, unit)
+      C_Spell.CastAtUnit(msg, unit)
       return
     end
 

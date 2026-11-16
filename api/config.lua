@@ -43,6 +43,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("global",     nil,           "errors",           "1")
   pfUI:UpdateConfig("global",     nil,           "errors_limit",     "1")
   pfUI:UpdateConfig("global",     nil,           "errors_hide",      "0")
+  pfUI:UpdateConfig("global",     nil,           "notify",           "0")
   pfUI:UpdateConfig("global",     nil,           "hidebuff",         "0")
   pfUI:UpdateConfig("global",     nil,           "hidewbuff",        "0")
   pfUI:UpdateConfig("global",     nil,           "twentyfour",       "1")
@@ -270,20 +271,20 @@ function pfUI:LoadConfig()
   -- Nampower Settings
   pfUI:UpdateConfig("unitframes", nil,           "spellqueue",       "1")
   pfUI:UpdateConfig("unitframes", nil,           "spellqueuesize",   "24")
-  pfUI:UpdateConfig("unitframes", nil,           "gcd_indicator",    "0")
-  pfUI:UpdateConfig("unitframes", nil,           "gcd_size",         "4")
+
+  -- Reactive Spells
   pfUI:UpdateConfig("unitframes", nil,           "reactive_indicator", "0")
   pfUI:UpdateConfig("unitframes", nil,           "reactive_size",    "28")
-  pfUI:UpdateConfig("unitframes", nil,           "damage_tracking",  "0")
 
   -- Target Indicators
   pfUI:UpdateConfig("unitframes", nil,           "indicator_font_size", "13")
   pfUI:UpdateConfig("unitframes", nil,           "los_indicator",    "0")
-
-  -- UnitXP Settings
   pfUI:UpdateConfig("unitframes", nil,           "behind_indicator", "0")
+  pfUI:UpdateConfig("unitframes", nil,           "distance_indicator", "0")
   pfUI:UpdateConfig("unitframes", nil,           "hide_distance_yd", "0")
-  pfUI:UpdateConfig("unitframes", nil,           "unitxp_notify",    "0")
+  pfUI:UpdateConfig("unitframes", nil,           "distance_hook_portrait", "0")
+
+  -- SuperWoW Settings
   pfUI:UpdateConfig("unitframes", nil,           "track_group",      "0")
 
   pfUI:UpdateConfig("unitframes", nil,           "selfingroup",      "0")

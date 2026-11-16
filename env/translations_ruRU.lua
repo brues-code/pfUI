@@ -1021,7 +1021,6 @@ pfUI_translation["ruRU"] = {
   ["Units"] = "Юниты",
   ["UnitXP (Precise)"] = "UnitXP (точный)",
   ["UnitXP Range Threshold (yards)"] = "Порог дистанции UnitXP (ярды)",
-  ["UnitXP Settings"] = "Настройки UnitXP",
   ["Unknown Class Color"] = "Цвет неизвестного класса",
   ["Unlock"] = "Разблокировать",
   ["Unlock Mode allows you to move, scale and reset frames:\n\n|cff33ffcc[Left Click]|r Drag Frame\n|cff33ffcc[Middle Click]|r Reset Frame\n|cff33ffcc[Right Click]|r Option Box\n\nHold |cff33ffcc[Shift]|r to select all frames of the same kind\nHold |cff33ffcc[Ctrl]|r to select all frames of the same group\n\n|cff33ffcc[Scroll]|r to change the scale of a frame\n\n|cff33ffcc[Click]|r on an empty area or press |cff33ffcc[Esc]|r to exit\n"] = "Режим разблокировки позволяет перемещать, масштабировать и сбрасывать кадры:\n\nЗажмите |cff33ffcc[Левую кнопку мыши]|r для перемещения кадра\nНажмите |cff33ffcc[Среднюю кнопку мыши]|r для сброса кадра\nНажмите |cff33ffcc[Правую кнопку мыши]|r, чтобы открыть окно настроек кадра\nПрокручивайте |cff33ffcc[Колесо мыши]|r, чтобы изменить масштаб кадра\n\nУдерживайте |cff33ffcc[Shift]|r, чтобы выбрать все кадры одинакового вида\nУдерживайте |cff33ffcc[Ctrl]|r, чтобы выбрать все кадры одной группы\n\n|cff33ffcc[Щелкните]|r в пустой области или нажмите |cff33ffcc[Esc]|r для выхода\n",
