@@ -84,27 +84,25 @@ pfUI:RegisterSkin("Dress Up Frame", function ()
     end
   end
 
-  -- ClassicAPI v1.21.0+ previews mounts in a ModelScene in place of
-  -- DressUpModel; the undress buttons only act on DressUpModel
-  if DressUpFrame.SetMode then
-    -- the control buttons are 32px with 4px hit insets, laid out 6px into
-    -- each other, so a backdrop on the hit rect leaves a 2px gap between them
-    local controls = DressUpFrameModelScene.ControlFrame
-    for _, key in ipairs({ "zoomInButton", "zoomOutButton", "rotateLeftButton", "rotateRightButton", "resetButton" }) do
-      local button = controls[key]
-      button:SetNormalTexture("")
-      button:SetPushedTexture("")
-      button:SetHighlightTexture("")
-      CreateBackdrop(button)
-      SetAllPointsOffset(button.backdrop, button, 4)
-      button:SetHitRectInsets(4, 4, 4, 4)
-      SetHighlight(button)
-    end
-
-    hooksecurefunc(DressUpFrame, "SetMode", function(_, mode)
-      local inPlayerMode = mode ~= "mount"
-      undress:SetShown(inPlayerMode)
-      for _, button in ipairs(slots) do button:SetShown(inPlayerMode) end
-    end)
+  -- the control buttons are 32px with 4px hit insets, laid out 6px into
+  -- each other, so a backdrop on the hit rect leaves a 2px gap between them
+  local controls = DressUpFrameModelScene.ControlFrame
+  for _, key in ipairs({ "zoomInButton", "zoomOutButton", "rotateLeftButton", "rotateRightButton", "resetButton" }) do
+    local button = controls[key]
+    button:SetNormalTexture("")
+    button:SetPushedTexture("")
+    button:SetHighlightTexture("")
+    CreateBackdrop(button)
+    SetAllPointsOffset(button.backdrop, button, 4)
+    button:SetHitRectInsets(4, 4, 4, 4)
+    SetHighlight(button)
   end
+
+  -- mounts preview in a ModelScene in place of DressUpModel; the undress
+  -- buttons only act on DressUpModel
+  hooksecurefunc(DressUpFrame, "SetMode", function(_, mode)
+    local inPlayerMode = mode ~= "mount"
+    undress:SetShown(inPlayerMode)
+    for _, button in ipairs(slots) do button:SetShown(inPlayerMode) end
+  end)
 end)
