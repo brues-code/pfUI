@@ -221,9 +221,10 @@ pfUI:RegisterModule("totems", function ()
   end
 
   -- [ group coverage ]
-  -- The buff of a totem has the totem's icon, so a unit with a buff of that
-  -- icon has it. Its caster cannot tell the totems apart, as a totem buff
-  -- names the unit that has it as its caster.
+  -- The buff of a totem has the totem's icon and names the totem's owner as
+  -- its caster, so a unit with a buff of that icon that you cast has the
+  -- buff of your totem.
+  local playerGUID -- known once in the world
   local groupUnits = { "player", "party1", "party2", "party3", "party4" }
   local unitBuffs = {} -- unit -> [icon] = true
   for _, unit in ipairs(groupUnits) do unitBuffs[unit] = {} end
@@ -235,7 +236,7 @@ pfUI:RegisterModule("totems", function ()
     local index = 1
     local aura = C_UnitAuras.GetAuraDataByIndex(unit, index, "HELPFUL")
     while aura do
-      icons[aura.icon] = true
+      if aura.sourceGUID == playerGUID then icons[aura.icon] = true end
       index = index + 1
       aura = C_UnitAuras.GetAuraDataByIndex(unit, index, "HELPFUL")
     end
@@ -394,6 +395,11 @@ pfUI:RegisterModule("totems", function ()
   local function ElementLeave(self)
     GameTooltip:Hide()
     CheckFlyout(self.flyout)
+  end
+
+  -- the health events of the element's own totem only
+  local function ElementEvent(self)
+    totems:UpdateHealth(self:GetID())
   end
 
   local function ElementClick(self, button)
@@ -599,6 +605,16 @@ pfUI:RegisterModule("totems", function ()
     button.cd = CreateCooldown(button.cdbg, "aura", C.totems, "timers", "pfTotemsBar" .. slot .. "Cooldown")
     button.spellcd = CreateCooldown(button.cdbg, "spell", C.bars, "timers", "pfTotemsBar" .. slot .. "SpellCooldown")
 
+    button.health = CreateFrame("StatusBar", nil, button)
+    button.health:SetFrameLevel(button:GetFrameLevel() + 2)
+    button.health:SetStatusBarTexture(pfUI.media["img:bar"])
+    button.health:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 2, 2)
+    button.health:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
+    button.health:SetHeight(3)
+    button.health:Hide()
+    FrameUtil.RegisterFrameForUnitEvents(button, { "UNIT_HEALTH", "UNIT_MAXHEALTH" }, "totem" .. slot)
+    button:SetScript("OnEvent", ElementEvent)
+
     button.coverage = button.overlay:CreateFontString(nil, "OVERLAY")
     button.coverage:SetJustifyH("RIGHT")
     button.coverage:SetJustifyV("BOTTOM")
@@ -688,6 +704,21 @@ pfUI:RegisterModule("totems", function ()
 
     for i = count + 1, table.getn(flyout.entries) do
       flyout.entries[i]:Hide()
+    end
+  end
+
+  -- An element shows the health of its totem once it took damage.
+  totems.UpdateHealth = function(self, slot)
+    local bar = self.buttons[slot].health
+    local unit = "totem" .. slot
+    local health, max = UnitHealth(unit), UnitHealthMax(unit)
+    if UnitExists(unit) and health < max then
+      bar:SetMinMaxValues(0, max)
+      bar:SetValue(health)
+      bar:SetStatusBarColor(GetColorGradient(health / max))
+      bar:Show()
+    else
+      bar:Hide()
     end
   end
 
@@ -781,6 +812,7 @@ pfUI:RegisterModule("totems", function ()
         for _, entry in ipairs(button.flyout.entries) do
           entry.chosen:SetShown(entry.totem == choice)
         end
+        self:UpdateHealth(slot)
 
         table.insert(shown, button)
       else
@@ -889,27 +921,19 @@ pfUI:RegisterModule("totems", function ()
   end
 
   -- [ killed totems ]
-  -- The combat log names the GUID of each totem you summon. Every totem that
-  -- goes away is logged as destroyed, so a kill is one with time left that
-  -- no totem cast of yours replaced.
-  local playerGUID     -- known once in the world
+  -- Every totem that goes away is logged as destroyed, so a kill is one with
+  -- time left that no totem cast of yours replaced.
   local guidSlots = {} -- totem GUID -> element slot
   local attackers = {} -- element slot -> the last unit that damaged its totem
   local castAt = {}    -- element slot -> time of your last cast that replaces its totem
 
   local function OnCombatLog(_, _, subevent, _, sourceGUID, sourceName, _, _, destGUID, destName, _, _, spellId)
-    if sourceGUID == playerGUID then
+    if subevent == "SPELL_CAST_SUCCESS" and sourceGUID == playerGUID then
       local kind = totems.kinds[spellId]
-      if subevent == "SPELL_CAST_SUCCESS" and kind == "recall" then
+      if kind == "recall" then
         for slot = 1, MAX_TOTEMS do castAt[slot] = GetTime() end
-      elseif subevent == "SPELL_CAST_SUCCESS" and kind then
+      elseif kind then
         castAt[kind] = GetTime()
-      elseif subevent == "SPELL_SUMMON" and kind and kind ~= "recall" then
-        for guid, slot in pairs(guidSlots) do
-          if slot == kind then guidSlots[guid] = nil end
-        end
-        guidSlots[destGUID] = kind
-        attackers[kind] = nil
       end
     end
 
@@ -928,25 +952,40 @@ pfUI:RegisterModule("totems", function ()
 
   pfUI.events:RegisterFrameEventAndCallback("COMBAT_LOG_EVENT_UNFILTERED", OnCombatLog)
 
+  -- The GUID of the totem in each slot. It is kept once the slot is empty,
+  -- as the totem's destroyed entry in the combat log can come later.
+  local function TrackTotems()
+    for slot = 1, MAX_TOTEMS do
+      local guid = UnitGUID("totem" .. slot)
+      if guid and not guidSlots[guid] then
+        for old, oldSlot in pairs(guidSlots) do
+          if oldSlot == slot then guidSlots[old] = nil end
+        end
+        guidSlots[guid] = slot
+        attackers[slot] = nil
+      end
+    end
+  end
+
   local function ScanGroup()
     playerGUID = UnitGUID("player")
     for _, unit in ipairs(groupUnits) do ScanUnit(unit) end
     totems:UpdateCoverage()
   end
 
-  pfUI.events:RegisterFrameEventAndCallback("UNIT_AURA", function(_, unit)
-    if unitBuffs[unit] then
-      ScanUnit(unit)
-      totems:UpdateCoverage()
-    end
+  -- the auras of the group only; ClassicAPI takes more than four units
+  totems:RegisterUnitEvent("UNIT_AURA", unpack(groupUnits))
+  totems:SetScript("OnEvent", function(_, _, unit)
+    ScanUnit(unit)
+    totems:UpdateCoverage()
   end)
   pfUI.events:RegisterFrameEventAndCallback("PARTY_MEMBERS_CHANGED", ScanGroup)
   pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", ScanGroup)
   pfUI.events:RegisterFrameEventAndCallback("SPELLS_CHANGED", function() totems:UpdateList() end)
   pfUI.events:RegisterFrameEventAndCallback("SPELL_UPDATE_COOLDOWN", function() totems:UpdateCooldowns() end)
   pfUI.events:RegisterFrameEventAndCallback("UPDATE_BINDINGS", function() totems:UpdateBindings() end)
-  pfUI.events:RegisterFrameEventAndCallback("PLAYER_TOTEM_UPDATE", function() totems:Refresh() end)
-  pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", function() totems:Refresh() end)
+  pfUI.events:RegisterFrameEventAndCallback("PLAYER_TOTEM_UPDATE", function() TrackTotems() totems:Refresh() end)
+  pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", function() TrackTotems() totems:Refresh() end)
   pfUI.events:RegisterFrameEventAndCallback("BAG_UPDATE_DELAYED", function() totems:Refresh() end)
 
   -- add totems to the pfUI global space
