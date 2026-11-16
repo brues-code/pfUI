@@ -1044,7 +1044,7 @@ function pfUI.api.CreateIconPicker(name, parent, extraType, nameLabelText)
     end
   end
 
-  local function InitIconButton(btn, icon)
+  local function InitIconButton(btn, iconIndex)
     -- one-time setup of a pooled button
     if not btn.texture then
       CreateBackdrop(btn)
@@ -1056,8 +1056,8 @@ function pfUI.api.CreateIconPicker(name, parent, extraType, nameLabelText)
       btn:SetScript("OnLeave", GameTooltip_Hide)
     end
 
-    btn.iconIndex = icon.index
-    local path = provider:GetIconByIndex(icon.index)
+    btn.iconIndex = iconIndex
+    local path = provider:GetIconByIndex(iconIndex)
     btn.texture:SetTexture(path)
     if IconKey(path) == IconKey(selectedIconPath) then
       btn.backdrop:SetBackdropBorderColor(1, 0.82, 0, 1)
@@ -1088,13 +1088,14 @@ function pfUI.api.CreateIconPicker(name, parent, extraType, nameLabelText)
     end
   end
 
-  -- one grid entry per provider index the filter lets through, scrolled to the top
+  -- one grid entry per provider index the filter lets through, scrolled to the
+  -- top; unfiltered, a virtual range stands in for the thousands of indices
   function RefreshIconGrid()
     EnsureProvider()
     if filtered then
-      grid.ScrollBox:SetDataProvider(CreateDataProviderWithAssignedKey(filtered, "index"))
+      grid.ScrollBox:SetDataProvider(CreateDataProvider(filtered))
     else
-      grid.ScrollBox:SetDataProvider(CreateDataProviderByIndexCount(provider:GetNumIcons()))
+      grid.ScrollBox:SetDataProvider(CreateIndexRangeDataProvider(provider:GetNumIcons()))
     end
     parent.selectedPreview.tex:SetTexture(selectedIconPath)
   end
