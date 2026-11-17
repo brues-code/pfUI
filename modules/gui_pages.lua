@@ -1114,6 +1114,8 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
 
   local function CreateStateBar(box)
     stateBar = CreateFrame("Frame", nil, box)
+    -- over the config window's part picker
+    stateBar:SetFrameLevel(box:GetFrameLevel() + 50)
     stateBar:SetPoint("TOPLEFT", 6, -6)
     stateBar:SetSize(1, 18)
     stateBar.buttons = {}
@@ -1245,6 +1247,21 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     return frame:GetWidth(), frame:GetHeight()
   end
 
+  -- the parts of a frame that lead to their settings, topmost first
+  local function AddParts(parts, f)
+    for _, icons in ipairs({ { f.buffs, T["Buffs"] }, { f.debuffs, T["Debuffs"] } }) do
+      if icons[1] then
+        for _, icon in ipairs(icons[1]) do
+          table.insert(parts, { icon, { section = icons[2] } })
+        end
+      end
+    end
+    if f.castbar then table.insert(parts, { f.castbar, { section = T["Castbar"] } }) end
+    table.insert(parts, { f.portrait, { keys = { "portrait", "portraitwidth", "portraitheight" } } })
+    table.insert(parts, { f.power, { section = T["Powerbar"] } })
+    table.insert(parts, { f.hp, { section = T["Healthbar"] } })
+  end
+
   function unitPreview.Refresh()
     local set = previewSet
     local config = C.unitframes[set.variant]
@@ -1266,6 +1283,14 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     local room = math.min((previewBox:GetWidth() - 40) / width, (previewBox:GetHeight() - 50) / height)
     if room > 0 then holder:SetScale(math.min(1, room)) end
     if set.place then set.place() end
+
+    -- a party set's target and pet frames have settings of their own
+    unitPreview.parts = {}
+    for i, f in ipairs(set.frames) do
+      if not f.previewHidden and (set.variant ~= "group" or i == 1) then
+        AddParts(unitPreview.parts, f)
+      end
+    end
   end
 
   function unitPreview.Hide()
@@ -1974,7 +1999,9 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
   end
 
   function platePreview.Show(box)
-    if pfUI.nameplates then pfUI.nameplates:ShowPreview(box) end
+    if not pfUI.nameplates then return end
+    pfUI.nameplates:ShowPreview(box)
+    platePreview.parts = pfUI.nameplates.previewParts
   end
 
   function platePreview.Hide()
@@ -1982,7 +2009,9 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
   end
 
   function platePreview.Refresh()
-    if pfUI.nameplates then pfUI.nameplates:RefreshPreview() end
+    if not pfUI.nameplates then return end
+    pfUI.nameplates:RefreshPreview()
+    platePreview.parts = pfUI.nameplates.previewParts
   end
 
   gui:AddPage("nameplates", T["Nameplates"], nil, function(p)

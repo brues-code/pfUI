@@ -435,8 +435,9 @@ pfUI:RegisterModule("gui", function ()
   -- [ Preview ]
   -- A page with a preview shows it in a box above its list. The page's
   -- preview table has its `GetHeight(variant)`, `Show(box, variant)`, which draws it in
-  -- the box, `Hide()`, which takes it out again when the page goes, and
-  -- `Refresh()`, which draws it again after a change.
+  -- the box, `Hide()`, which takes it out again when the page goes,
+  -- `Refresh()`, which draws it again after a change, and `parts`, which
+  -- lead to their settings (see Preview parts).
   local previewBox = CreateFrame("Frame", nil, content)
   previewBox:SetPoint("TOPLEFT", 2, -2)
   previewBox:SetPoint("TOPRIGHT", -2, -2)
@@ -897,6 +898,92 @@ pfUI:RegisterModule("gui", function ()
       end
     end
   end
+
+  -- [ Preview parts ]
+  -- Pointing at a part of a preview outlines it, and clicking it leads to its
+  -- settings on the open page. A preview lists its parts, topmost first, in
+  -- `parts`: { region, target }, where the target is either `section`, the
+  -- label of a header whose rows it means, or `keys`, a list of setting keys.
+  local function TargetSettings(target)
+    local found = {}
+    local inside
+    for _, setting in ipairs(GetSettings(current)) do
+      if setting.type == "header" then
+        inside = setting.label == target.section
+        if inside then table.insert(found, setting) end
+      elseif inside and setting.key then
+        table.insert(found, setting)
+      elseif target.keys and setting.key then
+        for _, key in ipairs(target.keys) do
+          if setting.key == key then table.insert(found, setting) end
+        end
+      end
+    end
+    return found
+  end
+
+  local function ShowTarget(target)
+    local found = TargetSettings(target)
+    if not found[1] then return end
+
+    ClearHighlights()
+    for _, setting in ipairs(found) do
+      highlighted[setting] = true
+    end
+    list.ScrollBox:ScrollToElementData(found[1], ScrollBoxConstants.AlignBegin)
+    list.ScrollBox:ForEachFrame(function(row)
+      if highlighted[row.setting] then Flash(row) end
+    end)
+  end
+
+  -- above the preview, under any controls a preview puts above it
+  local picker = CreateFrame("Frame", nil, previewBox)
+  picker:SetAllPoints()
+  picker:SetFrameLevel(previewBox:GetFrameLevel() + 40)
+  picker:EnableMouse(true)
+
+  picker.outline = CreateFrame("Frame", nil, picker)
+  picker.outline:SetFrameLevel(picker:GetFrameLevel() + 1)
+  picker.outline:SetBackdrop({ edgeFile = "Interface\\BUTTONS\\WHITE8X8", edgeSize = 1 })
+  picker.outline:SetBackdropBorderColor(.2, 1, .8, 1)
+  picker.outline:Hide()
+
+  local function PartUnderMouse()
+    local parts = current and current.preview and current.preview.parts
+    if not parts then return end
+    for _, part in ipairs(parts) do
+      local region = part[1]
+      if region:IsVisible() and region:IsMouseOver() then return part end
+    end
+  end
+
+  local function UpdatePicker()
+    local part = PartUnderMouse()
+    if part == this.part then return end
+    this.part = part
+    if part then
+      this.outline:ClearAllPoints()
+      this.outline:SetPoint("TOPLEFT", part[1], "TOPLEFT", -1, 1)
+      this.outline:SetPoint("BOTTOMRIGHT", part[1], "BOTTOMRIGHT", 1, -1)
+      this.outline:Show()
+    else
+      this.outline:Hide()
+    end
+  end
+
+  picker:SetScript("OnEnter", function()
+    this:SetScript("OnUpdate", UpdatePicker)
+  end)
+
+  picker:SetScript("OnLeave", function()
+    this:SetScript("OnUpdate", nil)
+    this.part = nil
+    this.outline:Hide()
+  end)
+
+  picker:SetScript("OnMouseUp", function()
+    if this.part then ShowTarget(this.part[2]) end
+  end)
 
   -- "Category » Page", and » Variant on a variant page
   local function Breadcrumb(page, variant)

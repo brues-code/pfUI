@@ -1528,6 +1528,21 @@ pfUI:RegisterModule("nameplates", function ()
       plate:SetPoint("TOP", preview, "TOP", (i - 2) * (plateWidth + PREVIEW_GAP + zoomWidth / 2), -above)
       ShowSample(plate, samples[i])
     end
+
+    -- the parts that lead to their settings, topmost first
+    local parts = {}
+    for _, plate in ipairs(preview.plates) do
+      for _, icon in ipairs(plate.debuffs) do
+        table.insert(parts, { icon, { section = T["Debuffs"] } })
+      end
+      table.insert(parts, { plate.raidicon, { section = T["Raid Icon"] } })
+      table.insert(parts, { plate.castbar, { section = T["Castbar"] } })
+      for _, point in ipairs(plate.combopoints) do
+        table.insert(parts, { point, { keys = { "cpdisplay" } } })
+      end
+      table.insert(parts, { plate.health, { section = T["Healthbar"] } })
+    end
+    nameplates.previewParts = parts
   end
 
   function nameplates:ShowPreview(box)
