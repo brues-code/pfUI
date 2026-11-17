@@ -466,8 +466,15 @@ pfUI:RegisterModule("gui", function ()
 
   ScrollUtil.InitScrollBoxListWithScrollBar(list.ScrollBox, list.ScrollBar, listView)
 
-  -- an open dropdown would set the setting that its row shows next
+  -- An open dropdown would set the setting that its row shows next, so the
+  -- menus close when the rows move. OnScroll also fires on every layout pass
+  -- of the list, one of which can come while a dropdown opens its menu, and
+  -- closing it then pulls the menu from under the dropdown (issue #86).
+  local scrollOffset
   list.ScrollBox:RegisterCallback(BaseScrollBoxEvents.OnScroll, function()
+    local offset = list.ScrollBox:GetDerivedScrollOffset()
+    if offset == scrollOffset then return end
+    scrollOffset = offset
     Menu.GetManager():CloseMenus()
   end, list)
 
