@@ -434,12 +434,14 @@ end
 -- UnitHasAggro drops the attackers that are gone.
 local attacking = {}
 
--- note what `unit` attacks now, and tell the old and the new victim
+-- note what `unit` attacks now, and tell the old and the new victim. The
+-- target is reached through the GUID: not every token takes a "target"
+-- suffix (UNIT_TARGET fires for "npc", and "npctarget" is no unit).
 local function NoteAttacker(unit)
   local attacker = UnitGUID(unit)
   if not attacker then return end
-  local victim = unit .. "target"
-  victim = UnitCanAttack(unit, victim) and UnitIsFriend(victim, "player") and UnitGUID(victim) or nil
+  local victim = attacker .. "target"
+  victim = UnitCanAttack(attacker, victim) and UnitIsFriend(victim, "player") and UnitGUID(victim) or nil
   local old = attacking[attacker]
   if victim == old then return end
   attacking[attacker] = victim
@@ -468,7 +470,8 @@ end
 pfUI.events:RegisterFrameEventAndCallback("UNIT_TARGET", function(_, unit)
   NoteAttacker(unit)
   -- the new target may have come into view mid-fight
-  NoteAttacker(unit .. "target")
+  local guid = UnitGUID(unit)
+  if guid then NoteAttacker(guid .. "target") end
 end)
 pfUI.events:RegisterFrameEventAndCallback("PLAYER_TARGET_CHANGED", function() NoteAttacker("target") end)
 pfUI.events:RegisterFrameEventAndCallback("PLAYER_FOCUS_CHANGED", function() NoteAttacker("focus") end)
