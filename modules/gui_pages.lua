@@ -78,6 +78,16 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
       "1:" .. T["Abbreviate 2 Decimals (4.25k)"],
       "2:" .. T["Abbreviate 1 Decimal (4.2k)"],
     },
+    ["luaerrors"] = {
+      "default:" .. T["Error Window Or BugSack"],
+      "chat:" .. T["Print To Chat"],
+      "hide:" .. T["Hide Errors"],
+    },
+    ["uierrors"] = {
+      "full:" .. T["All Lines"],
+      "single:" .. T["Single Line"],
+      "hide:" .. T["Hidden"],
+    },
     ["castbardecimals"] = {
       "1:" .. T["1 Decimal (2.1)"],
       "2:" .. T["2 Decimals (2.14)"],
@@ -725,9 +735,8 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Dropdown(T["3D World Unit Font"], C.global, "font_unit_name", D.fonts)
     p:Dropdown(T["Scrolling Combat Text Font"], C.global, "font_combat", combatfonts)
     p:Checkbox(T["Enable Offscreen Frame Positions"], C.global, "offscreen")
-    p:Checkbox(T["Display Addon Errors In Chat"], C.global, "errors")
-    p:Checkbox(T["Use Single Line UIErrors Frame"], C.global, "errors_limit")
-    p:Checkbox(T["Disable Errors in UIErrors Frame"], C.global, "errors_hide")
+    p:Dropdown(T["Lua Errors"], C.global, "luaerrors", D.luaerrors, pfUI.UpdateLuaErrors)
+    p:Dropdown(T["Error Messages"], C.global, "uierrors", D.uierrors, pfUI.UpdateErrorMessages)
     p:Checkbox(T["Enable OS Notifications"], C.global, "notify")
     p:Checkbox(T["Highlight Settings That Require Reload"], C.gui, "reloadmarker")
     p:Dropdown(T["Abbreviate Numbers"], C.unitframes, "abbrevnum", D.abbrevnum)

@@ -392,6 +392,8 @@ pfUI:SetScript("OnEvent", function()
 
     pfUI:LoadConfig()
     pfUI:MigrateConfig()
+    pfUI.UpdateLuaErrors()
+    pfUI.UpdateErrorMessages()
     SetupConfigEnvironment()
     pfUI:UpdateFonts()
 
@@ -464,20 +466,43 @@ message = function(msg)
 end
 print = print or message
 
--- Errors print to chat: pfUI's own always, other addons' when the errors
--- option is on. In debug mode the stack follows, starting at the code that
--- raised the error rather than at this handler.
-seterrorhandler(function(msg)
-  msg = tostring(msg)
+-- 1.12's error handler shows each Lua error through ScriptErrors_Message:
+-- SetText. ClassicAPI's error window takes that slot, and !BugGrabber
+-- (BugSack) takes it from ClassicAPI when installed; both load before pfUI.
+-- The luaerrors option leaves the slot to whichever of them holds it, or
+-- takes it to print errors to chat or to drop them.
+local errorslot = ScriptErrors_Message.SetText
+
+-- In debug mode the stack follows, starting at the code that raised the
+-- error rather than at this function.
+local function ChatError(_, msg)
   if PF_DEBUG_MODE then
     local height = GetErrorCallstackHeight()
     message(height and debugstack(GetCallstackHeight() - height + 1) or debugstack(2))
   end
-  if string.find(msg, "AddOns\\pfUI") or not pfUI_config
-  or (pfUI_config.global and pfUI_config.global.errors == "1") then
-    DEFAULT_CHAT_FRAME:AddMessage("|cffcc3333ERROR: |cffff5555" .. msg)
+  DEFAULT_CHAT_FRAME:AddMessage("|cffcc3333ERROR: |cffff5555" .. tostring(msg))
+end
+
+local errorslots = { default = errorslot, chat = ChatError, hide = nop }
+
+function pfUI.UpdateLuaErrors()
+  ScriptErrors_Message.SetText = errorslots[pfUI_config.global.luaerrors]
+end
+
+-- The game's red error messages ("Not enough mana") in UIErrorsFrame: all of
+-- them, one line at a time, or none. Hidden stops the game's messages only;
+-- addons that call AddMessage still show.
+local errorsheight = UIErrorsFrame:GetHeight()
+
+function pfUI.UpdateErrorMessages()
+  local mode = pfUI_config.global.uierrors
+  UIErrorsFrame:SetHeight(mode == "single" and 25 or errorsheight)
+  if mode == "hide" then
+    UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE")
+  else
+    UIErrorsFrame:RegisterEvent("UI_ERROR_MESSAGE")
   end
-end)
+end
 
 function pfUI.SetupCVars()
   ClearTutorials()

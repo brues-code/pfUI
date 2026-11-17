@@ -78,14 +78,4 @@ pfUI:RegisterModule("skin", function ()
     end
     return box
   end
-
-  if C.global.errors_limit == "1" then
-    UIErrorsFrame:SetHeight(25)
-  end
-
-  if C.global.errors_hide == "1" then
-    UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE")
-  else
-    UIErrorsFrame:RegisterEvent("UI_ERROR_MESSAGE")
-  end
 end)
