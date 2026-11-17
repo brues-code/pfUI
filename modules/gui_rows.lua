@@ -3,7 +3,7 @@
 -- setting, a table with these fields:
 --
 --   type     "number", "text", "checkbox", "dropdown", "color", "list",
---            "buttons", "header" or "warning"
+--            "buttons", "header", "warning" or "link"
 --   label    the caption
 --   table    the table that holds the value: a config table, or a store
 --            that reads and writes game state the same way
@@ -11,6 +11,7 @@
 --   values   the entries of a dropdown as "value:label" strings, or a
 --            function that returns them
 --   buttons  the { label, onClick } pairs of a buttons row
+--   onClick  what a "link" row runs when clicked, given the setting
 --   update   applies a change; changes to a setting without one take
 --            effect after a reload
 --
@@ -381,4 +382,18 @@ function WarningRowMixin:OnLoad()
   self:SetBackdropBorderColor(1,.5,.5)
   self.caption:SetJustifyH("CENTER")
   self.caption:SetJustifyV("MIDDLE")
+end
+
+-- [ pfUIConfigLinkRowMixin ]
+-- A caption that runs the setting's onClick.
+local LinkRowMixin = CreateFromMixins(RowMixin)
+_G.pfUIConfigLinkRowMixin = LinkRowMixin
+
+function LinkRowMixin:Init(setting)
+  self.setting = setting
+  self.caption:SetText(setting.label)
+end
+
+function LinkRowMixin:OnClick()
+  self.setting.onClick(self.setting)
 end

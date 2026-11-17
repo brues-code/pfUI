@@ -121,4 +121,11 @@
 
   <!-- A caption in a box with a red border. -->
   <Frame name="pfUIConfigWarningRowTemplate" inherits="pfUIConfigRowTemplate" mixin="pfUIConfigWarningRowMixin" virtual="true"/>
+
+  <!-- A caption that runs the setting's onClick, such as a search result. -->
+  <Button name="pfUIConfigLinkRowTemplate" inherits="pfUIConfigRowTemplate" mixin="pfUIConfigLinkRowMixin" virtual="true">
+    <Scripts>
+      <OnClick method="OnClick"/>
+    </Scripts>
+  </Button>
 </Ui>

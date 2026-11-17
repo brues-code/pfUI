@@ -15,12 +15,17 @@ pfUI:RegisterModule("gui", function ()
     buttons  = "pfUIConfigButtonsRowTemplate",
     header   = "pfUIConfigHeaderRowTemplate",
     warning  = "pfUIConfigWarningRowTemplate",
+    -- the search results: the page of the settings under it, and a row on a
+    -- frame page, which only links to its page
+    breadcrumb = "pfUIConfigLinkRowTemplate",
+    link     = "pfUIConfigLinkRowTemplate",
   }
 
   -- the height of the rows on a list page that are not 22 high
   local extents = {
     header  = 45,
     warning = 50,
+    breadcrumb = 30,
   }
 
   -- Stores that read and write game state the way a config table holds a
@@ -338,24 +343,55 @@ pfUI:RegisterModule("gui", function ()
   SetAllPointsOffset(list, content, 2)
   list:Hide()
 
-  -- the setting that the last search result pointed at
-  local highlighted
+  -- the settings that the last search result pointed at, as keys, and the
+  -- rows on a frame page that it pointed at
+  local highlighted, highlightedFrames = {}, {}
+
+  local function StopFlash(group)
+    group.flashes = group.flashes - 1
+    if group.flashes <= 0 then group:Stop() end
+  end
 
   local function SetHighlight(row, shown)
     if shown and not row.highlight then
       row.highlight = row:CreateTexture(nil, "OVERLAY")
       row.highlight:SetAllPoints()
       row.highlight:SetColorTexture(.2,1,.8,.2)
+
+      -- a few blinks when a search result jumps to the row
+      row.flash = row.highlight:CreateAnimationGroup()
+      row.flash:SetLooping("BOUNCE")
+      row.flash:SetScript("OnLoop", StopFlash)
+      local fade = row.flash:CreateAnimation("Alpha")
+      fade:SetFromAlpha(1)
+      fade:SetToAlpha(0)
+      fade:SetDuration(.25)
     end
 
     if row.highlight then
       row.highlight:SetShown(shown)
+      if not shown then row.flash:Stop() end
     end
+  end
+
+  local function Flash(row)
+    SetHighlight(row, true)
+    row.flash.flashes = 6
+    row.flash:Stop()
+    row.flash:Play()
+  end
+
+  local function ClearHighlights()
+    table.wipe(highlighted)
+    for _, frame in ipairs(highlightedFrames) do
+      SetHighlight(frame, false)
+    end
+    table.wipe(highlightedFrames)
   end
 
   local function InitRow(row, setting)
     row:Init(setting)
-    SetHighlight(row, setting == highlighted)
+    SetHighlight(row, highlighted[setting] or false)
   end
 
   local listView = CreateScrollBoxListLinearView(0, 5, 0, 3, 1)
@@ -374,6 +410,7 @@ pfUI:RegisterModule("gui", function ()
   -- a row that scrolls out of view lets go of the cursor and the keyboard
   listView:SetElementResetter(function(row)
     if row.tex then row.tex:Hide() end
+    if row.flash then row.flash:Stop() end
     if row.input and row.input.ClearFocus then row.input:ClearFocus() end
   end)
 
@@ -398,91 +435,14 @@ pfUI:RegisterModule("gui", function ()
     end)
   end)
 
-  -- [ Search results ]
-  local results = CreateFrame("Frame", nil, content, "pfUIScrollBoxListTemplate")
-  SetAllPointsOffset(results, content, 2)
-  results:Hide()
-
-  -- the frame-page row that the last search result pointed at
-  local highlightedFrame
-
-  -- opens the page of a search result and marks the result's row
-  local function PointAt(result)
-    pfUI.gui:OpenPage(result.page.id)
-
-    if highlightedFrame then
-      SetHighlight(highlightedFrame, false)
-      highlightedFrame = nil
-    end
-
-    if result.setting then
-      highlighted = result.setting
-      list.ScrollBox:ScrollToElementData(highlighted, ScrollBoxConstants.AlignCenter)
-      list.ScrollBox:ForEachFrame(function(row)
-        SetHighlight(row, row.setting == highlighted)
-      end)
-    else
-      highlightedFrame = result.frame
-      SetHighlight(highlightedFrame, true)
-    end
-  end
-
-  local function SearchResultOnClick(button)
-    pfUI.gui.search:ClearFocus()
-    PointAt(button.result)
-  end
-
-  local function SearchResultOnEnter(button)
-    button.tex:Show()
-  end
-
-  local function SearchResultOnLeave(button)
-    button.tex:Hide()
-  end
-
-  local function InitSearchResult(button, result)
-    -- one-time setup of a pooled row
-    if not button.text then
-      button:SetScript("OnClick", SearchResultOnClick)
-      button:SetScript("OnEnter", SearchResultOnEnter)
-      button:SetScript("OnLeave", SearchResultOnLeave)
-
-      button.text = button:CreateFontString(nil, "ARTWORK", "GameFontWhite")
-      button.text:SetFont(pfUI.font_default, C.global.font_size, "OUTLINE")
-      button.text:SetAllPoints()
-      button.text:SetJustifyH("LEFT")
-
-      button.tex = button:CreateTexture(nil, "BACKGROUND")
-      button.tex:SetColorTexture(1,1,1,.05)
-      button.tex:SetAllPoints()
-      button.tex:Hide()
-    end
-
-    button.result = result
-
-    -- the categories and the page, then the setting
-    local page = result.page
-    local path = "|cff33ffcc" .. page.category.title .. "|r » "
-    if page.title ~= page.category.title then
-      path = path .. "|cff33ffcc" .. page.title .. "|r » "
-    end
-    button.text:SetText(path .. "|cffffffff" .. result.label)
-  end
-
-  local resultsView = CreateScrollBoxListLinearView(0, 0, 0, 0, 5)
-  resultsView:SetElementExtent(20)
-  resultsView:SetElementInitializer("Button", InitSearchResult)
-  ScrollUtil.InitScrollBoxListWithScrollBar(results.ScrollBox, results.ScrollBar, resultsView)
-
   -- [ Opening pages ]
   -- hides the open page or the search results
   local function HideContent()
-    if current and current.build and list:IsShown() then
+    if current and current.build and list:IsShown() and not searching then
       current.scroll = list.ScrollBox:GetScrollPercentage()
     end
 
     list:Hide()
-    results:Hide()
 
     if current and current.frame then
       current.frame:Hide()
@@ -646,25 +606,83 @@ pfUI:RegisterModule("gui", function ()
   end
 
   -- [ Search ]
-  -- the settings whose label has the text in it: those of every list page,
-  -- then the rows on the frame pages that have been built
+  -- Results show in the page list: under a breadcrumb for each page, the
+  -- settings of a list page as live rows, and the rows of a frame page as
+  -- links. A breadcrumb or a link opens the page and marks its results.
+
+  -- opens the page of a breadcrumb or a link and flashes the rows it names
+  local function PointAt(result)
+    pfUI.gui.search:ClearFocus()
+    ClearHighlights()
+    pfUI.gui:OpenPage(result.page.id)
+
+    if result.settings then
+      for _, setting in ipairs(result.settings) do
+        highlighted[setting] = true
+      end
+      list.ScrollBox:ScrollToElementData(result.settings[1], ScrollBoxConstants.AlignCenter)
+      list.ScrollBox:ForEachFrame(function(row)
+        if highlighted[row.setting] then Flash(row) end
+      end)
+    else
+      for _, frame in ipairs(result.frames) do
+        table.insert(highlightedFrames, frame)
+        Flash(frame)
+      end
+    end
+  end
+
+  -- "Category » Page"
+  local function Breadcrumb(page)
+    local path = "|cff33ffcc" .. page.category.title
+    if page.title ~= page.category.title then
+      path = path .. "|r » |cff33ffcc" .. page.title
+    end
+    return path .. "|r"
+  end
+
+  local function Matches(text, label, key)
+    return (label and label:lower():find(text, 1, true))
+      or (type(key) == "string" and key:lower():find(text, 1, true))
+  end
+
+  -- the results of the settings whose label or key has the text in it:
+  -- those of every list page, and the rows of the frame pages built so far
   local function Search(text)
     local found = {}
     text = text:lower()
 
     for _, page in ipairs(order) do
+      local crumb = { type = "breadcrumb", page = page, label = Breadcrumb(page), onClick = PointAt }
+
       if page.build then
+        crumb.settings = {}
         for _, setting in ipairs(GetSettings(page)) do
-          if setting.label and setting.type ~= "header" and setting.label:lower():find(text, 1, true) then
-            table.insert(found, { page = page, label = setting.label, setting = setting })
+          if setting.key and Matches(text, setting.label, setting.key) then
+            table.insert(crumb.settings, setting)
           end
         end
-      end
-    end
-
-    for _, row in ipairs(searchRows) do
-      if row.label:lower():find(text, 1, true) then
-        table.insert(found, row)
+        if crumb.settings[1] then
+          table.insert(found, crumb)
+          for _, setting in ipairs(crumb.settings) do
+            table.insert(found, setting)
+          end
+        end
+      else
+        crumb.frames = {}
+        local links = {}
+        for _, row in ipairs(searchRows) do
+          if row.page == page and Matches(text, row.label, row.frame.config) then
+            table.insert(crumb.frames, row.frame)
+            table.insert(links, { type = "link", page = page, label = row.label, frames = { row.frame }, onClick = PointAt })
+          end
+        end
+        if links[1] then
+          table.insert(found, crumb)
+          for _, link in ipairs(links) do
+            table.insert(found, link)
+          end
+        end
       end
     end
 
@@ -674,8 +692,8 @@ pfUI:RegisterModule("gui", function ()
   local function ShowResults(found)
     HideContent()
     searching = true
-    results:Show()
-    results.ScrollBox:SetDataProvider(CreateDataProvider(found))
+    list:Show()
+    list.ScrollBox:SetDataProvider(CreateDataProvider(found))
     nav.ScrollBox:ForEachFrame(UpdateNavButton)
   end
 
@@ -729,45 +747,25 @@ pfUI:RegisterModule("gui", function ()
   end)
   SkinButton(pfUI.gui.share)
 
-  pfUI.gui.search = CreateFrame("EditBox", nil, pfUI.gui)
-  pfUI.gui.search:SetPoint("LEFT", pfUI.gui.share, "RIGHT", 5, 0)
+  -- the box shows SEARCH while empty and clears with its X; Escape and Enter
+  -- leave it
+  pfUI.gui.search = CreateFrame("EditBox", "pfConfigGUISearch", pfUI.gui, "ClassicAPISearchBoxTemplate")
+  pfUI.gui.search:SetPoint("LEFT", pfUI.gui.share, "RIGHT", 7, 0)
   pfUI.gui.search:SetPoint("TOPRIGHT", body.backdrop, "BOTTOMRIGHT", 0, -5)
   pfUI.gui.search:SetHeight(25)
-  pfUI.gui.search:SetAutoFocus(false)
-  pfUI.gui.search:SetTextInsets(5, 5, 5, 5)
-  pfUI.gui.search:SetTextColor(.2,1,.8,1)
-  pfUI.gui.search:SetJustifyH("CENTER")
-  pfUI.gui.search:SetFontObject(GameFontNormal)
-  pfUI.gui.search:SetText(SEARCH .. "...")
+  StripTextures(pfUI.gui.search, nil, "BACKGROUND")
   CreateBackdrop(pfUI.gui.search, nil, true)
 
-  pfUI.gui.search:SetScript("OnEscapePressed", function(self)
-    self:ClearFocus()
-    if self:GetText() == "" then
-      self:SetText(SEARCH .. "...")
-    end
-  end)
-
-  pfUI.gui.search:SetScript("OnEditFocusGained", function(self)
+  pfUI.gui.search:HookScript("OnEditFocusGained", function(self)
     if not self.indexed then
       BuildFramePages()
       self.indexed = true
     end
-
-    if self:GetText() == SEARCH .. "..." then
-      self:SetText("")
-    end
   end)
 
-  pfUI.gui.search:SetScript("OnTextChanged", function(self)
+  pfUI.gui.search:HookScript("OnTextChanged", function(self)
     local text = self:GetText()
-    if text == SEARCH .. "..." then return end
-
-    highlighted = nil
-    if highlightedFrame then
-      SetHighlight(highlightedFrame, false)
-      highlightedFrame = nil
-    end
+    ClearHighlights()
 
     if text ~= "" then
       ShowResults(Search(text))
