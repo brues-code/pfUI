@@ -10,6 +10,93 @@ pfUI.uf.frames = {}
 -- Scans run back to back and consume the buffer before the next refill.
 local auraSlots = {}
 
+-- ============================================================================
+-- Frame state: health and power, dead, connected, combat and auras, as a
+-- frame shows them. Every read of these goes through here, so a preview frame
+-- in the config window can carry a `sample` that answers in place of its
+-- unit: health and power as fractions of the unit's own, the flags, and its
+-- own buff and debuff lists.
+-- ============================================================================
+local SAMPLE_DEBUFF_SLOT = 100
+
+local function FrameStats(frame)
+  local hp, hpmax, power, powermax, powerType = pfUI.api.GetUnitStats(frame.label .. frame.id)
+  local sample = frame.sample
+  if sample then
+    hp, power = floor(hpmax * sample.health), floor(powermax * sample.power)
+  end
+  return hp, hpmax, power, powermax, powerType
+end
+
+local function FrameIsDead(frame)
+  local sample = frame.sample
+  if sample then return sample.dead end
+  return UnitIsDead(frame.label .. frame.id)
+end
+
+local function FrameIsConnected(frame)
+  local sample = frame.sample
+  if sample then return not sample.offline end
+  return UnitIsConnected(frame.label .. frame.id)
+end
+
+local function FrameInCombat(frame)
+  local sample = frame.sample
+  if sample then return sample.combat end
+  return UnitAffectingCombat(frame.label .. frame.id)
+end
+
+local function FrameHasAggro(frame)
+  local sample = frame.sample
+  if sample then return sample.combat end
+  return pfUI.api.UnitHasAggro(frame.label .. frame.id) > 0
+end
+
+-- ScanAuraSlots for the frame. A sample's slots are its list indices, the
+-- debuffs' offset past the buffs'.
+local function ScanFrameAuras(frame, filter, buf, max)
+  local sample = frame.sample
+  if not sample then return ScanAuraSlots(frame.label .. frame.id, filter, buf, max) end
+
+  local harmful = strfind(filter, "HARMFUL")
+  local list = harmful and sample.debuffs or sample.buffs
+  local base = harmful and SAMPLE_DEBUFF_SLOT or 0
+  local mine = strfind(filter, "PLAYER")
+  -- the limits come from the config, as strings
+  max = tonumber(max)
+  local n = 0
+  for i, aura in ipairs(list) do
+    if (not mine or aura.mine) and (not max or n < max) then
+      n = n + 1
+      buf[n] = base + i
+    end
+  end
+  local i = n + 1
+  while buf[i] do
+    buf[i] = nil
+    i = i + 1
+  end
+  buf.n = n
+  return n
+end
+
+-- C_UnitAuras.UnitAuraBySlot for the frame:
+-- name, icon, count, dispelType, duration, expirationTime
+local function FrameAura(frame, slot)
+  local sample = frame.sample
+  if not sample then return C_UnitAuras.UnitAuraBySlot(frame.label .. frame.id, slot) end
+  if not slot then return end
+
+  local aura
+  if slot > SAMPLE_DEBUFF_SLOT then
+    aura = sample.debuffs[slot - SAMPLE_DEBUFF_SLOT]
+  else
+    aura = sample.buffs[slot]
+  end
+  if not aura then return end
+  return aura.name, aura.icon, aura.count, aura.dispelType, aura.duration, aura.expirationTime
+end
+
 -- Aura block corner -> { icon anchor point, x direction, y direction, below frame }
 local auraCorners = {
   TOPLEFT     = { "BOTTOMLEFT",   1,  1 },
@@ -84,12 +171,12 @@ end
 -- Re-reads the stacks and timer of each shown icon of an aura block from the
 -- slot RefreshUnit filled it from, then restarts the timers. For auras that
 -- refreshed or restacked in place, which leaves every aura in its slot.
-local function RetimeAuras(icons, unitstr)
+local function RetimeAuras(unit, icons)
   if not icons then return end
 
   local i = 1
   while icons[i] and icons[i]:IsShown() do
-    local _, _, count, _, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, icons[i].slot)
+    local _, _, count, _, duration, expirationTime = FrameAura(unit, icons[i].slot)
     if count then
       icons[i].stacks:SetText(count > 1 and count or "")
       icons[i].auraStart, icons[i].auraDuration = GetAuraTimer(duration, expirationTime)
@@ -1439,7 +1526,7 @@ end
 function pfUI.uf:RefreshIncomingHeal(frame)
   local unit = frame.label .. frame.id
   local heal = libpredict:UnitGetIncomingHeals(unit)
-  local health, maxHealth = UnitHealth(unit), UnitHealthMax(unit)
+  local health, maxHealth = FrameStats(frame)
 
   if heal - health - maxHealth == frame.predictstate then return end
   frame.predictstate = heal - health - maxHealth
@@ -1890,7 +1977,7 @@ function pfUI.uf:RefreshUnitState(unit)
   local alpha = unit.alpha_visible
   local unlock = pfUI.unlock and pfUI.unlock:IsShown() or nil
 
-  if not UnitIsConnected(unit.label .. unit.id) and not unlock then
+  if not FrameIsConnected(unit) and not unlock then
     -- offline
     alpha = unit.alpha_offline
     unit.hp.bar:SetMinMaxValues(0, 100)
@@ -1929,10 +2016,9 @@ end
 
 -- the combat square and glow, where aggro shows over combat
 function pfUI.uf:RefreshCombat(unit)
-  local unitstr = unit.label .. unit.id
   local config = unit.config
-  local aggro = unit.aggro and pfUI.api.UnitHasAggro(unitstr) > 0
-  local combat = UnitAffectingCombat(unitstr)
+  local aggro = unit.aggro and FrameHasAggro(unit)
+  local combat = FrameInCombat(unit)
 
   if config.squareaggro == "1" and aggro then
     unit.combat.tex:SetColorTexture(1,.2,0)
@@ -2106,11 +2192,11 @@ function pfUI.uf:RefreshUnit(unit, component)
   if unit.buffs and ( component == "all" or component == "aura" ) then
     -- one GetAuraSlots enumeration per refresh, then a positional read per
     -- slot id: allocates nothing and never re-walks the aura array per icon
-    ScanAuraSlots(unitstr, "HELPFUL", auraSlots, unit.config.bufflimit)
+    ScanFrameAuras(unit, "HELPFUL", auraSlots, unit.config.bufflimit)
     for i=1, unit.config.bufflimit do
       if not unit.buffs[i] then break end
 
-      local name, icon, count, _, duration, expirationTime, _, _, _, spellId = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
+      local name, icon, count, _, duration, expirationTime = FrameAura(unit, auraSlots[i])
 
       if name then
         unit.buffs[i].slot = auraSlots[i]
@@ -2131,7 +2217,7 @@ function pfUI.uf:RefreshUnit(unit, component)
 
     -- own buffs lead the list; count them only when they're drawn larger
     if unit.buffs.ownsize ~= unit.buffs.size then
-      unit.buffs.own = ScanAuraSlots(unitstr, "HELPFUL|PLAYER", auraSlots, unit.config.bufflimit)
+      unit.buffs.own = ScanFrameAuras(unit, "HELPFUL|PLAYER", auraSlots, unit.config.bufflimit)
     end
   end
 
@@ -2145,13 +2231,13 @@ function pfUI.uf:RefreshUnit(unit, component)
     -- effects on you). One GetAuraSlots enumeration per refresh; the i-th slot
     -- is the i-th aura of the filtered list, so `i` stays the tooltip index.
     local filter = (unit.label ~= "player" and selfdebuff == "1") and "HARMFUL|PLAYER" or "HARMFUL"
-    ScanAuraSlots(unitstr, filter, auraSlots, unit.config.debufflimit)
+    ScanFrameAuras(unit, filter, auraSlots, unit.config.debufflimit)
 
     for i=1, unit.config.debufflimit do
       if not unit.debuffs[i] then break end
 
       -- positional read by slot id allocates nothing
-      local name, icon, count, dispelType, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
+      local name, icon, count, dispelType, duration, expirationTime = FrameAura(unit, auraSlots[i])
       if name then
         texture, stacks, dtype = icon, count, dispelType
       else
@@ -2181,7 +2267,7 @@ function pfUI.uf:RefreshUnit(unit, component)
 
     -- own debuffs lead the list; count them only when they're drawn larger
     if unit.debuffs.ownsize ~= unit.debuffs.size then
-      unit.debuffs.own = ScanAuraSlots(unitstr, "HARMFUL|PLAYER", auraSlots, unit.config.debufflimit)
+      unit.debuffs.own = ScanFrameAuras(unit, "HARMFUL|PLAYER", auraSlots, unit.config.debufflimit)
     end
   end
 
@@ -2192,8 +2278,8 @@ function pfUI.uf:RefreshUnit(unit, component)
     StartAuraTimers(unit.debuffs)
     pfUI.events:TriggerEvent("unitframe:auras", unit)
   elseif component == "auratime" then
-    RetimeAuras(unit.buffs, unitstr)
-    RetimeAuras(unit.debuffs, unitstr)
+    RetimeAuras(unit, unit.buffs)
+    RetimeAuras(unit, unit.debuffs)
   end
 
   -- indicators
@@ -2241,9 +2327,9 @@ function pfUI.uf:RefreshUnit(unit, component)
       local present = pfUI.uf.dispelPresent or {}
       pfUI.uf.dispelPresent = present
       for k in pairs(present) do present[k] = nil end
-      local n = ScanAuraSlots(unitstr, "HARMFUL", auraSlots)
+      local n = ScanFrameAuras(unit, "HARMFUL", auraSlots)
       for i=1,n do
-        local name, _, _, dispelType = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
+        local name, _, _, dispelType = FrameAura(unit, auraSlots[i])
         if name and dispelType and dispelType ~= "" then present[dispelType] = true end
       end
 
@@ -2336,9 +2422,9 @@ function pfUI.uf:RefreshUnit(unit, component)
 
     local pos = 1
     if table.getn(unit.indicators) > 0 then
-      local n = ScanAuraSlots(unitstr, "HELPFUL", auraSlots)
+      local n = ScanFrameAuras(unit, "HELPFUL", auraSlots)
       for i=1,n do
-        local name, icon, count, _, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
+        local name, icon, count, _, duration, expirationTime = FrameAura(unit, auraSlots[i])
         if not name then break end
         local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
 
@@ -2358,9 +2444,9 @@ function pfUI.uf:RefreshUnit(unit, component)
     end
 
     if table.getn(unit.indicator_custom) > 0 then
-      local n = ScanAuraSlots(unitstr, "HELPFUL", auraSlots)
+      local n = ScanFrameAuras(unit, "HELPFUL", auraSlots)
       for i=1,n do
-        local name, icon, count, _, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
+        local name, icon, count, _, duration, expirationTime = FrameAura(unit, auraSlots[i])
         if not name then break end
         local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
         local lowerName = name:lower()
@@ -2374,9 +2460,9 @@ function pfUI.uf:RefreshUnit(unit, component)
       end
 
       local debuffFilter = unit.config.selfdebuff == "1" and "HARMFUL|PLAYER" or "HARMFUL"
-      n = ScanAuraSlots(unitstr, debuffFilter, auraSlots)
+      n = ScanFrameAuras(unit, debuffFilter, auraSlots)
       for i=1,n do -- scan for custom debuffs
-        local name, icon, count, _, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unitstr, auraSlots[i])
+        local name, icon, count, _, duration, expirationTime = FrameAura(unit, auraSlots[i])
         if name then
           local timeleft = expirationTime > 0 and (expirationTime - GetTime()) or nil
           for _, filter in pairs(unit.indicator_custom) do
@@ -2398,7 +2484,7 @@ function pfUI.uf:RefreshUnit(unit, component)
   if unit.portrait and ( component == "all" or component == "portrait" ) then
     if C.unitframes.portraitstyle ~= "3d" then
       ShowPortraitTexture(unit.portrait, unitstr)
-    elseif not UnitIsVisible(unitstr) or not UnitIsConnected(unitstr) then
+    elseif not UnitIsVisible(unitstr) or not FrameIsConnected(unit) then
       if unit.config.portrait == "bar" then
         unit.portrait.tex:Hide()
         unit.portrait.model:Hide()
@@ -2443,7 +2529,7 @@ function pfUI.uf:RefreshUnit(unit, component)
   -- base frame
   if component == "all" or component == "base" then
     -- Unit HP/MP with Nampower Integration
-    local hp, hpmax, power, powermax, powerType = pfUI.api.GetUnitStats(unitstr)
+    local hp, hpmax, power, powermax, powerType = FrameStats(unit)
     
     -- Store original values for color calculations (before invert_healthbar modifies hp)
     local hp_orig, hpmax_orig = hp, hpmax
@@ -2894,11 +2980,11 @@ function pfUI.uf:GetStatusValue(unit, pos)
   end
 
   -- Get stats with Nampower Integration
-  local hp, hpmax, mp, mpmax, powerType = pfUI.api.GetUnitStats(unitstr)
+  local hp, hpmax, mp, mpmax, powerType = FrameStats(unit)
   local rhp, rhpmax = hp, hpmax
 
   -- Use libhealth for mob health estimation (overrides Nampower/Standard)
-  if pfUI.libhealth and pfUI.libhealth.enabled then
+  if pfUI.libhealth and pfUI.libhealth.enabled and not unit.sample then
     rhp, rhpmax = pfUI.libhealth:GetUnitHealth(unitstr)
   end
 
@@ -2947,7 +3033,7 @@ function pfUI.uf:GetStatusValue(unit, pos)
     return unit:GetColor("health") .. ceil(hp / hpmax * 100) .. "%"
   elseif config == "healthmiss" then
     local health = ceil(rhp - rhpmax)
-    if UnitIsDead(unitstr) then
+    if FrameIsDead(unit) then
       return unit:GetColor("health") .. DEAD
     elseif health == 0 then
       return unit:GetColor("health") .. "0"
@@ -2962,7 +3048,7 @@ function pfUI.uf:GetStatusValue(unit, pos)
     end
   elseif config == "namehealth" then
     local health = ceil(rhp - rhpmax)
-    if UnitIsDead(unitstr) then
+    if FrameIsDead(unit) then
       return unit:GetColor("health") .. DEAD
     elseif health == 0 then
       return unit:GetColor("unit") .. pfUI.uf:GetNameString(unitstr)
@@ -2971,7 +3057,7 @@ function pfUI.uf:GetStatusValue(unit, pos)
     end
   elseif config == "namehealthbreak" then
     local health = ceil(rhp - rhpmax)
-    if UnitIsDead(unitstr) then
+    if FrameIsDead(unit) then
       return unit:GetColor("unit") .. pfUI.uf:GetNameString(unitstr) .. "\n" .. unit:GetColor("health") .. DEAD
     elseif health == 0 then
       return unit:GetColor("unit") .. pfUI.uf:GetNameString(unitstr)
@@ -2980,7 +3066,7 @@ function pfUI.uf:GetStatusValue(unit, pos)
     end
   elseif config == "shortnamehealth" then
     local health = ceil(rhp - rhpmax)
-    if UnitIsDead(unitstr) then
+    if FrameIsDead(unit) then
       return unit:GetColor("health") .. DEAD
     elseif health == 0 then
       return unit:GetColor("unit") .. strsub(UnitName(unitstr), 0, 3)
@@ -2996,7 +3082,7 @@ function pfUI.uf:GetStatusValue(unit, pos)
   elseif config == "powermax" then
     return unit:GetColor("power") .. pfUI.api.Abbreviate(mpmax)
   elseif config == "powerperc" then
-    local perc = UnitPowerMax(unitstr) > 0 and ceil(mp / mpmax * 100) or 0
+    local perc = mpmax > 0 and ceil(mp / mpmax * 100) or 0
     return unit:GetColor("power") .. perc .. "%"
   elseif config == "powermiss" then
     local power = ceil(mp - mpmax)
@@ -3050,7 +3136,7 @@ function pfUI.uf.GetColor(self, preset)
     r, g, b = color.r, color.g, color.b
 
   elseif preset == "health" and config["healthcolor"] == "1" then
-    local hp, hpmax = UnitHealth(unitstr), UnitHealthMax(unitstr)
+    local hp, hpmax = FrameStats(self)
     if hpmax and hpmax > 0 then
       r, g, b = GetColorGradient(hp / hpmax)
     else

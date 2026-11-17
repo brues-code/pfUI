@@ -1050,20 +1050,95 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
   -- into the preview box. Each frame has its own, made the first time it is
   -- picked, so no frame's layout carries over into another's, as none does
   -- between the real frames.
-  local unitPreview = { height = 110 }
-  local previewFrames, previewFrame, previewBox = {}, nil, nil
+  --
+  -- A row of buttons in the box picks the state the frame shows: the player
+  -- as they are, or a sample (api/unitframes.lua) of a state they are not in.
+  local unitPreview = { height = 130 }
+  local previewFrames, previewFrame, previewBox, stateBar = {}, nil, nil, nil
+
+  local function SampleAura(spellId, count, dispelType, duration, timeleft, mine)
+    return { name = C_Spell.GetSpellName(spellId), icon = C_Spell.GetSpellTexture(spellId),
+      count = count, dispelType = dispelType, duration = duration,
+      expirationTime = GetTime() + timeleft, mine = mine }
+  end
+
+  local unitStates = {
+    { label = T["Live"] },
+    { label = T["Combat"], sample = function()
+      return { health = .45, power = .6, combat = true,
+        buffs = {
+          SampleAura(139, 0, "Magic", 15, 11, true),     -- Renew
+          SampleAura(1243, 0, "Magic", 1800, 1500),      -- Power Word: Fortitude
+          SampleAura(1459, 0, "Magic", 1800, 900),       -- Arcane Intellect
+          SampleAura(1126, 0, "Magic", 1800, 1200),      -- Mark of the Wild
+        },
+        debuffs = {
+          SampleAura(589, 0, "Magic", 18, 9),            -- Shadow Word: Pain
+          SampleAura(980, 0, "Curse", 24, 20),           -- Curse of Agony
+          SampleAura(2818, 3, "Poison", 12, 7),          -- Deadly Poison
+          SampleAura(772, 0, nil, 9, 3),                 -- Rend
+        } }
+    end },
+    { label = DEAD, sample = function()
+      return { health = 0, power = 0, dead = true, buffs = {}, debuffs = {} }
+    end },
+    { label = PLAYER_OFFLINE, sample = function()
+      return { health = 1, power = 1, offline = true, buffs = {}, debuffs = {} }
+    end },
+  }
+  local unitState = unitStates[1]
+
+  local function UpdateStateBar()
+    for _, button in ipairs(stateBar.buttons) do
+      if button.state == unitState then
+        button:SetTextColor(.2, 1, .8, 1)
+      else
+        button:SetTextColor(.6, .6, .6, 1)
+      end
+    end
+  end
+
+  local function CreateStateBar(box)
+    stateBar = CreateFrame("Frame", nil, box)
+    stateBar:SetPoint("TOPLEFT", 6, -6)
+    stateBar:SetSize(1, 18)
+    stateBar.buttons = {}
+
+    local last
+    for i, state in ipairs(unitStates) do
+      local button = CreateFrame("Button", nil, stateBar)
+      button:SetSize(64, 18)
+      if last then
+        button:SetPoint("LEFT", last, "RIGHT", 4, 0)
+      else
+        button:SetPoint("LEFT", stateBar, "LEFT", 0, 0)
+      end
+      button:SetText(state.label)
+      SkinButton(button)
+      button.state = state
+      button:SetScript("OnClick", function()
+        unitState = this.state
+        UpdateStateBar()
+        unitPreview.Refresh()
+      end)
+      stateBar.buttons[i] = button
+      last = button
+    end
+  end
 
   function unitPreview.Refresh()
     local f = previewFrame
+    f.sample = unitState.sample and unitState.sample()
     f:UpdateConfig()
     f:UpdateFrameSize()
     f:EnableEvents()
     pfUI.uf:RefreshUnit(f, "all")
 
-    -- the frame at its own size, or smaller when it would not fit
+    -- the frame at its own size, or smaller when it would not fit under the
+    -- state buttons
     f:SetScale(1)
     local width, height = f:GetWidth(), f:GetHeight()
-    local room = math.min((previewBox:GetWidth() - 40) / width, (previewBox:GetHeight() - 40) / height)
+    local room = math.min((previewBox:GetWidth() - 40) / width, (previewBox:GetHeight() - 60) / height)
     if room > 0 then f:SetScale(math.min(1, room)) end
   end
 
@@ -1071,20 +1146,24 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     if not previewFrame then return end
     previewFrame.previewHidden = true
     previewFrame:UpdateVisibility()
+    stateBar:Hide()
   end
 
   function unitPreview.Show(box, variant)
     previewBox = box
+    if not stateBar then CreateStateBar(box) end
     unitPreview.Hide()
 
     if not previewFrames[variant] then
       local f = pfUI.uf:CreateUnitFrame("Player", nil, C.unitframes[variant], nil, box)
       f:ClearAllPoints()
-      f:SetPoint("CENTER", box, "CENTER", 0, 0)
+      f:SetPoint("CENTER", box, "CENTER", 0, -10)
       previewFrames[variant] = f
     end
     previewFrame = previewFrames[variant]
     previewFrame.previewHidden = nil
+    stateBar:Show()
+    UpdateStateBar()
     unitPreview.Refresh()
   end
 
