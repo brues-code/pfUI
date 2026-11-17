@@ -908,22 +908,10 @@ pfUI:RegisterModule("thirdparty-vanilla", function()
     local events = pfUI.bars and pfUI.bars:GetScript("OnEvent")
     if not events then return end
 
-    -- disable pfUI macro scanning
-    pfUI.bars.skip_macro = true
-
     -- send clevermacro events to pfUI actionbars
     hooksecurefunc("ActionButton_OnEvent", function(event)
       events(this, event)
     end)
-  end)
-
-  -- SuperCleveRoidMacros
-  HookAddon("SuperCleveRoidMacros", function()
-    if C.thirdparty.supercleveroidmacros.enable == "0" then return end
-    if not pfUI.bars then return end
-
-    -- disable pfUI macro scanning
-    pfUI.bars.skip_macro = true
   end)
 
   HookAddon("AtlasLoot", function()
