@@ -228,6 +228,18 @@ pfUI:RegisterModule("gui", function ()
   CreateBackdropShadow(pfUI.gui)
   table.insert(UISpecialFrames, "pfConfigGUI")
 
+  -- The grip in the bottom right corner resizes the window, from its first
+  -- size up to the screen's. The client's layout cache keeps the size, as it
+  -- keeps the place the window was dragged to.
+  -- The engine holds the bounds while sizing, so the corner stays under the
+  -- cursor; the template's own check only puts a size back after the fact.
+  pfUI.gui:SetResizable(true)
+  pfUI.gui:SetClampedToScreen(true)
+  pfUI.gui:SetResizeBounds(720, 480, GetScreenWidth(), GetScreenHeight())
+  pfUI.gui.resize = CreateFrame("Button", nil, pfUI.gui, "PanelResizeButtonTemplate")
+  pfUI.gui.resize:SetPoint("BOTTOMRIGHT", -3, 3)
+  pfUI.gui.resize:Init(pfUI.gui, 720, 480, GetScreenWidth(), GetScreenHeight())
+
   -- decorations
   pfUI.gui.title = pfUI.gui:CreateFontString(nil, "ARTWORK", "GameFontWhite")
   pfUI.gui.title:SetPoint("TOPLEFT", pfUI.gui, "TOPLEFT", 8, -8)
@@ -814,7 +826,8 @@ pfUI:RegisterModule("gui", function ()
   -- leave it
   pfUI.gui.search = CreateFrame("EditBox", "pfConfigGUISearch", pfUI.gui, "ClassicAPISearchBoxTemplate")
   pfUI.gui.search:SetPoint("LEFT", pfUI.gui.share, "RIGHT", 7, 0)
-  pfUI.gui.search:SetPoint("TOPRIGHT", body.backdrop, "BOTTOMRIGHT", 0, -5)
+  -- right of it is the resize grip
+  pfUI.gui.search:SetPoint("TOPRIGHT", body.backdrop, "BOTTOMRIGHT", -18, -5)
   pfUI.gui.search:SetHeight(25)
   StripTextures(pfUI.gui.search, nil, "BACKGROUND")
   CreateBackdrop(pfUI.gui.search, nil, true)
