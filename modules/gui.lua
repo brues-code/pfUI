@@ -435,7 +435,8 @@ pfUI:RegisterModule("gui", function ()
   -- [ Preview ]
   -- A page with a preview shows it in a box above its list. The page's
   -- preview table has its `height`, `Show(box, variant)`, which draws it in
-  -- the box, and `Refresh()`, which draws it again after a change.
+  -- the box, `Hide()`, which takes it out again when the page goes, and
+  -- `Refresh()`, which draws it again after a change.
   local previewBox = CreateFrame("Frame", nil, content)
   previewBox:SetPoint("TOPLEFT", 2, -2)
   previewBox:SetPoint("TOPRIGHT", -2, -2)
@@ -591,6 +592,7 @@ pfUI:RegisterModule("gui", function ()
 
     list:Hide()
     previewBox:Hide()
+    if current and current.preview then current.preview.Hide() end
 
     if current and current.frame then
       current.frame:Hide()

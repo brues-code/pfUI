@@ -1067,12 +1067,15 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     if room > 0 then f:SetScale(math.min(1, room)) end
   end
 
+  function unitPreview.Hide()
+    if not previewFrame then return end
+    previewFrame.previewHidden = true
+    previewFrame:UpdateVisibility()
+  end
+
   function unitPreview.Show(box, variant)
     previewBox = box
-    if previewFrame then
-      previewFrame.previewHidden = true
-      previewFrame:UpdateVisibility()
-    end
+    unitPreview.Hide()
 
     if not previewFrames[variant] then
       local f = pfUI.uf:CreateUnitFrame("Player", nil, C.unitframes[variant], nil, box)
@@ -1758,6 +1761,23 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Number(T["Chat Bubble Transparency"], C.chat.bubbles, "alpha")
   end, { module = "chat" })
 
+  -- The nameplates page draws sample plates (nameplates.lua) above its
+  -- settings. The module loads after this file, and not at all while it is
+  -- switched off, so the preview looks it up as it goes.
+  local platePreview = { height = 120 }
+
+  function platePreview.Show(box)
+    if pfUI.nameplates then pfUI.nameplates:ShowPreview(box) end
+  end
+
+  function platePreview.Hide()
+    if pfUI.nameplates then pfUI.nameplates:HidePreview() end
+  end
+
+  function platePreview.Refresh()
+    if pfUI.nameplates then pfUI.nameplates:RefreshPreview() end
+  end
+
   gui:AddPage("nameplates", T["Nameplates"], nil, function(p)
     p:Checkbox(T["Show On Hostile Units"], C.nameplates, "showhostile", U["nameplates"])
     p:Checkbox(T["Show On Friendly Units"], C.nameplates, "showfriendly", U["nameplates"])
@@ -1852,7 +1872,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Color(T["Unit Is Attacking No One Color"], C.nameplates, "combatstun", U["nameplates"])
     p:Color(T["Unit Is Casting Color"], C.nameplates, "combatcasting", U["nameplates"])
     p:List(T["Off-Tank Names"], C.nameplates, "combatofftanks", U["nameplates"])
-  end, { module = "nameplates" })
+  end, { module = "nameplates", preview = platePreview })
 
   gui:AddPage("thirdparty.integrations", T["Thirdparty"], T["Integrations"], function(p)
     p:Checkbox(T["Show Meters By Default"], C.thirdparty, "showmeter")

@@ -441,22 +441,17 @@ pfUI:RegisterModule("nameplates", function ()
     return name
   end
 
-  -- Name, and the guild or subname line under it. Returns true when the
-  -- layout has to follow: the guild line moves the name-only anchors, and a
-  -- totem swapped in place keeps its unit while its name and drop spell change.
-  local function ReadName(plate)
-    local unit = plate.unit
-    local relayout
-    local name = UnitName(unit)
+  -- Name, and the guild or subname line under it. Returns whether the name
+  -- changed, and whether the guild line came or went, which moves the
+  -- name-only anchors.
+  local function ApplyName(plate, name, guild)
+    local renamed, relayout
     if name ~= plate.rawname then
       plate.rawname = name
       plate.name:SetText(GetNameString(name))
-      -- a player too high to show a level is looked up by name
-      UpdateLevel(plate)
-      if plate.creatureType == 11 then relayout = true end
+      renamed = true
     end
 
-    local guild = cfg.showguildname and (plate.player and GetGuildInfo(unit) or UnitSubName(unit)) or nil
     if guild then
       if guild ~= plate.guildtext then
         plate.guildtext = guild
@@ -477,6 +472,20 @@ pfUI:RegisterModule("nameplates", function ()
       plate.guildshown = shown
       relayout = true
     end
+    return renamed, relayout
+  end
+
+  -- Returns true when the layout has to follow: the guild line moved, or a
+  -- totem swapped in place kept its unit while its name and drop spell changed.
+  local function ReadName(plate)
+    local unit = plate.unit
+    local guild = cfg.showguildname and (plate.player and GetGuildInfo(unit) or UnitSubName(unit)) or nil
+    local renamed, relayout = ApplyName(plate, UnitName(unit), guild)
+    if renamed then
+      -- a player too high to show a level is looked up by name
+      UpdateLevel(plate)
+      if plate.creatureType == 11 then relayout = true end
+    end
     return relayout
   end
 
@@ -485,20 +494,8 @@ pfUI:RegisterModule("nameplates", function ()
     if ReadName(plate) then UpdateLayout(plate) end
   end
 
-  -- UNIT_LEVEL / UNIT_CLASSIFICATION_CHANGED / PLAYER_LEVEL_UP
-  function UpdateLevel(plate)
-    local unit = plate.unit
-    local level = UnitLevel(unit)
-    local elite = UnitClassification(unit)
-    if level <= 0 then
-      if plate.player then
-        level = GetPlayerLevel(plate.rawname) or level
-      else
-        -- UnitLevel answers -1 exactly where the engine shows the skull: a
-        -- world boss, or a hostile ten or more levels above the player
-        elite = "boss"
-      end
-    end
+  -- the level, "??" at 0 or below, and the classification's mark
+  local function ApplyLevel(plate, level, elite)
     plate.levelnum = level > 0 and level or nil
     if level <= 0 then level = "??" end
 
@@ -517,6 +514,23 @@ pfUI:RegisterModule("nameplates", function ()
     else
       plate.level:SetTextColor(1, .1, .1, 1)
     end
+  end
+
+  -- UNIT_LEVEL / UNIT_CLASSIFICATION_CHANGED / PLAYER_LEVEL_UP
+  function UpdateLevel(plate)
+    local unit = plate.unit
+    local level = UnitLevel(unit)
+    local elite = UnitClassification(unit)
+    if level <= 0 then
+      if plate.player then
+        level = GetPlayerLevel(plate.rawname) or level
+      else
+        -- UnitLevel answers -1 exactly where the engine shows the skull: a
+        -- world boss, or a hostile ten or more levels above the player
+        elite = "boss"
+      end
+    end
+    ApplyLevel(plate, level, elite)
   end
 
   local function ApplyHealth(plate)
@@ -726,12 +740,64 @@ pfUI:RegisterModule("nameplates", function ()
     nameplate.debuffs[i]:SetSize(debuffsize, debuffsize)
   end
 
+  local function DebuffsShown(plate)
+    if not cfg.showdebuffs then return nil end
+    if plate.friendly then return cfg.showdebuffs_friendly end
+    return cfg.showdebuffs_hostile
+  end
+
+  -- One debuff onto the plate's icon `index`, which is made on first use.
+  local function SetDebuff(plate, index, effect, texture, stacks, duration, timeleft, now)
+    local icon = plate.debuffs[index]
+    if not icon then
+      CreateDebuffIcon(plate, index)
+      UpdateDebuffConfig(plate, index)
+      icon = plate.debuffs[index]
+    end
+
+    icon:Show()
+    icon.icon:SetTexture(texture)
+    icon.icon:SetTexCoord(.078, .92, .079, .937)
+
+    if stacks and stacks > 1 and cfg.showstacks then
+      icon.stacks:SetText(stacks)
+      icon.stacks:Show()
+    else
+      icon.stacks:Hide()
+    end
+
+    if duration and timeleft then
+      -- C_UnitAuras returns the Spell.dbc base duration, which talents
+      -- can extend past -- Shadow Affinity bumps SW:P from 18s to 24s,
+      -- so a fresh cast has timeleft > duration and `now + timeleft -
+      -- duration` lands in the future, which CooldownFrame_SetTimer
+      -- treats as "not yet started" (no swirl). Widen to whichever is
+      -- larger so start <= now.
+      local effDuration = duration > timeleft and duration or timeleft
+      local start = now + timeleft - effDuration
+      icon.cd:Show()
+      if icon.cdEffect ~= effect or abs(icon.cdStart - start) > 0.5 then
+        CooldownFrame_SetTimer(icon.cd, start, effDuration, 1)
+        icon.cdEffect = effect
+        icon.cdStart = start
+      end
+    else
+      icon.cd:Hide()
+      icon.cdEffect = nil
+    end
+  end
+
+  local function HideDebuffs(plate, from)
+    for i = from, table.getn(plate.debuffs) do
+      plate.debuffs[i]:Hide()
+    end
+  end
+
   -- UNIT_AURA_DELTA: one GetAuraSlots enumeration, then positional by-slot
   -- reads straight onto the icons. The scan allocates nothing.
   function UpdateDebuffs(plate)
     local index = 1
-    local friendly = plate.friendly
-    if cfg.showdebuffs and (friendly and cfg.showdebuffs_friendly or (not friendly and cfg.showdebuffs_hostile)) then
+    if DebuffsShown(plate) then
       local unit = plate.unit
       local now = GetTime()
       local n = ScanAuraSlots(unit, cfg.debufffilter, auraSlots, 16)
@@ -739,62 +805,24 @@ pfUI:RegisterModule("nameplates", function ()
         local effect, texture, stacks, _, duration, expirationTime = C_UnitAuras.UnitAuraBySlot(unit, auraSlots[i])
         if not effect then break end
         if texture and DebuffFilter(effect) then
-          local icon = plate.debuffs[index]
-          if not icon then
-            CreateDebuffIcon(plate, index)
-            UpdateDebuffConfig(plate, index)
-            icon = plate.debuffs[index]
-          end
-
-          icon:Show()
-          icon.icon:SetTexture(texture)
-          icon.icon:SetTexCoord(.078, .92, .079, .937)
-
-          if stacks and stacks > 1 and cfg.showstacks then
-            icon.stacks:SetText(stacks)
-            icon.stacks:Show()
-          else
-            icon.stacks:Hide()
-          end
-
           local timeleft = expirationTime and expirationTime > 0 and (expirationTime - now)
-          if duration and timeleft then
-            -- C_UnitAuras returns the Spell.dbc base duration, which talents
-            -- can extend past -- Shadow Affinity bumps SW:P from 18s to 24s,
-            -- so a fresh cast has timeleft > duration and `now + timeleft -
-            -- duration` lands in the future, which CooldownFrame_SetTimer
-            -- treats as "not yet started" (no swirl). Widen to whichever is
-            -- larger so start <= now.
-            local effDuration = duration > timeleft and duration or timeleft
-            local start = now + timeleft - effDuration
-            icon.cd:Show()
-            if icon.cdEffect ~= effect or abs(icon.cdStart - start) > 0.5 then
-              CooldownFrame_SetTimer(icon.cd, start, effDuration, 1)
-              icon.cdEffect = effect
-              icon.cdStart = start
-            end
-          else
-            icon.cd:Hide()
-            icon.cdEffect = nil
-          end
-
+          SetDebuff(plate, index, effect, texture, stacks, duration, timeleft, now)
           index = index + 1
           if index > 16 then break end
         end
       end
     end
-
-    -- hide remaining debuffs
-    for i = index, table.getn(plate.debuffs) do
-      plate.debuffs[i]:Hide()
-    end
+    HideDebuffs(plate, index)
   end
 
-  local function UpdateCombo(plate)
-    local cp = plate.istarget and cfg.cpdisplay and GetComboPoints("target") or 0
+  local function SetCombo(plate, cp)
     if plate.cpShown == cp then return end
     plate.cpShown = cp
     for i = 1, 5 do plate.combopoints[i]:SetShown(i <= cp) end
+  end
+
+  local function UpdateCombo(plate)
+    SetCombo(plate, plate.istarget and cfg.cpdisplay and GetComboPoints("target") or 0)
   end
 
   local function UpdateAlpha(plate)
@@ -1123,40 +1151,19 @@ pfUI:RegisterModule("nameplates", function ()
   -- create nameplate core
   local nameplates = CreateFrame("Frame", "pfNameplates", UIParent)
 
-  nameplates.OnCreate = function(parent)
-    platecount = platecount + 1
-    local platename = "pfNamePlate" .. platecount
-
-    -- create pfUI nameplate overlay
-    local nameplate = CreateFrame("Button", platename, parent)
+  -- The pfUI plate, as a child of `owner`: the engine's plate, or the config
+  -- window's preview. `raidicon` is the engine's own raid icon texture, which
+  -- the plate adopts; without one, it makes its own. Frame levels are relative
+  -- to the plate, so it draws the same under any owner.
+  local function BuildPlate(owner, platename, raidicon)
+    local nameplate = CreateFrame("Button", platename, owner)
     nameplate.platename = platename
     nameplate:EnableMouse(false)
-    nameplate.parent = parent
-    nameplate.baselevel = parent:GetFrameLevel()
     nameplate.cache = {}
-
-    -- Each plate watches its own unit. With RegisterUnitEvent the token IS the
-    -- subscription: the event arrives only at the plate it concerns, and
-    -- `this` is already that plate. Bind points the registration at the new
-    -- token; Unbind drops it.
-    nameplate:SetScript("OnEvent", OnPlateEvent)
-
-    -- Blank the engine's drawing. Its regions come in creation order: border,
-    -- glow, name, level, skull, raid icon -- the raid icon is the one kept.
-    DisableObject(parent:GetChildren())
-    for i, object in pairs({parent:GetRegions()}) do
-      if i == 6 then
-        nameplate.raidicon = object
-      else
-        DisableObject(object)
-      end
-    end
-
-    -- adjust sizes and scaling of the nameplate
-    nameplate:SetScale(UIParent:GetScale())
+    local level = nameplate:GetFrameLevel()
 
     nameplate.health = CreateFrame("StatusBar", nil, nameplate)
-    nameplate.health:SetFrameLevel(4) -- keep above glow
+    nameplate.health:SetFrameLevel(level + 3) -- keep above glow
     nameplate.health.text = nameplate.health:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     nameplate.health.text:SetAllPoints()
     nameplate.health.text:SetTextColor(1,1,1,1)
@@ -1176,11 +1183,17 @@ pfUI:RegisterModule("nameplates", function ()
     nameplate.level:SetPoint("RIGHT", nameplate.health, "LEFT", -3, 0)
 
     -- Create a dedicated high-level frame for the raid icon so it renders
-    -- ABOVE nameplate.health (FrameLevel 4) and stays visible even when
-    -- nameplates are toggled off (the Blizzard parent plate still exists).
+    -- ABOVE nameplate.health and stays visible even when nameplates are
+    -- toggled off (the Blizzard parent plate still exists).
     nameplate.raidiconframe = CreateFrame("Frame", nil, nameplate)
-    nameplate.raidiconframe:SetFrameLevel(10)
+    nameplate.raidiconframe:SetFrameLevel(level + 9)
     nameplate.raidiconframe:SetAllPoints(nameplate)
+    if not raidicon then
+      raidicon = nameplate.raidiconframe:CreateTexture()
+      raidicon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
+      raidicon:Hide()
+    end
+    nameplate.raidicon = raidicon
     nameplate.raidicon:SetParent(nameplate.raidiconframe)
     nameplate.raidicon:SetDrawLayer("OVERLAY", 7)
     if C.unitframes.blizzard_raidicons ~= "1" then
@@ -1205,7 +1218,7 @@ pfUI:RegisterModule("nameplates", function ()
       for i = 1, 5 do
         combopoints[i] = CreateFrame("Frame", nil, nameplate)
         combopoints[i]:Hide()
-        combopoints[i]:SetFrameLevel(8)
+        combopoints[i]:SetFrameLevel(level + 7)
         combopoints[i].tex = combopoints[i]:CreateTexture(nil, "OVERLAY")
         combopoints[i].tex:SetAllPoints()
 
@@ -1244,7 +1257,6 @@ pfUI:RegisterModule("nameplates", function ()
       castbar.timer = C_DurationUtil.CreateDurationTextBinding()
       castbar.timer:SetFontString(castbar.text)
       castbar.timer:SetFormatter(castFormatter)
-      castbar.onExpire = function() ExpireCast(nameplate) end
 
       castbar.spell = castbar:CreateFontString("Status", "OVERLAY", "GameFontNormal")
       castbar.spell:SetPoint("CENTER", castbar, "CENTER")
@@ -1258,15 +1270,11 @@ pfUI:RegisterModule("nameplates", function ()
       nameplate.castbar = castbar
     end
 
-    parent.nameplate = nameplate
-    parent:HookScript("OnShow", OnEngineShow)
-
-    nameplates.OnConfigChange(parent)
+    return nameplate
   end
 
-  nameplates.OnConfigChange = function(parent)
-    local nameplate = parent.nameplate
-
+  -- The plate's look, from the config.
+  local function StylePlate(nameplate)
     local font = C.nameplates.use_unitfonts == "1" and pfUI.font_unit or pfUI.font_default
     local font_size = cfg.font_size
     local font_style = C.nameplates.name.fontstyle
@@ -1282,7 +1290,6 @@ pfUI:RegisterModule("nameplates", function ()
     local orientation = C.nameplates.verticalhealth == "1" and "VERTICAL" or "HORIZONTAL"
 
     nameplate:SetSize(plate_width, plate_height)
-    nameplate:SetPoint("TOP", parent, "TOP", 0, tonumber(C.nameplates.vertical_offset) or 0)
 
     nameplate.name:SetFont(font, font_size, font_style)
     local nameTextPos = C.nameplates.nametextpos or "CENTER"
@@ -1350,6 +1357,46 @@ pfUI:RegisterModule("nameplates", function ()
     -- colour caches no longer describe what is on screen
     nameplate.layout = nil
     table.wipe(nameplate.cache)
+  end
+
+  nameplates.OnCreate = function(parent)
+    -- Blank the engine's drawing. Its regions come in creation order: border,
+    -- glow, name, level, skull, raid icon -- the raid icon is the one kept.
+    local raidicon
+    DisableObject(parent:GetChildren())
+    for i, object in pairs({parent:GetRegions()}) do
+      if i == 6 then
+        raidicon = object
+      else
+        DisableObject(object)
+      end
+    end
+
+    platecount = platecount + 1
+    local nameplate = BuildPlate(parent, "pfNamePlate" .. platecount, raidicon)
+    nameplate.parent = parent
+    nameplate.baselevel = parent:GetFrameLevel()
+    nameplate.castbar.onExpire = function() ExpireCast(nameplate) end
+
+    -- the engine's plates sit under the world frame, outside UIParent's scale
+    nameplate:SetScale(UIParent:GetScale())
+
+    -- Each plate watches its own unit. With RegisterUnitEvent the token IS the
+    -- subscription: the event arrives only at the plate it concerns, and
+    -- `this` is already that plate. Bind points the registration at the new
+    -- token; Unbind drops it.
+    nameplate:SetScript("OnEvent", OnPlateEvent)
+
+    parent.nameplate = nameplate
+    parent:HookScript("OnShow", OnEngineShow)
+
+    nameplates.OnConfigChange(parent)
+  end
+
+  nameplates.OnConfigChange = function(parent)
+    local nameplate = parent.nameplate
+    StylePlate(nameplate)
+    nameplate:SetPoint("TOP", parent, "TOP", 0, tonumber(C.nameplates.vertical_offset) or 0)
 
     -- click routing: the overlay forwards to the engine plate when it is the
     -- one under the mouse; right mouse-look on whichever takes the clicks
@@ -1360,6 +1407,155 @@ pfUI:RegisterModule("nameplates", function ()
     other:SetScript("OnMouseDown", nil)
 
     ApplyFrameLayout(parent)
+  end
+
+  -- ============================================================================
+  -- Preview: sample plates in the config window
+  -- ============================================================================
+  -- Three plates drawn by the same code as the real ones, from made-up units:
+  -- a neutral mob, an enemy you target (casting, with debuffs, combo points and
+  -- a raid mark), and yourself as a friendly player.
+  local PREVIEW_GAP = 12
+  local preview
+
+  local function SampleDebuff(spellId, duration, timeleft, stacks)
+    return { name = C_Spell.GetSpellName(spellId), icon = C_Spell.GetSpellTexture(spellId),
+      duration = duration, timeleft = timeleft, stacks = stacks }
+  end
+
+  local function SampleUnits()
+    local level = UnitLevel("player")
+    local hpmax = UnitHealthMax("player")
+    return {
+      { name = "Plainstrider", unittype = "NEUTRAL_NPC", creatureType = 1,
+        level = math.max(level - 3, 1), hp = 920, hpmax = 920 },
+      { name = "Defias Pillager", unittype = "ENEMY_NPC", creatureType = 7,
+        level = level + 2, elite = "elite", hp = 1740, hpmax = 2800,
+        target = true, raidicon = 8, cast = 133,
+        debuffs = {
+          SampleDebuff(589, 18, 12),
+          SampleDebuff(348, 15, 4),
+          SampleDebuff(7386, 30, 22, 3),
+        } },
+      { name = UnitName("player"), guild = GetGuildInfo("player") or GUILD,
+        unittype = "FRIENDLY_PLAYER", class = UnitClassBase("player"), creatureType = 7,
+        level = level, hp = floor(hpmax * .85), hpmax = hpmax },
+    }
+  end
+
+  -- the sample cast runs again each time it ends
+  local function StartSampleCast(plate)
+    local info = plate.sampleCast
+    info.duration:SetTimeFromStart(GetTime(), 3)
+    ShowCast(plate, info)
+  end
+
+  local function ShowSample(plate, s)
+    for i = 1, NUM_PER_UNIT do plate[PER_UNIT[i]] = nil end
+    plate.istarget = s.target
+    plate.unittype, plate.class = s.unittype, s.class
+    plate.player = s.class and true or nil
+    plate.friendly = s.unittype == "FRIENDLY_PLAYER" or s.unittype == "FRIENDLY_NPC"
+    plate.creatureType = s.creatureType
+    plate.incombat = s.target
+
+    ApplyName(plate, s.name, cfg.showguildname and s.guild or nil)
+    ApplyLevel(plate, s.level, s.elite)
+    plate.hp, plate.hpmax, plate.fullhp = s.hp, s.hpmax, s.hp == s.hpmax
+    ApplyHealth(plate)
+    UpdateBarColor(plate)
+    UpdateBorder(plate)
+    UpdateNameColor(plate)
+    UpdateLayout(plate)
+
+    local index, now = 1, GetTime()
+    if s.debuffs and DebuffsShown(plate) then
+      for _, d in ipairs(s.debuffs) do
+        if DebuffFilter(d.name) then
+          SetDebuff(plate, index, d.name, d.icon, d.stacks, d.duration, d.timeleft, now)
+          index = index + 1
+        end
+      end
+    end
+    HideDebuffs(plate, index)
+
+    SetCombo(plate, s.target and cfg.cpdisplay and 3 or 0)
+    plate:SetAlpha(s.target and 1 or cfg.notargalpha)
+    SetZoom(plate, s.target and cfg.targetzoom and 1 or 0)
+
+    if s.raidicon then
+      SetRaidTargetIconTexture(plate.raidicon, s.raidicon)
+      plate.raidicon:Show()
+    else
+      plate.raidicon:Hide()
+    end
+
+    if s.cast and cfg.showcastbar and (s.target or not cfg.targetcastbar) then
+      plate.sampleCast = plate.sampleCast or { duration = C_DurationUtil.CreateDuration() }
+      plate.sampleCast.spellName = C_Spell.GetSpellName(s.cast)
+      plate.sampleCast.icon = C_Spell.GetSpellTexture(s.cast)
+      StartSampleCast(plate)
+    else
+      HideCast(plate)
+    end
+  end
+
+  -- Draws the samples with the current config, at the size the real plates
+  -- have on screen, or smaller when they would not fit the box.
+  function nameplates:RefreshPreview()
+    if not preview or not preview:IsVisible() then return end
+    CacheConfig()
+
+    local box = preview:GetParent()
+    local plateWidth = cfg.width + 50
+    local zoomWidth = cfg.targetzoom and cfg.width * (cfg.zoomval - 1) or 0
+    local debuffs = cfg.showdebuffs and (tonumber(C.nameplates.debuffsize) + tonumber(C.nameplates.debuffoffset)) or 0
+    local above = cfg.debuffbottom and 0 or debuffs
+    local below = (cfg.showcastbar and tonumber(C.nameplates.heightcast) + 4 or 0) + (cfg.debuffbottom and debuffs or 0)
+    local width = 3 * plateWidth + 2 * PREVIEW_GAP + zoomWidth
+    local height = above + cfg.heighthealth + cfg.font_size + 5 + below
+
+    local scale = UIParent:GetEffectiveScale() / box:GetEffectiveScale()
+    local room = math.min((box:GetWidth() - 20) / width, (box:GetHeight() - 10) / height)
+    if room > 0 then scale = math.min(scale, room) end
+    preview:SetScale(scale)
+    preview:SetSize(width, height)
+
+    local samples = SampleUnits()
+    for i, plate in ipairs(preview.plates) do
+      StylePlate(plate)
+      plate:ClearAllPoints()
+      plate:SetPoint("TOP", preview, "TOP", (i - 2) * (plateWidth + PREVIEW_GAP + zoomWidth / 2), -above)
+      ShowSample(plate, samples[i])
+    end
+  end
+
+  function nameplates:ShowPreview(box)
+    if not preview then
+      preview = CreateFrame("Frame", nil, box)
+      preview:SetPoint("CENTER", box, "CENTER", 0, 0)
+      preview:Hide()
+      preview.plates = {}
+      for i = 1, 3 do
+        local plate = BuildPlate(preview, "pfNamePlatePreview" .. i)
+        plate.castbar.onExpire = function() StartSampleCast(plate) end
+        preview.plates[i] = plate
+      end
+      preview:SetScript("OnShow", function() nameplates:RefreshPreview() end)
+      preview:SetScript("OnHide", function()
+        for _, plate in ipairs(preview.plates) do HideCast(plate) end
+      end)
+    end
+
+    if preview:IsVisible() then
+      nameplates:RefreshPreview()
+    else
+      preview:Show()
+    end
+  end
+
+  function nameplates:HidePreview()
+    if preview then preview:Hide() end
   end
 
   -- ============================================================================
