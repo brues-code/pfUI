@@ -1045,16 +1045,17 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Text(T["Ctrl-Click Action"], C.unitframes, "clickcast5_ctrl")
   end)
 
-  -- The unit frames page draws the picked frame above its settings: a real
-  -- pfUI unit frame that shows the player with that frame's config, fitted
-  -- into the preview box. Each frame has its own, made the first time it is
-  -- picked, so no frame's layout carries over into another's, as none does
-  -- between the real frames.
+  -- The unit frames page draws the picked frame above its settings: real
+  -- pfUI unit frames that show the player with that frame's config, fitted
+  -- into the preview box. A raid or raid pet frame shows a full grid of
+  -- them, a party frame its target and pet frames beside it. Each frame has
+  -- its own set, made the first time it is picked, so no frame's layout
+  -- carries over into another's, as none does between the real frames.
   --
-  -- A row of buttons in the box picks the state the frame shows: the player
+  -- A row of buttons in the box picks the state the frames show: the player
   -- as they are, or a sample (api/unitframes.lua) of a state they are not in.
-  local unitPreview = { height = 130 }
-  local previewFrames, previewFrame, previewBox, stateBar = {}, nil, nil, nil
+  local unitPreview = {}
+  local previewSets, previewSet, previewBox, stateBar = {}, nil, nil, nil
 
   local function SampleAura(spellId, count, dispelType, duration, timeleft, mine)
     return { name = C_Spell.GetSpellName(spellId), icon = C_Spell.GetSpellTexture(spellId),
@@ -1062,10 +1063,23 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
       expirationTime = GetTime() + timeleft, mine = mine }
   end
 
+  -- the health of the combat sample's frames, so a grid isn't all alike
+  local COMBAT_HEALTH = { .45, .8, .25, 1, .6, .9, .35, .7 }
+
+  -- A state's sample(i) is what frame `i` of a set shows, nil for the
+  -- player as they are. Live keeps only the first frame live: the others
+  -- would repeat the player's marks and auras, so they stand in with the
+  -- player's health and power alone.
   local unitStates = {
-    { label = T["Live"] },
-    { label = T["Combat"], sample = function()
-      return { health = .45, power = .6, combat = true,
+    { label = T["Live"], sample = function(i)
+      if i == 1 then return nil end
+      return { health = UnitHealth("player") / UnitHealthMax("player"),
+        power = UnitPowerMax("player") > 0 and UnitPower("player") / UnitPowerMax("player") or 0,
+        buffs = {}, debuffs = {} }
+    end },
+    { label = T["Combat"], sample = function(i)
+      return { health = COMBAT_HEALTH[math.mod(i - 1, 8) + 1], power = .6, combat = true,
+        leader = i == 1, raidicon = i == 1 and 8 or i == 2 and 7 or nil,
         buffs = {
           SampleAura(139, 0, "Magic", 15, 11, true),     -- Renew
           SampleAura(1243, 0, "Magic", 1800, 1500),      -- Power Word: Fortitude
@@ -1126,26 +1140,137 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     end
   end
 
-  function unitPreview.Refresh()
-    local f = previewFrame
-    f.sample = unitState.sample and unitState.sample()
+  function unitPreview.GetHeight(variant)
+    return C.unitframes[variant].raidlayout and 200 or 130
+  end
+
+  -- the set's frame `i`, made on first use
+  local function GetPreviewFrame(set, i, config)
+    if not set.frames[i] then
+      set.frames[i] = pfUI.uf:CreateUnitFrame("Player", nil, config, nil, set.holder)
+    end
+    return set.frames[i]
+  end
+
+  local function DrawPreviewFrame(f, i)
+    f.previewHidden = nil
+    f.sample = unitState.sample(i)
     f:UpdateConfig()
     f:UpdateFrameSize()
     f:EnableEvents()
     pfUI.uf:RefreshUnit(f, "all")
+  end
 
-    -- the frame at its own size, or smaller when it would not fit under the
-    -- state buttons
-    f:SetScale(1)
-    local width, height = f:GetWidth(), f:GetHeight()
-    local room = math.min((previewBox:GetWidth() - 40) / width, (previewBox:GetHeight() - 60) / height)
-    if room > 0 then f:SetScale(math.min(1, room)) end
+  local function HidePreviewFrame(f)
+    f.previewHidden = true
+    f:UpdateVisibility()
+  end
+
+  -- Each layout draws the set's frames, places them in its holder and
+  -- returns the size they take.
+
+  -- the grid, as full as the raid size allows
+  local function LayoutRaid(set, config)
+    local count = math.min(tonumber(C.unitframes.maxraid), 40)
+    local first = GetPreviewFrame(set, 1, config)
+    DrawPreviewFrame(first, 1)
+    local grid = pfUI.uf:GetRaidGrid(config, first, count)
+    count = math.min(count, grid.x * grid.y)
+
+    local cols, rows = 0, 0
+    for i = 1, count do
+      local f = GetPreviewFrame(set, i, config)
+      if i > 1 then DrawPreviewFrame(f, i) end
+      local col, row = pfUI.uf:GetRaidGridCell(grid, i)
+      cols, rows = math.max(cols, col), math.max(rows, row)
+    end
+    for i = count + 1, table.getn(set.frames) do
+      HidePreviewFrame(set.frames[i])
+    end
+
+    -- placed once the holder has its scale, which the pixel snap reads
+    set.place = function()
+      for i = 1, count do
+        pfUI.uf:PlaceInRaidGrid(set.frames[i], grid, i, set.holder)
+      end
+    end
+    return cols * (grid.w + grid.pad) - grid.pad, rows * (grid.h + grid.pad) - grid.pad
+  end
+
+  -- the party frame, with the target and pet frames the group shows
+  local function LayoutGroup(set, config)
+    local frame = GetPreviewFrame(set, 1, config)
+    DrawPreviewFrame(frame, 1)
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", set.holder, "TOPLEFT", 0, 0)
+
+    local target, pet
+    if C.unitframes.grouptarget.visible == "1" then
+      target = GetPreviewFrame(set, 2, C.unitframes.grouptarget)
+      DrawPreviewFrame(target, 2)
+      target:ClearAllPoints()
+    elseif set.frames[2] then
+      HidePreviewFrame(set.frames[2])
+    end
+    if C.unitframes.grouppet.visible == "1" then
+      pet = GetPreviewFrame(set, 3, C.unitframes.grouppet)
+      DrawPreviewFrame(pet, 3)
+      pet:ClearAllPoints()
+    elseif set.frames[3] then
+      HidePreviewFrame(set.frames[3])
+    end
+    pfUI.uf:AttachGroupUnits(frame, target, pet)
+
+    -- the target hangs from the top, the pet from the bottom
+    local _, border = GetBorderSize("unitframes")
+    local width, height = frame:GetWidth(), frame:GetHeight()
+    local side = 0
+    if target then
+      side = target:GetWidth()
+      height = math.max(height, target:GetHeight())
+    end
+    if pet then
+      side = math.max(side, pet:GetWidth())
+      height = math.max(height, pet:GetHeight() + border)
+    end
+    if side > 0 then width = width + 3*border + side end
+    return width, height
+  end
+
+  local function LayoutSingle(set, config)
+    local frame = GetPreviewFrame(set, 1, config)
+    DrawPreviewFrame(frame, 1)
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", set.holder, "TOPLEFT", 0, 0)
+    return frame:GetWidth(), frame:GetHeight()
+  end
+
+  function unitPreview.Refresh()
+    local set = previewSet
+    local config = C.unitframes[set.variant]
+    set.place = nil
+    local width, height
+    if config.raidlayout then
+      width, height = LayoutRaid(set, config)
+    elseif set.variant == "group" then
+      width, height = LayoutGroup(set, config)
+    else
+      width, height = LayoutSingle(set, config)
+    end
+
+    -- the frames at their own size, or smaller when they would not fit under
+    -- the state buttons
+    local holder = set.holder
+    holder:SetSize(width, height)
+    holder:SetScale(1)
+    local room = math.min((previewBox:GetWidth() - 40) / width, (previewBox:GetHeight() - 50) / height)
+    if room > 0 then holder:SetScale(math.min(1, room)) end
+    if set.place then set.place() end
   end
 
   function unitPreview.Hide()
-    if not previewFrame then return end
-    previewFrame.previewHidden = true
-    previewFrame:UpdateVisibility()
+    if not previewSet then return end
+    previewSet.holder:Hide()
     stateBar:Hide()
   end
 
@@ -1154,14 +1279,13 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     if not stateBar then CreateStateBar(box) end
     unitPreview.Hide()
 
-    if not previewFrames[variant] then
-      local f = pfUI.uf:CreateUnitFrame("Player", nil, C.unitframes[variant], nil, box)
-      f:ClearAllPoints()
-      f:SetPoint("CENTER", box, "CENTER", 0, -10)
-      previewFrames[variant] = f
+    if not previewSets[variant] then
+      local holder = CreateFrame("Frame", nil, box)
+      holder:SetPoint("CENTER", box, "CENTER", 0, -12)
+      previewSets[variant] = { variant = variant, holder = holder, frames = {} }
     end
-    previewFrame = previewFrames[variant]
-    previewFrame.previewHidden = nil
+    previewSet = previewSets[variant]
+    previewSet.holder:Show()
     stateBar:Show()
     UpdateStateBar()
     unitPreview.Refresh()
@@ -1843,7 +1967,11 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
   -- The nameplates page draws sample plates (nameplates.lua) above its
   -- settings. The module loads after this file, and not at all while it is
   -- switched off, so the preview looks it up as it goes.
-  local platePreview = { height = 120 }
+  local platePreview = {}
+
+  function platePreview.GetHeight()
+    return 120
+  end
 
   function platePreview.Show(box)
     if pfUI.nameplates then pfUI.nameplates:ShowPreview(box) end

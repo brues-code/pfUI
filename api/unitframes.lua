@@ -11,7 +11,7 @@ pfUI.uf.frames = {}
 local auraSlots = {}
 
 -- ============================================================================
--- Frame state: health and power, dead, connected, combat and auras, as a
+-- Frame state: health and power, dead, connected, combat, marks and auras, as a
 -- frame shows them. Every read of these goes through here, so a preview frame
 -- in the config window can carry a `sample` that answers in place of its
 -- unit: health and power as fractions of the unit's own, the flags, and its
@@ -50,6 +50,41 @@ local function FrameHasAggro(frame)
   local sample = frame.sample
   if sample then return sample.combat end
   return pfUI.api.UnitHasAggro(frame.label .. frame.id) > 0
+end
+
+-- the marks on the unit: group leader, master looter, PvP flag, a pending
+-- resurrection and its raid target icon
+local function FrameIsLeader(frame)
+  local sample = frame.sample
+  if sample then return sample.leader end
+  return UnitIsPartyLeader(frame.label .. frame.id) and IsInGroup()
+end
+
+local function FrameIsLooter(frame)
+  local sample = frame.sample
+  if sample then return sample.looter end
+  local _, group, raid = GetLootMethod()
+  local name = group and UnitName(group == 0 and "player" or "party"..group) or raid and UnitName("raid"..raid) or nil
+  return name and name == UnitName(frame.label .. frame.id)
+end
+
+local function FrameIsPVP(frame)
+  local sample = frame.sample
+  if sample then return sample.pvp end
+  return UnitIsPVP(frame.label .. frame.id)
+end
+
+local function FrameHasResurrection(frame)
+  local sample = frame.sample
+  if sample then return sample.ress end
+  return libpredict:UnitHasResurrection(frame.label .. frame.id)
+end
+
+local function FrameRaidIcon(frame)
+  local sample = frame.sample
+  if sample then return sample.raidicon end
+  local unitstr = frame.label .. frame.id
+  return UnitName(unitstr) and GetRaidTargetIndex(unitstr)
 end
 
 -- ScanAuraSlots for the frame. A sample's slots are its list indices, the
@@ -2046,26 +2081,19 @@ function pfUI.uf:RefreshIndicators(unit)
   local unitstr = unit.label .. unit.id
 
   if unit.leaderIcon then -- Leader Icon
-    unit.leaderIcon:SetShown(unit.config.leadericon == "1" and UnitIsPartyLeader(unitstr) and IsInGroup())
+    unit.leaderIcon:SetShown(unit.config.leadericon == "1" and FrameIsLeader(unit))
   end
 
   if unit.lootIcon then -- Loot Icon
-    if unit.config.looticon == "0" then
-      unit.lootIcon:Hide()
-    else
-      -- no third return value here.. but leaving this as a hint
-      local method, group, raid = GetLootMethod()
-      local name = group and UnitName(group == 0 and "player" or "party"..group) or raid and UnitName("raid"..raid) or nil
-      unit.lootIcon:SetShown(name and name == UnitName(unitstr))
-    end
+    unit.lootIcon:SetShown(unit.config.looticon ~= "0" and FrameIsLooter(unit))
   end
 
   if unit.pvpIcon then -- PvP Icon
-    unit.pvpIcon:SetShown(unit.config.showPVP == "1" and UnitIsPVP(unitstr))
+    unit.pvpIcon:SetShown(unit.config.showPVP == "1" and FrameIsPVP(unit))
   end
 
   if unit.ressIcon then -- Resurrection Icon
-    unit.ressIcon:SetShown(libpredict:UnitHasResurrection(unitstr))
+    unit.ressIcon:SetShown(FrameHasResurrection(unit))
   end
 
   if unit.restIcon and unit:GetName() == "pfPlayer" then -- Rest Icon
@@ -2097,7 +2125,7 @@ function pfUI.uf:RefreshIndicators(unit)
   end
 
   if unit.raidIcon then -- Raid Icon
-    local raidIcon = UnitName(unitstr) and GetRaidTargetIndex(unitstr)
+    local raidIcon = FrameRaidIcon(unit)
     if unit.config.raidicon == "1" and raidIcon then
       SetRaidTargetIconTexture(unit.raidIcon.texture, raidIcon)
       unit.raidIcon:Show()
@@ -3102,6 +3130,65 @@ function pfUI.uf:GetStatusValue(unit, pos)
     return unit:GetColor("power") .. pfUI.api.Abbreviate(mp) .. "/" .. pfUI.api.Abbreviate(mpmax)
   else
     return ""
+  end
+end
+
+-- [ Raid grid ]
+-- The grid a raid or raid pet `config` lays its frames on: `raidlayout`
+-- columns x rows, filled by `raidfill`, cells the size of `frame` and
+-- `raidpadding` apart. With `raidgrowleft` it mirrors across the columns
+-- `count` frames can fill, so a smaller raid stays next to the anchor instead
+-- of the far edge of the layout.
+function pfUI.uf:GetRaidGrid(config, frame, count)
+  local _, default_border = GetBorderSize("unitframes")
+  local _, _, x, y = string.find(config.raidlayout, "(.+)x(.+)")
+  local grid = {
+    fill = config.raidfill, x = tonumber(x), y = tonumber(y),
+    pad = tonumber(config.raidpadding) * GetPerfectPixel(),
+    w = frame:GetWidth() + 2*default_border,
+    h = frame:GetHeight() + 2*default_border,
+  }
+  if config.raidgrowleft == "1" then
+    grid.mirror = min(grid.x, grid.fill == "VERTICAL" and ceil(count / grid.y) or count)
+  end
+  return grid
+end
+
+-- the column and row of the 1-based `slot` on `grid`
+function pfUI.uf:GetRaidGridCell(grid, slot)
+  slot = slot - 1
+  local col, row
+  if grid.fill == "VERTICAL" then
+    col, row = floor(slot / grid.y) + 1, mod(slot, grid.y) + 1
+  else
+    col, row = mod(slot, grid.x) + 1, floor(slot / grid.x) + 1
+  end
+  if grid.mirror then col = grid.mirror - col + 1 end
+  return col, row
+end
+
+-- Puts `frame` on its `slot` of `grid`, counted from `anchor`'s bottom left.
+-- A step from one cell to the next is a whole number of screen pixels, so
+-- the gaps stay even at any scale.
+function pfUI.uf:PlaceInRaidGrid(frame, grid, slot, anchor)
+  local col, row = pfUI.uf:GetRaidGridCell(grid, slot)
+  local scale = frame:GetEffectiveScale()
+  local stepx = PixelUtil.GetNearestPixelSize(grid.pad + grid.w, scale)
+  local stepy = PixelUtil.GetNearestPixelSize(grid.pad + grid.h, scale)
+  frame:ClearAllPoints()
+  frame:SetPoint("BOTTOMLEFT", anchor, "BOTTOMLEFT", (col-1)*stepx, (row-1)*stepy)
+end
+
+-- [ Group units ]
+-- A party frame's target and pet frames, beside it. These are their places
+-- until unlock mode moves them.
+function pfUI.uf:AttachGroupUnits(frame, target, pet)
+  local _, default_border = GetBorderSize("unitframes")
+  if target then
+    target:SetPoint("TOPLEFT", frame, "TOPRIGHT", 3*default_border, 0)
+  end
+  if pet then
+    pet:SetPoint("BOTTOMLEFT", frame, "BOTTOMRIGHT", 3*default_border, -default_border)
   end
 end
 

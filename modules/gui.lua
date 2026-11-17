@@ -434,7 +434,7 @@ pfUI:RegisterModule("gui", function ()
 
   -- [ Preview ]
   -- A page with a preview shows it in a box above its list. The page's
-  -- preview table has its `height`, `Show(box, variant)`, which draws it in
+  -- preview table has its `GetHeight(variant)`, `Show(box, variant)`, which draws it in
   -- the box, `Hide()`, which takes it out again when the page goes, and
   -- `Refresh()`, which draws it again after a change.
   local previewBox = CreateFrame("Frame", nil, content)
@@ -453,10 +453,10 @@ pfUI:RegisterModule("gui", function ()
   previewBox.line:SetColorTexture(.2, 1, .8, .5)
 
   -- the list fills the content, or the room under the preview
-  local function PlaceList(preview)
+  local function PlaceList(preview, variant)
     list:ClearAllPoints()
     if preview then
-      previewBox:SetHeight(preview.height)
+      previewBox:SetHeight(preview.GetHeight(variant))
       previewBox:Show()
       list:SetPoint("TOPLEFT", previewBox, "BOTTOMLEFT", 0, -2)
       list:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -2, 2)
@@ -616,7 +616,7 @@ pfUI:RegisterModule("gui", function ()
   end
 
   local function ShowListPage(page)
-    PlaceList(page.preview)
+    PlaceList(page.preview, page.variant)
     if page.preview then page.preview.Show(previewBox, page.variant) end
     list:Show()
 

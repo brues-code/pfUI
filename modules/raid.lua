@@ -30,17 +30,6 @@ pfUI:RegisterModule("raid", function ()
   -- flat pool of pet frames, laid out by LayoutPets (mirror or collapsed)
   pfUI.uf.raid.pets = {}
 
-  -- 1-based grid slot -> (col, row) for the current fill direction, shared by
-  -- the raid and pet grids.
-  local function SlotToCoord(slot, fill, x, y)
-    slot = slot - 1
-    if fill == "VERTICAL" then
-      return floor(slot / y) + 1, mod(slot, y) + 1
-    else
-      return mod(slot, x) + 1, floor(slot / x) + 1
-    end
-  end
-
   pfUI.uf.raid.tanksfirst = {
     ["PF_TANK_TOGGLE"] = { T["Toggle as Tank"], "toggleTank" }
   }
@@ -49,7 +38,6 @@ pfUI:RegisterModule("raid", function ()
   pfUI.uf.raid.tankrole = { }
 
   function pfUI.uf.raid:UpdateConfig()
-    local rawborder, default_border = GetBorderSize("unitframes")
     maxraid = tonumber(C.unitframes.maxraid)
     local showpets = C.unitframes.raidpet.visible == "1"
     self.showpets = showpets
@@ -75,36 +63,14 @@ pfUI:RegisterModule("raid", function ()
       end
     end
 
-    local width = pfUI.uf.raid[1]:GetWidth()+2*default_border
-    local height = pfUI.uf.raid[1]:GetHeight()+2*default_border
-    local layout = pfUI.uf.raid[1].config.raidlayout
-    local padding = tonumber(pfUI.uf.raid[1].config.raidpadding)*GetPerfectPixel()
-    local fill = pfUI.uf.raid[1].config.raidfill
-    local growleft = pfUI.uf.raid[1].config.raidgrowleft == "1"
-    local _, _, x, y = string.find(layout,"(.+)x(.+)")
-    x, y = tonumber(x), tonumber(y)
-
     if showpets then
-      local petcfg = C.unitframes.raidpet
-      local _, _, px, py = string.find(petcfg.raidlayout, "(.+)x(.+)")
-      self.petgrid = {
-        fill = petcfg.raidfill, x = tonumber(px), y = tonumber(py),
-        pad = tonumber(petcfg.raidpadding) * GetPerfectPixel(),
-        w = self.pets[1]:GetWidth()+2*default_border,
-        h = self.pets[1]:GetHeight()+2*default_border,
-      }
+      self.petgrid = pfUI.uf:GetRaidGrid(C.unitframes.raidpet, self.pets[1], maxraid)
     end
 
-    -- right to left mirrors across the columns maxraid can fill, so a smaller
-    -- raid stays next to the anchor instead of the far edge of the layout
-    local cols = min(x, fill == "VERTICAL" and ceil(maxraid / y) or maxraid)
-
-    for i=1, x*y do
+    local grid = pfUI.uf:GetRaidGrid(C.unitframes.raid, pfUI.uf.raid[1], maxraid)
+    for i=1, grid.x*grid.y do
       if pfUI.uf.raid[i] then
-        local r, g = SlotToCoord(i, fill, x, y)
-        if growleft then r = cols - r + 1 end
-        pfUI.uf.raid[i]:ClearAllPoints()
-        pfUI.uf.raid[i]:SetPoint("BOTTOMLEFT", (r-1)*(padding+width), (g-1)*(padding+height))
+        pfUI.uf:PlaceInRaidGrid(pfUI.uf.raid[i], grid, i, cluster)
         UpdateMovable(pfUI.uf.raid[i], true)
       end
     end
@@ -121,9 +87,7 @@ pfUI:RegisterModule("raid", function ()
     local function place(pet, cell, id)
       pet.label = "raidpet"
       pet.id = id
-      local r, g = SlotToCoord(cell, grid.fill, grid.x, grid.y)
-      pet:ClearAllPoints()
-      pet:SetPoint("BOTTOMLEFT", petcluster, "BOTTOMLEFT", (r-1)*(grid.pad+grid.w), (g-1)*(grid.pad+grid.h))
+      pfUI.uf:PlaceInRaidGrid(pet, grid, cell, petcluster)
       UpdateMovable(pet, true)
       pet:UpdateVisibility()
     end
