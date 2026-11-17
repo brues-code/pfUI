@@ -1179,6 +1179,13 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
       p:Number(T["Right Text Y Offset"], C.unitframes[c], "txtpowerrightoffy", U[c], OFFSET)
       p:Dropdown(T["Power Bar Anchor"], C.unitframes[c], "panchor", D.uf_powerbar_position, U[c])
 
+      if c == "group" or c == "raid" then
+        p:Header(T["Castbar"])
+        p:Checkbox(T["Enable Castbars"], C.unitframes[c], "castbar", U[c])
+        p:Number(T["Castbar Height"], C.unitframes[c], "castbarheight", U[c], { requires = "castbar" })
+        p:Checkbox(T["Show Spell Name"], C.unitframes[c], "castbartext", U[c], { requires = "castbar" })
+      end
+
       if c == "player" then
         p:Header(T["Energy/Mana Ticks"])
         p:Checkbox(T["Enable Energy Ticks"], C.unitframes[c], "energy")

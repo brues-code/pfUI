@@ -575,6 +575,119 @@ function pfUI.uf:UpdateVisibility()
   end
 end
 
+-- A thin bar along the bottom of a party or raid frame's health bar shows the
+-- member's cast or channel. Its timer fills it natively, so Lua runs only on
+-- the cast events, which follow the frame's unit (SetUnit, called from
+-- RegisterUnitEvents). The player's own casts fire as "player" alone, so that
+-- token rides along for the frame that shows the player.
+--
+-- The label reads "Spell » Target". UnitSpellTargetName knows a member's
+-- target from the start of a cast it saw, but the player's own only after the
+-- server confirms it, so the player's frame takes it from SENT meanwhile.
+local CAST_EVENTS = {
+  "UNIT_SPELLCAST_SENT",
+  "UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_DELAYED",
+  "UNIT_SPELLCAST_FAILED", "UNIT_SPELLCAST_INTERRUPTED",
+  "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_CHANNEL_UPDATE",
+}
+
+local GroupCastbarMixin = {}
+
+function GroupCastbarMixin:Clear()
+  if self.expiry then self.expiry:Cancel() end
+  self.expiry, self.isChannel = nil, nil
+  self:Hide()
+end
+
+function GroupCastbarMixin:UpdateText(castGUID)
+  local unit = self.unit
+  local name, _, _, _, _, _, _, _, spellID = C_Spell.UnitCastingInfo(unit)
+  if not name then
+    name, _, _, _, _, _, _, spellID = C_Spell.UnitChannelInfo(unit)
+  end
+  local target = UnitSpellTargetName(unit)
+  if not target and castGUID and castGUID == self.sentGUID then
+    target = self.sentTarget
+  end
+
+  -- the icon sized to the text (0 = line height)
+  local icon = spellID and C_Spell.GetSpellTexture(spellID)
+  local label = name or ""
+  if icon then label = CreateSimpleTextureMarkup(icon, 0) .. " " .. label end
+  if target and target ~= "" and target ~= UnitName(unit) then
+    label = label .. " » " .. target
+  end
+  self.text:SetText(label)
+end
+
+-- castGUID comes with the cast events and names the player's SENT target
+function GroupCastbarMixin:Refresh(castGUID)
+  local unit = self.unit
+  local duration = unit and UnitCastingDuration(unit)
+  local isChannel
+  if unit and not duration then
+    duration = UnitChannelDuration(unit)
+    isChannel = duration and true
+  end
+  if not duration then return self:Clear() end
+
+  if self.showtext then self:UpdateText(castGUID) end
+  self.isChannel = isChannel
+  local castbar = C.appearance.castbar
+  self:SetStatusBarColor(GetStringColor(isChannel and castbar.channelcolor or castbar.castbarcolor))
+  self:SetTimerDuration(duration, Enum.StatusBarInterpolation.Immediate,
+    isChannel and Enum.StatusBarTimerDirection.RemainingTime or Enum.StatusBarTimerDirection.ElapsedTime)
+
+  -- a member out of range can miss its STOP, so the bar also clears at its end
+  if self.expiry then self.expiry:Cancel() end
+  self.expiry = C_Timer.NewTimer(duration:GetRemainingDuration(), self.onExpire)
+  self:Show()
+end
+
+function GroupCastbarMixin:SetUnit(unit)
+  self.unit = unit
+  for i = 1, table.getn(CAST_EVENTS) do
+    if unit then
+      self:RegisterUnitEvent(CAST_EVENTS[i], unit, "player")
+    else
+      self:UnregisterEvent(CAST_EVENTS[i])
+    end
+  end
+  self:Refresh()
+end
+
+function GroupCastbarMixin:OnEvent(event, unit, castGUID, sentCastGUID)
+  if unit ~= self.unit and not (unit == "player" and UnitIsUnit(self.unit, "player")) then return end
+
+  if event == "UNIT_SPELLCAST_SENT" then
+    -- SENT puts the target before the castGUID: unit, target, castGUID
+    self.sentTarget, self.sentGUID = castGUID, sentCastGUID
+  elseif event == "UNIT_SPELLCAST_STOP" then
+    -- a channel's STOP can trail the cast that followed it, and the other way round
+    if not self.isChannel then self:Clear() end
+  elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
+    if self.isChannel then self:Clear() end
+  elseif event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
+    self:Clear()
+  else
+    self:Refresh(castGUID)
+  end
+end
+
+local function CreateGroupCastbar(f)
+  local bar = Mixin(CreateFrame("StatusBar", nil, f.hp), GroupCastbarMixin)
+  bar.bg = bar:CreateTexture(nil, "BACKGROUND")
+  bar.bg:SetAllPoints()
+  bar.bg:SetColorTexture(0, 0, 0, .6)
+  bar.text = bar:CreateFontString(nil, "OVERLAY")
+  bar.text:SetNonSpaceWrap(false)
+  bar.text:SetJustifyH("CENTER")
+  bar.onExpire = function() bar:Clear() end
+  bar:SetScript("OnEvent", bar.OnEvent)
+  bar:Hide()
+  return bar
+end
+
 function pfUI.uf:UpdateFrameSize()
   local rawborder, default_border = GetBorderSize("unitframes")
   local spacing = self.config.pspace * GetPerfectPixel()
@@ -904,6 +1017,26 @@ function pfUI.uf:UpdateConfig()
     f.incHeal:SetPoint("TOPLEFT", f.hp.bar:GetStatusBarTexture(), "TOPRIGHT")
   else
     f.incHeal:SetPoint("BOTTOMLEFT", f.hp.bar:GetStatusBarTexture(), "TOPLEFT")
+  end
+
+  -- party and raid cast bar; the eventunit reset above makes RegisterUnitEvents
+  -- hand it the unit, or none while the option is off
+  if f.config.castbar == "1" then
+    f.castbar = f.castbar or CreateGroupCastbar(f)
+    f.castbar:SetFrameLevel(f.hp.bar:GetFrameLevel() + 2)
+    f.castbar:SetStatusBarTexture(pfUI.media[C.appearance.castbar.texture])
+    f.castbar:ClearAllPoints()
+    f.castbar:SetPoint("BOTTOMLEFT", f.hp.bar, "BOTTOMLEFT")
+    f.castbar:SetPoint("BOTTOMRIGHT", f.hp.bar, "BOTTOMRIGHT")
+    f.castbar:SetHeight(tonumber(f.config.castbarheight) * GetPerfectPixel())
+
+    -- the label sits in the health bar just above the cast bar
+    f.castbar.showtext = f.config.castbartext == "1" or nil
+    f.castbar.text:SetShown(f.castbar.showtext)
+    f.castbar.text:SetFont(fontname, math.max(fontsize - 2, 8), fontstyle)
+    f.castbar.text:ClearAllPoints()
+    f.castbar.text:SetPoint("BOTTOMLEFT", f.castbar, "TOPLEFT", 2, 1)
+    f.castbar.text:SetPoint("BOTTOMRIGHT", f.castbar, "TOPRIGHT", -2, 1)
   end
 
   f.ressIcon:SetFrameLevel(base + 16)
@@ -1431,6 +1564,8 @@ function pfUI.uf:RegisterUnitEvents(unit)
   else
     self:UnregisterEvent("UNIT_IN_RANGE_UPDATE")
   end
+
+  if self.castbar then self.castbar:SetUnit(self.config.castbar == "1" and unit or nil) end
 end
 
 -- Point this frame's UNIT_TARGET subscription at every link of its chained
@@ -1961,6 +2096,11 @@ function pfUI.uf:RefreshUnit(unit, component)
 
   -- save current values
   unit.namecache = UnitName(unitstr)
+
+  -- a full refresh can mean someone else behind the same token
+  if component == "all" and unit.castbar and unit.castbar.unit then
+    unit.castbar:Refresh()
+  end
 
   -- buffs
   if unit.buffs and ( component == "all" or component == "aura" ) then
