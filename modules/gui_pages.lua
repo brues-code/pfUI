@@ -876,12 +876,12 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Dropdown(T["Description Font"], C.screenshot, "caption_font", D.fonts, nil, { preview = "font" })
     p:Number(T["Description Font Size"], C.screenshot, "caption_size", nil, FONTSIZE)
     p:Checkbox(T["Hide All UI Elements"], C.screenshot, "hideui")
-  end, "screenshot")
+  end, { module = "screenshot" })
 
   gui:AddPage("settings.gmmode", T["Settings"], T["GM-Mode"], function(p)
     p:Checkbox(T["Disable GM-Mode"], C.gm, "disable")
     p:Dropdown(T["Selected Core"], C.gm, "server", D.gmserver_text)
-  end, "gm")
+  end, { module = "gm" })
 
   gui:AddPage("unitframes.general", T["Unit Frames"], T["General"], function(p)
     p:Checkbox(T["Disable pfUI Unit Frames"], C.unitframes, "disable")
@@ -1044,6 +1044,46 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Text(T["Alt-Click Action"], C.unitframes, "clickcast5_alt")
     p:Text(T["Ctrl-Click Action"], C.unitframes, "clickcast5_ctrl")
   end)
+
+  -- The unit frames page draws the picked frame above its settings: a real
+  -- pfUI unit frame that shows the player with that frame's config, fitted
+  -- into the preview box. Each frame has its own, made the first time it is
+  -- picked, so no frame's layout carries over into another's, as none does
+  -- between the real frames.
+  local unitPreview = { height = 110 }
+  local previewFrames, previewFrame, previewBox = {}, nil, nil
+
+  function unitPreview.Refresh()
+    local f = previewFrame
+    f:UpdateConfig()
+    f:UpdateFrameSize()
+    f:EnableEvents()
+    pfUI.uf:RefreshUnit(f, "all")
+
+    -- the frame at its own size, or smaller when it would not fit
+    f:SetScale(1)
+    local width, height = f:GetWidth(), f:GetHeight()
+    local room = math.min((previewBox:GetWidth() - 40) / width, (previewBox:GetHeight() - 40) / height)
+    if room > 0 then f:SetScale(math.min(1, room)) end
+  end
+
+  function unitPreview.Show(box, variant)
+    previewBox = box
+    if previewFrame then
+      previewFrame.previewHidden = true
+      previewFrame:UpdateVisibility()
+    end
+
+    if not previewFrames[variant] then
+      local f = pfUI.uf:CreateUnitFrame("Player", nil, C.unitframes[variant], nil, box)
+      f:ClearAllPoints()
+      f:SetPoint("CENTER", box, "CENTER", 0, 0)
+      previewFrames[variant] = f
+    end
+    previewFrame = previewFrames[variant]
+    previewFrame.previewHidden = nil
+    unitPreview.Refresh()
+  end
 
   gui:AddVariantPage("unitframes.frames", T["Unit Frames"], T["Frames"], unitframeSettings, function(c)
     return C.unitframes[c]
@@ -1241,7 +1281,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
         p:Checkbox(T["Use Custom Spell Power Color (unchecked = biggest school color)"], C.unitframes[c], "display_sp_color_override", nil, { requires = "display_spellpower" })
         p:Color(T["Spell Power Color"], C.unitframes[c], "display_sp_color", nil, { requires = "display_sp_color_override" })
       end
-  end)
+  end, { preview = unitPreview })
 
   gui:AddPage("character.inventory", CHARACTER, T["Inventory"], function(p)
     p:Checkbox(T["Show Durability"], C.character.inventory, "durability")
@@ -1261,7 +1301,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
       "4:" .. ITEM_QUALITY4_DESC,
     }, U["equipmentmanager"])
     p:Checkbox(T["Include Bank Items"], C.equipmentmanager, "unusedbank", U["equipmentmanager"])
-  end, "equipmentmanager")
+  end, { module = "equipmentmanager" })
 
   gui:AddPage("character.reputation", CHARACTER, REPUTATION, function(p)
     p:Checkbox(T["Show Reputation Remaining"], C.character.reputation, "repRequired")
@@ -1284,7 +1324,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Checkbox(T["Auto Sell Grey Items"], C.global, "autosell")
     p:Checkbox(T["Auto Repair Items"], C.global, "autorepair")
     p:Checkbox(T["Auto Sort When Opening Bags"], C.appearance.bags, "autoSortOnOpen")
-  end, "bags")
+  end, { module = "bags" })
 
   gui:AddPage("loot", LOOT, nil, function(p)
     p:Checkbox(T["Enable Auto-Resize Loot Frame"], C.loot, "autoresize")
@@ -1294,7 +1334,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Dropdown(T["Random Roll Announcement Rarity"], C.loot, "rollannouncequal", D.loot_rarity)
     p:Checkbox(T["Detailed Random Roll Announcement"], C.loot, "rollannounce")
     p:Checkbox(T["Use Item Rarity Color For Loot-Roll Timer"], C.loot, "raritytimer")
-  end, "loot")
+  end, { module = "loot" })
 
   gui:AddPage("minimap.minimap", MINIMAP_LABEL, MINIMAP_LABEL, function(p)
     p:Number(T["Minimap Size (|cffffaaaaExperimental|r)"], C.appearance.minimap, "size", U["minimap"])
@@ -1306,7 +1346,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Checkbox(T["Show Inactive Tracking"], C.appearance.minimap, "tracking_pulse")
     p:Number(T["Tracking Icon Size"], C.appearance.minimap, "tracking_size", nil, ICONSIZE)
     p:Checkbox(T["Hide Addon Buttons On Combat"], C.appearance.minimap, "addon_buttons")
-  end, "minimap")
+  end, { module = "minimap" })
 
   gui:AddPage("minimap.addonbuttons", MINIMAP_LABEL, T["Addon Buttons"], function(p)
     p:Checkbox(T["Enable Addon Button Frame"], C.abuttons, "enable")
@@ -1315,7 +1355,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Number(T["Number Of Buttons Per Row/Column"], C.abuttons, "rowsize", U["addonbuttons"], COUNT)
     p:Number(T["Button Spacing"], C.abuttons, "spacing", U["addonbuttons"], SPACING)
     p:Checkbox(T["Hide When Entering Combat"], C.abuttons, "hideincombat", U["addonbuttons"])
-  end, "addonbuttons")
+  end, { module = "addonbuttons" })
 
   gui:AddPage("buffs.icons", T["Buffs"], T["Buff/Debuff Icons"], function(p)
     p:Checkbox(T["Enable Buff Display"], C.buffs, "buffs", U["buff"])
@@ -1330,7 +1370,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Dropdown(T["Duration Timers"], C.buffs, "timers", D.cooldown_timers, UpdateCooldowns)
     p:Checkbox(T["Show Duration Inside Buff"], C.buffs, "textinside", U["buff"])
     p:Number(T["Stack Count Font Size"], C.buffs, "fontsize", U["buff"])
-  end, "buff")
+  end, { module = "buff" })
 
   gui:AddPage("buffs.totems", T["Buffs"], T["Totem Bar"], function(p)
     p:Dropdown(T["Totem Direction"], C.totems, "direction", D.orientation, U["totems"])
@@ -1342,7 +1382,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Dropdown(T["Spacing"], C.totems, "spacing", D.spacing, U["totems"])
     p:Checkbox(T["Show Background"], C.totems, "showbg", U["totems"])
     p:Dropdown(T["Duration Timers"], C.totems, "timers", D.cooldown_timers, UpdateCooldowns)
-  end, "totems")
+  end, { module = "totems" })
 
   local buffbars = {
     { "pbuff",   T["Player Buff Bar"] },
@@ -1373,7 +1413,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Number(T["Time Threshold"], c, "threshold", nil, { requires = "enable" })
     p:List(T["Whitelist"], c, "whitelist", nil, { requires = "enable" })
     p:List(T["Blacklist"], c, "blacklist", nil, { requires = "enable" })
-  end, "buffwatch")
+  end, { module = "buffwatch" })
 
   gui:AddPage("actionbar.general", T["Actionbar"], T["General"], function(p)
     p:Checkbox(T["Trigger Actions On Key Down"], C.bars, "keydown", U["bars"])
@@ -1413,7 +1453,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Checkbox(T["Switch Pages On Druid Stealth"], C.bars, "druidstealth", U["bars"])
     p:Checkbox(T["Switch Pages On Priest Shadowform"], C.bars, "priestshadow", U["bars"])
     p:Checkbox(T["Range Based Hunter Paging"], C.bars, "hunterbar")
-  end, "actionbar")
+  end, { module = "actionbar" })
 
   gui:AddPage("actionbar.gryphons", T["Actionbar"], T["Gryphons"], function(p)
     p:Dropdown(T["Texture"], C.bars.gryphons, "texture", D.gryphons, U["gryphons"])
@@ -1423,7 +1463,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Number(T["Size"], C.bars.gryphons, "size", U["gryphons"])
     p:Number(T["Horizontal Offset"], C.bars.gryphons, "offset_h", U["gryphons"], OFFSET)
     p:Number(T["Vertical Offset"], C.bars.gryphons, "offset_v", U["gryphons"], OFFSET)
-  end, "gryphons")
+  end, { module = "gryphons" })
 
   -- Shared Actionbar Settings
   local barnames = {
@@ -1526,7 +1566,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
       p:Checkbox(T["Enable Autohide"], C.bars["bar"..id], "autohide", U["bars"], { requires = "enable" })
       p:Number(T["Autohide Timeout"], C.bars["bar"..id], "hide_time", U["bars"], { requires = "autohide" })
       p:Checkbox(T["Show In Combat"], C.bars["bar"..id], "hide_combat", U["bars"], { requires = "enable" })
-  end, "actionbar")
+  end, { module = "actionbar" })
 
   gui:AddPage("panel", T["Panel"], nil, function(p)
     p:Checkbox(T["Use Unit Fonts"], C.panel, "use_unitfonts")
@@ -1549,7 +1589,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Checkbox(T["Enable Autohide For Right Chat Panel"], C.panel, "hide_rightchat")
     p:Checkbox(T["Enable Autohide For Minimap Panel"], C.panel, "hide_minimap")
     p:Checkbox(T["Enable Autohide For Microbar Panel"], C.panel, "hide_microbar")
-  end, "panel")
+  end, { module = "panel" })
 
   gui:AddPage("xpbar.xp", XPBAR_LABEL, T["Experience Bar"], function(p)
     p:Checkbox(T["Always Show"], C.panel.xp, "xp_always", U["xpbar"])
@@ -1571,7 +1611,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Color(T["Experience Color"], C.panel.xp, "xp_color", U["xpbar"])
     p:Color(T["Rested Color"], C.panel.xp, "rest_color", U["xpbar"])
     p:Dropdown(T["Bar Texture"], C.panel.xp, "texture", D.uf_bartexture, U["xpbar"], { preview = "texture" })
-  end, "xpbar")
+  end, { module = "xpbar" })
 
   gui:AddPage("xpbar.rep", XPBAR_LABEL, T["Reputation Bar"], function(p)
     p:Checkbox(T["Always Show"], C.panel.xp, "rep_always", U["xpbar"])
@@ -1587,7 +1627,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Checkbox(T["Show Text"], C.panel.xp, "rep_text", U["xpbar"])
     p:Number(T["Vertical Text Offset"], C.panel.xp, "rep_text_off_y", U["xpbar"], OFFSET)
     p:Checkbox(T["Only Show On Mouse Over"], C.panel.xp, "rep_text_mouse", U["xpbar"])
-  end, "xpbar")
+  end, { module = "xpbar" })
 
   gui:AddPage("tooltip", T["Tooltip"], nil, function(p)
     p:Header(T["General"])
@@ -1617,7 +1657,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Checkbox(T["Show Unit Buffs"], C.tooltip, "showbuffs")
     p:Dropdown(T["Unit Buff Timers"], C.tooltip, "aura_timers", D.cooldown_timers, UpdateCooldowns)
     p:Checkbox(T["Show Unit IDs"], C.tooltip, "unitid")
-  end, "tooltip")
+  end, { module = "tooltip" })
 
   gui:AddPage("castbar.general", T["Castbar"], T["General"], function(p)
     p:Checkbox(T["Use Unit Fonts"], C.castbar, "use_unitfonts")
@@ -1627,7 +1667,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Color(T["Five Second Rule Color"], C.appearance.castbar, "fsrcolor")
     p:Dropdown(T["Castbar Texture"], C.appearance.castbar, "texture", D.uf_bartexture, nil, { preview = "texture" })
     p:Checkbox(T["Disable Blizzard Castbar"], C.castbar.player, "hide_blizz")
-  end, "castbar")
+  end, { module = "castbar" })
 
   local castbars = {
     { "player", T["Player"], T["Disable Player Castbar"] },
@@ -1658,7 +1698,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     if unit == "player" then
       p:Checkbox(T["Merge Tradeskill Casts"], c, "mergetradeskill", nil, { requires = "!hide_pfui" })
     end
-  end, "castbar")
+  end, { module = "castbar" })
 
   gui:AddPage("chat", CHAT_LABEL, nil, function(p)
     -- a nop updater skips the reload prompt; the nop settings below
@@ -1709,7 +1749,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Checkbox(T["Enable Party Chat Bubbles"], CVars, "chatBubblesParty", nop)
     p:Checkbox(T["Enable Chat Bubble Borders"], C.chat.bubbles, "borders")
     p:Number(T["Chat Bubble Transparency"], C.chat.bubbles, "alpha")
-  end, "chat")
+  end, { module = "chat" })
 
   gui:AddPage("nameplates", T["Nameplates"], nil, function(p)
     p:Checkbox(T["Show On Hostile Units"], C.nameplates, "showhostile", U["nameplates"])
@@ -1805,7 +1845,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Color(T["Unit Is Attacking No One Color"], C.nameplates, "combatstun", U["nameplates"])
     p:Color(T["Unit Is Casting Color"], C.nameplates, "combatcasting", U["nameplates"])
     p:List(T["Off-Tank Names"], C.nameplates, "combatofftanks", U["nameplates"])
-  end, "nameplates")
+  end, { module = "nameplates" })
 
   gui:AddPage("thirdparty.integrations", T["Thirdparty"], T["Integrations"], function(p)
     p:Checkbox(T["Show Meters By Default"], C.thirdparty, "showmeter")

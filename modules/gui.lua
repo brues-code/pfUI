@@ -432,6 +432,39 @@ pfUI:RegisterModule("gui", function ()
   SetAllPointsOffset(list, content, 2)
   list:Hide()
 
+  -- [ Preview ]
+  -- A page with a preview shows it in a box above its list. The page's
+  -- preview table has its `height`, `Show(box, variant)`, which draws it in
+  -- the box, and `Refresh()`, which draws it again after a change.
+  local previewBox = CreateFrame("Frame", nil, content)
+  previewBox:SetPoint("TOPLEFT", 2, -2)
+  previewBox:SetPoint("TOPRIGHT", -2, -2)
+  previewBox:Hide()
+
+  previewBox.bg = previewBox:CreateTexture(nil, "BACKGROUND")
+  previewBox.bg:SetAllPoints()
+  previewBox.bg:SetColorTexture(0, 0, 0, .35)
+
+  previewBox.line = previewBox:CreateTexture(nil, "BORDER")
+  previewBox.line:SetPoint("BOTTOMLEFT")
+  previewBox.line:SetPoint("BOTTOMRIGHT")
+  previewBox.line:SetHeight(1)
+  previewBox.line:SetColorTexture(.2, 1, .8, .5)
+
+  -- the list fills the content, or the room under the preview
+  local function PlaceList(preview)
+    list:ClearAllPoints()
+    if preview then
+      previewBox:SetHeight(preview.height)
+      previewBox:Show()
+      list:SetPoint("TOPLEFT", previewBox, "BOTTOMLEFT", 0, -2)
+      list:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -2, 2)
+    else
+      previewBox:Hide()
+      SetAllPointsOffset(list, content, 2)
+    end
+  end
+
   -- the settings that the last search result pointed at, as keys, and the
   -- rows on a frame page that it pointed at
   local highlighted, highlightedFrames = {}, {}
@@ -532,6 +565,11 @@ pfUI:RegisterModule("gui", function ()
       nav.ScrollBox:ForEachFrame(UpdateNavButton)
     end
 
+    -- the preview draws every change, its page's own and the general ones
+    if previewBox:IsVisible() and current and current.preview then
+      current.preview.Refresh()
+    end
+
     if not list:IsVisible() then return end
 
     list.ScrollBox:ForEachFrame(function(row)
@@ -552,6 +590,7 @@ pfUI:RegisterModule("gui", function ()
     end
 
     list:Hide()
+    previewBox:Hide()
 
     if current and current.frame then
       current.frame:Hide()
@@ -575,6 +614,8 @@ pfUI:RegisterModule("gui", function ()
   end
 
   local function ShowListPage(page)
+    PlaceList(page.preview)
+    if page.preview then page.preview.Show(previewBox, page.variant) end
     list:Show()
 
     -- a variant page leads with its picker, a page with a module with its
@@ -664,11 +705,13 @@ pfUI:RegisterModule("gui", function ()
   end
 
   -- Adds a list page. `build(p)` adds its settings with the methods of
-  -- Builder, the first time the page is needed. With `module`, the page
-  -- leads with a switch for that pfUI module.
-  function pfUI.gui:AddPage(id, category, title, build, module)
+  -- Builder, the first time the page is needed. `opts` may hold `module`,
+  -- a pfUI module the page leads with a switch for, and `preview` (see the
+  -- preview box).
+  function pfUI.gui:AddPage(id, category, title, build, opts)
     if pages[id] then return end
-    AddToNavigation({ id = id, build = build, module = module }, category, title)
+    opts = opts or {}
+    AddToNavigation({ id = id, build = build, module = opts.module, preview = opts.preview }, category, title)
   end
 
   -- Copies the settings that a variant page shows from one variant to
@@ -703,11 +746,13 @@ pfUI:RegisterModule("gui", function ()
   -- Adds a list page that shows one of several variants of the same
   -- settings, picked at its top. `variants` holds { key, label } pairs,
   -- `tableOf(key)` returns the config table of a variant, and
-  -- `build(p, key, label)` adds the settings of one. `module` as in AddPage.
-  function pfUI.gui:AddVariantPage(id, category, title, variants, tableOf, build, module)
+  -- `build(p, key, label)` adds the settings of one. `opts` as in AddPage.
+  function pfUI.gui:AddVariantPage(id, category, title, variants, tableOf, build, opts)
     if pages[id] then return end
 
-    local page = { id = id, build = build, module = module, tableOf = tableOf, variant = variants[1][1], variantLabels = {} }
+    opts = opts or {}
+    local page = { id = id, build = build, module = opts.module, preview = opts.preview,
+      tableOf = tableOf, variant = variants[1][1], variantLabels = {} }
     local values = {}
     for _, entry in ipairs(variants) do
       page.variantLabels[entry[1]] = entry[2]
@@ -923,6 +968,7 @@ pfUI:RegisterModule("gui", function ()
   local function ShowResults(found)
     HideContent()
     searching = true
+    PlaceList(nil)
     list:Show()
     list.ScrollBox:SetDataProvider(CreateDataProvider(found))
     nav.ScrollBox:ForEachFrame(UpdateNavButton)

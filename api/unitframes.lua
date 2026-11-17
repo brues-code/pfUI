@@ -373,7 +373,8 @@ function pfUI.uf:UpdateVisibility()
 
   -- cache result of strsub to avoid repeating calls
   if not self.cache_raid then
-    local name = self:GetName()
+    -- a preview frame has no name
+    local name = self:GetName() or ""
     if strsub(name,0,9) == "pfRaidPet" then
       -- pet grid slot (pfRaidPet1..40); used to mirror party pets below
       self.cache_raid = 0
@@ -457,7 +458,11 @@ function pfUI.uf:UpdateVisibility()
   local hide_group = C["unitframes"]["group"]["hide_in_raid"] == "1"
     and (IsInRaid() or (C.unitframes.raidforgroup == "1" and IsInGroup()))
 
-  if pfUI.unlock and pfUI.unlock:IsShown() then
+  if self.preview then
+    -- a preview shows until its config window parks it (previewHidden)
+    visibility = self.previewHidden and "hide" or "show"
+    self.visible = not self.previewHidden or nil
+  elseif pfUI.unlock and pfUI.unlock:IsShown() then
     -- display during unlock mode
     visibility = "show"
     self.visible = true
@@ -601,10 +606,13 @@ function pfUI.uf:UpdateConfig()
   f.alpha_outrange = tonumber(f.config.alpha_outrange)
   f.alpha_offline = tonumber(f.config.alpha_offline)
 
-  f:SetFrameStrata("MEDIUM")
+  -- A preview in the config window takes the window's strata, and its
+  -- portrait and glow count their levels from the frame's own.
+  local base = f.preview and f:GetFrameLevel() or 0
+  f:SetFrameStrata(f.strata)
 
-  f.glow:SetFrameStrata("BACKGROUND")
-  f.glow:SetFrameLevel(0)
+  f.glow:SetFrameStrata(f.backstrata)
+  f.glow:SetFrameLevel(base)
   f.glow:SetBackdrop(glow2)
   f.glow:SetPoint("TOPLEFT", f, "TOPLEFT", -6 - default_border,6 + default_border)
   f.glow:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 6 + default_border,-6 - default_border)
@@ -619,7 +627,8 @@ function pfUI.uf:UpdateConfig()
   f.hp:SetPoint("TOP", 0, 0)
 
   f.hp:SetSize(f.config.width, f.config.height)
-  if tonumber(f.config.height) < 0 then f.hp:Hide() end
+  -- a height under 0 means no bar; a later one shows it again
+  f.hp:SetShown(tonumber(f.config.height) >= 0)
   pfUI.api.CreateBackdrop(f.hp, default_border)
 
   -- one level above the backdrop for the bar's background, one more for its fill
@@ -644,7 +653,7 @@ function pfUI.uf:UpdateConfig()
   f.power:ClearAllPoints()
   f.power:SetPoint(f.config.panchor, f.hp, relative_point, f.config.poffx, -2 * default_border - spacing + f.config.poffy * GetPerfectPixel())
   f.power:SetSize((f.config.pwidth ~= "-1" and f.config.pwidth or f.config.width), f.config.pheight)
-  if tonumber(f.config.pheight) < 0 then f.power:Hide() end
+  f.power:SetShown(tonumber(f.config.pheight) >= 0)
 
   pfUI.api.CreateBackdrop(f.power, default_border)
   f.power.bar:SetFrameLevel(f.power.backdrop:GetFrameLevel() + 2)
@@ -726,7 +735,7 @@ function pfUI.uf:UpdateConfig()
     if f.portrait.backdrop then f.portrait.backdrop:Hide() end
 
     -- place portrait below fonts
-    f.portrait.model:SetFrameLevel(3)
+    f.portrait.model:SetFrameLevel(base + 3)
 
     f.portrait:Show()
   elseif f.config.portrait == "left" then
@@ -740,9 +749,9 @@ function pfUI.uf:UpdateConfig()
     f.portrait:SetAlpha(f:GetAlpha())
 
     -- make sure incHeal is above
-    f.portrait:SetFrameStrata("BACKGROUND")
-    f.portrait.model:SetFrameStrata("BACKGROUND")
-    f.portrait.model:SetFrameLevel(1)
+    f.portrait:SetFrameStrata(f.backstrata)
+    f.portrait.model:SetFrameStrata(f.backstrata)
+    f.portrait.model:SetFrameLevel(base + 1)
 
     pfUI.api.CreateBackdrop(f.portrait, default_border)
     f.portrait.backdrop:Show()
@@ -758,9 +767,9 @@ function pfUI.uf:UpdateConfig()
     f.portrait:SetAlpha(f:GetAlpha())
 
     -- make sure incHeal is above
-    f.portrait:SetFrameStrata("BACKGROUND")
-    f.portrait.model:SetFrameStrata("BACKGROUND")
-    f.portrait.model:SetFrameLevel(1)
+    f.portrait:SetFrameStrata(f.backstrata)
+    f.portrait.model:SetFrameStrata(f.backstrata)
+    f.portrait.model:SetFrameLevel(base + 1)
 
     pfUI.api.CreateBackdrop(f.portrait, default_border)
     f.portrait.backdrop:Show()
@@ -873,7 +882,7 @@ function pfUI.uf:UpdateConfig()
     f.incHeal:SetPoint("BOTTOMLEFT", f.hp.bar:GetStatusBarTexture(), "TOPLEFT")
   end
 
-  f.ressIcon:SetFrameLevel(16)
+  f.ressIcon:SetFrameLevel(base + 16)
   f.ressIcon:SetSize(32, 32)
   f.ressIcon:SetPoint("CENTER", f, "CENTER", 0, 4)
   f.ressIcon.texture:SetTexture(pfUI.media["img:ress"])
@@ -955,11 +964,11 @@ function pfUI.uf:UpdateConfig()
       f.buffs[i].stacks:SetShadowOffset(0.8, -0.8)
       f.buffs[i].stacks:SetTextColor(1,1,.5)
 
-      f.buffs[i]:SetFrameLevel(12)
+      f.buffs[i]:SetFrameLevel(base + 12)
       f.buffs[i]:RegisterForClicks("RightButtonUp")
 
       f.buffs[i].cd = f.buffs[i].cd or CreateCooldown(f.buffs[i], "aura", f.config, "aura_timers", f.buffs[i]:GetName() .. "Cooldown")
-      f.buffs[i].cd:SetFrameLevel(14)
+      f.buffs[i].cd:SetFrameLevel(base + 14)
 
       f.buffs[i].id = i
       f.buffs[i]:Hide()
@@ -1007,12 +1016,12 @@ function pfUI.uf:UpdateConfig()
       f.debuffs[i].stacks:SetShadowOffset(0.8, -0.8)
       f.debuffs[i].stacks:SetTextColor(1,1,.5)
 
-      f.debuffs[i]:SetFrameLevel(12)
+      f.debuffs[i]:SetFrameLevel(base + 12)
       f.debuffs[i]:RegisterForClicks("RightButtonUp")
       f.debuffs[i]:SetNormalTexture(nil)
       
       f.debuffs[i].cd = f.debuffs[i].cd or CreateCooldown(f.debuffs[i], "aura", f.config, "aura_timers", f.debuffs[i]:GetName() .. "Cooldown")
-      f.debuffs[i].cd:SetFrameLevel(14)
+      f.debuffs[i].cd:SetFrameLevel(base + 14)
 
       f.debuffs[i].id = i
       f.debuffs[i]:Hide()
@@ -1507,8 +1516,14 @@ function pfUI.uf:EnableScripts()
   visibilityframes[f] = true
 end
 
-function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
+-- A frame made with `preview`, the frame to show it in, previews its unit in
+-- the config window: it has no name, shows unless its `previewHidden` is
+-- set, takes no clicks and stays out of pfUI.uf.frames and Clique. It is made in that frame, as a
+-- frame moved there later would leave its parts on the wrong levels.
+function pfUI.uf:CreateUnitFrame(unit, id, config, tick, preview)
   local fname = (( unit == "Party" ) and "Group" or (unit or "")) .. (id or "")
+  -- the names of a preview's aura buttons stay apart from the real frame's
+  if preview then fname = "Preview" .. fname end
   local unit = strlower(unit or "")
   local id = strlower(id or "")
 
@@ -1529,7 +1544,11 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
     unit, id = "target", ""
   end
 
-  local f = CreateFrame("Button", "pf" .. fname, UIParent)
+  local f = CreateFrame("Button", not preview and "pf" .. fname or nil, preview or UIParent)
+  if preview then f:SetFrameLevel(preview:GetFrameLevel() + 2) end
+  f.preview = preview and true
+  f.strata = preview and "DIALOG" or "MEDIUM"
+  f.backstrata = preview and "DIALOG" or "BACKGROUND"
 
   -- add unitframe functions
   f.UpdateFrameSize  = pfUI.uf.UpdateFrameSize
@@ -1588,7 +1607,7 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
   f.combat.tex:SetAllPoints()
 
   f.texts = CreateFrame("Frame", nil, f)
-  f.texts:SetFrameLevel(16)
+  f.texts:SetFrameLevel((preview and f:GetFrameLevel() or 0) + 16)
   f.texts:SetAllPoints()
 
   f.hpLeftText = f.texts:CreateFontString("Status", "OVERLAY", "GameFontNormalSmall")
@@ -1683,6 +1702,11 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick)
   end
 
   f:SetAttribute("unit", f.label .. f.id)
+
+  if preview then
+    f:EnableMouse(false)
+    return f
+  end
 
   -- register frame for clique
   _G.ClickCastFrames = ClickCastFrames or {}
