@@ -708,32 +708,48 @@ pfUI:RegisterModule("nameplates", function ()
     plate.debuffs[index] = icon
   end
 
+  -- The first debuff sits under the cast bar while one shows and debuffs go
+  -- at the bottom, otherwise against the health bar.
+  local function AnchorDebuffs(nameplate)
+    local icon = nameplate.debuffs[1]
+    if not icon then return end
+    local debuffoffset = tonumber(C.nameplates.debuffoffset)
+    icon:ClearAllPoints()
+    if C.nameplates.debuffs["position"] ~= "BOTTOM" then
+      icon:SetPoint("BOTTOMLEFT", nameplate.health, "TOPLEFT", 0, debuffoffset)
+    elseif nameplate.castbar:IsShown() then
+      icon:SetPoint("TOPLEFT", nameplate.castbar, "BOTTOMLEFT", 0, -debuffoffset)
+    else
+      icon:SetPoint("TOPLEFT", nameplate.health, "BOTTOMLEFT", 0, -debuffoffset)
+    end
+  end
+
   local function UpdateDebuffConfig(nameplate, i)
     if not nameplate.debuffs[i] then return end
 
     -- update debuff positions
     local width = tonumber(C.nameplates.width)
     local debuffsize = tonumber(C.nameplates.debuffsize)
-    local debuffoffset = tonumber(C.nameplates.debuffoffset)
     local limit = floor(width / debuffsize)
     local font = C.nameplates.use_unitfonts == "1" and pfUI.font_unit or pfUI.font_default
     local font_size = C.nameplates.use_unitfonts == "1" and C.global.font_unit_size or C.global.font_size
     local font_style = C.nameplates.name.fontstyle
 
-    local aligna, alignb, offs, space
+    local aligna, alignb, space
     if C.nameplates.debuffs["position"] == "BOTTOM" then
-      aligna, alignb, offs, space = "TOPLEFT", "BOTTOMLEFT", -debuffoffset, -1
+      aligna, alignb, space = "TOPLEFT", "BOTTOMLEFT", -1
     else
-      aligna, alignb, offs, space = "BOTTOMLEFT", "TOPLEFT", debuffoffset, 1
+      aligna, alignb, space = "BOTTOMLEFT", "TOPLEFT", 1
     end
 
     nameplate.debuffs[i].stacks:SetFont(font, font_size, font_style)
-    nameplate.debuffs[i]:ClearAllPoints()
     if i == 1 then
-      nameplate.debuffs[i]:SetPoint(aligna, nameplate.health, alignb, 0, offs)
+      AnchorDebuffs(nameplate)
     elseif i <= limit then
+      nameplate.debuffs[i]:ClearAllPoints()
       nameplate.debuffs[i]:SetPoint("LEFT", nameplate.debuffs[i-1], "RIGHT", 1, 0)
-    elseif i > limit and limit > 0 then
+    elseif limit > 0 then
+      nameplate.debuffs[i]:ClearAllPoints()
       nameplate.debuffs[i]:SetPoint(aligna, nameplate.debuffs[i-limit], alignb, 0, space)
     end
 
@@ -1237,17 +1253,8 @@ pfUI:RegisterModule("nameplates", function ()
       local castbar = CreateFrame("StatusBar", nil, nameplate.health)
       castbar:Hide()
 
-      castbar:SetScript("OnShow", function()
-        if cfg.debuffbottom then
-          nameplate.debuffs[1]:SetPoint("TOPLEFT", this, "BOTTOMLEFT", 0, -4)
-        end
-      end)
-
-      castbar:SetScript("OnHide", function()
-        if cfg.debuffbottom then
-          nameplate.debuffs[1]:SetPoint("TOPLEFT", this:GetParent(), "BOTTOMLEFT", 0, -4)
-        end
-      end)
+      castbar:SetScript("OnShow", function() AnchorDebuffs(nameplate) end)
+      castbar:SetScript("OnHide", function() AnchorDebuffs(nameplate) end)
 
       castbar.text = castbar:CreateFontString("Status", "OVERLAY", "GameFontNormal")
       castbar.text:SetPoint("RIGHT", castbar, "LEFT", -4, 0)
