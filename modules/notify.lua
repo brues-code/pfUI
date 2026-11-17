@@ -2,9 +2,9 @@
 -- queue pops, so they reach an alt-tabbed player. FlashClientIcon does
 -- nothing while WoW is in the foreground.
 pfUI:RegisterModule("notify", function ()
-  if C.global.notify ~= "1" then return end
-
-  local function Flash() FlashClientIcon() end
+  local function Flash()
+    if C.global.notify == "1" then FlashClientIcon() end
+  end
 
   pfUI.events:RegisterFrameEventAndCallback("CHAT_MSG_WHISPER", Flash)
   pfUI.events:RegisterFrameEventAndCallback("READY_CHECK", Flash)
