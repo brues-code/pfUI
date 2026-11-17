@@ -19,28 +19,29 @@ pfUI:RegisterModule("unlock", function ()
   local spanframe = CreateFrame("Frame", "pfUnlockSelector", UIParent)
   spanframe:Hide()
 
-  -- the config page of each frame label (the page ids of gui_pages.lua)
+  -- the config page of each frame label (the page ids of gui_pages.lua),
+  -- with the variant it shows where the page has several
   local frame_configs = {
     -- unitframes
-    ["Player"]             = "unitframes.player",
-    ["Target"]             = "unitframes.target",
-    ["TargetTarget"]       = "unitframes.ttarget",
-    ["TargetTargetTarget"] = "unitframes.tttarget",
-    ["Pet"]                = "unitframes.pet",
-    ["PetTarget"]          = "unitframes.ptarget",
-    ["Focus"]              = "unitframes.focus",
+    ["Player"]             = { "unitframes.frames", "player" },
+    ["Target"]             = { "unitframes.frames", "target" },
+    ["TargetTarget"]       = { "unitframes.frames", "ttarget" },
+    ["TargetTargetTarget"] = { "unitframes.frames", "tttarget" },
+    ["Pet"]                = { "unitframes.frames", "pet" },
+    ["PetTarget"]          = { "unitframes.frames", "ptarget" },
+    ["Focus"]              = { "unitframes.frames", "focus" },
 
     -- combopoints
     ["Combo%d"]       = "unitframes.general",
 
     -- groupframes
-    ["Raid%d"]        = "unitframes.raid",
-    ["Raid%d%d"]      = "unitframes.raid",
-    ["RaidPet%d"]     = "unitframes.raidpet",
-    ["RaidPet%d%d"]   = "unitframes.raidpet",
-    ["Group%d"]       = "unitframes.group",
-    ["Party%dTarget"] = "unitframes.grouptarget",
-    ["PartyPet%d"]    = "unitframes.grouppet",
+    ["Raid%d"]        = { "unitframes.frames", "raid" },
+    ["Raid%d%d"]      = { "unitframes.frames", "raid" },
+    ["RaidPet%d"]     = { "unitframes.frames", "raidpet" },
+    ["RaidPet%d%d"]   = { "unitframes.frames", "raidpet" },
+    ["Group%d"]       = { "unitframes.frames", "group" },
+    ["Party%dTarget"] = { "unitframes.frames", "grouptarget" },
+    ["PartyPet%d"]    = { "unitframes.frames", "grouppet" },
 
     -- chat
     ["ChatLeft"]      = "chat",
@@ -57,23 +58,23 @@ pfUI:RegisterModule("unlock", function ()
     ["PanelMicroButton"] = "panel",
 
     -- actionbar
-    ["ActionBarMain"]        = "actionbar.bar1",
-    ["ActionBarPaging"]      = "actionbar.bar2",
-    ["ActionBarRight"]       = "actionbar.bar3",
-    ["ActionBarVertical"]    = "actionbar.bar4",
-    ["ActionBarLeft"]        = "actionbar.bar5",
-    ["ActionBarTop"]         = "actionbar.bar6",
-    ["ActionBarStanceBar1"]  = "actionbar.bar7",
-    ["ActionBarStanceBar2"]  = "actionbar.bar8",
-    ["ActionBarStanceBar3"]  = "actionbar.bar9",
-    ["ActionBarStanceBar4"]  = "actionbar.bar10",
-    ["ActionBarStances"]     = "actionbar.bar11",
-    ["ActionBarPet"]         = "actionbar.bar12",
+    ["ActionBarMain"]        = { "actionbar.bars", "bar1" },
+    ["ActionBarPaging"]      = { "actionbar.bars", "bar2" },
+    ["ActionBarRight"]       = { "actionbar.bars", "bar3" },
+    ["ActionBarVertical"]    = { "actionbar.bars", "bar4" },
+    ["ActionBarLeft"]        = { "actionbar.bars", "bar5" },
+    ["ActionBarTop"]         = { "actionbar.bars", "bar6" },
+    ["ActionBarStanceBar1"]  = { "actionbar.bars", "bar7" },
+    ["ActionBarStanceBar2"]  = { "actionbar.bars", "bar8" },
+    ["ActionBarStanceBar3"]  = { "actionbar.bars", "bar9" },
+    ["ActionBarStanceBar4"]  = { "actionbar.bars", "bar10" },
+    ["ActionBarStances"]     = { "actionbar.bars", "bar11" },
+    ["ActionBarPet"]         = { "actionbar.bars", "bar12" },
 
     -- castbar
-    ["TargetCastbar"]  = "castbar.target",
-    ["PlayerCastbar"]  = "castbar.player",
-    ["FocusCastbar"]   = "castbar.focus",
+    ["TargetCastbar"]  = { "castbar.bars", "target" },
+    ["PlayerCastbar"]  = { "castbar.bars", "player" },
+    ["FocusCastbar"]   = { "castbar.bars", "focus" },
 
     -- minimap
     ["Minimap"]        = "minimap.minimap",
@@ -84,9 +85,9 @@ pfUI:RegisterModule("unlock", function ()
     ["DebuffFrame"]    = "buffs.icons",
 
     -- buffbars
-    ["PlayerBuffBar"]   = "buffs.pbuff",
-    ["PlayerDebuffBar"] = "buffs.pdebuff",
-    ["TargetDebuffBar"] = "buffs.tdebuff",
+    ["PlayerBuffBar"]   = { "buffs.bars", "pbuff" },
+    ["PlayerDebuffBar"] = { "buffs.bars", "pdebuff" },
+    ["TargetDebuffBar"] = { "buffs.bars", "tdebuff" },
   }
 
   local function GetFrames()
@@ -739,7 +740,11 @@ pfUI:RegisterModule("unlock", function ()
   pfUI.unlock.dock.config:SetText(T["Configure"])
   pfUI.unlock.dock.config:SetScript("OnClick", function()
     local page = GetConfigPage(pfUI.unlock.dock.parent.label)
-    if page then pfUI.gui:OpenPage(page) end
+    if type(page) == "table" then
+      pfUI.gui:OpenPage(page[1], page[2])
+    elseif page then
+      pfUI.gui:OpenPage(page)
+    end
   end)
   SkinButton(pfUI.unlock.dock.config,.2,1,.8)
 end)

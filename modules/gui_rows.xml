@@ -136,6 +136,34 @@
   <!-- A caption in a box with a red border. -->
   <Frame name="pfUIConfigWarningRowTemplate" inherits="pfUIConfigRowTemplate" mixin="pfUIConfigWarningRowMixin" virtual="true"/>
 
+  <!--
+  The head of a variant page: the page's title large, the dropdown that picks
+  the variant beside it, Copy From at the right end, and a line under all.
+  -->
+  <Frame name="pfUIConfigPickerRowTemplate" inherits="pfUIConfigDropdownRowTemplate" mixin="pfUIConfigPickerRowMixin" virtual="true">
+    <Size y="40"/>
+    <Layers>
+      <Layer level="BORDER">
+        <Texture parentKey="line">
+          <Size y="1"/>
+          <Anchors>
+            <Anchor point="BOTTOMLEFT"/>
+            <Anchor point="BOTTOMRIGHT"/>
+          </Anchors>
+          <Color r=".2" g="1" b=".8" a=".5"/>
+        </Texture>
+      </Layer>
+    </Layers>
+    <Frames>
+      <Button parentKey="copy" inherits="UIPanelButtonTemplate" propagateMouseInput="Motion">
+        <Size x="100" y="20"/>
+        <Anchors>
+          <Anchor point="RIGHT" x="-5"/>
+        </Anchors>
+      </Button>
+    </Frames>
+  </Frame>
+
   <!-- A caption that runs the setting's onClick, such as a search result. -->
   <Button name="pfUIConfigLinkRowTemplate" inherits="pfUIConfigRowTemplate" mixin="pfUIConfigLinkRowMixin" virtual="true">
     <Scripts>

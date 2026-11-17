@@ -15,6 +15,8 @@ pfUI:RegisterModule("gui", function ()
     buttons  = "pfUIConfigButtonsRowTemplate",
     header   = "pfUIConfigHeaderRowTemplate",
     warning  = "pfUIConfigWarningRowTemplate",
+    -- the head of a variant page
+    picker   = "pfUIConfigPickerRowTemplate",
     -- the search results: the page of the settings under it, and a row on a
     -- frame page, which only links to its page
     breadcrumb = "pfUIConfigLinkRowTemplate",
@@ -25,6 +27,7 @@ pfUI:RegisterModule("gui", function ()
   local extents = {
     header  = 45,
     warning = 50,
+    picker  = 40,
     breadcrumb = 30,
   }
 
@@ -147,14 +150,18 @@ pfUI:RegisterModule("gui", function ()
     table.insert(self.settings, { type = "buttons", buttons = { ... } })
   end
 
-  -- the settings of a list page, built the first time they are needed
-  local function GetSettings(page)
-    if not page.settings then
+  -- The settings of a list page, built the first time they are needed. A
+  -- variant page has a set for each variant: `variant` names one, else the
+  -- one the page shows.
+  local function GetSettings(page, variant)
+    variant = variant or page.variant or ""
+    page.settings = page.settings or {}
+    if not page.settings[variant] then
       local p = setmetatable({ settings = {} }, Builder)
-      page.build(p)
-      page.settings = p.settings
+      page.build(p, page.variant and variant, page.variantLabels and page.variantLabels[variant])
+      page.settings[variant] = p.settings
     end
-    return page.settings
+    return page.settings[variant]
   end
 
   local function AddToNavigation(page, category, title)
@@ -526,8 +533,22 @@ pfUI:RegisterModule("gui", function ()
 
   local function ShowListPage(page)
     list:Show()
-    page.provider = page.provider or CreateDataProvider(GetSettings(page))
-    list.ScrollBox:SetDataProvider(page.provider)
+
+    -- a variant page leads with its picker
+    local variant = page.variant or ""
+    page.providers = page.providers or {}
+    if not page.providers[variant] then
+      local rows = {}
+      if page.variant then
+        table.insert(rows, page.picker)
+      end
+      for _, setting in ipairs(GetSettings(page)) do
+        table.insert(rows, setting)
+      end
+      page.providers[variant] = CreateDataProvider(rows)
+    end
+
+    list.ScrollBox:SetDataProvider(page.providers[variant])
     list.ScrollBox:SetScrollPercentage(page.scroll or 0, ScrollBoxConstants.NoScrollInterpolation)
   end
 
@@ -563,14 +584,20 @@ pfUI:RegisterModule("gui", function ()
     page.frame:Show()
   end
 
-  -- Opens a page by its id, in the window, and shows the window.
-  function pfUI.gui:OpenPage(id)
+  -- Opens a page by its id, in the window, and shows the window. A variant
+  -- page shows `variant` if given, else the one it showed last.
+  function pfUI.gui:OpenPage(id, variant)
     local page = pages[id]
     if not page then return end
 
     HideContent()
     searching = nil
     current = page
+
+    if page.variant and variant and variant ~= page.variant then
+      page.variant = variant
+      page.scroll = 0
+    end
 
     if page.build then
       ShowListPage(page)
@@ -594,6 +621,75 @@ pfUI:RegisterModule("gui", function ()
   function pfUI.gui:AddPage(id, category, title, build)
     if pages[id] then return end
     AddToNavigation({ id = id, build = build }, category, title)
+  end
+
+  -- Copies the settings that a variant page shows from one variant to
+  -- another: the keys of the variant's own table that both show. Each
+  -- updater they name runs once afterwards.
+  local function CopyVariant(page, from, to)
+    local source, target = page.tableOf(from), page.tableOf(to)
+
+    local shown = {}
+    for _, setting in ipairs(GetSettings(page, from)) do
+      if setting.table == source and setting.key then shown[setting.key] = true end
+    end
+
+    local updates = {}
+    for _, setting in ipairs(GetSettings(page, to)) do
+      local key = setting.key
+      if setting.table == target and shown[key] and target[key] ~= source[key] then
+        local old = target[key]
+        target[key] = source[key]
+        if setting.update then
+          updates[setting.update] = true
+        else
+          pfUI.gui:NoteReload(target, key, old)
+        end
+      end
+    end
+
+    for update in pairs(updates) do update() end
+    pfUI.events:TriggerEvent("config:changed", target)
+  end
+
+  -- Adds a list page that shows one of several variants of the same
+  -- settings, picked at its top. `variants` holds { key, label } pairs,
+  -- `tableOf(key)` returns the config table of a variant, and
+  -- `build(p, key, label)` adds the settings of one.
+  function pfUI.gui:AddVariantPage(id, category, title, variants, tableOf, build)
+    if pages[id] then return end
+
+    local page = { id = id, build = build, tableOf = tableOf, variant = variants[1][1], variantLabels = {} }
+    local values = {}
+    for _, entry in ipairs(variants) do
+      page.variantLabels[entry[1]] = entry[2]
+      table.insert(values, entry[1] .. ":" .. entry[2])
+    end
+    page.variants = variants
+
+    -- The picker writes page.variant; the list changes once its menu closed.
+    -- Its Copy From button offers the other variants.
+    page.picker = { type = "picker", label = title, table = page, key = "variant", values = values }
+
+    function page.picker.update()
+      page.scroll = 0
+      RunNextFrame(function()
+        if current == page and not searching then ShowListPage(page) end
+      end)
+    end
+
+    function page.picker.copy(button)
+      button.menuMixin = pfUIMenuStyleMixin
+      MenuUtil.CreateContextMenu(button, function(_, rootDescription)
+        for _, entry in ipairs(variants) do
+          if entry[1] ~= page.variant then
+            rootDescription:CreateButton(entry[2], function() CopyVariant(page, entry[1], page.variant) end)
+          end
+        end
+      end)
+    end
+
+    AddToNavigation(page, category, title)
   end
 
   -- Adds a frame page. `populate` makes its frames the first time it shows,
@@ -689,7 +785,7 @@ pfUI:RegisterModule("gui", function ()
   local function PointAt(result)
     pfUI.gui.search:ClearFocus()
     ClearHighlights()
-    pfUI.gui:OpenPage(result.page.id)
+    pfUI.gui:OpenPage(result.page.id, result.variant)
 
     if result.settings then
       for _, setting in ipairs(result.settings) do
@@ -707,11 +803,14 @@ pfUI:RegisterModule("gui", function ()
     end
   end
 
-  -- "Category » Page"
-  local function Breadcrumb(page)
+  -- "Category » Page", and » Variant on a variant page
+  local function Breadcrumb(page, variant)
     local path = "|cff33ffcc" .. page.category.title
     if page.title ~= page.category.title then
       path = path .. "|r » |cff33ffcc" .. page.title
+    end
+    if variant then
+      path = path .. "|r » |cff33ffcc" .. page.variantLabels[variant]
     end
     return path .. "|r"
   end
@@ -727,23 +826,32 @@ pfUI:RegisterModule("gui", function ()
     local found = {}
     text = text:lower()
 
-    for _, page in ipairs(order) do
-      local crumb = { type = "breadcrumb", page = page, label = Breadcrumb(page), onClick = PointAt }
+    -- the matching settings of a list page, or of one of its variants
+    local function SearchSettings(page, variant)
+      local crumb = { type = "breadcrumb", page = page, variant = variant, label = Breadcrumb(page, variant), onClick = PointAt }
+      crumb.settings = {}
+      for _, setting in ipairs(GetSettings(page, variant)) do
+        if setting.key and Matches(text, setting.label, setting.key) then
+          table.insert(crumb.settings, setting)
+        end
+      end
+      if crumb.settings[1] then
+        table.insert(found, crumb)
+        for _, setting in ipairs(crumb.settings) do
+          table.insert(found, setting)
+        end
+      end
+    end
 
-      if page.build then
-        crumb.settings = {}
-        for _, setting in ipairs(GetSettings(page)) do
-          if setting.key and Matches(text, setting.label, setting.key) then
-            table.insert(crumb.settings, setting)
-          end
+    for _, page in ipairs(order) do
+      if page.variants then
+        for _, entry in ipairs(page.variants) do
+          SearchSettings(page, entry[1])
         end
-        if crumb.settings[1] then
-          table.insert(found, crumb)
-          for _, setting in ipairs(crumb.settings) do
-            table.insert(found, setting)
-          end
-        end
+      elseif page.build then
+        SearchSettings(page)
       else
+        local crumb = { type = "breadcrumb", page = page, label = Breadcrumb(page), onClick = PointAt }
         crumb.frames = {}
         local links = {}
         for _, row in ipairs(searchRows) do

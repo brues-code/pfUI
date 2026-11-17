@@ -443,6 +443,37 @@ function WarningRowMixin:OnLoad()
   self.caption:SetJustifyV("MIDDLE")
 end
 
+-- [ pfUIConfigPickerRowMixin ]
+-- The dropdown that picks the variant a page shows, as the page's head, with
+-- a button that runs the setting's copy(button).
+local PickerRowMixin = CreateFromMixins(DropdownRowMixin)
+_G.pfUIConfigPickerRowMixin = PickerRowMixin
+
+function PickerRowMixin:OnLoad()
+  DropdownRowMixin.OnLoad(self)
+  self.caption:SetFont(pfUI.font_default, C.global.font_size + 4)
+  self.caption:SetTextColor(.2,1,.8,1)
+
+  -- the variant sits in a box right after the title, its name at the left
+  local input = self.input
+  input:ClearAllPoints()
+  input:SetPoint("LEFT", self.caption, "RIGHT", 12, 0)
+  input:SetWidth(160)
+  input.Text:SetJustifyH("LEFT")
+  input.Text:SetPoint("LEFT", 6, 0)
+  CreateBackdrop(input, nil, true)
+  HideShadow(input)
+
+  CreateBackdrop(self.copy, nil, true)
+  SkinButton(self.copy)
+  HideShadow(self.copy)
+  self.copy:SetText(T["Copy From"] .. "...")
+  self.copy:SetTextColor(1,1,1,1)
+
+  local row = self
+  self.copy:SetScript("OnClick", function(button) row.setting.copy(button) end)
+end
+
 -- [ pfUIConfigLinkRowMixin ]
 -- A caption that runs the setting's onClick.
 local LinkRowMixin = CreateFromMixins(RowMixin)

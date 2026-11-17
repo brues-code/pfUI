@@ -1030,11 +1030,9 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Text(T["Ctrl-Click Action"], C.unitframes, "clickcast5_ctrl")
   end)
 
-  for id, data in ipairs(unitframeSettings) do
-    local c = data[1]
-    local t = data[2]
-
-    gui:AddPage("unitframes." .. c, T["Unit Frames"], t, function(p)
+  gui:AddVariantPage("unitframes.frames", T["Unit Frames"], T["Frames"], unitframeSettings, function(c)
+    return C.unitframes[c]
+  end, function(p, c, t)
       -- link Update tables
       U.ttarget     = U["targettarget"]
       U.tttarget    = U["targettargettarget"]
@@ -1228,8 +1226,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
         p:Checkbox(T["Use Custom Spell Power Color (unchecked = biggest school color)"], C.unitframes[c], "display_sp_color_override")
         p:Color(T["Spell Power Color"], C.unitframes[c], "display_sp_color")
       end
-    end)
-  end
+  end)
 
   gui:AddPage("character.inventory", CHARACTER, T["Inventory"], function(p)
     p:Checkbox(T["Show Durability"], C.character.inventory, "durability")
@@ -1332,62 +1329,35 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Dropdown(T["Duration Timers"], C.totems, "timers", D.cooldown_timers, UpdateCooldowns)
   end)
 
-  gui:AddPage("buffs.pbuff", T["Buffs"], T["Player Buff Bar"], function(p)
-    p:Checkbox(T["Enable Bar"], C.buffbar.pbuff, "enable")
-    p:Checkbox(T["Use Unit Fonts"], C.buffbar.pbuff, "use_unitfonts")
-    p:Dropdown(T["Sort Order"], C.buffbar.pbuff, "sort", D.buffbarsort)
-    p:Color(T["Background Color"], C.buffbar.pbuff, "color")
-    p:Color(T["Border Color"], C.buffbar.pbuff, "bordercolor")
-    p:Color(T["Text Color"], C.buffbar.pbuff, "textcolor")
-    p:Checkbox(T["Automatic Background Color"], C.buffbar.pbuff, "dtypebg")
-    p:Checkbox(T["Automatic Border Color"], C.buffbar.pbuff, "dtypeborder")
-    p:Checkbox(T["Automatic Text Color"], C.buffbar.pbuff, "dtypetext")
-    p:Checkbox(T["Color Buff Stacks"], C.buffbar.pbuff, "colorstacks")
-    p:Number(T["Buffbar Width"], C.buffbar.pbuff, "width")
-    p:Number(T["Buffbar Height"], C.buffbar.pbuff, "height")
-    p:Dropdown(T["Filter Mode"], C.buffbar.pbuff, "filter", D.buffbarfilter)
-    p:Number(T["Time Threshold"], C.buffbar.pbuff, "threshold")
-    p:List(T["Whitelist"], C.buffbar.pbuff, "whitelist")
-    p:List(T["Blacklist"], C.buffbar.pbuff, "blacklist")
-  end)
+  local buffbars = {
+    { "pbuff",   T["Player Buff Bar"] },
+    { "pdebuff", T["Player Debuff Bar"] },
+    { "tdebuff", T["Target Debuff Bar"] },
+  }
 
-  gui:AddPage("buffs.pdebuff", T["Buffs"], T["Player Debuff Bar"], function(p)
-    p:Checkbox(T["Enable Bar"], C.buffbar.pdebuff, "enable")
-    p:Checkbox(T["Use Unit Fonts"], C.buffbar.pdebuff, "use_unitfonts")
-    p:Dropdown(T["Sort Order"], C.buffbar.pdebuff, "sort", D.buffbarsort)
-    p:Color(T["Background Color"], C.buffbar.pdebuff, "color")
-    p:Color(T["Border Color"], C.buffbar.pdebuff, "bordercolor")
-    p:Color(T["Text Color"], C.buffbar.pdebuff, "textcolor")
-    p:Checkbox(T["Automatic Background Color"], C.buffbar.pdebuff, "dtypebg")
-    p:Checkbox(T["Automatic Border Color"], C.buffbar.pdebuff, "dtypeborder")
-    p:Checkbox(T["Automatic Text Color"], C.buffbar.pdebuff, "dtypetext")
-    p:Checkbox(T["Color Debuff Stacks"], C.buffbar.pdebuff, "colorstacks")
-    p:Number(T["Buffbar Width"], C.buffbar.pdebuff, "width")
-    p:Number(T["Buffbar Height"], C.buffbar.pdebuff, "height")
-    p:Dropdown(T["Filter Mode"], C.buffbar.pdebuff, "filter", D.buffbarfilter)
-    p:Number(T["Time Threshold"], C.buffbar.pdebuff, "threshold")
-    p:List(T["Whitelist"], C.buffbar.pdebuff, "whitelist")
-    p:List(T["Blacklist"], C.buffbar.pdebuff, "blacklist")
-  end)
-
-  gui:AddPage("buffs.tdebuff", T["Buffs"], T["Target Debuff Bar"], function(p)
-    p:Checkbox(T["Enable Bar"], C.buffbar.tdebuff, "enable")
-    p:Checkbox(T["Use Unit Fonts"], C.buffbar.tdebuff, "use_unitfonts")
-    p:Dropdown(T["Sort Order"], C.buffbar.tdebuff, "sort", D.buffbarsort)
-    p:Color(T["Background Color"], C.buffbar.tdebuff, "color")
-    p:Color(T["Border Color"], C.buffbar.tdebuff, "bordercolor")
-    p:Color(T["Text Color"], C.buffbar.tdebuff, "textcolor")
-    p:Checkbox(T["Automatic Background Color"], C.buffbar.tdebuff, "dtypebg")
-    p:Checkbox(T["Automatic Border Color"], C.buffbar.tdebuff, "dtypeborder")
-    p:Checkbox(T["Automatic Text Color"], C.buffbar.tdebuff, "dtypetext")
-    p:Checkbox(T["Color Debuff Stacks"], C.buffbar.tdebuff, "colorstacks")
-    p:Number(T["Buffbar Width"], C.buffbar.tdebuff, "width")
-    p:Number(T["Buffbar Height"], C.buffbar.tdebuff, "height")
-    p:Checkbox(T["Show Only Own Debuffs"], C.buffbar.tdebuff, "selfdebuff")
-    p:Dropdown(T["Filter Mode"], C.buffbar.tdebuff, "filter", D.buffbarfilter)
-    p:Number(T["Time Threshold"], C.buffbar.tdebuff, "threshold")
-    p:List(T["Whitelist"], C.buffbar.tdebuff, "whitelist")
-    p:List(T["Blacklist"], C.buffbar.tdebuff, "blacklist")
+  gui:AddVariantPage("buffs.bars", T["Buffs"], T["Buff Bars"], buffbars, function(bar)
+    return C.buffbar[bar]
+  end, function(p, bar)
+    local c = C.buffbar[bar]
+    p:Checkbox(T["Enable Bar"], c, "enable")
+    p:Checkbox(T["Use Unit Fonts"], c, "use_unitfonts")
+    p:Dropdown(T["Sort Order"], c, "sort", D.buffbarsort)
+    p:Color(T["Background Color"], c, "color")
+    p:Color(T["Border Color"], c, "bordercolor")
+    p:Color(T["Text Color"], c, "textcolor")
+    p:Checkbox(T["Automatic Background Color"], c, "dtypebg")
+    p:Checkbox(T["Automatic Border Color"], c, "dtypeborder")
+    p:Checkbox(T["Automatic Text Color"], c, "dtypetext")
+    p:Checkbox(bar == "pbuff" and T["Color Buff Stacks"] or T["Color Debuff Stacks"], c, "colorstacks")
+    p:Number(T["Buffbar Width"], c, "width")
+    p:Number(T["Buffbar Height"], c, "height")
+    if bar == "tdebuff" then
+      p:Checkbox(T["Show Only Own Debuffs"], c, "selfdebuff")
+    end
+    p:Dropdown(T["Filter Mode"], c, "filter", D.buffbarfilter)
+    p:Number(T["Time Threshold"], c, "threshold")
+    p:List(T["Whitelist"], c, "whitelist")
+    p:List(T["Blacklist"], c, "blacklist")
   end)
 
   gui:AddPage("actionbar.general", T["Actionbar"], T["General"], function(p)
@@ -1461,8 +1431,15 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     {12, T["Pet Actionbar"]},
   }
 
-  for _, data in pairs(barnames) do
-    local id, caption = data[1], data[2]
+  local actionbars = {}
+  for _, data in ipairs(barnames) do
+    table.insert(actionbars, { "bar" .. data[1], data[2] })
+  end
+
+  gui:AddVariantPage("actionbar.bars", T["Actionbar"], T["Bars"], actionbars, function(bar)
+    return C.bars[bar]
+  end, function(p, bar)
+    local id = tonumber(bar:sub(4))
     local formfactors = function()
       return BarLayoutOptions(tonumber(C.bars["bar"..id].buttons) or id < 11 and NUM_ACTIONBAR_BUTTONS or id > 11 and NUM_SHAPESHIFT_SLOTS or NUM_PET_ACTION_SLOTS)
     end
@@ -1482,7 +1459,6 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
       return { "Up:" .. T["Up"], "Down:" .. T["Down"], "Left:" .. T["Left"], "Right:" .. T["Right"] }
     end
 
-    gui:AddPage("actionbar.bar" .. id, T["Actionbar"], caption, function(p)
       p:Checkbox(T["Enable"], C.bars["bar"..id], "enable", U["bars"])
 
       if id ~= 11 and id ~= 12 then
@@ -1535,8 +1511,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
       p:Checkbox(T["Enable Autohide"], C.bars["bar"..id], "autohide", U["bars"])
       p:Number(T["Autohide Timeout"], C.bars["bar"..id], "hide_time", U["bars"])
       p:Checkbox(T["Show In Combat"], C.bars["bar"..id], "hide_combat", U["bars"])
-    end)
-  end
+  end)
 
   gui:AddPage("panel", T["Panel"], nil, function(p)
     p:Checkbox(T["Use Unit Fonts"], C.panel, "use_unitfonts")
@@ -1639,56 +1614,35 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     p:Checkbox(T["Disable Blizzard Castbar"], C.castbar.player, "hide_blizz")
   end)
 
-  gui:AddPage("castbar.player", T["Castbar"], T["Player"], function(p)
-    p:Checkbox(T["Disable Player Castbar"], C.castbar.player, "hide_pfui")
-    p:Number(T["Castbar Width"], C.castbar.player, "width")
-    p:Number(T["Castbar Height"], C.castbar.player, "height")
-    p:Checkbox(T["Show Spell Icon"], C.castbar.player, "showicon")
-    p:Checkbox(T["Show Spell Name"], C.castbar.player, "showname")
-    p:Dropdown(T["Spell Name Alignment"], C.castbar.player, "namealign", D.castbaralign)
-    p:Number(T["Spell Name X Offset"], C.castbar.player, "txtleftoffx")
-    p:Number(T["Spell Name Y Offset"], C.castbar.player, "txtleftoffy")
-    p:Checkbox(T["Show Timer"], C.castbar.player, "showtimer")
-    p:Dropdown(T["Timer Alignment"], C.castbar.player, "timealign", D.castbaralign)
-    p:Number(T["Timer X Offset"], C.castbar.player, "txtrightoffx")
-    p:Number(T["Timer Y Offset"], C.castbar.player, "txtrightoffy")
-    p:Checkbox(T["Show Lag"], C.castbar.player, "showlag")
-    p:Checkbox(T["Show Rank"], C.castbar.player, "showrank")
-    p:Checkbox(T["Merge Tradeskill Casts"], C.castbar.player, "mergetradeskill")
-  end)
+  local castbars = {
+    { "player", T["Player"], T["Disable Player Castbar"] },
+    { "target", TARGET,      T["Disable Target Castbar"] },
+    { "focus",  T["Focus"],  T["Disable Focus Castbar"] },
+  }
 
-  gui:AddPage("castbar.target", T["Castbar"], TARGET, function(p)
-    p:Checkbox(T["Disable Target Castbar"], C.castbar.target, "hide_pfui")
-    p:Number(T["Castbar Width"], C.castbar.target, "width")
-    p:Number(T["Castbar Height"], C.castbar.target, "height")
-    p:Checkbox(T["Show Spell Icon"], C.castbar.target, "showicon")
-    p:Checkbox(T["Show Spell Name"], C.castbar.target, "showname")
-    p:Dropdown(T["Spell Name Alignment"], C.castbar.target, "namealign", D.castbaralign)
-    p:Number(T["Spell Name X Offset"], C.castbar.target, "txtleftoffx")
-    p:Number(T["Spell Name Y Offset"], C.castbar.target, "txtleftoffy")
-    p:Checkbox(T["Show Timer"], C.castbar.target, "showtimer")
-    p:Dropdown(T["Timer Alignment"], C.castbar.target, "timealign", D.castbaralign)
-    p:Number(T["Timer X Offset"], C.castbar.target, "txtrightoffx")
-    p:Number(T["Timer Y Offset"], C.castbar.target, "txtrightoffy")
-    p:Checkbox(T["Show Lag"], C.castbar.target, "showlag")
-    p:Checkbox(T["Show Rank"], C.castbar.target, "showrank")
-  end)
-
-  gui:AddPage("castbar.focus", T["Castbar"], T["Focus"], function(p)
-    p:Checkbox(T["Disable Focus Castbar"], C.castbar.focus, "hide_pfui")
-    p:Number(T["Castbar Width"], C.castbar.focus, "width")
-    p:Number(T["Castbar Height"], C.castbar.focus, "height")
-    p:Checkbox(T["Show Spell Icon"], C.castbar.focus, "showicon")
-    p:Checkbox(T["Show Spell Name"], C.castbar.focus, "showname")
-    p:Dropdown(T["Spell Name Alignment"], C.castbar.focus, "namealign", D.castbaralign)
-    p:Number(T["Spell Name X Offset"], C.castbar.focus, "txtleftoffx")
-    p:Number(T["Spell Name Y Offset"], C.castbar.focus, "txtleftoffy")
-    p:Checkbox(T["Show Timer"], C.castbar.focus, "showtimer")
-    p:Dropdown(T["Timer Alignment"], C.castbar.focus, "timealign", D.castbaralign)
-    p:Number(T["Timer X Offset"], C.castbar.focus, "txtrightoffx")
-    p:Number(T["Timer Y Offset"], C.castbar.focus, "txtrightoffy")
-    p:Checkbox(T["Show Lag"], C.castbar.focus, "showlag")
-    p:Checkbox(T["Show Rank"], C.castbar.focus, "showrank")
+  gui:AddVariantPage("castbar.bars", T["Castbar"], T["Bars"], castbars, function(unit)
+    return C.castbar[unit]
+  end, function(p, unit)
+    local c = C.castbar[unit]
+    for _, entry in ipairs(castbars) do
+      if entry[1] == unit then p:Checkbox(entry[3], c, "hide_pfui") end
+    end
+    p:Number(T["Castbar Width"], c, "width")
+    p:Number(T["Castbar Height"], c, "height")
+    p:Checkbox(T["Show Spell Icon"], c, "showicon")
+    p:Checkbox(T["Show Spell Name"], c, "showname")
+    p:Dropdown(T["Spell Name Alignment"], c, "namealign", D.castbaralign)
+    p:Number(T["Spell Name X Offset"], c, "txtleftoffx")
+    p:Number(T["Spell Name Y Offset"], c, "txtleftoffy")
+    p:Checkbox(T["Show Timer"], c, "showtimer")
+    p:Dropdown(T["Timer Alignment"], c, "timealign", D.castbaralign)
+    p:Number(T["Timer X Offset"], c, "txtrightoffx")
+    p:Number(T["Timer Y Offset"], c, "txtrightoffy")
+    p:Checkbox(T["Show Lag"], c, "showlag")
+    p:Checkbox(T["Show Rank"], c, "showrank")
+    if unit == "player" then
+      p:Checkbox(T["Merge Tradeskill Casts"], c, "mergetradeskill")
+    end
   end)
 
   gui:AddPage("chat", CHAT_LABEL, nil, function(p)
