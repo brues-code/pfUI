@@ -32,7 +32,14 @@ pfUI:RegisterModule("unlock", function ()
     ["Focus"]              = { "unitframes.frames", "focus" },
 
     -- combopoints
-    ["Combo%d"]       = "unitframes.general",
+    ["Combo%d"]       = { "unitframes.frames", "target" },
+
+    -- combat
+    ["SwingTimerMainhand"] = "combat.swingtimer",
+    ["SwingTimerRanged"]   = "combat.swingtimer",
+    ["MarkTracking"]       = "combat.marktracking",
+    ["ReactiveIndicator"]  = "combat.reactive",
+    ["SpellQueue"]         = "combat.nampower",
 
     -- groupframes
     ["Raid%d"]        = { "unitframes.frames", "raid" },
