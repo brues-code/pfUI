@@ -53,6 +53,21 @@
     </Frames>
   </Frame>
 
+  <!-- A number with a range: a slider, and the edit box right of it. -->
+  <Frame name="pfUIConfigSliderRowTemplate" inherits="pfUIConfigTextRowTemplate" mixin="pfUIConfigSliderRowMixin" virtual="true">
+    <Frames>
+      <Slider parentKey="slider" orientation="HORIZONTAL" enableMouse="true" propagateMouseInput="Motion">
+        <Size x="140" y="10"/>
+        <Anchors>
+          <Anchor point="RIGHT" relativeKey="$parent.input" relativePoint="LEFT" x="-10"/>
+        </Anchors>
+        <ThumbTexture parentKey="thumb">
+          <Size x="17" y="10"/>
+        </ThumbTexture>
+      </Slider>
+    </Frames>
+  </Frame>
+
   <Frame name="pfUIConfigCheckboxRowTemplate" inherits="pfUIConfigRowTemplate" mixin="pfUIConfigCheckboxRowMixin" virtual="true">
     <Frames>
       <CheckButton parentKey="input" inherits="UICheckButtonTemplate" propagateMouseInput="Motion">

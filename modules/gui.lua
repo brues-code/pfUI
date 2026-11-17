@@ -121,9 +121,17 @@ pfUI:RegisterModule("gui", function ()
   local Builder = {}
   Builder.__index = Builder
 
+  -- `opts` takes `min`, `max` and `step` (a number becomes a slider),
+  -- `requires` (the key of a switch in the same table, "!key" for one that
+  -- must be off) and `preview` ("font" or "texture", on a dropdown).
+  local function AddSetting(self, setting, opts)
+    for field, value in pairs(opts or {}) do setting[field] = value end
+    table.insert(self.settings, setting)
+  end
+
   local function Value(kind)
-    return function(self, label, tbl, key, update)
-      table.insert(self.settings, { type = kind, label = label, table = tbl, key = key, update = update })
+    return function(self, label, tbl, key, update, opts)
+      AddSetting(self, { type = kind, label = label, table = tbl, key = key, update = update }, opts)
     end
   end
 
@@ -133,8 +141,8 @@ pfUI:RegisterModule("gui", function ()
   Builder.Color = Value("color")
   Builder.List = Value("list")
 
-  function Builder:Dropdown(label, tbl, key, values, update)
-    table.insert(self.settings, { type = "dropdown", label = label, table = tbl, key = key, values = values, update = update })
+  function Builder:Dropdown(label, tbl, key, values, update, opts)
+    AddSetting(self, { type = "dropdown", label = label, table = tbl, key = key, values = values, update = update }, opts)
   end
 
   function Builder:Header(label)
@@ -160,6 +168,13 @@ pfUI:RegisterModule("gui", function ()
       local p = setmetatable({ settings = {} }, Builder)
       page.build(p, page.variant and variant, page.variantLabels and page.variantLabels[variant])
       page.settings[variant] = p.settings
+
+      -- the settings of a page with a module dim while it is disabled
+      if page.module then
+        for _, setting in ipairs(p.settings) do
+          if setting.key then setting.module = page.module end
+        end
+      end
     end
     return page.settings[variant]
   end
@@ -346,16 +361,21 @@ pfUI:RegisterModule("gui", function ()
   nav:SetPoint("BOTTOMLEFT", 0, 0)
   nav:SetWidth(NAV_WIDTH)
 
-  -- the open page and its category show in pfUI's color
+  -- The open page and its category show in pfUI's color, a page whose
+  -- module is disabled in grey.
   local function UpdateNavButton(button)
     local entry = button.node:GetData()
     local open = not searching and current
+    local page = entry.pages and entry.page or entry
+    local disabled = page and page.module and C.disabled[page.module] == "1"
+    local alpha = disabled and .4 or 1
+
     if open and (entry == open or entry == open.category) then
-      button.text:SetTextColor(.2,1,.8,1)
+      button.text:SetTextColor(.2,1,.8,alpha)
       button.bg:SetColorTexture(1,1,1,1)
       button.bg:SetGradientAlpha("HORIZONTAL", 0,0,0,0, 1,1,1,.05)
     else
-      button.text:SetTextColor(1,1,1,1)
+      button.text:SetTextColor(1,1,1,alpha)
       button.bg:SetColorTexture(0,0,0,0)
     end
   end
@@ -465,7 +485,9 @@ pfUI:RegisterModule("gui", function ()
 
   local listView = CreateScrollBoxListLinearView(0, 5, 0, 3, 1)
   listView:SetElementFactory(function(factory, setting)
-    if templates[setting.type] then
+    if setting.type == "number" and setting.min then
+      factory("pfUIConfigSliderRowTemplate", InitRow)
+    elseif templates[setting.type] then
       factory(templates[setting.type], InitRow)
     else
       factory("Frame", nop) -- a spacer
@@ -502,7 +524,12 @@ pfUI:RegisterModule("gui", function ()
   pfUI.events:RegisterCallback("config:changed", function(_, tbl, key)
     -- the rows on the frame pages keep their default marks right as well
     for _, entry in ipairs(searchRows) do
-      if entry.frame.UpdateMarker then entry.frame:UpdateMarker() end
+      if entry.frame.UpdateState then entry.frame:UpdateState() end
+    end
+
+    -- a module switched on or off greys its pages in the navigation
+    if tbl == C.disabled then
+      nav.ScrollBox:ForEachFrame(UpdateNavButton)
     end
 
     if not list:IsVisible() then return end
@@ -513,7 +540,7 @@ pfUI:RegisterModule("gui", function ()
       if setting and row.Refresh and (setting.table ~= tbl or setting.key ~= key) then
         row:Refresh()
       end
-      if row.UpdateMarker then row:UpdateMarker() end
+      if row.UpdateState then row:UpdateState() end
     end)
   end)
 
@@ -531,16 +558,36 @@ pfUI:RegisterModule("gui", function ()
     end
   end
 
+  -- The switch of a page's module, named after its category, or after the
+  -- page where the category's pages switch different modules.
+  local function GetModuleSwitch(page)
+    if not page.switch then
+      local name = page.category.title
+      for _, other in ipairs(page.category.pages) do
+        if other.module and other.module ~= page.module then name = page.title end
+      end
+
+      -- the disabled list holds "1" for a module that is off
+      pfUI:UpdateConfig("disabled", nil, page.module, "0")
+      page.switch = { type = "checkbox", label = T["Enable"] .. " " .. name, table = C.disabled, key = page.module, invert = true }
+    end
+    return page.switch
+  end
+
   local function ShowListPage(page)
     list:Show()
 
-    -- a variant page leads with its picker
+    -- a variant page leads with its picker, a page with a module with its
+    -- switch
     local variant = page.variant or ""
     page.providers = page.providers or {}
     if not page.providers[variant] then
       local rows = {}
       if page.variant then
         table.insert(rows, page.picker)
+      end
+      if page.module then
+        table.insert(rows, GetModuleSwitch(page))
       end
       for _, setting in ipairs(GetSettings(page)) do
         table.insert(rows, setting)
@@ -617,10 +664,11 @@ pfUI:RegisterModule("gui", function ()
   end
 
   -- Adds a list page. `build(p)` adds its settings with the methods of
-  -- Builder, the first time the page is needed.
-  function pfUI.gui:AddPage(id, category, title, build)
+  -- Builder, the first time the page is needed. With `module`, the page
+  -- leads with a switch for that pfUI module.
+  function pfUI.gui:AddPage(id, category, title, build, module)
     if pages[id] then return end
-    AddToNavigation({ id = id, build = build }, category, title)
+    AddToNavigation({ id = id, build = build, module = module }, category, title)
   end
 
   -- Copies the settings that a variant page shows from one variant to
@@ -655,11 +703,11 @@ pfUI:RegisterModule("gui", function ()
   -- Adds a list page that shows one of several variants of the same
   -- settings, picked at its top. `variants` holds { key, label } pairs,
   -- `tableOf(key)` returns the config table of a variant, and
-  -- `build(p, key, label)` adds the settings of one.
-  function pfUI.gui:AddVariantPage(id, category, title, variants, tableOf, build)
+  -- `build(p, key, label)` adds the settings of one. `module` as in AddPage.
+  function pfUI.gui:AddVariantPage(id, category, title, variants, tableOf, build, module)
     if pages[id] then return end
 
-    local page = { id = id, build = build, tableOf = tableOf, variant = variants[1][1], variantLabels = {} }
+    local page = { id = id, build = build, module = module, tableOf = tableOf, variant = variants[1][1], variantLabels = {} }
     local values = {}
     for _, entry in ipairs(variants) do
       page.variantLabels[entry[1]] = entry[2]

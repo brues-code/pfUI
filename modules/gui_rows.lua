@@ -93,18 +93,42 @@ function RowMixin:Init(setting)
   self.caption:SetText(caption)
 
   self:Refresh()
-  self:UpdateMarker()
+  self:UpdateState()
 end
 
 -- shows the value of the setting on the widget
 function RowMixin:Refresh()
 end
 
--- the mark at the left edge of a setting that is not at its default
-function RowMixin:UpdateMarker()
+-- Whether the switch a setting depends on is on: `requires` names a key of
+-- the setting's table that must be "1", or with a leading "!" must not be;
+-- `module` names a pfUI module that must not be disabled.
+local function IsEnabled(setting)
+  if setting.module and C.disabled[setting.module] == "1" then return false end
+
+  local requires = setting.requires
+  if not requires then return true end
+  if requires:sub(1, 1) == "!" then
+    return setting.table[requires:sub(2)] ~= "1"
+  end
+  return setting.table[requires] == "1"
+end
+
+-- the widgets of a row that take the mouse
+local WIDGETS = { "input", "slider", "color", "add", "del" }
+
+-- The mark at the left edge of a setting that is not at its default, and
+-- the dimmed look and closed widgets of a setting whose switch is off.
+function RowMixin:UpdateState()
   local setting = self.setting
   local default = setting.key and pfUI:GetConfigDefault(setting.table, setting.key)
   self.changed:SetShown(default ~= nil and not Same(self:GetValue(), default))
+
+  local enabled = IsEnabled(setting)
+  self:SetAlpha(enabled and 1 or .35)
+  for _, key in ipairs(WIDGETS) do
+    if self[key] then self[key]:EnableMouse(enabled) end
+  end
 end
 
 function RowMixin:GetValue()
@@ -132,7 +156,7 @@ function RowMixin:OnMouseUp(button)
       -- the change event skips the row that made the change
       if row.setting == setting then
         row:Refresh()
-        row:UpdateMarker()
+        row:UpdateState()
       end
     end)
     reset:SetEnabled(not Same(setting.table[setting.key], default))
@@ -177,8 +201,51 @@ function TextRowMixin:OnTextChanged()
   end
 end
 
+-- [ pfUIConfigSliderRowMixin ]
+-- A number with `min`, `max` and `step`: the slider sets it, and the edit
+-- box takes any number, past the ends too.
+local SliderRowMixin = CreateFromMixins(TextRowMixin)
+_G.pfUIConfigSliderRowMixin = SliderRowMixin
+
+function SliderRowMixin:OnLoad()
+  TextRowMixin.OnLoad(self)
+  self.input:SetWidth(44)
+  SkinSlider(self.slider)
+
+  local row = self
+  self.slider:SetScript("OnValueChanged", function()
+    if row.syncing or not row.setting then return end
+    local step = row.setting.step or 1
+    local text = tostring(round(row.slider:GetValue() / step) * step)
+    if text ~= row:GetValue() then
+      row.input:SetText(text)
+    end
+  end)
+end
+
+-- moves the slider to the setting's value without writing it back
+function SliderRowMixin:SyncSlider()
+  local setting = self.setting
+  self.syncing = true
+  self.slider:SetMinMaxValues(setting.min, setting.max)
+  self.slider:SetValueStep(setting.step or 1)
+  self.slider:SetValue(tonumber(self:GetValue()) or setting.min)
+  self.syncing = nil
+end
+
+function SliderRowMixin:Refresh()
+  TextRowMixin.Refresh(self)
+  self:SyncSlider()
+end
+
+function SliderRowMixin:OnTextChanged()
+  TextRowMixin.OnTextChanged(self)
+  if self.setting then self:SyncSlider() end
+end
+
 -- [ pfUIConfigCheckboxRowMixin ]
--- A checkbox for a "1" or "0" value.
+-- A checkbox for a "1" or "0" value, ticked for "1", or for "0" when the
+-- setting is `invert`ed.
 local CheckboxRowMixin = CreateFromMixins(RowMixin)
 _G.pfUIConfigCheckboxRowMixin = CheckboxRowMixin
 
@@ -194,12 +261,26 @@ function CheckboxRowMixin:OnLoad()
 
   local row = self
   input:SetScript("OnClick", function()
-    row:SetValue(row.input:GetChecked() and "1" or "0")
+    local on = row.input:GetChecked() and true or false
+    row:SetValue(on ~= (row.setting.invert or false) and "1" or "0")
   end)
 end
 
 function CheckboxRowMixin:Refresh()
-  self.input:SetChecked(self:GetValue() == "1")
+  self.input:SetChecked((self:GetValue() == "1") ~= (self.setting.invert or false))
+end
+
+-- A font object for each font file a dropdown previews. Menu entries share
+-- pooled font strings that may not take SetFont, but take a font object.
+local previewFonts = {}
+local function GetPreviewFont(path)
+  if not previewFonts[path] then
+    local font = CreateFont("pfUIConfigPreviewFont" .. (#previewFonts + 1))
+    font:SetFont(path, C.global.font_size + 2)
+    previewFonts[#previewFonts + 1] = font
+    previewFonts[path] = font
+  end
+  return previewFonts[path]
 end
 
 -- [ pfUIConfigDropdownRowMixin ]
@@ -226,10 +307,29 @@ function DropdownRowMixin:OnLoad()
     local values = row.setting.values
     if type(values) == "function" then values = values() end
 
+    local preview = row.setting.preview
     for _, entry in pairs(values or {}) do
       -- "value:label", or the value alone
       local value, text = strsplit(":", entry)
-      rootDescription:CreateRadio(text or value, IsSelected, SetSelected, value)
+      local radio = rootDescription:CreateRadio(text or value, IsSelected, SetSelected, value)
+
+      -- a font or bar texture setting shows each choice as it looks
+      if preview == "font" then
+        radio:AddInitializer(function(button)
+          button.fontString:SetFontObject(GetPreviewFont(value))
+          button.fontString:SetTextToFit(text or value)
+          -- every entry as tall as a plain one, so the boxes line up
+          button.fontString:SetHeight(20)
+        end)
+      elseif preview == "texture" then
+        radio:AddInitializer(function(button)
+          local strip = button:AttachTexture()
+          strip:SetTexture(value)
+          strip:SetVertexColor(.8, .8, .8)
+          strip:SetSize(80, 10)
+          strip:SetPoint("LEFT", button.fontString, "RIGHT", 8, 0)
+        end)
+      end
     end
   end)
 end
