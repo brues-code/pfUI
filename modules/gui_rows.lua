@@ -19,18 +19,45 @@
 -- can show another setting after its next Init.
 setfenv(1, pfUI:GetEnvironment())
 
--- Stores the value of a setting, then applies it.
+-- Stores the value of a setting, then applies it, or counts it among the
+-- changes that wait for a reload.
 local function Write(setting, value)
-  if setting.table[setting.key] == value then return end
+  local old = setting.table[setting.key]
+  if old == value then return end
   setting.table[setting.key] = value
 
   if setting.update then
     setting.update()
   else
-    pfUI.gui.settingChanged = true
+    pfUI.gui:NoteReload(setting.table, setting.key, old)
   end
 
   pfUI.events:TriggerEvent("config:changed", setting.table, setting.key)
+end
+
+-- Whether two values are the same setting: a cvar can read "1.000" for "1".
+local function Same(a, b)
+  return a == b or (tonumber(a) ~= nil and tonumber(a) == tonumber(b))
+end
+
+-- the value of a setting in words, for the reset menu
+local function Describe(setting, value)
+  if setting.type == "checkbox" then
+    return value == "1" and YES or NO
+  elseif setting.type == "color" then
+    local r, g, b = strsplit(",", value)
+    return CreateColor(tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1):WrapTextInColorCode("||||||")
+  elseif setting.type == "dropdown" then
+    local values = setting.values
+    if type(values) == "function" then values = values() end
+    for _, entry in pairs(values or {}) do
+      local entryValue, text = strsplit(":", entry)
+      if entryValue == value then return text or entryValue end
+    end
+  elseif setting.type == "list" then
+    return (value:gsub("^#", ""):gsub("#", ", "))
+  end
+  return value
 end
 
 -- backdrop shadows show on the wrong strata inside the config window
@@ -66,10 +93,18 @@ function RowMixin:Init(setting)
   self.caption:SetText(caption)
 
   self:Refresh()
+  self:UpdateMarker()
 end
 
 -- shows the value of the setting on the widget
 function RowMixin:Refresh()
+end
+
+-- the mark at the left edge of a setting that is not at its default
+function RowMixin:UpdateMarker()
+  local setting = self.setting
+  local default = setting.key and pfUI:GetConfigDefault(setting.table, setting.key)
+  self.changed:SetShown(default ~= nil and not Same(self:GetValue(), default))
 end
 
 function RowMixin:GetValue()
@@ -78,6 +113,30 @@ end
 
 function RowMixin:SetValue(value)
   Write(self.setting, value)
+end
+
+-- a right-click offers to put the setting back to its default
+function RowMixin:OnMouseUp(button)
+  local setting = self.setting
+  if button ~= "RightButton" or not setting or not setting.key then return end
+
+  local default = pfUI:GetConfigDefault(setting.table, setting.key)
+  if default == nil then return end
+
+  local row = self
+  self.menuMixin = pfUIMenuStyleMixin
+  MenuUtil.CreateContextMenu(self, function(_, rootDescription)
+    rootDescription:CreateTitle(setting.label)
+    local reset = rootDescription:CreateButton(T["Reset to Default"] .. " (" .. Describe(setting, default) .. ")", function()
+      Write(setting, default)
+      -- the change event skips the row that made the change
+      if row.setting == setting then
+        row:Refresh()
+        row:UpdateMarker()
+      end
+    end)
+    reset:SetEnabled(not Same(setting.table[setting.key], default))
+  end)
 end
 
 -- [ pfUIConfigTextRowMixin ]

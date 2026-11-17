@@ -51,6 +51,11 @@ pfUI:RegisterModule("gui", function ()
     }),
   }
 
+  -- a cvar row resets to the game's default
+  pfUI:SetConfigDefaults(stores.CVAR, setmetatable({}, {
+    __index = function(_, cvar) return GetCVarDefault(cvar) end,
+  }))
+
   -- the function that applies the settings of a unit frame or a module, by
   -- the frame's label or the module's name
   local U = setmetatable({}, { __index = function(tab,key)
@@ -187,8 +192,8 @@ pfUI:RegisterModule("gui", function ()
   pfUI.gui:Hide()
 
   pfUI.gui:SetScript("OnShow", function(self)
-    -- the reload question counts the changes since the window opened
-    self.settingChanged = nil
+    -- a plugin may have set settingChanged since
+    self:UpdateReloadBanner()
 
     -- exit unlock mode
     if pfUI.unlock and pfUI.unlock:IsShown() then
@@ -208,10 +213,6 @@ pfUI:RegisterModule("gui", function ()
   pfUI.gui:SetScript("OnHide", function(self)
     if ColorPickerFrame and ColorPickerFrame:IsShown() then
       ColorPickerFrame:Hide()
-    end
-
-    if self.settingChanged then
-      self:Reload()
     end
   end)
 
@@ -262,6 +263,55 @@ pfUI:RegisterModule("gui", function ()
   pfUI.gui.close:SetScript("OnClick", function(self)
     self:GetParent():Hide()
   end)
+
+  -- [ Reload banner ]
+  -- The settings without an updater that changed since the UI loaded, with
+  -- the value each had then. A setting that goes back to it drops out.
+  local reloads, reloadCount = {}, 0
+  local NOVALUE = {}
+
+  local banner = CreateFrame("Frame", nil, pfUI.gui)
+  banner:SetPoint("RIGHT", pfUI.gui.close, "LEFT", -10, 0)
+  banner:SetHeight(16)
+  banner:Hide()
+
+  banner.button = CreateFrame("Button", nil, banner, "UIPanelButtonTemplate")
+  banner.button:SetPoint("RIGHT", 0, 0)
+  banner.button:SetSize(90, 16)
+  banner.button:SetText(RELOADUI)
+  banner.button:SetScript("OnClick", function() ReloadUI() end)
+  SkinButton(banner.button)
+
+  banner.text = banner:CreateFontString(nil, "ARTWORK", "GameFontWhite")
+  banner.text:SetFont(pfUI.font_default, C.global.font_size)
+  banner.text:SetPoint("RIGHT", banner.button, "LEFT", -8, 0)
+  banner.text:SetTextColor(1,.67,.67,1)
+  banner:SetWidth(400)
+
+  function pfUI.gui:UpdateReloadBanner()
+    -- a plugin that sets settingChanged counts as one more
+    local count = reloadCount + (self.settingChanged and 1 or 0)
+    banner.text:SetFormattedText(T["Changes that need a reload: %d"], count)
+    banner:SetShown(count > 0)
+  end
+
+  -- Counts a change to tbl[key] that applies after a reload; `old` is the
+  -- value before it.
+  function pfUI.gui:NoteReload(tbl, key, old)
+    reloads[tbl] = reloads[tbl] or {}
+    local loaded = reloads[tbl][key]
+    local value = tbl[key]
+
+    if loaded == nil then
+      reloads[tbl][key] = old == nil and NOVALUE or old
+      reloadCount = reloadCount + 1
+    elseif loaded == value or (loaded == NOVALUE and value == nil) then
+      reloads[tbl][key] = nil
+      reloadCount = reloadCount - 1
+    end
+
+    self:UpdateReloadBanner()
+  end
 
   -- the navigation on the left and the open page right of it
   local body = CreateFrame("Frame", nil, pfUI.gui)
@@ -424,6 +474,11 @@ pfUI:RegisterModule("gui", function ()
   -- A change can show on other rows: in the entries a dropdown offers, or
   -- in a value that the change's updater set as well.
   pfUI.events:RegisterCallback("config:changed", function(_, tbl, key)
+    -- the rows on the frame pages keep their default marks right as well
+    for _, entry in ipairs(searchRows) do
+      if entry.frame.UpdateMarker then entry.frame:UpdateMarker() end
+    end
+
     if not list:IsVisible() then return end
 
     list.ScrollBox:ForEachFrame(function(row)
@@ -432,6 +487,7 @@ pfUI:RegisterModule("gui", function ()
       if setting and row.Refresh and (setting.table ~= tbl or setting.key ~= key) then
         row:Refresh()
       end
+      if row.UpdateMarker then row:UpdateMarker() end
     end)
   end)
 

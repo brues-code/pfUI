@@ -1,26 +1,44 @@
 -- load pfUI environment
 setfenv(1, pfUI:GetEnvironment())
 
+-- The defaults that UpdateConfig was given, by the config table they belong
+-- to. A table that reads and writes something else the way a config table
+-- does (the GUI's cvar store) can bring its own (SetConfigDefaults).
+local defaults = setmetatable({}, { __mode = "k" })
+
 function pfUI:UpdateConfig(group, subgroup, entry, value)
   -- check for missing config groups
   if not pfUI_config[group] then
     pfUI_config[group] = {}
   end
-
-  -- update config
-  if not subgroup and entry and value and not pfUI_config[group][entry] then
-    pfUI_config[group][entry] = value
-  end
+  local tbl = pfUI_config[group]
 
   -- check for missing config subgroups
-  if subgroup and not pfUI_config[group][subgroup] then
-    pfUI_config[group][subgroup] = {}
+  if subgroup then
+    if not tbl[subgroup] then
+      tbl[subgroup] = {}
+    end
+    tbl = tbl[subgroup]
   end
 
-  -- update config in subgroup
-  if subgroup and entry and value and not pfUI_config[group][subgroup][entry] then
-    pfUI_config[group][subgroup][entry] = value
+  -- update config
+  if entry and value then
+    if not tbl[entry] then
+      tbl[entry] = value
+    end
+
+    defaults[tbl] = defaults[tbl] or {}
+    defaults[tbl][entry] = value
   end
+end
+
+-- the default of a setting, or nil when it has none
+function pfUI:GetConfigDefault(tbl, key)
+  return defaults[tbl] and defaults[tbl][key]
+end
+
+function pfUI:SetConfigDefaults(tbl, values)
+  defaults[tbl] = values
 end
 
 function pfUI:LoadConfig()

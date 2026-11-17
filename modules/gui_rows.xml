@@ -4,13 +4,26 @@
   and row:Init(setting) shows a setting on it.
   -->
 
-  <!-- A caption on a row that lights up under the cursor. -->
-  <Frame name="pfUIConfigRowTemplate" mixin="pfUIConfigRowMixin" enableMouseMotion="true" virtual="true">
+  <!--
+  A caption on a row that lights up under the cursor, with a mark at its left
+  edge while its setting is not at its default. A right-click offers the reset.
+  -->
+  <Frame name="pfUIConfigRowTemplate" mixin="pfUIConfigRowMixin" enableMouse="true" virtual="true">
     <Size y="22"/>
     <Layers>
       <Layer level="BACKGROUND">
         <Texture parentKey="tex" setAllPoints="true" hidden="true">
           <Color r="1" g="1" b="1" a=".05"/>
+        </Texture>
+      </Layer>
+      <Layer level="BORDER">
+        <Texture parentKey="changed" hidden="true">
+          <Size x="2"/>
+          <Anchors>
+            <Anchor point="TOPLEFT" y="-4"/>
+            <Anchor point="BOTTOMLEFT" y="4"/>
+          </Anchors>
+          <Color r=".2" g="1" b=".8" a=".8"/>
         </Texture>
       </Layer>
       <Layer level="ARTWORK">
@@ -25,6 +38,7 @@
       <OnLoad method="OnLoad"/>
       <OnEnter method="OnEnter"/>
       <OnLeave method="OnLeave"/>
+      <OnMouseUp method="OnMouseUp"/>
     </Scripts>
   </Frame>
 
