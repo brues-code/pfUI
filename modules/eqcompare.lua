@@ -25,18 +25,19 @@ pfUI:RegisterModule("eqcompare", function ()
       item2 = true;
     end
 
-    -- find correct side
-    local rightDist = 0;
-    local leftPos = self:GetLeft();
-    local rightPos = self:GetRight();
-    if ( not rightPos ) then
-      rightPos = 0;
-    end
-    if ( not leftPos ) then
-      leftPos = 0;
+    -- find correct side. A cursor-anchored tooltip has no points until the
+    -- client's next update sets its BOTTOM at the cursor (SetOwner clears
+    -- them), so read where it is about to be instead of an empty rect.
+    local leftPos, rightPos
+    if self:GetAnchorType() == "ANCHOR_CURSOR" and self:GetNumPoints() == 0 then
+      local x = GetCursorPosition() / self:GetEffectiveScale()
+      local halfWidth = self:GetWidth() / 2
+      leftPos, rightPos = x - halfWidth, x + halfWidth
+    else
+      leftPos, rightPos = self:GetLeft() or 0, self:GetRight() or 0
     end
 
-    rightDist = GetScreenWidth() - rightPos;
+    local rightDist = GetScreenWidth() - rightPos;
 
     if (leftPos and (rightDist < leftPos)) then
       side = "left";
