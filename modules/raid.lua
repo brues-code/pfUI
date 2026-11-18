@@ -45,7 +45,6 @@ pfUI:RegisterModule("raid", function ()
     for i=1,maxraid do
       pfUI.uf.raid[i] = pfUI.uf.raid[i] or pfUI.uf:CreateUnitFrame("Raid", i, C.unitframes.raid)
       pfUI.uf.raid[i]:SetParent(cluster)
-      pfUI.uf.raid[i]:SetFrameLevel(5)
 
       pfUI.uf.raid[i]:UpdateConfig()
       pfUI.uf.raid[i]:UpdateFrameSize()
@@ -53,7 +52,6 @@ pfUI:RegisterModule("raid", function ()
       if showpets then
         self.pets[i] = self.pets[i] or pfUI.uf:CreateUnitFrame("RaidPet", i, C.unitframes.raidpet, 0.5)
         self.pets[i]:SetParent(petcluster)
-        self.pets[i]:SetFrameLevel(5)
         self.pets[i]:UpdateConfig()
         self.pets[i]:UpdateFrameSize()
       elseif self.pets[i] then
