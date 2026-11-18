@@ -721,9 +721,12 @@ pfUI:RegisterModule("chat", function ()
   -- The gsub callback for a player link: the name in its class colour, with
   -- the level and icons the settings ask for. Returns the link unchanged when
   -- there is nothing to add, as a Lua 5.0 callback that returns nil deletes
-  -- the match.
+  -- the match. A name the chat frame already wrapped in a colour (the
+  -- SetChatColorNameByClass option) is unwrapped first, so this colour
+  -- replaces it and the level and icons still apply.
   local function FormatPlayerLink(link, name, shown)
     local real = strsplit(":", name)
+    shown = shown:gsub("^|c%x%x%x%x%x%x%x%x(.-)|r$", "%1")
     if shown ~= real then return link end
 
     local color, icon = "", ""
