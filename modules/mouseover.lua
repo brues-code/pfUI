@@ -23,10 +23,20 @@ pfUI:RegisterModule("mouseover", function ()
     end
 
     -- Macro path: switch target so the macro's spell calls land on `unit`,
-    -- then restore.
+    -- then put the old target back by GUID, or clear when there was none.
+    -- Not TargetLastTarget: with ClassicAPI's soft targeting a select from no
+    -- target keeps the last target, and a hidden SoftTargetForce target (no
+    -- GUID through the token) must clear so it is forced again, not chosen.
     local restore_target = not UnitIsUnit("target", unit)
+    local prev = restore_target and UnitGUID("target")
     if restore_target then TargetUnit(unit) end
     func()
-    if restore_target then TargetLastTarget() end
+    if restore_target then
+      if prev and prev ~= "0x0000000000000000" then
+        TargetUnit(prev)
+      else
+        ClearTarget()
+      end
+    end
   end, true)
 end)
