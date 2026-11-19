@@ -57,8 +57,9 @@ pfUI:RegisterSkin("Options - Interface", function ()
   local list = panel:GetCategoryList()
   local settingsList = panel:GetSettingsList()
 
-  -- ClassicAPI draws the window with a tooltip-border backdrop, a dark fill
-  -- (Bg) and a dark title bar in NineSlice
+  -- ClassicAPI draws the window with a background (Bg: retail's flat panel
+  -- frame, or a dark fill in older versions) and a NineSlice frame holding
+  -- the border and the title
   panel.Bg:Hide()
   StripTextures(panel.NineSlice)
   CreateBackdrop(panel, nil, nil, .75)
@@ -96,10 +97,15 @@ pfUI:RegisterSkin("Options - Interface", function ()
   local function SkinSettingsDropdown(control)
     local dropdown = control.Dropdown
 
-    -- WowStyle1DropdownTemplate sets its arrow again on every state change
-    dropdown.Left:Hide()
-    dropdown.Middle:Hide()
-    dropdown.Right:Hide()
+    -- the dropdown sets its art again on every state change: WowStyle2's
+    -- background and arrow atlases, or the older WowStyle1 stand-in's three
+    -- label pieces and arrow
+    if dropdown.Background then dropdown.Background:SetAlpha(0) end
+    if dropdown.Left then
+      dropdown.Left:Hide()
+      dropdown.Middle:Hide()
+      dropdown.Right:Hide()
+    end
     dropdown.Arrow:SetAlpha(0)
     SkinButton(dropdown)
     -- the template names the stock menu style, so pfUI's default does not apply
@@ -112,6 +118,12 @@ pfUI:RegisterSkin("Options - Interface", function ()
     dropdown.icon:SetSize(12, 12)
     dropdown.icon:SetPoint("RIGHT", -4, 0)
 
+    -- WowStyle2IconButtonTemplate steppers set their background and icon
+    -- atlases again on every state change; the older steppers have neither
+    for _, stepper in ipairs({ control.DecrementButton, control.IncrementButton }) do
+      if stepper.Background then stepper.Background:SetAlpha(0) end
+      if stepper.Icon then stepper.Icon:SetAlpha(0) end
+    end
     SkinArrowButton(control.DecrementButton, "left")
     SkinArrowButton(control.IncrementButton, "right")
   end
