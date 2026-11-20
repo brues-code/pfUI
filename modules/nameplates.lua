@@ -1796,7 +1796,6 @@ pfUI:RegisterModule("nameplates", function ()
     local plate = targetGuid and plateByGuid[targetGuid]
     if plate then UpdateCombo(plate) end
   end
-  events.UNIT_COMBO_POINTS = events.PLAYER_COMBO_POINTS
 
   events.PLAYER_REGEN_DISABLED = function()
     playerInCombat = true
@@ -1849,9 +1848,7 @@ pfUI:RegisterModule("nameplates", function ()
   end
 
   for name in pairs(events) do
-    if name == "UNIT_COMBO_POINTS" then
-      nameplates:RegisterUnitEvent(name, "player")
-    elseif name == "UNIT_SPELLCAST_INTERRUPTIBLE" or name == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE" then
+    if name == "UNIT_SPELLCAST_INTERRUPTIBLE" or name == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE" then
       nameplates:RegisterUnitEvent(name, "target", "focus")
     else
       nameplates:RegisterEvent(name)

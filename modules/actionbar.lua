@@ -772,8 +772,8 @@ pfUI:RegisterModule("actionbar", function ()
   end
 
   -- The only unit events in the tables above; both concern the player alone.
-  -- A registration keeps its kind, so these have to go in unit-filtered from
-  -- the start -- RegisterUnitEvent over a plain registration stays plain.
+  -- Each register replaces the units, so these must not also go through a
+  -- plain RegisterEvent, which would clear the filter.
   local event_units = {
     ["UNIT_INVENTORY_CHANGED"] = "player",
     ["UNIT_PET"] = "player",
