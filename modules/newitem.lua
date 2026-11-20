@@ -29,6 +29,7 @@ pfUI:RegisterModule("newitem", function ()
 
         frame:HookScript("OnEnter", function()
           C_NewItems.RemoveNewItem(bag, slot)
+          glow:Hide()
         end)
       end
       frame.newitem:RefreshSize()
@@ -38,9 +39,10 @@ pfUI:RegisterModule("newitem", function ()
     end
   end
 
-  -- The new-item set can change without any slot's contents changing (an item
-  -- acknowledged, pruned when it leaves the bags, or ClearAll) -- re-evaluate
-  -- every decorated slot when that happens.
+  -- An item can become new without its slot's contents changing (loot onto a
+  -- stack it already holds) -- re-evaluate every decorated slot when one does.
+  -- Clearing a flag fires no event, so the code that clears one hides the
+  -- glow itself, as the stock bag button does.
   function pfUI.newitem:RefreshAll()
     for bag in pairs(pfUI.bags) do
       local slots = pfUI.bags[bag] and pfUI.bags[bag].slots
@@ -64,5 +66,6 @@ pfUI:RegisterModule("newitem", function ()
   pfUI.events:RegisterCallback("bag:closed", function(_, object)
     if object then return end
     C_NewItems.ClearAll()
+    pfUI.newitem:RefreshAll()
   end, "newitem")
 end)
