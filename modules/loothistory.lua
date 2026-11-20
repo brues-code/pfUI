@@ -34,7 +34,7 @@ pfUI:RegisterModule("loothistory", function ()
     f.name:SetTextColor(1, .3, .3)
   end
 
-  -- expansion state keyed on the stable rollID (survives ring-index shifts)
+  -- expansion state keyed on the stable rollID (indexes shift as items come and go)
   local expanded = {}
 
   -- ==========================================================================
@@ -257,8 +257,15 @@ pfUI:RegisterModule("loothistory", function ()
     pf.name:SetText(name or UNKNOWN)
     pf.name:SetTextColor(PFUI_CLASS_COLORS[class]:GetRGB())
 
-    pf.rollicon:SetTexture(ROLL_TEX[rollType] or ROLL_TEX[ROLL_PASS])
-    if roll and roll > 0 then pf.rolltext:SetText(roll) else pf.rolltext:SetText("") end
+    -- no rollType = has not voted on an open roll (Blizzard shows "... ")
+    pf.rollicon:SetTexture(rollType and ROLL_TEX[rollType] or nil)
+    if not rollType then
+      pf.rolltext:SetText("... ")
+    elseif roll and roll > 0 then
+      pf.rolltext:SetText(roll)
+    else
+      pf.rolltext:SetText("")
+    end
 
     pf.winmark:SetShown(isWinner)
   end
@@ -312,18 +319,22 @@ pfUI:RegisterModule("loothistory", function ()
   -- ==========================================================================
   -- Events
   -- ==========================================================================
-  -- auto-show on a new roll opening / completing, if enabled
-  local function AutoShow()
-    if C.loothistory.autoshow == "1" and not pfUI.loothistory:IsShown() then
+  -- auto-show when a bind-on-pickup roll starts, if enabled: open with that
+  -- roll expanded, as Blizzard's frame does on LOOT_HISTORY_AUTO_SHOW
+  local function AutoShow(_, rollID)
+    if C.loothistory.autoshow ~= "1" then return end
+    expanded[rollID] = true
+    if pfUI.loothistory:IsShown() then
+      FullUpdate()
+    else
       pfUI.loothistory:Show() -- OnShow runs FullUpdate
-      return
     end
-    FullUpdate() -- no-op while hidden
   end
 
-  pfUI.events:RegisterFrameEventAndCallback("LOOT_HISTORY_FULL_UPDATE", AutoShow)
-  pfUI.events:RegisterFrameEventAndCallback("LOOT_HISTORY_ROLL_COMPLETE", AutoShow)
+  pfUI.events:RegisterFrameEventAndCallback("LOOT_HISTORY_FULL_UPDATE", FullUpdate)
+  pfUI.events:RegisterFrameEventAndCallback("LOOT_HISTORY_ROLL_COMPLETE", FullUpdate)
   pfUI.events:RegisterFrameEventAndCallback("LOOT_HISTORY_ROLL_CHANGED", FullUpdate)
+  pfUI.events:RegisterFrameEventAndCallback("LOOT_HISTORY_AUTO_SHOW", AutoShow)
 
   -- ==========================================================================
   -- Slash command
