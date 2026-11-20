@@ -325,6 +325,9 @@ pfUI:RegisterModule("tooltip", function ()
           local color = UnitReactionColor[reaction]
           GameTooltipStatusBar:SetStatusBarColor_orig(color.r, color.g, color.b)
           GameTooltip:SetBackdropBorderColor(color.r, color.g, color.b)
+          -- the colour the mouseover tooltip's name gets, kept when SetUnit
+          -- rebuilds the tooltip (SetUnit itself leaves the name uncoloured)
+          GameTooltipTextLeft1:SetTextColor(GameTooltip_UnitColor(unit))
         end
         if pvptitle ~= name and pvptitle ~= "" then
           GameTooltip:AppendText(" |cff666666["..pvptitle.."]|r")
