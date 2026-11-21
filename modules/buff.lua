@@ -52,7 +52,8 @@ pfUI:RegisterModule("buff", function ()
     end
 
     local slots = buff.btype == "HELPFUL" and helpfulSlots or harmfulSlots
-    local name, icon, count, dispelType, duration, expirationTime, _, _, _, spellId = C_UnitAuras.UnitAuraBySlot("player", slots[buff.id])
+    local name, icon, count, dispelType, duration, expirationTime, _, _, _, spellId, _, _, _, _, _, auraInstanceID = C_UnitAuras.UnitAuraBySlot("player", slots[buff.id])
+    buff.auraInstanceID = auraInstanceID
 
     --detect weapon buffs
     if buff.btype == "HELPFUL" and ((C.buffs.separateweapons == "0" and buff.gid <= pfUI.buff.wepbuffs.count) or (pfUI.buff.wepbuffs.count > 0 and buff.weapon ~= nil)) then
@@ -167,7 +168,13 @@ pfUI:RegisterModule("buff", function ()
     buff:SetScript("OnEnter", function()
       GameTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT")
       if this.mode == this.btype then
-        GameTooltip:SetUnitAura("player", this.id, this.btype)
+        -- by index until pfUI requires the ClassicAPI release whose
+        -- UnitAuraBySlot returns the instance ID
+        if this.auraInstanceID then
+          GameTooltip:SetUnitAuraByAuraInstanceID("player", this.auraInstanceID)
+        else
+          GameTooltip:SetUnitAura("player", this.id, this.btype)
+        end
 
         if IsShiftKeyDown() then
           local aura = C_UnitAuras.GetAuraDataByIndex("player", this.id, this.btype)

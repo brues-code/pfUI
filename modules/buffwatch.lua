@@ -78,10 +78,10 @@ pfUI:RegisterModule("buffwatch", function ()
 
   -- Reads one aura by the slot id GetAuraSlots returned (nil slot -> nil).
   local function GetBuffData(unit, slot)
-    local name, icon, count, dispelType, _, expirationTime = C_UnitAuras.UnitAuraBySlot(unit, slot)
+    local name, icon, count, dispelType, _, expirationTime, _, _, _, _, _, _, _, _, _, auraInstanceID = C_UnitAuras.UnitAuraBySlot(unit, slot)
     if not name then return end
     local remaining = expirationTime > 0 and (expirationTime - GetTime()) or 0
-    return remaining, icon, name, count, dispelType
+    return remaining, icon, name, count, dispelType, auraInstanceID
   end
 
   local function StatusBarOnClick()
@@ -113,9 +113,16 @@ pfUI:RegisterModule("buffwatch", function ()
   local function StatusBarOnEnter()
     GameTooltip:SetOwner(this, "NONE")
 
-    -- C_UnitAuras lists the player's own auras first, so the selfdebuff
-    -- (HARMFUL|PLAYER) list is a prefix of the HARMFUL list: same index.
-    GameTooltip:SetUnitAura(this.unit, this.id, this.type)
+    -- An out-of-range group member's auras have no instance ID, and neither
+    -- has any aura before the ClassicAPI release whose UnitAuraBySlot returns
+    -- it. By index, C_UnitAuras lists the player's own auras first, so the
+    -- selfdebuff (HARMFUL|PLAYER) list is a prefix of the HARMFUL list: same
+    -- index.
+    if this.auraInstanceID then
+      GameTooltip:SetUnitAuraByAuraInstanceID(this.unit, this.auraInstanceID)
+    else
+      GameTooltip:SetUnitAura(this.unit, this.id, this.type)
+    end
 
     if IsShiftKeyDown() then
       GameTooltip:AddLine(" ")
@@ -232,7 +239,7 @@ pfUI:RegisterModule("buffwatch", function ()
     ScanAuraSlots(frame.unit, filter, auraSlots, 32)
 
     for i=1,32 do
-      local timeleft, texture, name, stacks, dtype = GetBuffData(frame.unit, auraSlots[i])
+      local timeleft, texture, name, stacks, dtype, auraInstanceID = GetBuffData(frame.unit, auraSlots[i])
       timeleft = timeleft or 0
 
       if texture and name and name ~= "" and BuffIsVisible(frame.config, name) then
@@ -242,6 +249,7 @@ pfUI:RegisterModule("buffwatch", function ()
         frame.buffs[i][4] = texture
         frame.buffs[i][5] = stacks
         frame.buffs[i][6] = dtype
+        frame.buffs[i][7] = auraInstanceID
       else
         frame.buffs[i][1] = 0
         frame.buffs[i][2] = nil
@@ -249,6 +257,7 @@ pfUI:RegisterModule("buffwatch", function ()
         frame.buffs[i][4] = nil
         frame.buffs[i][5] = 0
         frame.buffs[i][6] = nil
+        frame.buffs[i][7] = nil
       end
     end
 
@@ -267,6 +276,7 @@ pfUI:RegisterModule("buffwatch", function ()
         -- update bar data
         frame.bars[bar] = frame.bars[bar] or CreateStatusBar(bar, frame)
         frame.bars[bar].id = data[2]
+        frame.bars[bar].auraInstanceID = data[7]
         frame.bars[bar].unit = frame.unit
         frame.bars[bar].type = frame.type
 

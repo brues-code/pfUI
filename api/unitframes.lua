@@ -115,8 +115,9 @@ local function ScanFrameAuras(frame, filter, buf, max)
   return n
 end
 
--- C_UnitAuras.UnitAuraBySlot for the frame:
--- name, icon, count, dispelType, duration, expirationTime
+-- C_UnitAuras.UnitAuraBySlot for the frame: name, icon, count, dispelType,
+-- duration, expirationTime, and the rest of its values for a real unit, the
+-- 16th being the auraInstanceID. A sample stops at the sixth.
 local function FrameAura(frame, slot)
   local sample = frame.sample
   if not sample then return C_UnitAuras.UnitAuraBySlot(frame.label .. frame.id, slot) end
@@ -292,7 +293,14 @@ local function BuffOnEnter()
 
   local unit = parent.label .. parent.id
   GameTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT")
-  GameTooltip:SetUnitAura(unit, this.id, "HELPFUL")
+  -- by index for an out-of-range member, whose auras have no instance ID, and
+  -- for every aura until pfUI requires the ClassicAPI release whose
+  -- UnitAuraBySlot returns it
+  if this.auraInstanceID then
+    GameTooltip:SetUnitAuraByAuraInstanceID(unit, this.auraInstanceID)
+  else
+    GameTooltip:SetUnitAura(unit, this.id, "HELPFUL")
+  end
 
   if IsShiftKeyDown() then
     local aura = C_UnitAuras.GetAuraDataByIndex(unit, this.id, "HELPFUL")
@@ -323,9 +331,14 @@ local function DebuffOnEnter()
   local unitstr = this:GetParent().label .. this:GetParent().id
   GameTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT")
 
-  -- C_UnitAuras lists the player's own auras first, so the selfdebuff
-  -- (HARMFUL|PLAYER) list is a prefix of the HARMFUL list: same index.
-  GameTooltip:SetUnitAura(unitstr, this.id, "HARMFUL")
+  -- by index as for the buffs. C_UnitAuras lists the player's own auras
+  -- first, so the selfdebuff (HARMFUL|PLAYER) list is a prefix of the HARMFUL
+  -- list: same index.
+  if this.auraInstanceID then
+    GameTooltip:SetUnitAuraByAuraInstanceID(unitstr, this.auraInstanceID)
+  else
+    GameTooltip:SetUnitAura(unitstr, this.id, "HARMFUL")
+  end
 end
 
 local function DebuffOnLeave()
@@ -2311,10 +2324,11 @@ function pfUI.uf:RefreshUnit(unit, component)
     for i=1, unit.config.bufflimit do
       if not unit.buffs[i] then break end
 
-      local name, icon, count, _, duration, expirationTime = FrameAura(unit, auraSlots[i])
+      local name, icon, count, _, duration, expirationTime, _, _, _, _, _, _, _, _, _, auraInstanceID = FrameAura(unit, auraSlots[i])
 
       if name then
         unit.buffs[i].slot = auraSlots[i]
+        unit.buffs[i].auraInstanceID = auraInstanceID
         unit.buffs[i].texture:SetTexture(icon)
         unit.buffs[i]:Show()
 
@@ -2352,12 +2366,13 @@ function pfUI.uf:RefreshUnit(unit, component)
       if not unit.debuffs[i] then break end
 
       -- positional read by slot id allocates nothing
-      local name, icon, count, dispelType, duration, expirationTime = FrameAura(unit, auraSlots[i])
+      local name, icon, count, dispelType, duration, expirationTime, _, _, _, _, _, _, _, _, _, auraInstanceID = FrameAura(unit, auraSlots[i])
       if name then
         texture, stacks, dtype = icon, count, dispelType
       else
         texture, stacks, dtype = nil, 0, nil
       end
+      unit.debuffs[i].auraInstanceID = auraInstanceID
 
       unit.debuffs[i].texture:SetTexture(texture)
 
