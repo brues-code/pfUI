@@ -659,9 +659,10 @@ function pfUI.uf:UpdateVisibility()
   -- timer), as Blizzard's own target-of-target frame polls. Either follows the
   -- unit only while the client has it: a link's target can be out of sight,
   -- and its coming back is then a new unit too. The unit changes with no event
-  -- of its own whenever a link of the chain retargets; UNIT_TARGET on every
-  -- link reports that (RegisterChainEvents), and the GUID compare turns it
-  -- into the full refresh a new unit needs.
+  -- of its own whenever a link of the chain retargets; UNIT_TARGET on each
+  -- link that is a token reports that (RegisterChainEvents), the visibility
+  -- timer catches the rest, and the GUID compare turns it into the full
+  -- refresh a new unit needs.
   self.chain = visibility ~= "hide" and unitstr:match("^(.+)target$") or nil
   if self.chain then
     local guid = UnitName(unitstr) and UnitGUID(unitstr)
@@ -1712,21 +1713,21 @@ end
 -- Point this frame's UNIT_TARGET subscription at every link of its chained
 -- unit, whose `owner` is the unit it is the target of -- for
 -- "targettargettarget" the links are "targettarget" and "target" -- or drop it
--- when `owner` is nil. By GUID, since the inner links are no token that events
--- name, save the ones in CHAIN_TOKENS. Cheap to call repeatedly: it
--- re-registers only when a link changed.
+-- when `owner` is nil. By token: a link that is no chain ("target", "party1",
+-- "pet") or one of CHAIN_TOKENS. Any other link gets no UNIT_TARGET, so the
+-- visibility timer's GUID compare notices its retarget instead. Cheap to call
+-- repeatedly: it re-registers only when the links changed.
 local chainlinks = {}
 function pfUI.uf:RegisterChainEvents(owner)
   local n, key = 0, nil
   while owner do
-    local guid = UnitGUID(owner)
-    if guid then
-      local link = CHAIN_TOKENS[owner] and owner or guid
+    local inner = owner:match("^(.+)target$")
+    if CHAIN_TOKENS[owner] or not inner then
       n = n + 1
-      chainlinks[n] = link
-      key = key and key .. link or link
+      chainlinks[n] = owner
+      key = key and key .. "," .. owner or owner
     end
-    owner = owner:match("^(.+)target$")
+    owner = inner
   end
 
   if key == self.chainkey then return end
