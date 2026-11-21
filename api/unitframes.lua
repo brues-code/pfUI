@@ -344,10 +344,22 @@ end
 -- unit's target). No event reports a unit going out of sight, though, and a
 -- pet (the frames with a tick) or a chained unit can, so a timer re-checks
 -- those frames, hidden ones included.
+--
+-- The same timer polls a chained unit that no unit event names (`polled`):
+-- the bars every tick, and once a second the full refresh that rescans its
+-- auras, portrait and state.
 local visibilityframes = {}
+local POLL_FULL_TICKS = 5
+local polltick = 0
 C_Timer.NewTicker(.2, function()
+  polltick = polltick + 1
+  local full = polltick >= POLL_FULL_TICKS
+  if full then polltick = 0 end
   for frame in pairs(visibilityframes) do
     if frame.tick or frame.chain then frame:UpdateVisibility() end
+    if frame.chain and frame.polled and frame:IsVisible() then
+      pfUI.uf:QueueUpdate(frame, full and "full" or "base")
+    end
   end
 end)
 
@@ -370,10 +382,11 @@ local VISIBILITY_EVENTS = {
   UNIT_TARGET = true, -- a link of a chained frame's unit retargeted
 }
 
--- The units of a chain that unit events name by token, whatever nampower does
--- with its GUID events: the focus, and the focus's target, whose unit events
--- ClassicAPI fires as "focustarget" from the unit's own fields.
-local CHAIN_TOKENS = { focus = true, focustarget = true }
+-- The units of a chain that unit events name by token: the focus, and the
+-- targets of your target, your focus and your pet, whose unit events
+-- ClassicAPI fires as "targettarget", "focustarget" and "pettarget" from the
+-- unit's own fields. A frame for any other chained unit is polled.
+local CHAIN_TOKENS = { focus = true, targettarget = true, focustarget = true, pettarget = true }
 
 -- The events a frame hears hidden or not: the visibility events that concern
 -- the unit it was created for (raid.lua remaps a raid frame's label, so this is
@@ -640,21 +653,23 @@ function pfUI.uf:UpdateVisibility()
   -- VISIBILITY_EVENTS that bring it back are registered plainly.
   --
   -- A chained unit -- another unit's target, "targettarget" or "party1target"
-  -- -- has no token that unit events name, so the frame follows it by GUID,
-  -- which nampower fires every unit event with too, unless its GUID events
-  -- are off or filtered. The focus's target is named (CHAIN_TOKENS), so that
-  -- frame follows its token instead. It follows the unit only while
-  -- the client has it: a link's target can be out of sight, and its coming
-  -- back is then a new unit too. The unit changes with no event of its own
-  -- whenever a link of the chain retargets; UNIT_TARGET on every link reports
-  -- that (RegisterChainEvents), and the GUID compare turns it into the full
-  -- refresh a new unit needs.
+  -- -- is named by unit events only when it is one of CHAIN_TOKENS; that frame
+  -- follows its token. Any other chained unit has no events at all, so its
+  -- frame registers none and is polled instead (`polled`, the visibility
+  -- timer), as Blizzard's own target-of-target frame polls. Either follows the
+  -- unit only while the client has it: a link's target can be out of sight,
+  -- and its coming back is then a new unit too. The unit changes with no event
+  -- of its own whenever a link of the chain retargets; UNIT_TARGET on every
+  -- link reports that (RegisterChainEvents), and the GUID compare turns it
+  -- into the full refresh a new unit needs.
   self.chain = visibility ~= "hide" and unitstr:match("^(.+)target$") or nil
   if self.chain then
     local guid = UnitName(unitstr) and UnitGUID(unitstr)
     if guid ~= self.unitguid then pfUI.uf:QueueUpdate(self, "full") end
     self.unitguid = guid
-    self:RegisterUnitEvents(guid and CHAIN_TOKENS[unitstr] and unitstr or guid)
+    local token = guid and CHAIN_TOKENS[unitstr] and unitstr or nil
+    self.polled = guid and not token or nil
+    self:RegisterUnitEvents(token)
   else
     -- A pet frame's token gets the pet's unit events, but a new pet behind it
     -- (summoned, or remapped by raid.lua) comes with none of its own; the
@@ -1432,11 +1447,10 @@ function pfUI.uf.OnEvent()
     -- registered for the frame's unit alone, and fired in the filter's lower
     -- case spelling, which a GUID's compare below would miss
     pfUI.uf:RefreshUnitState(this)
-  -- UNIT_XXX Events. RegisterUnitEvents means arg1 can only be the unit this
-  -- frame follows -- its token, or a chained unit's GUID; the compare is kept
-  -- for the case the filter sits out, which is when arg1 is not a string. These
-  -- events fire once per token that resolves to the unit AND once with the raw
-  -- GUID, so filtering on one of the two never wakes the frame twice.
+  -- UNIT_XXX Events. RegisterUnitEvents means arg1 can only be the token this
+  -- frame follows; the compare is kept for the case the filter sits out, which
+  -- is when arg1 is not a string. nampower also fires these with the raw GUID,
+  -- which no frame follows, so the filter never wakes a frame twice.
   elseif arg1 and arg1 == this.eventunit then
     if event == "UNIT_PORTRAIT_UPDATE" or event == "UNIT_MODEL_CHANGED" then
       pfUI.uf:QueueUpdate(this, "portrait")
@@ -1647,8 +1661,8 @@ local GUID_EVENTS = {
   "UNIT_FOCUS",
 }
 
--- Point this frame's unit-event subscriptions at `unit` (a token, or a chained
--- unit's GUID), or drop them when the frame has no unit. Cheap to call
+-- Point this frame's unit-event subscriptions at the token `unit`, or drop
+-- them when the frame has no unit or a polled one. Cheap to call
 -- repeatedly: it no-ops unless the unit actually changed, which matters
 -- because every refresh runs UpdateVisibility.
 function pfUI.uf:RegisterUnitEvents(unit)
