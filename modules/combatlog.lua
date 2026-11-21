@@ -2811,8 +2811,7 @@ pfUI:RegisterModule("combatlog", function ()
     end
   end)
   CombatLogUpdateFrame:RegisterEvent("COMBAT_LOG_EVENT")
-  CombatLogUpdateFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
-  CombatLogUpdateFrame:RegisterEvent("RAID_ROSTER_UPDATE")
+  CombatLogUpdateFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 
   -- apply the saved filter and refill the log from the kept entries, which
   -- outlast a /reload

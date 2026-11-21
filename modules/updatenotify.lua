@@ -27,7 +27,7 @@ pfUI:RegisterModule("updatenotify", function ()
   end)
 
   local group = 0
-  pfUI.events:RegisterFrameEventAndCallback("PARTY_MEMBERS_CHANGED", function()
+  pfUI.events:RegisterFrameEventAndCallback("GROUP_ROSTER_UPDATE", function()
     local groupsize = IsInRaid() and GetNumRaidMembers() or IsInGroup() and GetNumPartyMembers() or 0
     if group < groupsize then
       for _, chan in pairs(groupchannels) do

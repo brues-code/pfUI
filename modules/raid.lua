@@ -167,8 +167,7 @@ pfUI:RegisterModule("raid", function ()
     end
   end
 
-  pfUI.uf.raid:RegisterEvent("RAID_ROSTER_UPDATE")
-  pfUI.uf.raid:RegisterEvent("PARTY_MEMBERS_CHANGED")
+  pfUI.uf.raid:RegisterEvent("GROUP_ROSTER_UPDATE")
   pfUI.uf.raid:RegisterEvent("PARTY_LEADER_CHANGED")
   pfUI.uf.raid:RegisterEvent("VARIABLES_LOADED")
   pfUI.uf.raid:RegisterEvent("UNIT_PET")
