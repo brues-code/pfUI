@@ -404,8 +404,6 @@ local function RegisterShownEvents(frame)
   for i = 1, table.getn(SHOWN_EVENTS) do
     frame:RegisterEvent(SHOWN_EVENTS[i])
   end
-  -- label=pet; the player's own pet only, not every pet in view
-  frame:RegisterUnitEvent("UNIT_HAPPINESS", "pet")
 end
 
 -- ============================================================================
@@ -1380,7 +1378,6 @@ function pfUI.uf.OnHide()
       this:UnregisterEvent(SHOWN_EVENTS[i])
     end
   end
-  this:UnregisterEvent("UNIT_HAPPINESS")
 end
 
 function pfUI.uf.OnEvent()
@@ -1458,8 +1455,6 @@ function pfUI.uf.OnEvent()
     pfUI.uf:QueueUpdate(this, "full")
   elseif this.label == "player" and (event == "PLAYER_AURAS_CHANGED" or event == "PLAYER_EQUIPMENT_CHANGED") then
     pfUI.uf:QueueUpdate(this, "aura")
-  elseif this.label == "pet" and event == "UNIT_HAPPINESS" then
-    pfUI.uf:QueueUpdate(this, "full")
   elseif event == "UNIT_IN_RANGE_UPDATE" then
     -- registered for the frame's unit alone, and fired in the filter's lower
     -- case spelling, which a GUID's compare below would miss
@@ -1484,9 +1479,15 @@ function pfUI.uf.OnEvent()
       end
     elseif event == "UNIT_POWER_UPDATE" or event == "UNIT_MAXPOWER" then
       -- every power of the unit reports, a cat druid's mana regen too; redraw
-      -- for the one the bar shows, and for mana under a druid mana bar
+      -- for the one the bar shows, for mana under a druid mana bar, and for
+      -- the player's pet's happiness, which the icon and the pet colours show
       local _, shown = UnitPowerType(arg1)
-      if arg2 == shown or (arg2 == "MANA" and this.druidmana) then
+      if arg2 == "HAPPINESS" then
+        if this.label == "pet" then
+          pfUI.uf:QueueUpdate(this, "indicators")
+          pfUI.uf:QueueUpdate(this, "base")
+        end
+      elseif arg2 == shown or (arg2 == "MANA" and this.druidmana) then
         pfUI.uf:QueueUpdate(this, "base")
       end
     elseif event == "UNIT_FACTION" then
@@ -1649,9 +1650,9 @@ end)
 -- routes through its "UNIT_XXX Events" branch. These are not registered here:
 -- UpdateVisibility owns them, because it owns the frame's unit (below).
 --
--- UNIT_PET and UNIT_HAPPINESS are deliberately absent. Their branches key on
--- the frame's label, and UNIT_PET's arg1 is the pet's OWNER ("player" for a
--- "pet" frame), so filtering them by the frame's own unit would drop them.
+-- UNIT_PET is deliberately absent. Its branch keys on the frame's label, and
+-- its arg1 is the pet's OWNER ("player" for a "pet" frame), so filtering it by
+-- the frame's own unit would drop it.
 local UNIT_EVENTS = {
   "UNIT_DISPLAYPOWER",
   "UNIT_HEALTH", "UNIT_MAXHEALTH",
