@@ -426,9 +426,34 @@ end
 -- sees every attacker, not only the ones some token reaches. The server
 -- clears a unit's target when it dies or stops attacking. A unit that comes
 -- into view mid-fight fires nothing until it retargets, so it is noted when a
--- token first reaches it; one that leaves view fires nothing either, so
--- UnitHasAggro drops the attackers that are gone.
+-- token first reaches it. One that leaves view is let go at once: the
+-- attackers' GUIDs are registered for UNIT_VISIBILITY_CHANGED.
 local attacking = {}
+
+-- Point the attackers' UNIT_VISIBILITY_CHANGED at the GUIDs `attacking` holds
+-- now, at most once a frame however many attackers come and go.
+local sight = CreateFrame("Frame")
+local sightguids = {}
+local sightqueued
+local function RegisterSight()
+  sightqueued = nil
+  local n = 0
+  for attacker in pairs(attacking) do
+    n = n + 1
+    sightguids[n] = attacker
+  end
+  for i = table.getn(sightguids), n + 1, -1 do sightguids[i] = nil end
+  if n > 0 then
+    sight:RegisterGUIDEvent("UNIT_VISIBILITY_CHANGED", unpack(sightguids))
+  else
+    sight:UnregisterGUIDEvent("UNIT_VISIBILITY_CHANGED")
+  end
+end
+local function QueueSight()
+  if sightqueued then return end
+  sightqueued = true
+  RunNextFrame(RegisterSight)
+end
 
 -- note what `unit` attacks now, and tell the old and the new victim. The
 -- target is reached through the GUID: not every token takes a "target"
@@ -441,8 +466,19 @@ local function NoteAttacker(unit)
   local old = attacking[attacker]
   if victim == old then return end
   attacking[attacker] = victim
+  if not old or not victim then QueueSight() end
   pfUI.events:TriggerEvent("aggro:changed", old, victim)
 end
+
+-- an attacker that left view attacks no one in it; one that comes back is
+-- noted again when a token reaches it
+sight:SetScript("OnEvent", function()
+  local old = not arg2 and attacking[arg1]
+  if not old then return end
+  attacking[arg1] = nil
+  QueueSight()
+  pfUI.events:TriggerEvent("aggro:changed", old, nil)
+end)
 
 -- the number of hostile units attacking the friendly `unit`
 function pfUI.api.UnitHasAggro(unit)
@@ -451,13 +487,8 @@ function pfUI.api.UnitHasAggro(unit)
 
   local count = 0
   for attacker, victim in pairs(attacking) do
-    if victim == guid then
-      if UnitGUID(attacker .. "target") == guid then
-        count = count + 1
-      else
-        -- out of view, where nothing fires
-        attacking[attacker] = nil
-      end
+    if victim == guid and UnitGUID(attacker .. "target") == guid then
+      count = count + 1
     end
   end
   return count
@@ -475,7 +506,10 @@ pfUI.events:RegisterFrameEventAndCallback("UPDATE_MOUSEOVER_UNIT", function() No
 pfUI.events:RegisterFrameEventAndCallback("NAME_PLATE_UNIT_ADDED", function(_, unit) NoteAttacker(unit) end)
 
 -- a loading screen leaves every attacker behind
-pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", function() attacking = {} end)
+pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", function()
+  attacking = {}
+  QueueSight()
+end)
 
 -- a frame showing the old or the new victim redraws its aggro
 pfUI.events:RegisterCallback("aggro:changed", function(_, old, new)
