@@ -381,9 +381,7 @@ pfUI:RegisterModule("tooltip", function ()
     end
 
   if C.tooltip.aurasource == "1" or C.tooltip.spellid == "1" then
-    hooksecurefunc(GameTooltip, "SetUnitAura", function(self, ...)
-      local aura = C_UnitAuras.GetAuraDataByIndex(unpack(arg))
-      if not aura then return end
+    local function AddAuraLines(self, aura)
       if C.tooltip.aurasource == "1" then
         local caster = aura.sourceUnit and UnitName(aura.sourceUnit)
         if not caster and aura.sourceGUID then
@@ -406,6 +404,28 @@ pfUI:RegisterModule("tooltip", function ()
         self:AddLine("SpellID: " .. aura.spellId, .25,.5,1)
       end
       self:Show()
+    end
+
+    hooksecurefunc(GameTooltip, "SetUnitAura", function(self, ...)
+      local aura = C_UnitAuras.GetAuraDataByIndex(unpack(arg))
+      if aura then AddAuraLines(self, aura) end
     end)
+
+    -- The by-ID setters leave the tooltip as it was for an aura their filter
+    -- rejects. The Buff and Debuff forms put their own range in place of the
+    -- filter's.
+    local function HookByAuraInstanceID(method, range)
+      hooksecurefunc(GameTooltip, method, function(self, unit, auraInstanceID, filter)
+        if range then
+          filter = (filter or ""):gsub("HELPFUL", ""):gsub("HARMFUL", "") .. "|" .. range
+        end
+        if C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, filter or "") then return end
+        local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, auraInstanceID)
+        if aura then AddAuraLines(self, aura) end
+      end)
+    end
+    HookByAuraInstanceID("SetUnitAuraByAuraInstanceID")
+    HookByAuraInstanceID("SetUnitBuffByAuraInstanceID", "HELPFUL")
+    HookByAuraInstanceID("SetUnitDebuffByAuraInstanceID", "HARMFUL")
   end
 end)
