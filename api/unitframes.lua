@@ -1103,7 +1103,7 @@ function pfUI.uf:UpdateConfig()
 
   -- range fade: UnitInRange's answer comes as an event, a UnitXP threshold
   -- has none and is polled. With the 40y check off a frame fades by sight,
-  -- which UNIT_DISTANCE_CHECK_UPDATE reports.
+  -- which UNIT_VISIBILITY_CHANGED reports.
   local fade = f.config.faderange == "1" and C.unitframes.rangecheck == "1"
   local unitxp = C.unitframes.rangecheck_mode == "unitxp" and _G.UnitXP
   f.rangeevent = fade and not unitxp or nil
@@ -1495,7 +1495,7 @@ function pfUI.uf.OnEvent()
       pfUI.uf:QueueUpdate(this, "base")
     elseif event == "UNIT_FLAGS" then
       pfUI.uf:QueueUpdate(this, "combat")
-    elseif event == "UNIT_DISTANCE_CHECK_UPDATE" or event == "UNIT_VISIBILITY_CHANGED" then
+    elseif event == "UNIT_VISIBILITY_CHANGED" then
       -- the portrait trades the question mark for the model, the frame fades
       -- by sight, and an attacker that left with the member is let go
       pfUI.uf:QueueUpdate(this, "portrait")
@@ -1665,11 +1665,12 @@ local UNIT_EVENTS = {
 -- durations and says what changed; its generic power events name the power, so
 -- a frame skips the ones it does not draw. Both fire for tokens only, and not
 -- as "focustarget", so a chained unit keeps 1.12's events instead. A group
--- member's connection and sight come with them, and a chained unit has
--- neither event.
+-- member's connection comes with them, and a chained unit has no such event.
+-- Sight is RegisterSightEvents': UNIT_VISIBILITY_CHANGED fires for a member's
+-- token too, so UNIT_DISTANCE_CHECK_UPDATE would only report it twice.
 local TOKEN_EVENTS = {
   "UNIT_AURA_DELTA", "UNIT_POWER_UPDATE", "UNIT_MAXPOWER",
-  "UNIT_CONNECTION", "UNIT_DISTANCE_CHECK_UPDATE",
+  "UNIT_CONNECTION",
 }
 local GUID_EVENTS = {
   "UNIT_AURA",
