@@ -135,9 +135,10 @@ end
 
 -- Build cache on world enter
 libpredict:RegisterEvent("PLAYER_ENTERING_WORLD")
-libpredict:RegisterEvent("GROUP_ROSTER_UPDATE")
+libpredict:RegisterEvent("RAID_ROSTER_UPDATE")
+libpredict:RegisterEvent("PARTY_MEMBERS_CHANGED")
 libpredict:HookScript("OnEvent", function()
-  if event == "PLAYER_ENTERING_WORLD" or event == "GROUP_ROSTER_UPDATE" then
+  if event == "PLAYER_ENTERING_WORLD" or event == "RAID_ROSTER_UPDATE" or event == "PARTY_MEMBERS_CHANGED" then
     cacheRaidNames()
   end
 end)
@@ -909,7 +910,8 @@ RegisterCastEvents()
 libpredict.sender:RegisterUnitEvent("UNIT_SPELLCAST_SENT", "player")
 libpredict.sender:RegisterUnitEvent("UNIT_SPELLCAST_DELAYED", "player")
 libpredict.sender:RegisterUnitEvent("UNIT_SPELLCAST_FAILED", "player")
-libpredict.sender:RegisterEvent("GROUP_ROSTER_UPDATE")
+libpredict.sender:RegisterEvent("PARTY_MEMBERS_CHANGED")
+libpredict.sender:RegisterEvent("RAID_ROSTER_UPDATE")
 libpredict.sender:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
 -- Shared cleanup helper for failed/interrupted casts
@@ -981,7 +983,7 @@ libpredict.sender:SetScript("OnEvent", function()
     if arg2 == "SPELL_HEAL" then OnHeal()
     elseif arg2 == "SPELL_RESURRECT" then OnResurrect() end
     return
-  elseif event == "GROUP_ROSTER_UPDATE" then
+  elseif event == "PARTY_MEMBERS_CHANGED" or event == "RAID_ROSTER_UPDATE" then
     RegisterCastEvents()
     return
   end

@@ -370,7 +370,8 @@ end
 -- the events that can bring a frame's unit into or out of existence
 local VISIBILITY_EVENTS = {
   PLAYER_ENTERING_WORLD = true,
-  GROUP_ROSTER_UPDATE = true,
+  PARTY_MEMBERS_CHANGED = true,
+  RAID_ROSTER_UPDATE = true,
   PLAYER_TARGET_CHANGED = true,
   UNIT_PET = true,
   UNIT_TARGET = true, -- a link of a chained frame's unit retargeted
@@ -391,7 +392,8 @@ local function GetIdleEvents(label, fname)
   local events = { PLAYER_ENTERING_WORLD = true, PLAYER_LOGOUT = true }
   if label:find("^party") or label:find("^raid")
   or fname == "Group0" or fname == "PartyPet0" or fname == "Party0Target" then
-    events.GROUP_ROSTER_UPDATE = true
+    events.PARTY_MEMBERS_CHANGED = true
+    events.RAID_ROSTER_UPDATE = true
   end
   if label:find("^target") then events.PLAYER_TARGET_CHANGED = true end
   if label:find("pet") then events.UNIT_PET = true end
@@ -403,8 +405,9 @@ end
 local SHOWN_EVENTS = {
   "PLAYER_AURAS_CHANGED", -- label=player && frame=buff
   "PLAYER_EQUIPMENT_CHANGED", -- label=player && frame=buff (ClassicAPI: weapon-enchant buffs)
-  "GROUP_ROSTER_UPDATE", -- frame=leaderIcon
+  "PARTY_MEMBERS_CHANGED", -- frame=leaderIcon
   "PARTY_LEADER_CHANGED", -- frame=leaderIcon
+  "RAID_ROSTER_UPDATE", -- frame=raidIcon
   "PLAYER_UPDATE_RESTING", -- frame=restIcon
   "PARTY_LOOT_METHOD_CHANGED", -- frame=lootIcon
   "RAID_TARGET_UPDATE", -- frame=raidIcon
@@ -1405,8 +1408,9 @@ function pfUI.uf.OnEvent()
   -- update indicators
   if event == "PARTY_LEADER_CHANGED" or
      event == "PARTY_LOOT_METHOD_CHANGED" or
-     event == "GROUP_ROSTER_UPDATE" or
+     event == "PARTY_MEMBERS_CHANGED" or
      event == "RAID_TARGET_UPDATE" or
+     event == "RAID_ROSTER_UPDATE" or
      event == "PLAYER_UPDATE_RESTING"
   then
     pfUI.uf:QueueUpdate(this, "indicators")
@@ -1438,9 +1442,8 @@ function pfUI.uf.OnEvent()
         this.raidIcon:Hide()
       end
     end
-  elseif ( this.label == "raid" or this.label == "party" or this.label == "player" ) and event == "GROUP_ROSTER_UPDATE" then
-    -- Smart update: check if THIS frame's unit actually changed. raid.lua's
-    -- UpdateRoster runs the same check after it reassigns the raid frames' ids.
+  elseif ( this.label == "raid" or this.label == "party" or this.label == "player" ) and event == "PARTY_MEMBERS_CHANGED" then
+    -- Smart update: check if THIS frame's unit actually changed
     if pfUI.uf.guidTracker and this.id then
       local unit = this.label == "player" and "player" or (this.label .. this.id)
       local newGuid = UnitGUID(unit)
@@ -1452,6 +1455,15 @@ function pfUI.uf.OnEvent()
     else
       pfUI.uf:QueueUpdate(this, "full")
     end
+  elseif ( this.label == "raid" or this.label == "party" ) and event == "RAID_ROSTER_UPDATE" then
+    -- Note: Smart GUID-based updates are handled in raid.lua UpdateRoster
+    -- after frame IDs are reassigned. We don't set update_full here anymore
+    -- for raid frames to avoid the freeze.
+    if this.label == "party" then
+      -- Party frames still need the old logic (no smart tracking yet)
+      pfUI.uf:QueueUpdate(this, "full")
+    end
+    -- Raid frames: update_full is set by raid.lua GUID tracker
   elseif this.label == "pet" and event == "UNIT_PET" then
     pfUI.uf:QueueUpdate(this, "full")
   elseif this.label == "player" and (event == "PLAYER_AURAS_CHANGED" or event == "PLAYER_EQUIPMENT_CHANGED") then

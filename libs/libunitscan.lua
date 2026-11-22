@@ -40,7 +40,8 @@ local libunitscan = CreateFrame("Frame", "pfUnitScan", UIParent)
 libunitscan:RegisterEvent("PLAYER_ENTERING_WORLD")
 libunitscan:RegisterEvent("FRIENDLIST_UPDATE")
 libunitscan:RegisterEvent("GUILD_ROSTER_UPDATE")
-libunitscan:RegisterEvent("GROUP_ROSTER_UPDATE")
+libunitscan:RegisterEvent("RAID_ROSTER_UPDATE")
+libunitscan:RegisterEvent("PARTY_MEMBERS_CHANGED")
 libunitscan:RegisterEvent("PLAYER_TARGET_CHANGED")
 libunitscan:RegisterEvent("WHO_LIST_UPDATE")
 libunitscan:RegisterEvent("CHAT_MSG_SYSTEM")
@@ -70,17 +71,16 @@ libunitscan:SetScript("OnEvent", function()
       AddLevel(name, level)
     end
 
-  elseif event == "GROUP_ROSTER_UPDATE" then
-    if IsInRaid() then
-      local name, level, _
-      for i = 1, GetNumRaidMembers() do
-        name, _, _, level = GetRaidRosterInfo(i)
-        AddLevel(name, level)
-      end
-    else
-      for i = 1, GetNumPartyMembers() do
-        AddLevel(UnitName("party" .. i), UnitLevel("party" .. i))
-      end
+  elseif event == "RAID_ROSTER_UPDATE" then
+    local name, level, _
+    for i = 1, GetNumRaidMembers() do
+      name, _, _, level = GetRaidRosterInfo(i)
+      AddLevel(name, level)
+    end
+
+  elseif event == "PARTY_MEMBERS_CHANGED" then
+    for i = 1, GetNumPartyMembers() do
+      AddLevel(UnitName("party" .. i), UnitLevel("party" .. i))
     end
 
   elseif event == "WHO_LIST_UPDATE" or event == "CHAT_MSG_SYSTEM" then

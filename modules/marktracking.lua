@@ -299,14 +299,15 @@ pfUI.marktracking = CreateFrame("Frame", "pfMarkTracking", UIParent)
 
   -- RAID_TARGET_UPDATE: a raid marker was set/cleared -> full refresh
   -- PLAYER_ENTERING_WORLD: login/reload/zone -> full refresh
-  -- GROUP_ROSTER_UPDATE: joined or left a group -> the rows
+  -- PARTY_MEMBERS_CHANGED/RAID_ROSTER_UPDATE: joined or left a group -> the rows
   --   can change, and the fallback poll starts or stops with it
   -- UNIT_HEALTH/UNIT_MAXHEALTH: filtered to the eight mark tokens, so arg1 is
   --   always "markN" and we refresh just that row (UpdateRow) instead of
   --   rescanning all eight.
   scanner:RegisterEvent("RAID_TARGET_UPDATE")
   scanner:RegisterEvent("PLAYER_ENTERING_WORLD")
-  scanner:RegisterEvent("GROUP_ROSTER_UPDATE")
+  scanner:RegisterEvent("PARTY_MEMBERS_CHANGED")
+  scanner:RegisterEvent("RAID_ROSTER_UPDATE")
   scanner:RegisterUnitEvent("UNIT_HEALTH", "mark1", "mark2", "mark3", "mark4", "mark5", "mark6", "mark7", "mark8")
   scanner:RegisterUnitEvent("UNIT_MAXHEALTH", "mark1", "mark2", "mark3", "mark4", "mark5", "mark6", "mark7", "mark8")
 

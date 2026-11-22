@@ -1755,11 +1755,12 @@ pfUI:RegisterModule("nameplates", function ()
     for _, plate in pairs(plateByGuid) do UpdateName(plate) end
   end
 
-  events.GROUP_ROSTER_UPDATE = function()
+  events.RAID_ROSTER_UPDATE = function()
     RebuildRaidGuidCache()
     -- the offtank list reads the group by name
     for _, plate in pairs(plateByGuid) do UpdateCombatColor(plate) end
   end
+  events.PARTY_MEMBERS_CHANGED = events.RAID_ROSTER_UPDATE
 
   events.NAME_PLATE_CREATED = function(frame)
     -- arg1 = the nameplate Frame; build the pfUI overlay once per pool slot

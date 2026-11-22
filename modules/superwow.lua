@@ -20,6 +20,7 @@ pfUI:RegisterModule("superwow", function ()
     end
   end
 
-  pfUI.events:RegisterFrameEventAndCallback("GROUP_ROSTER_UPDATE", TrackGroup)
+  pfUI.events:RegisterFrameEventAndCallback("PARTY_MEMBERS_CHANGED", TrackGroup)
+  pfUI.events:RegisterFrameEventAndCallback("RAID_ROSTER_UPDATE", TrackGroup)
   pfUI.events:RegisterFrameEventAndCallback("PLAYER_ENTERING_WORLD", TrackGroup)
 end)
