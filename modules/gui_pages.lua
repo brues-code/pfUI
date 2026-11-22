@@ -957,11 +957,12 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     [6] = { "ptarget",     T["Pet-Target"]},
     [7] = { "focus",       T["Focus"] },
     [8] = { "focustarget", T["Focus-Target"] },
-    [9] = { "group",       GROUP },
-    [10] = { "grouptarget", T["Group-Target"]},
-    [11] = { "grouppet",   T["Group-Pet"] },
-    [12] = { "raid",       RAID },
-    [13] = { "raidpet",    T["Raid-Pet"] },
+    [9] = { "boss",        BOSS },
+    [10] = { "group",      GROUP },
+    [11] = { "grouptarget", T["Group-Target"]},
+    [12] = { "grouppet",   T["Group-Pet"] },
+    [13] = { "raid",       RAID },
+    [14] = { "raidpet",    T["Raid-Pet"] },
   }
 
   gui:AddPage("unitframes.clickcast", T["Unit Frames"], T["Click Casting"], function(p)
@@ -1362,7 +1363,7 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
       p:Checkbox(T["Automatic Level Text Color"], f, "levelcolor", U[c])
       p:Checkbox(T["Automatic Class Text Color"], f, "classcolor", U[c])
 
-      if c == "group" or c == "raid" then
+      if c == "group" or c == "raid" or c == "boss" then
         p:Header(T["Castbar"])
         p:Checkbox(T["Enable Castbars"], f, "castbar", U[c])
         p:Number(T["Castbar Height"], f, "castbarheight", U[c], { requires = "castbar" })

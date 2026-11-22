@@ -368,6 +368,22 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("unitframes", "focustarget", "txthpcenter",      "name")
   pfUI:UpdateConfig("unitframes", "focustarget", "txthpright",       "none")
 
+  pfUI:UpdateConfig("unitframes", "boss",        "portrait",         "off")
+  pfUI:UpdateConfig("unitframes", "boss",        "width",            "160")
+  pfUI:UpdateConfig("unitframes", "boss",        "height",           "30")
+  pfUI:UpdateConfig("unitframes", "boss",        "pheight",          "6")
+  pfUI:UpdateConfig("unitframes", "boss",        "buffs",            "off")
+  pfUI:UpdateConfig("unitframes", "boss",        "debuffs",          "BOTTOMLEFT")
+  pfUI:UpdateConfig("unitframes", "boss",        "debuffsize",       "16")
+  pfUI:UpdateConfig("unitframes", "boss",        "debufflimit",      "8")
+  pfUI:UpdateConfig("unitframes", "boss",        "glowaggro",        "0")
+  pfUI:UpdateConfig("unitframes", "boss",        "glowcombat",       "0")
+  pfUI:UpdateConfig("unitframes", "boss",        "txthpleft",        "name")
+  pfUI:UpdateConfig("unitframes", "boss",        "txthpright",       "healthperc")
+  pfUI:UpdateConfig("unitframes", "boss",        "castbar",          "1")
+  pfUI:UpdateConfig("unitframes", "boss",        "castbarheight",    "3")
+  pfUI:UpdateConfig("unitframes", "boss",        "castbartext",      "1")
+
   pfUI:UpdateConfig("unitframes", "group",       "portrait",         "off")
   pfUI:UpdateConfig("unitframes", "group",       "width",            "164")
   pfUI:UpdateConfig("unitframes", "group",       "height",           "32")
@@ -510,7 +526,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("unitframes", "ptarget",     "txthpright",       "none")
   pfUI:UpdateConfig("unitframes", "ptarget",     "overhealperc",     "10")
 
-  local ufs = { "player", "target", "focus", "focustarget", "group", "grouptarget", "grouppet", "raid", "raidpet", "ttarget", "pet", "ptarget", "fallback", "tttarget" }
+  local ufs = { "player", "target", "focus", "focustarget", "boss", "group", "grouptarget", "grouppet", "raid", "raidpet", "ttarget", "pet", "ptarget", "fallback", "tttarget" }
   for _, unit in pairs(ufs) do
     pfUI:UpdateConfig("unitframes", unit,      "selfdebuff",       "0")
     pfUI:UpdateConfig("unitframes", unit,      "visible",          "1")

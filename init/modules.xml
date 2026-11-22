@@ -20,6 +20,7 @@
   <Include file="..\modules\panel.lua"/>
   <Include file="..\modules\player.lua"/>
   <Include file="..\modules\focus.lua"/>
+  <Include file="..\modules\boss.lua"/>
   <Include file="..\modules\target.lua"/>
   <Include file="..\modules\combopoints.lua"/>
   <Include file="..\modules\swingtimer.lua"/>

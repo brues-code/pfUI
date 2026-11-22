@@ -8,6 +8,7 @@ pfUI:RegisterModule("unlock", function ()
     { "pfRaid",           40,   5 },
     { "pfRaidPet",        40,   5 },
     { "pfGroup",          4       },
+    { "pfBoss",           5       },
     { "pfLootRollFrame",  4       },
   }
 
@@ -30,6 +31,7 @@ pfUI:RegisterModule("unlock", function ()
     ["Pet"]                = { "unitframes.frames", "pet" },
     ["PetTarget"]          = { "unitframes.frames", "ptarget" },
     ["Focus"]              = { "unitframes.frames", "focus" },
+    ["Boss%d"]             = { "unitframes.frames", "boss" },
 
     -- combopoints
     ["Combo%d"]       = { "unitframes.frames", "target" },
@@ -97,12 +99,42 @@ pfUI:RegisterModule("unlock", function ()
     ["TargetDebuffBar"] = { "buffs.bars", "tdebuff" },
   }
 
-  local function GetFrames()
-    -- Return frames based on Ctrl and Shift state
-    -- 'this'   [frame]       the base frame
-    -- return   [list]        all frames that should be selected
+  -- A frame with an attachTo frame stays anchored to it, and moves with it,
+  -- until the frame gets a position of its own.
+  local function IsAttached(frame)
+    local position = C.position[frame:GetName()]
+    return frame.attachTo and not (position and position.xpos)
+  end
 
-    local frame = this.frame
+  -- the frame that moves a frame: the end of its chain of attached frames
+  local function GetRoot(frame)
+    while IsAttached(frame) do frame = frame.attachTo end
+    return frame
+  end
+
+  -- the frames attached, directly or through others, to a frame of the list
+  local function GetAttached(frames)
+    local attached = {}
+    for _, movable in pairs(pfUI.movables) do
+      if IsAttached(movable) then
+        local root = GetRoot(movable)
+        for _, frame in pairs(frames) do
+          if frame == root then
+            table.insert(attached, movable)
+            break
+          end
+        end
+      end
+    end
+    return attached
+  end
+
+  local function GetFrames(frame)
+    -- Return frames based on Ctrl and Shift state
+    -- 'frame'  [frame]       the base frame
+    -- return   [list]        all frames that should be selected
+    -- Attached frames are left out: they follow the frame they attach to.
+
     local frames = { frame }
 
     if IsShiftKeyDown() or IsControlKeyDown() then
@@ -113,8 +145,9 @@ pfUI:RegisterModule("unlock", function ()
         if fid and strsub(frame:GetName(),0,len) == cluster[1] then
           if IsShiftKeyDown() and cluster[2] then
             for i = 1, cluster[2] do
-              if _G[cluster[1] .. i] ~= frame then
-                table.insert(frames, _G[cluster[1] .. i])
+              local member = _G[cluster[1] .. i]
+              if member and member ~= frame and not IsAttached(member) then
+                table.insert(frames, member)
               end
             end
           elseif IsControlKeyDown() and cluster[3] then
@@ -126,8 +159,9 @@ pfUI:RegisterModule("unlock", function ()
             end
 
             for i = b, b + cluster[3] - 1 do
-              if _G[cluster[1] .. i] ~= frame then
-                table.insert(frames, _G[cluster[1] .. i])
+              local member = _G[cluster[1] .. i]
+              if member and member ~= frame and not IsAttached(member) then
+                table.insert(frames, member)
               end
             end
           end
@@ -285,12 +319,23 @@ pfUI:RegisterModule("unlock", function ()
     end
   end
 
+  -- the frames that a scroll, drag or reset on a frame acts on, and the
+  -- attached frames that follow them
+  local function GetSelection(frame)
+    local selection = GetFrames(frame)
+    return selection, GetAttached(selection)
+  end
+
   local function DraggerOnMouseWheel()
-    local frame = this.frame
+    local frame = GetRoot(this.frame)
     local scale = round(frame:GetScale() + arg1/10, 1)
 
-    pfUI.unlock.selection = GetFrames()
-    for id, frame in pairs(pfUI.unlock.selection) do
+    local selection, attached = GetSelection(frame)
+    pfUI.unlock.selection = selection
+    for _, frame in pairs(selection) do
+      SaveScale(frame, scale)
+    end
+    for _, frame in pairs(attached) do
       SaveScale(frame, scale)
     end
 
@@ -305,13 +350,21 @@ pfUI:RegisterModule("unlock", function ()
   end
 
   local function DraggerOnDragStart()
-    local frame = this.frame
+    -- an attached frame drags the frames it is attached to, or with Alt
+    -- splits off to a position of its own
+    local frame = IsAltKeyDown() and this.frame or GetRoot(this.frame)
 
-    pfUI.unlock.selection = GetFrames()
+    local selection, attached = GetSelection(frame)
+    pfUI.unlock.selection = selection
+    pfUI.unlock.attached = attached
+    pfUI.unlock.dragged = frame
 
-    for id, frame in pairs(pfUI.unlock.selection) do
+    for _, frame in pairs(selection) do
       frame:StartMoving()
       frame:StopMovingOrSizing()
+      frame.drag.backdrop:SetBackdropBorderColor(.2,1,.8,1)
+    end
+    for _, frame in pairs(attached) do
       frame.drag.backdrop:SetBackdropBorderColor(.2,1,.8,1)
     end
 
@@ -323,8 +376,7 @@ pfUI:RegisterModule("unlock", function ()
   end
 
   local function DraggerOnDragStop()
-    local frame = this.frame
-    local name = this.fname
+    local frame = pfUI.unlock.dragged
 
     frame:StopMovingOrSizing()
 
@@ -333,20 +385,20 @@ pfUI:RegisterModule("unlock", function ()
     local diffxpos = frame.oldPos[1] - xpos
     local diffypos = frame.oldPos[2] - ypos
 
-    for id, frame in pairs(pfUI.unlock.selection) do
-      frame:SetParent("UIParent")
-      if frame:GetName() ~= name then
-        local anchor, _, _, xpos, ypos = frame:GetPoint()
-        frame:SetPoint(anchor or "TOPLEFT", xpos - diffxpos, ypos - diffypos)
+    for _, other in pairs(pfUI.unlock.selection) do
+      other:SetParent("UIParent")
+      if other ~= frame then
+        local anchor, _, _, xpos, ypos = other:GetPoint()
+        other:SetPoint(anchor or "TOPLEFT", xpos - diffxpos, ypos - diffypos)
       end
     end
 
-    -- detect best anchor
+    -- detect best anchor, over the attached frames too
     local bestanchor = "TOPLEFT"
     local left, top, right, bottom
     spanframe:ClearAllPoints()
 
-    for id, frame in pairs(pfUI.unlock.selection) do
+    local function Span(frame)
       if not left or frame:GetLeft() < left then
         spanframe:SetPoint("LEFT", frame, "LEFT", 0, 0)
         left = frame:GetLeft()
@@ -364,15 +416,20 @@ pfUI:RegisterModule("unlock", function ()
         spanframe:SetPoint("BOTTOM", frame, "BOTTOM", 0, 0)
       end
     end
+    for _, frame in pairs(pfUI.unlock.selection) do Span(frame) end
+    for _, frame in pairs(pfUI.unlock.attached) do Span(frame) end
     bestanchor = GetBestAnchor(spanframe)
 
     -- save all frame positions
-    for id, frame in pairs(pfUI.unlock.selection) do
+    for _, frame in pairs(pfUI.unlock.selection) do
       CreateBackdrop(frame.drag, nil, nil, .8)
       local anchor, x, y = ConvertFrameAnchor(frame, bestanchor)
       frame:ClearAllPoints()
       frame:SetPoint(anchor, UIParent, anchor, x, y)
       SavePosition(frame)
+    end
+    for _, frame in pairs(pfUI.unlock.attached) do
+      CreateBackdrop(frame.drag, nil, nil, .8)
     end
 
     this.backdrop:SetBackdropBorderColor(1,1,1,1)
@@ -389,13 +446,17 @@ pfUI:RegisterModule("unlock", function ()
       end
       return
     elseif arg1 == "MiddleButton" then
-      -- reset positions of dragger and all connected frames
-      pfUI.unlock.selection = GetFrames()
-      for id, frame in pairs(pfUI.unlock.selection) do
-        pfUI_config["position"][frame:GetName()] = nil
-        UpdateMovable(frame)
+      -- reset positions of dragger and all connected frames; a split-off
+      -- frame goes back to the frame it is attached to
+      local selection, attached = GetSelection(GetRoot(this.frame))
+      pfUI.unlock.selection = selection
+      for _, list in pairs({ selection, attached }) do
+        for _, frame in pairs(list) do
+          pfUI_config["position"][frame:GetName()] = nil
+          UpdateMovable(frame)
 
-        if frame.OnMove then frame:OnMove() end
+          if frame.OnMove then frame:OnMove() end
+        end
       end
       UpdateDockValues()
     end
@@ -466,6 +527,7 @@ pfUI:RegisterModule("unlock", function ()
   table.insert(UISpecialFrames, "pfUnlock")
   pfUI.unlock = CreateFrame("Button", "pfUnlock", UIParent)
   pfUI.unlock.selection = {}
+  pfUI.unlock.attached = {}
   pfUI.unlock:Hide()
   pfUI.unlock:SetAllPoints(WorldFrame)
   pfUI.unlock:SetFrameStrata("BACKGROUND")
@@ -491,8 +553,8 @@ pfUI:RegisterModule("unlock", function ()
     -- lift the range and offline fade while unlocked
     pfUI.uf:UpdateAllVisibility()
 
-    local txt = T["Unlock Mode allows you to move, scale and reset frames:\n\n|cff33ffcc[Left Click]|r Drag Frame\n|cff33ffcc[Middle Click]|r Reset Frame\n|cff33ffcc[Right Click]|r Option Box\n\nHold |cff33ffcc[Shift]|r to select all frames of the same kind\nHold |cff33ffcc[Ctrl]|r to select all frames of the same group\n\n|cff33ffcc[Scroll]|r to change the scale of a frame\n\n|cff33ffcc[Click]|r on an empty area or press |cff33ffcc[Esc]|r to exit\n"]
-    CreateInfoBox(txt, 15, pfUI.unlock, 180)
+    local txt = T["Unlock Mode allows you to move, scale and reset frames:\n\n|cff33ffcc[Left Click]|r Drag Frame\n|cff33ffcc[Middle Click]|r Reset Frame\n|cff33ffcc[Right Click]|r Option Box\n\nHold |cff33ffcc[Shift]|r to select all frames of the same kind\nHold |cff33ffcc[Ctrl]|r to select all frames of the same group\nHold |cff33ffcc[Alt]|r to split a frame off its stack\n\n|cff33ffcc[Scroll]|r to change the scale of a frame\n\n|cff33ffcc[Click]|r on an empty area or press |cff33ffcc[Esc]|r to exit\n"]
+    CreateInfoBox(txt, 15, pfUI.unlock, 195)
     pfUI.gui:Hide()
   end)
 
