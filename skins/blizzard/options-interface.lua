@@ -3,15 +3,24 @@ pfUI:RegisterSkin("Options - Interface", function ()
 
   -- retail's MinimalScrollBar, not the old named UIPanelScrollBar, so
   -- SkinScrollbar does not fit. Its steppers and thumb set their atlas again on
-  -- every state change, so their art is hidden, not cleared
+  -- every state change, so their art is hidden, not cleared. Newer ClassicAPI
+  -- draws retail's own bar (track pieces); older versions draw a classic bar
+  -- (Background, stepper Overlay, thumbTexture)
   local function SkinMinimalScrollBar(bar)
-    local thumb = bar.Track.Thumb
+    local track, thumb = bar.Track, bar.Track.Thumb
 
-    StripTextures(bar)
-    bar.Background:Hide()
+    if track.Begin then
+      track.Begin:Hide()
+      track.Middle:Hide()
+      track.End:Hide()
+    end
+    if bar.Background then
+      StripTextures(bar)
+      bar.Background:Hide()
+    end
     for _, stepper in ipairs({ bar.Back, bar.Forward }) do
       stepper.Texture:Hide()
-      stepper.Overlay:SetAlpha(0)
+      if stepper.Overlay then stepper.Overlay:SetAlpha(0) end
     end
     SkinArrowButton(bar.Back, "up")
     SkinArrowButton(bar.Forward, "down")
@@ -19,7 +28,7 @@ pfUI:RegisterSkin("Options - Interface", function ()
     thumb.Begin:Hide()
     thumb.Middle:Hide()
     thumb.End:Hide()
-    thumb.thumbTexture:Hide()
+    if thumb.thumbTexture then thumb.thumbTexture:Hide() end
 
     bar.bg = CreateFrame("Frame", nil, bar)
     bar.bg:SetPoint("TOPLEFT", bar.Back, "BOTTOMLEFT", 0, -3)
@@ -36,16 +45,26 @@ pfUI:RegisterSkin("Options - Interface", function ()
 
   -- the category list pools its rows, and its group headers and spacers have
   -- no toggle. On every state change a row sets the art of its hover and
-  -- selection highlight, and swaps the toggle's plus/minus textures by path
+  -- selection highlight (an atlas in newer ClassicAPI, a file in older
+  -- versions), and swaps the toggle's art: open/closed atlases, or older
+  -- versions' minus/plus files
   local function SkinCategoryRow(_, row)
     if row.skinned or not row.Toggle then return end
     row.skinned = true
 
-    row.Texture.SetTexture = function(self)
+    local function Highlight(self)
       self:SetColorTexture(cr, cg, cb, .25)
+      self:SetAllPoints(row)
     end
+    row.Texture.SetAtlas = Highlight
+    row.Texture.SetTexture = Highlight
 
     SkinCollapseButton(row.Toggle)
+    row.Toggle.SetNormalTexture = function(self, tex)
+      local open = tex and (strfind(tex, "open") or strfind(tex, "MinusButton"))
+      self.icon.text:SetText(open and "-" or "+")
+      self.icon:Show()
+    end
     row.Toggle.icon:ClearAllPoints()
     row.Toggle.icon:SetPoint("CENTER", 0, 0)
     row.Toggle:SetPushedTexture("")
@@ -66,18 +85,41 @@ pfUI:RegisterSkin("Options - Interface", function ()
   CreateBackdropShadow(panel)
   SkinCloseButton(panel.ClosePanelButton, panel.backdrop, -6, -6)
 
-  -- and frames the category list and the settings with a border frame each
-  CreateBackdrop(panel.CategoryListBorder, nil, true, .75)
-  CreateBackdrop(panel.ContainerBorder, nil, true, .75)
+  -- and frames the category list and the settings: newer ClassicAPI with
+  -- retail's inner frame atlas (an unnamed texture on the panel), older
+  -- versions with a border frame each
+  if panel.CategoryListBorder then
+    CreateBackdrop(panel.CategoryListBorder, nil, true, .75)
+    CreateBackdrop(panel.ContainerBorder, nil, true, .75)
+  else
+    for _, region in ipairs({ panel:GetRegions() }) do
+      if region.GetAtlas and region:GetAtlas() == "Options_InnerFrame" then
+        region:Hide()
+      end
+    end
+    CreateBackdrop(list, nil, true, .75)
+    CreateBackdrop(panel.Container, nil, true, .75)
+  end
   SkinMinimalScrollBar(list.ScrollBar)
   SkinMinimalScrollBar(settingsList.ScrollBar)
 
-  -- MinimalTab sets its three pieces again on every state change
+  -- MinimalTab sets its three pieces again on every state change. Newer
+  -- ClassicAPI draws retail's tab: art 23 pixels tall along the bottom of the
+  -- 37 pixel button, with the text near the bottom, so the backdrop covers
+  -- only that strip. Older versions centre the text on the whole button
   for _, tab in ipairs({ panel.GameTab, panel.AddOnsTab }) do
     tab.Left:Hide()
     tab.Middle:Hide()
     tab.Right:Hide()
-    CreateBackdrop(tab, nil, true)
+    if tab.selectedLeftTexture then
+      CreateBackdrop(tab)
+      tab.backdrop:ClearAllPoints()
+      tab.backdrop:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 0, 0)
+      tab.backdrop:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", 0, 0)
+      tab.backdrop:SetHeight(23)
+    else
+      CreateBackdrop(tab, nil, true)
+    end
   end
 
   StripTextures(panel.SearchBox, nil, "BACKGROUND")
@@ -137,7 +179,19 @@ pfUI:RegisterSkin("Options - Interface", function ()
     end
 
     if row.SliderWithSteppers then
-      SkinSlider(row.SliderWithSteppers.Slider)
+      -- newer ClassicAPI draws retail's bar, three atlas pieces, with the
+      -- slider spanning the row's height, so it is anchored by its sides
+      -- alone for SkinSlider's height. Older versions draw a backdrop bar
+      local slider = row.SliderWithSteppers.Slider
+      if slider.Left then
+        slider.Left:Hide()
+        slider.Middle:Hide()
+        slider.Right:Hide()
+        slider:ClearAllPoints()
+        slider:SetPoint("LEFT", 19, 0)
+        slider:SetPoint("RIGHT", -19, 0)
+      end
+      SkinSlider(slider)
       SkinArrowButton(row.SliderWithSteppers.Back, "left")
       SkinArrowButton(row.SliderWithSteppers.Forward, "right")
     end
