@@ -499,6 +499,7 @@ pfUI_translation["deDE"] = {
   ["Health - Auto"] = nil,
   ["Healthbar"] = nil,
   ["Health Bar Color"] = nil,
+  ["Rainbow"] = "Regenbogen",
   ["Healthbar Embedded"] = nil,
   ["Healthbar Height"] = nil,
   ["Health Bar Height"] = nil,

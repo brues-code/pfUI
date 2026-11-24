@@ -411,6 +411,7 @@ pfUI_translation["frFR"] = {
   ["Health - Auto"] = "Points de vie - Automatique",
   ["Healthbar"] = "Barre des points de vie",
   ["Health Bar Color"] = "Couleur de la barre des points de vie",
+  ["Rainbow"] = "Arc-en-ciel",
   ["Healthbar Embedded"] = "Barres de vies intégrées",
   ["Healthbar Height"] = "Hauteur des barres de vies",
   ["Health Bar Height"] = "Hauteur de la barre de vie",

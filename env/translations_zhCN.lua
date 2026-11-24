@@ -491,6 +491,7 @@ pfUI_translation["zhCN"] = {
   ["Health - Auto"] = "动态生命值和百分比",
   ["Healthbar"] = "血条",
   ["Health Bar Color"] = "血条颜色",
+  ["Rainbow"] = "彩虹",
   ["Healthbar Embedded"] = "血条上显示动态头像",
   ["Healthbar Height"] = "血条高度",
   ["Health Bar Height"] = "血条高度",

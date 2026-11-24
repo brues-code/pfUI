@@ -491,6 +491,7 @@ pfUI_translation["zhTW"] = {
   ["Health - Auto"] = "動態生命值和百分比",
   ["Healthbar"] = "生命條",
   ["Health Bar Color"] = nil,
+  ["Rainbow"] = "彩虹",
   ["Healthbar Embedded"] = "血條上顯示動態頭像",
   ["Healthbar Height"] = "生命條高度",
   ["Health Bar Height"] = "血條高度",

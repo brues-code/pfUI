@@ -491,6 +491,7 @@ pfUI_translation["esES"] = {
   ["Health - Auto"] = "Salud - Auto",
   ["Healthbar"] = "Barra de salud",
   ["Health Bar Color"] = "Color de la barra de salud",
+  ["Rainbow"] = "Arcoíris",
   ["Healthbar Embedded"] = "Barra de salud embebida",
   ["Healthbar Height"] = "Altura de la barra de salud",
   ["Health Bar Height"] = "Altura de la barra de salud",

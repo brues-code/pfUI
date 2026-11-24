@@ -491,6 +491,7 @@ pfUI_translation["koKR"] = {
   ["Health - Auto"] = "체력-자동",
   ["Healthbar"] = nil,
   ["Health Bar Color"] = nil,
+  ["Rainbow"] = "무지개",
   ["Healthbar Embedded"] = "체력바에 겹쳐보기",
   ["Healthbar Height"] = "체력바 높이",
   ["Health Bar Height"] = "체력바 높이",

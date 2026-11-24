@@ -491,6 +491,7 @@ pfUI_translation["ruRU"] = {
   ["Health - Auto"] = "Здоровье - автоматически",
   ["Healthbar"] = "Панель здоровья",
   ["Health Bar Color"] = "Цвет панели здоровья",
+  ["Rainbow"] = "Радуга",
   ["Healthbar Embedded"] = "На панели здоровья",
   ["Healthbar Height"] = "Высота панели здоровья",
   ["Health Bar Height"] = "Высота панели здоровья",

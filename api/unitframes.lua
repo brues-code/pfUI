@@ -2352,6 +2352,201 @@ local function ShowPortraitTexture(portrait, unitstr)
   portrait.model:Hide()
 end
 
+-- Animated health bar colors. Each theme is a "Health Bar Color" choice,
+-- stored by its id. The bar's color moves through `colors` (RRGGBB) and back
+-- to the first one in `period` seconds. A second color, `spread` of a loop
+-- ahead, fades in toward the far end of the bar. Bars with the same theme
+-- stay in step. The color follows a smooth curve through `colors` at an even
+-- speed. Colors of one lightness keep the bar from going brighter and darker
+-- as it changes.
+pfUI.uf.colorthemes = {
+  -- 12 hues at OKLCH lightness 0.72, each as saturated as sRGB allows
+  { id = "rainbow", name = "Rainbow", period = 6, spread = 67 / 360,
+    colors = { "ff7362", "f08503", "ca9e01", "9ab201", "01c556", "05bfa6",
+               "01b9ce", "01b0fe", "809fff", "b489ff", "ff3efb", "ff67a2" } },
+}
+
+do
+  local themes = {}
+  for _, theme in ipairs(pfUI.uf.colorthemes) do
+    themes[theme.id] = theme
+  end
+
+  -- OKLab: two colors that are the same distance apart look the same
+  -- amount different, and a curve through it has no muddy middles
+  local function ToOKLab(hex)
+    local color = CreateColorFromRGBHexString(hex)
+    local function linear(c)
+      return c <= 0.04045 and c / 12.92 or ((c + 0.055) / 1.055) ^ 2.4
+    end
+    local r, g, b = linear(color.r), linear(color.g), linear(color.b)
+    local l = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ^ (1 / 3)
+    local m = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ^ (1 / 3)
+    local s = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ^ (1 / 3)
+    return 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+           1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+           0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+  end
+
+  local function FromOKLab(L, a, b)
+    local l = (L + 0.3963377774 * a + 0.2158037573 * b) ^ 3
+    local m = (L - 0.1055613458 * a - 0.0638541728 * b) ^ 3
+    local s = (L - 0.0894841775 * a - 1.2914855480 * b) ^ 3
+    local function encode(c)
+      c = Clamp(c, 0, 1)
+      return c <= 0.0031308 and c * 12.92 or 1.055 * c ^ (1 / 2.4) - 0.055
+    end
+    return CreateColor(
+      encode( 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+      encode(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+      encode(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s), 1)
+  end
+
+  local STEPS = 48 -- straight steps in a loop; a group holds 99 orders
+
+  -- The steps of a theme's loop, made once: points on a closed Catmull-Rom
+  -- curve through the colors in OKLab, each step timed by how far the color
+  -- moves, so the color changes at an even speed with no corners.
+  local function GetSteps(theme)
+    if theme.steps then return theme.steps end
+
+    local count = #theme.colors
+    local curves = {}
+    for i = 1, 3 do
+      curves[i] = C_CurveUtil.CreateCurve()
+      curves[i]:SetType(Enum.LuaCurveType.Cubic)
+    end
+    -- the colors at 0 to count-1, and the ones around the ends at -1, count
+    -- and count+1, so the curve closes smoothly
+    for x = -1, count + 1 do
+      local L, a, b = ToOKLab(theme.colors[(x + count) % count + 1])
+      curves[1]:AddPoint(x, L)
+      curves[2]:AddPoint(x, a)
+      curves[3]:AddPoint(x, b)
+    end
+
+    local points, distances, total = {}, {}, 0
+    for i = 0, STEPS do
+      local x = count * i / STEPS
+      points[i] = { curves[1]:Evaluate(x), curves[2]:Evaluate(x), curves[3]:Evaluate(x) }
+      if i > 0 then
+        local p, q = points[i - 1], points[i]
+        distances[i] = math.sqrt((q[1] - p[1]) ^ 2 + (q[2] - p[2]) ^ 2 + (q[3] - p[3]) ^ 2)
+        total = total + distances[i]
+      end
+    end
+
+    theme.steps = {}
+    for i = 1, STEPS do
+      theme.steps[i] = {
+        from = FromOKLab(unpack(points[i - 1])),
+        to = FromOKLab(unpack(points[i])),
+        duration = total > 0 and theme.period * distances[i] / total or theme.period / STEPS,
+      }
+    end
+    return theme.steps
+  end
+
+  -- fills a group with a loop of VertexColor animations through the steps
+  local function BuildLoop(group, theme)
+    group:RemoveAnimations()
+    for i, data in ipairs(GetSteps(theme)) do
+      local step = group:CreateAnimation("VertexColor")
+      step:SetOrder(i)
+      step:SetDuration(data.duration)
+      step:SetStartColor(data.from)
+      step:SetEndColor(data.to)
+    end
+    group:SetLooping("REPEAT")
+    -- a throttled group steps 30 times a second, which shows on a slow fade
+    group:SetIgnoreFramerateThrottle(true)
+  end
+
+  -- plays both loops at the position that the clock gives, so that all bars
+  -- of a theme show the same colors
+  local function Sync(state)
+    local theme = state.theme
+    local now = GetTime()
+    state.fill:Restart(false, now % theme.period)
+    state.second:Restart(false, (now + theme.spread * theme.period) % theme.period)
+  end
+
+  -- the second color is clear where the bar starts to fill and full at
+  -- the far end of the bar
+  local function UpdateFade(bar, state)
+    local vertical = bar:GetOrientation() == "VERTICAL"
+    local edge = vertical ~= (bar:GetReverseFill() and true or false) and 1 or 0
+    local length = vertical and bar:GetHeight() or bar:GetWidth()
+    if state.edge == edge and state.vertical == vertical and state.length == length then return end
+    state.edge, state.vertical, state.length = edge, vertical, length
+
+    state.clip:ClearAlphaGradient()
+    state.clip:SetAlphaGradient(edge, vertical and CreateVector2D(0, length) or CreateVector2D(length, 0))
+  end
+
+  -- The second color is a copy of the bar texture over the fill. The
+  -- texture covers the whole bar, and the frame around it cuts it to the
+  -- fill, so it has the same pixels as the fill.
+  local function CreateState(bar)
+    local fill = bar:GetStatusBarTexture()
+    local state = { fill = fill:CreateAnimationGroup() }
+
+    state.clip = CreateFrame("Frame", nil, bar)
+    state.clip:SetFrameLevel(bar:GetFrameLevel())
+    state.clip:SetClipsChildren(true)
+    state.clip:SetAllPoints(fill)
+
+    state.tex = state.clip:CreateTexture(nil, "ARTWORK")
+    state.tex:SetAllPoints(bar)
+    state.second = state.tex:CreateAnimationGroup()
+
+    bar:HookScript("OnSizeChanged", function()
+      if state.theme then UpdateFade(bar, state) end
+    end)
+    bar:HookScript("OnShow", function()
+      if state.theme then Sync(state) end
+    end)
+
+    return state
+  end
+
+  -- Gives a status bar the theme with this id, or no theme for an id that
+  -- is not one. Without a theme, the bar keeps its last color until the
+  -- next SetStatusBarColor. Returns whether the bar has a theme.
+  function pfUI.uf:SetColorTheme(bar, id)
+    local theme = themes[id]
+    local state = bar.colortheme
+    if not state then
+      if not theme then return false end
+      state = CreateState(bar)
+      bar.colortheme = state
+    end
+
+    if not theme then
+      if state.theme then
+        state.theme = nil
+        state.fill:Stop()
+        state.second:Stop()
+        state.clip:Hide()
+      end
+      return false
+    end
+
+    -- the bar texture and the fill direction can change with the config
+    state.tex:SetTexture(bar:GetStatusBarTexture():GetTexture())
+    UpdateFade(bar, state)
+
+    if state.theme ~= theme then
+      state.theme = theme
+      BuildLoop(state.fill, theme)
+      BuildLoop(state.second, theme)
+      state.clip:Show()
+      Sync(state)
+    end
+    return true
+  end
+end
+
 function pfUI.uf:RefreshUnit(unit, component)
   -- break early on misconfigured UF's
   if not unit.label then return end
@@ -2795,7 +2990,12 @@ function pfUI.uf:RefreshUnit(unit, component)
       b = (cb*perc) + (b*(1-perc))
     end
 
-    unit.hp.bar:SetStatusBarColor(r, g, b, a)
+    -- a tapped unit keeps its grey bar
+    local tapped = UnitIsTapped(unitstr) and not UnitIsTappedByPlayer(unitstr)
+    local theme = not custom_active and not tapped and custom
+    if not pfUI.uf:SetColorTheme(unit.hp.bar, theme) then
+      unit.hp.bar:SetStatusBarColor(r, g, b, a)
+    end
 
     -- set powerbar color
     local mana = unit.config.defcolor == "0" and unit.config.manacolor or C.unitframes.manacolor

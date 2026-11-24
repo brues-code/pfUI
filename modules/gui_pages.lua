@@ -490,6 +490,10 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
     table.insert(D.loot_rarity, entry)
   end
 
+  for _, theme in ipairs(pfUI.uf.colorthemes) do
+    table.insert(D.uf_color, theme.id .. ":" .. T[theme.name])
+  end
+
   D.screenshot_battle = {
     "0:".._G.NONE,
     "1:"..T["Won"],
