@@ -608,6 +608,8 @@ function pfUI:LoadConfig()
 
     pfUI:UpdateConfig("unitframes", unit,      "glowaggro",        "1")
     pfUI:UpdateConfig("unitframes", unit,      "glowcombat",       "1")
+    pfUI:UpdateConfig("unitframes", unit,      "hoverhighlight",   "border")
+    pfUI:UpdateConfig("unitframes", unit,      "hovercolor",       "1,1,1,.6")
     pfUI:UpdateConfig("unitframes", unit,      "healthcolor",      "1")
     pfUI:UpdateConfig("unitframes", unit,      "powercolor",       "1")
     pfUI:UpdateConfig("unitframes", unit,      "levelcolor",       "1")

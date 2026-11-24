@@ -924,6 +924,27 @@ function pfUI.uf:UpdateConfig()
   f.glow:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 6 + default_border,-6 - default_border)
   f.glow:Hide()
 
+  local hr, hg, hb, ha = GetStringColor(f.config.hovercolor)
+  hr, hg, hb, ha = tonumber(hr), tonumber(hg), tonumber(hb), tonumber(ha)
+  f.hover:ClearAllPoints()
+  if f.config.hoverhighlight == "glow" then
+    f.hover:SetFrameLevel(base)
+    f.hover:SetBackdrop(glow2)
+    f.hover:SetPoint("TOPLEFT", f, "TOPLEFT", -6 - default_border, 6 + default_border)
+    f.hover:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 6 + default_border, -6 - default_border)
+  else
+    -- over the bars' backdrops, under the texts
+    local edge = 2 * GetPerfectPixel()
+    f.hover:SetFrameLevel(base + 15)
+    f.hover:SetBackdrop({ edgeFile = "Interface\\BUTTONS\\WHITE8X8", edgeSize = edge })
+    f.hover:SetPoint("TOPLEFT", f, "TOPLEFT", -default_border - edge, default_border + edge)
+    f.hover:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", default_border + edge, -default_border - edge)
+  end
+  f.hover:SetBackdropBorderColor(hr, hg, hb, ha)
+  f.hover.hp:SetColorTexture(hr, hg, hb, ha)
+  f.hover.power:SetColorTexture(hr, hg, hb, ha)
+  pfUI.uf.SetHover(f, false)
+
   f.combat:SetSize(tonumber(f.config.squaresize), tonumber(f.config.squaresize))
   f.combat:ClearAllPoints()
   f.combat:SetPoint(f.config.squarepos, 0, 0)
@@ -1391,6 +1412,25 @@ function pfUI.uf.OnHide()
       this:UnregisterEvent(SHOWN_EVENTS[i])
     end
   end
+  -- a frame hidden under the cursor gets no OnLeave
+  pfUI.uf.SetHover(this, false)
+end
+
+-- The mouseover highlight in the style the frame's `hoverhighlight` picks:
+-- "tint" washes its bars, "border" and "glow" frame it.
+function pfUI.uf.SetHover(f, shown)
+  local mode = shown and f.config.hoverhighlight or "0"
+  f.hover:SetShown(mode == "border" or mode == "glow")
+  f.hover.hp:SetShown(mode == "tint")
+  f.hover.power:SetShown(mode == "tint")
+end
+
+function pfUI.uf.OnEnter()
+  pfUI.uf.SetHover(this, true)
+end
+
+function pfUI.uf.OnLeave()
+  pfUI.uf.SetHover(this, false)
 end
 
 function pfUI.uf.OnEvent()
@@ -1905,6 +1945,8 @@ function pfUI.uf:EnableScripts()
 
   f:SetScript("OnShow", pfUI.uf.OnShow)
   f:SetScript("OnHide", pfUI.uf.OnHide)
+  f:SetScript("OnEnter", pfUI.uf.OnEnter)
+  f:SetScript("OnLeave", pfUI.uf.OnLeave)
   f:SetScript("OnEvent", pfUI.uf.OnEvent)
 
   visibilityframes[f] = true
@@ -1996,6 +2038,14 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick, preview)
   fade:SetDuration(1.3)
   fade:SetSmoothing("IN_OUT")
   f.glow.pulse:Play()
+
+  -- the mouseover highlight: a frame for the border and glow, and a wash over
+  -- each bar's fill that stays under the icons on it
+  f.hover = CreateFrame("Frame", nil, f)
+  f.hover.hp = f.hp.bar:CreateTexture(nil, "OVERLAY")
+  f.hover.hp:SetAllPoints()
+  f.hover.power = f.power.bar:CreateTexture(nil, "OVERLAY")
+  f.hover.power:SetAllPoints()
 
   f.combat =CreateFrame("Frame", nil, f.hp.bar)
   f.combat.tex = f.combat:CreateTexture(nil, "OVERLAY")

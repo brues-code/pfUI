@@ -184,6 +184,12 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
       "right:" .. T["Right"],
       "off:" .. T["Disabled"]
     },
+    ["uf_hoverhighlight"] = {
+      "0:" .. T["Disabled"],
+      "tint:" .. T["Tint"],
+      "border:" .. T["Border"],
+      "glow:" .. T["Glow"]
+    },
     ["uf_happiness"] = {
       "0:" .. T["Disabled"],
       "1:" .. T["Face"],
@@ -1314,6 +1320,8 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
       p:Dropdown(T["Offline Transparency"], f, "alpha_offline", D.percent_small, U[c])
       p:Checkbox(T["Enable Aggro Glow"], f, "glowaggro", U[c])
       p:Checkbox(T["Enable Combat Glow"], f, "glowcombat", U[c])
+      p:Dropdown(T["Mouseover Highlight"], f, "hoverhighlight", D.uf_hoverhighlight, U[c])
+      p:Color(T["Mouseover Highlight Color"], f, "hovercolor", U[c])
 
       p:Header(T["Portrait"])
       p:Dropdown(T["Portrait Position"], f, "portrait", D.uf_portrait_position, U[c])
