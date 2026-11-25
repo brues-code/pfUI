@@ -58,7 +58,7 @@ Provides:
 
 Provides:
 - Behind indicator on the target frame
-- Target distance, measured like spell range
+- Target distance, measured like spell range (ClassicAPI measures it itself from the release after v1.23.9)
 - Precise range check for group frames (Range Check Mode "UnitXP (Precise)")
 
 Use `/pfdll` in-game to check which DLLs are detected.
