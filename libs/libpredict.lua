@@ -120,12 +120,12 @@ local function PrayerOfHealingTargets(target, caster)
   local center = roster[target] or roster[caster]
   local names = {}
   if not center then return names end
-  local cy, cx, cz = UnitPosition(center.unit)
-  if not cy then return names end
+  local cx, cy, cz = C_PlayerInfo.UnitPosition(center.unit)
+  if not cx then return names end
   for name, member in pairs(roster) do
     if member.subgroup == center.subgroup and not UnitIsDeadOrGhost(member.unit) then
-      local y, x, z = UnitPosition(member.unit)
-      if y and Vector3D_GetLengthSquared(Vector3D_Subtract(y, x, z, cy, cx, cz)) <= POH_RADIUS_SQ then
+      local x, y, z = C_PlayerInfo.UnitPosition(member.unit)
+      if x and Vector3D_GetLengthSquared(Vector3D_Subtract(x, y, z, cx, cy, cz)) <= POH_RADIUS_SQ then
         table.insert(names, name)
       end
     end

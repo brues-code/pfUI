@@ -1,6 +1,6 @@
 pfUI:RegisterModule("radar", function ()
   -- DBM-style range radar: the group around you, turned so that your facing
-  -- points up. ClassicAPI's UnitPosition reads every visible unit.
+  -- points up. C_PlayerInfo.UnitPosition reads every visible unit.
   local SIZE = 150
   local RADIUS = SIZE / 2
   -- the range ring sits at two thirds of the radius, so the radar shows half
@@ -17,7 +17,16 @@ pfUI:RegisterModule("radar", function ()
 
   local _, border = GetBorderSize()
   local abs, sqrt = math.abs, math.sqrt
-  local UnitPosition = ClassicAPI.UnitPosition
+  -- x north, y west, z up. ClassicAPI up to v1.23.9 returned y before x; the
+  -- release that fixed it also brought UnitCombatReach.
+  local UnitPosition = C_PlayerInfo.UnitPosition
+  if not UnitCombatReach then
+    local WestFirst = UnitPosition
+    UnitPosition = function(unit)
+      local y, x, z = WestFirst(unit)
+      return x, y, z
+    end
+  end
 
   local radar = CreateFrame("Frame", "pfRadar", UIParent)
   radar:SetSize(SIZE, SIZE)
@@ -202,19 +211,19 @@ pfUI:RegisterModule("radar", function ()
   end
 
   -- the player's position and facing, read once per refresh
-  local py, px, pz, facing
+  local px, py, pz, facing
 
   -- where a unit shows on the radar in pixels, its squared distance, and 1
   -- or -1 on a floor above or below you. nil past the edge. The world turns
   -- clockwise by the facing, so ahead is up.
   local function Locate(unit)
-    if not py or not facing then return end
+    if not px or not facing then return end
     if UnitIsUnit(unit, "player") or UnitIsDeadOrGhost(unit) then return end
 
-    local uy, ux, uz = UnitPosition(unit)
-    if not uy then return end
+    local ux, uy, uz = UnitPosition(unit)
+    if not ux then return end
 
-    local west, north, up = uy - py, ux - px, uz - pz
+    local north, west, up = ux - px, uy - py, uz - pz
     local x, y = Vector2D_RotateDirection(-facing, -west, north)
     x, y = x * scale, y * scale
     if abs(x) >= RADIUS or abs(y) >= RADIUS then return end
@@ -248,7 +257,7 @@ pfUI:RegisterModule("radar", function ()
   end
 
   function radar:Refresh(checkLoS)
-    py, px, pz = UnitPosition("player")
+    px, py, pz = UnitPosition("player")
     facing = GetPlayerFacing()
     local shown, inRange, listed = 0, 0, 0
 

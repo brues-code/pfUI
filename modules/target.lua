@@ -63,7 +63,6 @@ pfUI:RegisterModule("target", function ()
   -- range band, shown on the target frame or in a movable frame of its own.
   local function GetTargetDistance()
     if UnitCombatReach then
-      -- C_PlayerInfo's copy: SuperWoW's global UnitPosition returns another shape
       local px, py, pz = C_PlayerInfo.UnitPosition("player")
       local tx, ty, tz = C_PlayerInfo.UnitPosition("target")
       if not px or not tx then return end
