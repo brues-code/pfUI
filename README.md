@@ -37,7 +37,7 @@ Provides:
 - Click-casting
 - Loot Roll History (/loothistory)
 - New item highlighting
-- Target distance, and taskbar flashes for whispers, ready checks and battleground queue pops
+- Taskbar flashes for whispers, ready checks and battleground queue pops
 - Loss of control alert - Stuns, fears, silences and school lockouts from C_LossOfControl
 - Dressing room zoom, pan and per-slot undress (PlayerModel / DressUpModel methods)
 - Plenty other functions
@@ -58,6 +58,7 @@ Provides:
 
 Provides:
 - Behind indicator on the target frame
+- Target distance, measured like spell range
 - Precise range check for group frames (Range Check Mode "UnitXP (Precise)")
 
 Use `/pfdll` in-game to check which DLLs are detected.

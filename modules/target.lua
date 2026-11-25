@@ -57,9 +57,10 @@ pfUI:RegisterModule("target", function ()
   end
 
   -- [ target distance ]
-  -- Center-to-center yards from ClassicAPI, colored by range band. Shown on
-  -- the target frame, or in a movable frame of its own.
-  if C.unitframes.distance_indicator == "1" then
+  -- Yards from UnitXP_SP3, measured the way spell range is (both units'
+  -- combat reach taken off), colored by range band. Shown on the target
+  -- frame, or in a movable frame of its own.
+  if C.unitframes.distance_indicator == "1" and _G.UnitXP then
     local suffix = C.unitframes.hide_distance_yd == "1" and "" or T[" yd"]
     local bands = {
       {  5, 0.3, 0.5, 1.0 },  -- melee (blue)
@@ -72,10 +73,9 @@ pfUI:RegisterModule("target", function ()
 
     -- returns whether the target has a known position
     local function UpdateDistance(text)
-      local distSq, checked = UnitDistanceSquared("target")
-      if not checked then return false end
+      local success, distance = pcall(UnitXP, "distanceBetween", "player", "target")
+      if not success or not distance then return false end
 
-      local distance = math.sqrt(distSq)
       local r, g, b = 1.0, 0.2, 0.2
       for _, band in ipairs(bands) do
         if distance <= band[1] then
