@@ -26,7 +26,6 @@ setfenv(1, pfUI:GetEnvironment())
 if pfUI.api.libpredict then return end
 
 local heals, hots = {}, {}
-local spell_queue = { "DUMMY", "DUMMYRank 9", "TARGET" }
 local player = UnitName("player")
 local cache, gear_string = {}, ""
 local foreignCache = {}   -- [casterName][spellKey] = amount, in-memory cache for other healers
@@ -148,9 +147,9 @@ local function OnOwnCastStart(spellId, castGUID)
   local spellName = C_Spell.GetSpellName(spellId)
   if not spellName then return end
 
-  -- SENT names the unit the cast went out at; self and no-target casts
-  -- carry none, so fall back to what the cast hooks recorded
-  local target = sentTargets[castGUID] or spell_queue[3]
+  -- SENT names the unit the cast went out at; a cast that names none went
+  -- out at the player
+  local target = sentTargets[castGUID] or player
   local _, _, _, startMs, endMs = C_Spell.CastingInfo()
   local castTime = startMs and endMs - startMs or 0
 
@@ -168,11 +167,9 @@ local function OnOwnCastStart(spellId, castGUID)
     return
   end
 
-  spell_queue[1] = spellName
-  spell_queue[2] = spellName .. (C_Spell.GetSpellSubtext(spellId) or "")
-
-  if spell_queue[1] == spellName and cache[spell_queue[2]] then
-    local amount   = cache[spell_queue[2]][1]
+  local key = spellName .. (C_Spell.GetSpellSubtext(spellId) or "")
+  if cache[key] then
+    local amount   = cache[key][1]
     local casttime = castTime
 
     if spellName == PRAYER_OF_HEALING then
@@ -192,7 +189,7 @@ end
 
 -- Own cast landed: HealStop, Regrowth timer, instant HoTs
 local function OnOwnCastSucceeded(spellId, castGUID)
-  local target = sentTargets[castGUID] or spell_queue[3]
+  local target = sentTargets[castGUID] or player
   sentTargets[castGUID] = nil
 
   libpredict:HealStop(player)
@@ -672,189 +669,6 @@ local function UpdateCache(spell, heal, crit)
   end
 end
 
--- Cooldown for local instant HoT hooks (prevents spam on click-to-cast)
-local instantHotCooldown = {}
-local INSTANT_HOT_COOLDOWN = 1.0  -- 1 Sekunde Cooldown (GCD ist 1.5s)
-
--- Pending HoTs Queue - wird nach Delay verifiziert
-local pendingHots = {}
-
--- Gather Data by User Actions
-hooksecurefunc("CastSpell", function(id, bookType)
-  local effect, rank = libspell.GetSpellInfo(id, bookType)
-  if not effect then return end
-  spell_queue[1] = effect
-  spell_queue[2] = effect.. ( rank or "" )
-  spell_queue[3] = UnitName("target") and UnitCanAssist("player", "target") and UnitName("target") or UnitName("player")
-  
-  -- Extract rank number
-  local rankNum = nil
-  if rank and rank ~= "" then
-    rankNum = tonumber((string.gsub(rank, "Rank ", ""))) or nil
-  end
-  
-  -- Instant HoTs: UNIT_SPELLCAST_SUCCEEDED and C_UnitAuras, hook method as fallback
-  
-  if effect == REJUVENATION then
-    local target = spell_queue[3]
-    local now = GetTime()
-    local key = "Reju" .. target
-    
-    -- Cooldown-Check
-    if instantHotCooldown[key] and (now - instantHotCooldown[key]) < INSTANT_HOT_COOLDOWN then
-      return
-    end
-    instantHotCooldown[key] = now
-    
-    if libpredict.debug then
-      DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff00ff00[CastSpell REJU INSTANT]|r target=%s rank=%s (Fallback)", target, tostring(rankNum or "?")))
-    end
-    libpredict:Hot(player, target, "Reju", rejuvDuration, nil, "CastSpell-Instant", rankNum)
-    local rankStr = rankNum and tostring(rankNum) or "0"
-    libpredict.sender:SendHealCommMsg("Reju/"..target.."/"..rejuvDuration.."/"..rankStr.."/")
-  elseif effect == RENEW then
-    local target = spell_queue[3]
-    local now = GetTime()
-    local key = "Renew" .. target
-    
-    -- Cooldown-Check
-    if instantHotCooldown[key] and (now - instantHotCooldown[key]) < INSTANT_HOT_COOLDOWN then
-      return
-    end
-    instantHotCooldown[key] = now
-    
-    if libpredict.debug then
-      DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff00ff00[CastSpell RENEW INSTANT]|r target=%s rank=%s (Fallback)", target, tostring(rankNum or "?")))
-    end
-    libpredict:Hot(player, target, "Renew", renewDuration, nil, "CastSpell-Instant", rankNum)
-    local rankStr = rankNum and tostring(rankNum) or "0"
-    libpredict.sender:SendHealCommMsg("Renew/"..target.."/"..renewDuration.."/"..rankStr.."/")
-  end
-end)
-
-hooksecurefunc("CastSpellByName", function(effect, target)
-  local effect, rank = libspell.GetSpellInfo(effect)
-  if not effect then return end
-
-  local default = UnitName("target") and UnitCanAssist("player", "target") and UnitName("target") or UnitName("player")
-
-  target = target and type(target) == "string" and UnitName(target) or target
-  target = target and target == true and UnitName("player") or target
-  target = target and target == 1 and UnitName("player") or target
-
-  -- Extract rank number
-  local rankNum = nil
-  if rank and rank ~= "" then
-    rankNum = tonumber((string.gsub(rank, "Rank ", ""))) or nil
-  end
-
-  -- Only overwrite spell_queue if no cast is in progress
-  -- (prevents instant spam from destroying the queue during a Regrowth cast)
-  if not libpredict.sender.current_cast then
-    spell_queue[1] = effect
-    spell_queue[2] = effect.. ( rank or "" )
-    spell_queue[3] = target or default
-  end
-  
-  -- Instant HoTs: UNIT_SPELLCAST_SUCCEEDED and C_UnitAuras, hook method as fallback
-  
-  if effect == REJUVENATION then
-    local hotTarget = target or default
-    local now = GetTime()
-    local key = "Reju" .. hotTarget
-    
-    -- Cooldown-Check
-    if instantHotCooldown[key] and (now - instantHotCooldown[key]) < INSTANT_HOT_COOLDOWN then
-      return
-    end
-    instantHotCooldown[key] = now
-    
-    if libpredict.debug then
-      DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff00ff00[CastSpellByName REJU INSTANT]|r target=%s rank=%s (Fallback)", hotTarget, tostring(rankNum or "?")))
-    end
-    libpredict:Hot(player, hotTarget, "Reju", rejuvDuration, nil, "CastSpellByName-Instant", rankNum)
-    local rankStr = rankNum and tostring(rankNum) or "0"
-    libpredict.sender:SendHealCommMsg("Reju/"..hotTarget.."/"..rejuvDuration.."/"..rankStr.."/")
-  elseif effect == RENEW then
-    local hotTarget = target or default
-    local now = GetTime()
-    local key = "Renew" .. hotTarget
-    
-    -- Cooldown-Check
-    if instantHotCooldown[key] and (now - instantHotCooldown[key]) < INSTANT_HOT_COOLDOWN then
-      return
-    end
-    instantHotCooldown[key] = now
-    
-    if libpredict.debug then
-      DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff00ff00[CastSpellByName RENEW INSTANT]|r target=%s rank=%s (Fallback)", hotTarget, tostring(rankNum or "?")))
-    end
-    libpredict:Hot(player, hotTarget, "Renew", renewDuration, nil, "CastSpellByName-Instant", rankNum)
-    local rankStr = rankNum and tostring(rankNum) or "0"
-    libpredict.sender:SendHealCommMsg("Renew/"..hotTarget.."/"..renewDuration.."/"..rankStr.."/")
-  end
-end)
-
-hooksecurefunc("UseAction", function(slot, target, selfcast)
-  if not IsCurrentAction(slot) then return end
-  local kind, id = GetActionInfo(slot)
-  local effect, rank
-  if kind == "spell" then
-    local spellInfo = C_Spell.GetSpellInfo(id)
-    effect, rank = spellInfo.name, spellInfo.rank
-  elseif kind == "macro" then
-    effect, rank = GetMacroSpell(id)
-  end
-  if not effect then return end
-  spell_queue[1] = effect
-  spell_queue[2] = effect.. ( rank or "" )
-  spell_queue[3] = selfcast and UnitName("player") or UnitName("target") and UnitCanAssist("player", "target") and UnitName("target") or UnitName("player")
-  
-  -- Extract rank number
-  local rankNum = nil
-  if rank and rank ~= "" then
-    rankNum = tonumber((string.gsub(rank, "Rank ", ""))) or nil
-  end
-  
-  -- Instant HoTs: UNIT_SPELLCAST_SUCCEEDED and C_UnitAuras, hook method as fallback
-  
-  if effect == REJUVENATION then
-    local hotTarget = spell_queue[3]
-    local now = GetTime()
-    local key = "Reju" .. hotTarget
-    
-    -- Cooldown-Check
-    if instantHotCooldown[key] and (now - instantHotCooldown[key]) < INSTANT_HOT_COOLDOWN then
-      return
-    end
-    instantHotCooldown[key] = now
-    
-    if libpredict.debug then
-      DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff00ff00[UseAction REJU INSTANT]|r target=%s rank=%s (Fallback)", hotTarget, tostring(rankNum or "?")))
-    end
-    libpredict:Hot(player, hotTarget, "Reju", rejuvDuration, nil, "UseAction-Instant", rankNum)
-    local rankStr = rankNum and tostring(rankNum) or "0"
-    libpredict.sender:SendHealCommMsg("Reju/"..hotTarget.."/"..rejuvDuration.."/"..rankStr.."/")
-  elseif effect == RENEW then
-    local hotTarget = spell_queue[3]
-    local now = GetTime()
-    local key = "Renew" .. hotTarget
-    
-    -- Cooldown-Check
-    if instantHotCooldown[key] and (now - instantHotCooldown[key]) < INSTANT_HOT_COOLDOWN then
-      return
-    end
-    instantHotCooldown[key] = now
-    
-    if libpredict.debug then
-      DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff00ff00[UseAction RENEW INSTANT]|r target=%s rank=%s (Fallback)", hotTarget, tostring(rankNum or "?")))
-    end
-    libpredict:Hot(player, hotTarget, "Renew", renewDuration, nil, "UseAction-Instant", rankNum)
-    local rankStr = rankNum and tostring(rankNum) or "0"
-    libpredict.sender:SendHealCommMsg("Renew/"..hotTarget.."/"..renewDuration.."/"..rankStr.."/")
-  end
-end)
-
 libpredict.sender = CreateFrame("Frame", "pfPredictionSender", UIParent)
 -- cleared when a HealComm addon already broadcasts this player's casts
 libpredict.sender.enabled = true
@@ -922,7 +736,7 @@ local function onCastFailed()
     s:SendHealCommMsg("Healstop")
     s.healing = nil
   elseif s.resurrecting then
-    local target = s.current_cast_target or spell_queue[3]
+    local target = s.current_cast_target
     s:SendHealCommMsg("Resurrection/stop/")
     s:SendResCommMsg("RESNO " .. (target or ""))
     s.resurrecting = nil
@@ -940,9 +754,7 @@ local function OnHeal()
   if not spellName or not amount or amount <= 0 then return end
 
   if IsPlayerGuid(arg4) then
-    if spell_queue[1] == spellName then
-      UpdateCache(spell_queue[2], amount, isCrit)
-    end
+    UpdateCache(spellName .. (C_Spell.GetSpellSubtext(spellId) or ""), amount, isCrit)
     return
   end
 
