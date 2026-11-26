@@ -766,8 +766,7 @@ local CAST_EVENTS = {
 local GroupCastbarMixin = {}
 
 function GroupCastbarMixin:Clear()
-  if self.expiry then self.expiry:Cancel() end
-  self.expiry, self.isChannel = nil, nil
+  self.expires, self.isChannel = nil, nil
   self:Hide()
 end
 
@@ -811,8 +810,7 @@ function GroupCastbarMixin:Refresh(castGUID)
     isChannel and Enum.StatusBarTimerDirection.RemainingTime or Enum.StatusBarTimerDirection.ElapsedTime)
 
   -- a member out of range can miss its STOP, so the bar also clears at its end
-  if self.expiry then self.expiry:Cancel() end
-  self.expiry = C_Timer.NewTimer(duration:GetRemainingDuration(), self.onExpire)
+  ArmExpiry(self, duration:GetRemainingDuration())
   self:Show()
 end
 

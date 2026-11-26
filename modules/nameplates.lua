@@ -980,16 +980,14 @@ pfUI:RegisterModule("nameplates", function ()
     end
     castbar.spell:SetText(cfg.spellname and info.spellName or "")
     -- armed exactly while the bar shows
-    if castbar.expiry then castbar.expiry:Cancel() end
-    castbar.expiry = C_Timer.NewTimer(info.duration:GetRemainingDuration(), castbar.onExpire)
+    ArmExpiry(castbar, info.duration:GetRemainingDuration())
     castbar:Show()
   end
 
   function HideCast(plate)
     local castbar = plate.castbar
-    if not castbar.expiry then return end
-    castbar.expiry:Cancel()
-    castbar.expiry = nil
+    if not castbar.expires then return end
+    castbar.expires = nil
     castbar.timer:Disable()
     castbar:Hide()
   end

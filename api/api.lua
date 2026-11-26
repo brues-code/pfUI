@@ -204,6 +204,40 @@ end
 -- Returns nil before login; date(fmt, nil) silently falls back to local time.
 pfUI.api.GetServerEpoch = C_DateAndTime.GetServerTimeLocal
 
+-- [ ArmExpiry ]
+-- Calls obj.onExpire() once `seconds` have passed, unless obj.expires was
+-- cleared (disarmed) or the object armed again first. Its onExpire and every
+-- other stop path set obj.expires = nil.
+--
+-- The timers are C_Timer.After, which makes no cancel handle, through one
+-- function made per object. An object keeps one timer pending: armed for a
+-- later end, it lets the pending timer fire and wait out the rest from there.
+-- Only an end that moves earlier needs a new timer, and the late one then
+-- finds it was replaced and does nothing.
+-- 'obj'        [table]         a table with an onExpire function
+-- 'seconds'    [number]        the time until it expires
+local function CheckExpiry(obj)
+  local now = GetTime()
+  -- a timer that another replaced
+  if not obj.firesAt or now < obj.firesAt - .1 then return end
+  obj.firesAt = nil
+  if not obj.expires then return end
+  if now >= obj.expires - .1 then
+    obj.onExpire()
+  else
+    obj.firesAt = obj.expires
+    C_Timer.After(obj.expires - now, obj.checkExpiry)
+  end
+end
+
+function pfUI.api.ArmExpiry(obj, seconds)
+  obj.expires = GetTime() + seconds
+  if obj.firesAt and obj.firesAt <= obj.expires then return end
+  obj.checkExpiry = obj.checkExpiry or function() CheckExpiry(obj) end
+  obj.firesAt = obj.expires
+  C_Timer.After(seconds, obj.checkExpiry)
+end
+
 -- [ GetSlashCommands ]
 -- Lists all registeres slash commands
 -- 'text'       [string]        optional, a specific command to find

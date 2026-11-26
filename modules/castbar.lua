@@ -38,9 +38,8 @@ pfUI:RegisterModule("castbar", function ()
 
   -- STOP doesn't arrive for every cast (a synthetic cast has none, a remote
   -- unit's can be missed out of range), so the bar also clears at its end time.
-  local function ArmExpiry(cb)
-    if cb.expiry then cb.expiry:Cancel() end
-    cb.expiry = C_Timer.NewTimer(cb.duration:GetRemainingDuration(), cb.onExpire)
+  local function ArmCastExpiry(cb)
+    ArmExpiry(cb, cb.duration:GetRemainingDuration())
   end
 
   -- Clear cast state on the bar and start the fade-out. The fill freezes where
@@ -48,8 +47,7 @@ pfUI:RegisterModule("castbar", function ()
   -- a cast that was actually in progress, the bar flashes full red before
   -- fading — the cancelled-cast indicator.
   local function ClearBar(cb, failed)
-    if cb.expiry then cb.expiry:Cancel() end
-    cb.expiry = nil
+    cb.expires = nil
     cb.timer:Disable()
     if cb.active then
       cb.bar:SetMinMaxValues(0, 1)
@@ -94,7 +92,7 @@ pfUI:RegisterModule("castbar", function ()
     cb.tradeskillSingle = single
     cb.craft:SetTimeFromStart(start, single)
     cb.duration:SetTimeFromStart(start, single * count)
-    ArmExpiry(cb)
+    ArmCastExpiry(cb)
     cb.craftbar:Show()
     UpdateTradeskillLabel(cb)
   end
@@ -106,7 +104,7 @@ pfUI:RegisterModule("castbar", function ()
     local remaining = cb.tradeskillTotal - cb.tradeskillCompleted
     cb.craft:SetTimeFromStart(now, cb.tradeskillSingle)
     cb.duration:SetTimeSpan(cb.duration:GetStartTime(), now + cb.tradeskillSingle * remaining)
-    ArmExpiry(cb)
+    ArmCastExpiry(cb)
     UpdateTradeskillLabel(cb)
   end
 
@@ -161,7 +159,7 @@ pfUI:RegisterModule("castbar", function ()
     cb.bar:SetTimerDuration(cb.duration, Enum.StatusBarInterpolation.Immediate,
       isChannel and Enum.StatusBarTimerDirection.RemainingTime or Enum.StatusBarTimerDirection.ElapsedTime)
     UpdateTimerText(cb)
-    ArmExpiry(cb)
+    ArmCastExpiry(cb)
   end
 
   -- One-shot poll: read C_Spell for the bar's unit, stamp or clear. Called
@@ -401,7 +399,7 @@ pfUI:RegisterModule("castbar", function ()
             this.delay = this.delay + (this.isChannel and -shift or shift)
             this.duration:Assign(duration)
             UpdateTimerText(this)
-            ArmExpiry(this)
+            ArmCastExpiry(this)
           end
         end
       end
