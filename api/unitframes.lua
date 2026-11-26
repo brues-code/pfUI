@@ -1636,19 +1636,41 @@ local function Flush(frame)
   end
 end
 
+-- The frames waiting for their flush on the next frame, which merges the
+-- events a unit fires together into one refresh. The first frame queued
+-- schedules the drain, the rest join its list; queueing a frame used to make
+-- a closure and a timer, one of each for nearly every unit event in a raid.
+local pending, spare, npending = {}, {}, 0
+
+local function Drain()
+  -- swapped out first: a flush may queue its frame again, which then lands
+  -- in the fresh list for the next frame
+  local list, count = pending, npending
+  pending, spare, npending = spare, list, 0
+  for i = 1, count do
+    local frame = list[i]
+    list[i] = nil
+    -- one frame's error must not strand the rest of the list as queued
+    securecallfunction(Flush, frame)
+  end
+end
+
+local UPDATE_FLAGS = {
+  full = "update_full", base = "update_base", aura = "update_aura",
+  auratime = "update_auratime", portrait = "update_portrait",
+  indicators = "update_indicators", combat = "update_combat",
+}
+
 -- Flag `kind` ("full", "base", "aura", "auratime", "portrait", "indicators",
 -- "combat", or nil for none) for the frame's next flush, and schedule that
--- flush: the next frame, or within 0.1s for the raid and party frames, which
--- batch their bursts.
+-- flush.
 function pfUI.uf:QueueUpdate(frame, kind)
-  if kind then frame["update_" .. kind] = true end
+  if kind then frame[UPDATE_FLAGS[kind]] = true end
   if frame.queued then return end
   frame.queued = true
-  if frame.label == "raid" or frame.label == "party" then
-    C_Timer.After(.1, function() Flush(frame) end)
-  else
-    RunNextFrame(function() Flush(frame) end)
-  end
+  npending = npending + 1
+  pending[npending] = frame
+  if npending == 1 then RunNextFrame(Drain) end
 end
 
 -- Size the incoming-heal overlay from libpredict's heals and the unit's
