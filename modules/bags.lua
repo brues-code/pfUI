@@ -202,31 +202,29 @@ pfUI:RegisterModule("bags", function ()
   pfUI.bags = {}
   pfUI.slots = {}
 
-  function pfUI.bag:CheckFullUpdate()
-    local maxslots = 0
+  local function BagSize(bag)
+    if bag == -2 and pfUI.bag.showKeyring == true then return GetKeyRingSize() end
+    return GetContainerNumSlots(bag)
+  end
 
-    for bag = -2,11 do
-      local bagsize = GetContainerNumSlots(bag)
-      if bag == -2 and pfUI.bag.showKeyring == true then bagsize = GetKeyRingSize() end
-
-      maxslots = maxslots + bagsize
+  -- whether a bag of `list` has another size than the last layout gave it
+  local function SizeChanged(list)
+    for _, bag in pairs(list) do
+      if not pfUI.bags[bag] or BagSize(bag) ~= pfUI.bags[bag].size then return true end
     end
+  end
 
-    if maxslots ~= pfUI.bag.maxslots then
-      for bag = -2,11 do
-        for slot, f in ipairs(pfUI.bags[bag].slots) do
-          local bagsize = GetContainerNumSlots(bag)
-          if bag == -2 and pfUI.bag.showKeyring == true then bagsize = GetKeyRingSize() end
-
-          if slot > bagsize then
-            pfUI.bags[bag].slots[slot].frame:Hide()
-          end
-        end
-      end
-
+  -- Lays out again a shown frame with a bag whose size changed since its
+  -- last layout. A hidden one waits: its OnShow lays it out. Opening the bank
+  -- used to lay both frames out twice, from their OnShow and again here once
+  -- the bank's bag sizes had come in.
+  function pfUI.bag:CheckFullUpdate()
+    local backpack, bank = pfUI.bag.right, pfUI.bag.left
+    if backpack and backpack:IsShown() and SizeChanged(pfUI.BACKPACK) then
       pfUI.bag:CreateBags()
+    end
+    if bank and bank:IsShown() and SizeChanged(pfUI.BANK) then
       pfUI.bag:CreateBags("bank")
-      pfUI.bag.maxslots = maxslots
     end
   end
 
@@ -258,6 +256,36 @@ pfUI:RegisterModule("bags", function ()
       frame:SetFrameStrata("HIGH")
       CreateBackdrop(frame, default_border)
       CreateBackdropShadow(frame)
+
+      local chat = pfUI.chat and ( object == "bank" and pfUI.chat.left or pfUI.chat.right) or nil
+
+      -- the events keep the slots current while the frame is closed; its
+      -- layout follows the bags it holds when it opens
+      frame:SetScript("OnShow", function()
+        frame.opened = true
+        if C.appearance.bags.hidechat == "1" and chat and chat:IsVisible() then
+          frame.chatWasOpen = true
+          chat:Hide()
+        end
+        if C.appearance.bags.autoSortOnOpen == "1" then
+          C_Container.SortBags()
+        end
+        pfUI.bag:CreateBags(object)
+        PlaySound("INTERFACESOUND_BACKPACKOPEN")
+      end)
+
+      frame:SetScript("OnHide", function()
+        if C.appearance.bags.hidechat == "1" and chat and frame.chatWasOpen then
+          chat:Show()
+          frame.chatWasOpen = false
+        end
+        PlaySound("INTERFACESOUND_BACKPACKCLOSE")
+        if frame.opened then
+          frame.opened = nil
+          pfUI.events:TriggerEvent("bag:closed", object)
+        end
+      end)
+
       frame.init = true
     end
 
@@ -323,8 +351,13 @@ pfUI:RegisterModule("bags", function ()
         pfUI.bags[bag].slots = {}
       end
       pfUI.bags[bag]:SetID(bag)
-      local bagsize = GetContainerNumSlots(bag)
-      if bag == -2 and pfUI.bag.showKeyring == true then bagsize = GetKeyRingSize() end
+      local bagsize = BagSize(bag)
+      pfUI.bags[bag].size = bagsize
+
+      -- the slots a smaller bag in its place left behind
+      local slots = pfUI.bags[bag].slots
+      for slot = bagsize + 1, table.getn(slots) do slots[slot].frame:Hide() end
+
       for slot=1, bagsize do
         pfUI.bag:UpdateSlot(bag, slot)
 
@@ -346,39 +379,23 @@ pfUI:RegisterModule("bags", function ()
 
     if x > 0 then y = y + 1 end
     frame:SetHeight( default_border*2 + y*(frame.button_size+default_border*3) + topspace + bottomspace)
-
-    local chat = pfUI.chat and ( object == "bank" and pfUI.chat.left or pfUI.chat.right) or nil
-
-    frame:SetScript("OnShow", function()
-      frame.opened = true
-      if C.appearance.bags.hidechat == "1" and chat and chat:IsVisible() then
-        frame.chatWasOpen = true
-        chat:Hide()
-      end
-      if C.appearance.bags.autoSortOnOpen == "1" then
-        C_Container.SortBags()
-      end
-      pfUI.bag:CreateBags(object)
-      PlaySound("INTERFACESOUND_BACKPACKOPEN")
-    end)
-
-    frame:SetScript("OnHide", function()
-      if C.appearance.bags.hidechat == "1" and chat and frame.chatWasOpen then
-        chat:Show()
-        frame.chatWasOpen = false
-      end
-      pfUI.bag:CreateBags(object)
-      PlaySound("INTERFACESOUND_BACKPACKCLOSE")
-      if frame.opened then
-        frame.opened = nil
-        pfUI.events:TriggerEvent("bag:closed", object)
-      end
-    end)
   end
 
   function pfUI.bag:UpdateBag(bag)
-    local bagsize = GetContainerNumSlots(bag)
-    if bag == -2 and pfUI.bag.showKeyring == true then bagsize = GetKeyRingSize() end
+    if not pfUI.bags[bag] then return end
+    local bagsize = BagSize(bag)
+
+    -- A bag of another size than the last layout gave it (one swapped for
+    -- another) takes a layout, which updates its slots too: updating them
+    -- alone would show a bigger bag's new slots outside the grid. A closed
+    -- frame is laid out when it opens.
+    if bagsize ~= pfUI.bags[bag].size then
+      local bank = bag == -1 or bag >= 5
+      local frame = bank and pfUI.bag.left or pfUI.bag.right
+      if frame:IsShown() then pfUI.bag:CreateBags(bank and "bank" or nil) end
+      return
+    end
+
     for slot=1, bagsize do
       pfUI.bag:UpdateSlot(bag, slot)
     end
