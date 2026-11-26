@@ -479,10 +479,17 @@ function pfUI.AddConfigPages(gui, U, CVars, UVars)
 
   -- Turtle WoW's patch-5.mpq ships Noto Sans SC as FZLBJW.TTF, but some
   -- installs replace FRIZQT__.TTF with it instead. SetFont returns nil for a
-  -- file the client can't load, so only offer it where it exists.
-  if gui:CreateFontString():SetFont("Fonts\\FZLBJW.TTF", 12) then
-    table.insert(D.fonts, "Fonts\\FZLBJW.TTF:Noto Sans SC")
-  end
+  -- file the client can't load, so only offer it where it exists. Loading the
+  -- font takes tens of ms, so the test waits for the window's first opening,
+  -- before any page builds its font dropdowns.
+  local fontchecked
+  gui:HookScript("OnShow", function()
+    if fontchecked then return end
+    fontchecked = true
+    if gui:CreateFontString():SetFont("Fonts\\FZLBJW.TTF", 12) then
+      table.insert(D.fonts, "Fonts\\FZLBJW.TTF:Noto Sans SC")
+    end
+  end)
 
   D.loot_rarity = {}
   for i=0, getn(_G.ITEM_QUALITY_COLORS)-2  do
