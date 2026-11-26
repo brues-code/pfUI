@@ -742,7 +742,6 @@ function pfUI.uf:UpdateVisibility()
       end
       self:Show()
     else
-      self.lastUnit = nil
       self:Hide()
     end
   end
@@ -1574,6 +1573,10 @@ function pfUI.uf.OnEvent()
   end
 end
 
+-- 3D portraits a drain may still load: SetUnit reads the model from disk on
+-- the spot, and a roster change or a pull asks for many at once
+local modelbudget = 0
+
 -- Drain the update flags the events set, then hand a 3D portrait its unit.
 -- A frame that is not on screen keeps its flags; OnShow flushes them.
 local function Flush(frame)
@@ -1626,13 +1629,19 @@ local function Flush(frame)
     end
   end
 
-  -- a model takes its unit only once it is on screen, so it waits for this
+  -- a model takes its unit only once it is on screen, so it waits for this;
+  -- one loads per frame, and the others wait for the next
   local model = frame.portrait and frame.portrait.model
   if model and model.update then
-    model.lastUnit = UnitName(model.update)
-    model:SetUnit(model.update)
-    model:SetCamera(0)
-    model.update = nil
+    if modelbudget > 0 then
+      modelbudget = modelbudget - 1
+      model.guid = UnitGUID(model.update)
+      model:SetUnit(model.update)
+      model:SetCamera(0)
+      model.update = nil
+    else
+      pfUI.uf:QueueUpdate(frame)
+    end
   end
 end
 
@@ -1647,6 +1656,7 @@ local function Drain()
   -- in the fresh list for the next frame
   local list, count = pending, npending
   pending, spare, npending = spare, list, 0
+  modelbudget = 1
   for i = 1, count do
     local frame = list[i]
     list[i] = nil
@@ -2125,7 +2135,8 @@ function pfUI.uf:CreateUnitFrame(unit, id, config, tick, preview)
   f.portrait = CreateFrame("Frame", "pfPortrait" .. f.label .. f.id, f)
   f.portrait.tex = f.portrait:CreateTexture("pfPortraitTexture" .. f.label .. f.id, "OVERLAY")
   f.portrait.model = CreateFrame("PlayerModel", "pfPortraitModel" .. f.label .. f.id, f.portrait)
-  f.portrait.model.next = CreateFrame("PlayerModel", nil, nil)
+  -- a model that drops its model on hide reloads it from disk on every show
+  f.portrait.model:SetKeepModelOnHide(true)
   f.feedbackText = f:CreateFontString("pfHitIndicator" .. f.label .. f.id, "OVERLAY", "NumberFontNormalHuge")
 
   -- Fade the combat feedback text in, hold it, and fade it out -- the timing
@@ -2910,6 +2921,8 @@ function pfUI.uf:RefreshUnit(unit, component)
         unit.portrait.model:SetModelScale(4.25)
         unit.portrait.model:SetPosition(0, 0, -1)
         unit.portrait.model:SetModel("Interface\\Buttons\\talktomequestionmark.mdx")
+        -- the unit is off the model: it loads again once in sight
+        unit.portrait.model.guid = nil
       end
     else
       if unit.config.portrait == "bar" then
@@ -2920,17 +2933,15 @@ function pfUI.uf:RefreshUnit(unit, component)
       unit.portrait.tex:Hide()
       unit.portrait.model:Show()
 
-      if component == "portrait" then
-        -- regular portrait update after event
-        unit.portrait.model.update = unitstr
-      else
-        -- detect portrait change without events
-        unit.portrait.model.next:SetUnit(unitstr)
-        if unit.portrait.model.lastUnit ~= UnitName(unitstr) or unit.portrait.model:GetModel() ~= unit.portrait.model.next:GetModel() then
-          unit.portrait.model.update = unitstr
-        end
+      -- A model loads only for another unit, or after UNIT_PORTRAIT_UPDATE or
+      -- UNIT_MODEL_CHANGED (a shapeshift, a mount), which bring "portrait".
+      -- Checking for a change by loading the unit into a second model read it
+      -- from disk on every full refresh.
+      local model = unit.portrait.model
+      if component == "portrait" or model.guid ~= UnitGUID(unitstr) then
+        model.update = unitstr
       end
-      if unit.portrait.model.update then pfUI.uf:QueueUpdate(unit) end
+      if model.update then pfUI.uf:QueueUpdate(unit) end
     end
   end
 
