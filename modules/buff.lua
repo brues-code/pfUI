@@ -95,7 +95,7 @@ pfUI:RegisterModule("buff", function ()
       buff.stacks:SetText((count or 0) > 1 and count or "")
 
       if buff.btype == "HARMFUL" then
-        local dispelColor = C_UnitAuras.GetAuraDispelTypeColor(dispelType)
+        local dispelColor = GetDispelColor(dispelType)
         buff.backdrop:SetBackdropBorderColor(dispelColor:GetRGBA())
       else
         buff.backdrop:SetBackdropBorderColor(br,bg,bb,ba)

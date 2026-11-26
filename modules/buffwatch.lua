@@ -303,7 +303,7 @@ pfUI:RegisterModule("buffwatch", function ()
           if frame.type == "HARMFUL" then
             -- official Blizzard dispel-type colors (matches unitframes/buff);
             -- nil/unknown type falls back to the DEBUFF_TYPE_NONE colour
-            r, g, b = C_UnitAuras.GetAuraDispelTypeColor(data[6] or ""):GetRGBA()
+            r, g, b = GetDispelColor(data[6]):GetRGBA()
           else
             r,g,b = str2rgb(data[3])
           end

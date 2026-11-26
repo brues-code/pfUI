@@ -2671,7 +2671,7 @@ function pfUI.uf:RefreshUnit(unit, component)
 
       unit.debuffs[i].texture:SetTexture(texture)
 
-      local dispelColor = C_UnitAuras.GetAuraDispelTypeColor(dtype or "")
+      local dispelColor = GetDispelColor(dtype)
       unit.debuffs[i].backdrop:SetBackdropBorderColor(dispelColor:GetRGBA())
 
       if texture then
@@ -2765,7 +2765,7 @@ function pfUI.uf:RefreshUnit(unit, component)
         indicator[debuff].tex:SetAllPoints(indicator[debuff])
 
         if indicator.size ~= indicator[debuff].size or disptype ~= indicator[debuff].disp then
-          local dispelColor = C_UnitAuras.GetAuraDispelTypeColor(debuff)
+          local dispelColor = GetDispelColor(debuff)
           if disptype == "4" then
             indicator[debuff].tex:SetTexture(pfUI.media["img:"..debuff])
             indicator[debuff].tex:SetVertexColor(dispelColor:GetRGBA())

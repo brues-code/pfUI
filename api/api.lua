@@ -878,6 +878,23 @@ function pfUI.api.GetStringColorObject(colorstr)
   return color_object_cache[colorstr]
 end
 
+-- [ GetDispelColor ]
+-- The colour of a dispel type ("Magic", "Curse", ..., "" or nil for none),
+-- made once per type: C_UnitAuras.GetAuraDispelTypeColor builds a new
+-- ColorMixin on every call, and the aura icons ask for one per debuff on
+-- every refresh. The object is shared, so treat it as read-only.
+-- returns a ColorMixin
+local dispel_color_cache = setmetatable({}, {
+  __index = function(t, k)
+    local color = C_UnitAuras.GetAuraDispelTypeColor(k)
+    rawset(t, k, color)
+    return color
+  end
+})
+function pfUI.api.GetDispelColor(dispelType)
+  return dispel_color_cache[dispelType or ""]
+end
+
 -- [ rgbhex ]
 -- Returns color format from color info
 -- 'r'          [table | number]  color table or r color component
