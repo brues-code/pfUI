@@ -689,7 +689,12 @@ function pfUI.uf:UpdateVisibility()
   -- of its own whenever a link of the chain retargets; UNIT_TARGET on every
   -- link reports that (RegisterChainEvents), and the GUID compare turns it
   -- into the full refresh a new unit needs.
-  self.chain = visibility ~= "hide" and unitstr:match("^(.+)target$") or nil
+  --
+  -- An empty raid or raid pet slot (id 0) follows nothing: "raid0" is no unit
+  -- token, and RegisterUnitEvent with no token it knows registers plainly, so
+  -- the slot would hear every unit's events.
+  local inuse = visibility ~= "hide" and self.id ~= 0
+  self.chain = inuse and unitstr:match("^(.+)target$") or nil
   if self.chain then
     local guid = UnitName(unitstr) and UnitGUID(unitstr)
     if guid ~= self.unitguid then pfUI.uf:QueueUpdate(self, "full") end
@@ -706,10 +711,10 @@ function pfUI.uf:UpdateVisibility()
       if guid ~= self.unitguid then pfUI.uf:QueueUpdate(self, "full") end
       self.unitguid = guid
     end
-    self:RegisterUnitEvents(visibility ~= "hide" and unitstr or nil)
+    self:RegisterUnitEvents(inuse and unitstr or nil)
   end
   self:RegisterChainEvents(self.chain)
-  self:RegisterSightEvents(visibility ~= "hide" and unitstr or nil)
+  self:RegisterSightEvents(inuse and unitstr or nil)
 
   -- vanilla visibility
   if visibility == "hide" then
