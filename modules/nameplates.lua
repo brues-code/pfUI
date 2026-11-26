@@ -392,6 +392,68 @@ pfUI:RegisterModule("nameplates", function ()
     plate.health:SetStatusBarColor(r, g, b, a)
   end
 
+  -- The health bar's border, drawn by textures on the bar instead of
+  -- CreateBackdrop's extra frame: that frame on every plate cost about 15 FPS
+  -- with 100 plates. It draws what pfUI's backdrop draws, a one-pixel edge
+  -- `inset` outside the bar over the background colour, which reaches a pixel
+  -- past the edge unless the edge is the whole border. Blizzard's border art
+  -- needs the real backdrop.
+  local EDGES = { "top", "bottom", "left", "right" }
+
+  local function LayoutHealthBorder(bar, inset)
+    if C.appearance.border.force_blizz == "1" then
+      CreateBackdrop(bar, inset)
+      return
+    end
+
+    local border = bar.border
+    if not border then
+      border = { bg = bar:CreateTexture(nil, "BACKGROUND") }
+      for _, side in ipairs(EDGES) do border[side] = bar:CreateTexture(nil, "BORDER") end
+      bar.border = border
+    end
+
+    local px = GetPerfectPixel()
+    local o = inset
+    local bgo = math.floor(inset / px + .5) == 1 and o or o + px
+
+    border.bg:ClearAllPoints()
+    border.bg:SetPoint("TOPLEFT", bar, "TOPLEFT", -bgo, bgo)
+    border.bg:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", bgo, -bgo)
+    border.bg:SetColorTexture(GetStringColor(C.appearance.border.background))
+
+    border.top:ClearAllPoints()
+    border.top:SetPoint("TOPLEFT", bar, "TOPLEFT", -o, o)
+    border.top:SetPoint("TOPRIGHT", bar, "TOPRIGHT", o, o)
+    border.top:SetHeight(px)
+    border.bottom:ClearAllPoints()
+    border.bottom:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", -o, -o)
+    border.bottom:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", o, -o)
+    border.bottom:SetHeight(px)
+    border.left:ClearAllPoints()
+    border.left:SetPoint("TOPLEFT", bar, "TOPLEFT", -o, o - px)
+    border.left:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", -o, -o + px)
+    border.left:SetWidth(px)
+    border.right:ClearAllPoints()
+    border.right:SetPoint("TOPRIGHT", bar, "TOPRIGHT", o, o - px)
+    border.right:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", o, -o + px)
+    border.right:SetWidth(px)
+    -- white edges, so SetHealthBorderColor's vertex colour is the colour
+    for _, side in ipairs(EDGES) do
+      border[side]:SetColorTexture(1, 1, 1, 1)
+      border[side]:SetVertexColor(GetStringColor(C.appearance.border.color))
+    end
+  end
+
+  local function SetHealthBorderColor(bar, r, g, b, a)
+    local border = bar.border
+    if not border then
+      bar.backdrop:SetBackdropBorderColor(r, g, b, a)
+      return
+    end
+    for _, side in ipairs(EDGES) do border[side]:SetVertexColor(r, g, b, a) end
+  end
+
   function UpdateBorder(plate)
     local r, g, b, a
     if cfg.outcombatstate then
@@ -407,7 +469,7 @@ pfUI:RegisterModule("nameplates", function ()
     local cache = plate.cache
     if r == cache.br and g == cache.bg and b == cache.bb then return end
     cache.br, cache.bg, cache.bb = r, g, b
-    plate.health.backdrop:SetBackdropBorderColor(r, g, b, a)
+    SetHealthBorderColor(plate.health, r, g, b, a)
   end
 
   -- Class colour for friendly players when friendclassnamec is on, the fight
@@ -1317,7 +1379,7 @@ pfUI:RegisterModule("nameplates", function ()
     zooming[nameplate] = nil
     SetZoom(nameplate, 0)
 
-    CreateBackdrop(nameplate.health, default_border)
+    LayoutHealthBorder(nameplate.health, default_border)
 
     nameplate.health.text:SetFont(font, font_size - 2, "OUTLINE")
     nameplate.health.text:SetJustifyH(C.nameplates.hptextpos)
