@@ -208,7 +208,7 @@ pfUI:RegisterModule("totems", function ()
   -- nampower queues them all at once and casts them one after another.
   -- Without it each press drops one, as the client takes one cast at a time.
   totems.DropSet = function(self)
-    for _, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
+    for _, slot in ipairs(self.order) do
       local choice = self:GetChoice(slot)
       if choice and NeedsChoice(slot, choice) then
         if not HasNampower() then
@@ -384,6 +384,7 @@ pfUI:RegisterModule("totems", function ()
     GameTooltip:SetSpellByID(active and spellID or choice.spellID, false, true)
     AddHint(T["Left Click"], choice.name)
     if active then AddHint(T["Right Click"], T["Target Totem"]) end
+    AddHint(T["Shift-Drag"], T["Move Totem"])
     AddMissing(self)
     GameTooltip:Show()
 
@@ -408,6 +409,27 @@ pfUI:RegisterModule("totems", function ()
       totems:CastElement(slot)
     elseif button == "RightButton" then
       TargetTotem(slot)
+    end
+  end
+
+  -- Shift-drag an element onto another to swap their places on the bar.
+  local function ElementDragStart(self)
+    if not IsShiftKeyDown() then return end
+    totems.dragging = self
+    self:SetAlpha(.5)
+    GameTooltip:Hide()
+    self.flyout:Hide()
+  end
+
+  local function ElementDragStop(self)
+    if totems.dragging ~= self then return end
+    totems.dragging = nil
+    self:SetAlpha(1)
+    for _, target in pairs(totems.buttons) do
+      if target ~= self and target:IsVisible() and MouseIsOverHitRect(target) then
+        totems:SwapElements(self:GetID(), target:GetID())
+        return
+      end
     end
   end
 
@@ -483,7 +505,7 @@ pfUI:RegisterModule("totems", function ()
   local function SetEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:SetText(totems:GetSet().name)
-    for _, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
+    for _, slot in ipairs(totems.order) do
       local choice = totems:GetChoice(slot)
       if choice then
         local icon = CreateTextureMarkup(choice.icon, 64, 64, 14, 14, .08, .92, .08, .92)
@@ -643,6 +665,9 @@ pfUI:RegisterModule("totems", function ()
     button:SetScript("OnEnter", ElementEnter)
     button:SetScript("OnLeave", ElementLeave)
     button:SetScript("OnClick", ElementClick)
+    button:RegisterForDrag("LeftButton")
+    button:SetScript("OnDragStart", ElementDragStart)
+    button:SetScript("OnDragStop", ElementDragStop)
     return button
   end
 
@@ -652,7 +677,7 @@ pfUI:RegisterModule("totems", function ()
     button.menuMixin = pfUIMenuStyleMixin
     button.icon:Hide()
     button.totems = {}
-    for _, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
+    for slot = 1, MAX_TOTEMS do
       button.totems[slot] = button:CreateTexture(nil, "ARTWORK")
       button.totems[slot]:SetTexCoord(.08, .92, .08, .92)
     end
@@ -769,7 +794,7 @@ pfUI:RegisterModule("totems", function ()
     local shown = { set }
     local anyActive, anyKnown
 
-    for _, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
+    for _, slot in ipairs(self.order) do
       local button = self.buttons[slot]
       local choice = self:GetChoice(slot)
       local haveTool, _, start, duration, icon = GetTotemInfo(slot)
@@ -869,7 +894,50 @@ pfUI:RegisterModule("totems", function ()
     self:Refresh()
   end
 
+  -- The elements in bar order, as the engine's slots (1 fire, 2 earth, 3
+  -- water, 4 air). A value that does not name each slot once gives the
+  -- engine's order.
+  local function ParseOrder(value)
+    local order, seen = {}, {}
+    for slot in string.gfind(value or "", "%d+") do
+      slot = tonumber(slot)
+      if slot < 1 or slot > MAX_TOTEMS or seen[slot] then break end
+      seen[slot] = true
+      table.insert(order, slot)
+    end
+    if table.getn(order) == MAX_TOTEMS then return order end
+    order = {}
+    for slot = 1, MAX_TOTEMS do order[slot] = slot end
+    return order
+  end
+
+  -- the set button's four totems in a square, in bar order
+  totems.LayoutSetIcons = function(self)
+    local half = (self.iconsize - 4) / 2
+    for i, slot in ipairs(self.order) do
+      local column, row = (i - 1) % 2, math.floor((i - 1) / 2)
+      local texture = self.setbutton.totems[slot]
+      texture:SetSize(half, half)
+      texture:ClearAllPoints()
+      texture:SetPoint("TOPLEFT", self.setbutton, "TOPLEFT", 2 + column * half, -2 - row * half)
+    end
+  end
+
+  -- swaps two elements' places on the bar, and saves the order
+  totems.SwapElements = function(self, a, b)
+    local order = self.order
+    local ia, ib
+    for i, slot in ipairs(order) do
+      if slot == a then ia = i elseif slot == b then ib = i end
+    end
+    order[ia], order[ib] = b, a
+    C.totems.order = table.concat(order, ",")
+    self:LayoutSetIcons()
+    self:Refresh()
+  end
+
   totems.UpdateConfig = function(self)
+    self.order = ParseOrder(C.totems.order)
     self.iconsize = tonumber(C.totems.iconsize)
     self.direction = C.totems.direction
     self.flyoutdir = C.totems.flyout
@@ -895,13 +963,7 @@ pfUI:RegisterModule("totems", function ()
     self.setbutton = self.setbutton or CreateSetButton()
     self.setbutton:SetSize(self.iconsize, self.iconsize)
     UpdateKeybindFont(self.setbutton)
-    local half = (self.iconsize - 4) / 2
-    for i, slot in ipairs(SHAMAN_TOTEM_PRIORITIES) do
-      local column, row = (i - 1) % 2, math.floor((i - 1) / 2)
-      local texture = self.setbutton.totems[slot]
-      texture:SetSize(half, half)
-      texture:SetPoint("TOPLEFT", self.setbutton, "TOPLEFT", 2 + column * half, -2 - row * half)
-    end
+    self:LayoutSetIcons()
 
     self.recallbutton = self.recallbutton or CreateRecall()
     self.recallbutton:SetSize(self.iconsize, self.iconsize)

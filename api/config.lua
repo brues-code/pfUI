@@ -747,6 +747,7 @@ function pfUI:LoadConfig()
   pfUI:UpdateConfig("totems",     nil,           "onlyactive",       "0")
   pfUI:UpdateConfig("totems",     nil,           "expirywarn",       "5")
   pfUI:UpdateConfig("totems",     nil,           "killalert",        "1")
+  pfUI:UpdateConfig("totems",     nil,           "order",            "1,2,3,4")
 
   pfUI:UpdateConfig("panel",      nil,           "use_unitfonts",    "0")
   pfUI:UpdateConfig("panel",      nil,           "hide_leftchat",    "0")
