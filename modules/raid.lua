@@ -141,10 +141,11 @@ pfUI:RegisterModule("raid", function ()
 
   pfUI.uf.raid:UpdateConfig()
 
+  -- Only assigns: UpdateRoster checks every frame once all slots are set, so a
+  -- member who keeps their slot is never hidden and shown again on the way.
   local function SetRaidIndex(frame, id)
     frame.id = id
     frame.label = "raid"
-    frame:UpdateVisibility()
   end
 
   -- add units to their groups; collapse packs everyone into the leading slots
@@ -208,6 +209,15 @@ pfUI:RegisterModule("raid", function ()
       if name and not pfUI.uf.raid.tankrole[name] then
         pfUI.uf.raid:AddUnitToGroup(i, subgroup)
       end
+    end
+
+    -- Apply the new slots. Clearing them all above went through id 0, which
+    -- hid every frame and showed it again here: an OnHide, an OnShow with a
+    -- full refresh and a portrait reload per member, even for one who stayed.
+    -- A frame whose member changed gets its full refresh from the GUID check
+    -- below.
+    for i=1, maxraid do
+      if pfUI.uf.raid[i] then pfUI.uf.raid[i]:UpdateVisibility() end
     end
 
     self:LayoutPets()
